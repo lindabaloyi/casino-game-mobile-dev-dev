@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1B5E20', // Dark green casino table
   },
   statusSection: {
-    height: 60,
+    height: 30, // Reduced from 60 to half size for more compact header
     backgroundColor: '#2E7D32', // Medium green
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   playerHandsSection: {
-    height: 140,
+    height: 120, // Reduced from 140 to make player deck section more compact
     flexDirection: 'row',
   },
   playerHandArea: {

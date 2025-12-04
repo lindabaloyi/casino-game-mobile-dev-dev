@@ -212,6 +212,7 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 20, // Less padding to center cards better
   },
   emptyTable: {
     flex: 1,
@@ -228,6 +229,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 5,
     flexWrap: 'wrap', // Critical: allows cards to wrap to next line
+    gap: 50, // Significantly increased spacing - enough space to fit another card between them
   },
   looseCardContainer: {
     margin: 4, // 4px margin on all sides for loose cards
