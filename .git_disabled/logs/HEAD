@@ -1,0 +1,7 @@
+0000000000000000000000000000000000000000 8290e1bd042b997af1614f433fc4b5ae91be7de0 lindabaloyi <lindabaloyi10@gmail.com> 1762683238 +0200	commit (initial): Initial commit
+8290e1bd042b997af1614f433fc4b5ae91be7de0 15a76ff1f8da152ee44881f39893ad1adf96f9d8 lindabaloyi <lindabaloyi10@gmail.com> 1764486475 +0200	commit: __Phase 1__: Immediate fix (sync .ts/.js files to stop the error)
+15a76ff1f8da152ee44881f39893ad1adf96f9d8 e5bf92695450328d514c6922f6a971ce030d4f28 lindabaloyi <lindabaloyi10@gmail.com> 1764488758 +0200	commit: Turn advances to Player 0, cards moved to captures, table cleared
+e5bf92695450328d514c6922f6a971ce030d4f28 a776c33d060b3f4d4a574565614573214d1e1803 lindabaloyi <lindabaloyi10@gmail.com> 1764490201 +0200	commit: BuildLogic fixed partially
+a776c33d060b3f4d4a574565614573214d1e1803 0d7e025b4ac54d442d9a1b6921af864a3dbbd981 lindabaloyi <lindabaloyi10@gmail.com> 1764495296 +0200	commit: Build Capture Top card index correct
+0d7e025b4ac54d442d9a1b6921af864a3dbbd981 a741a0629b62ce20a16fd6cf0b93549141875380 lindabaloyi <lindabaloyi10@gmail.com> 1764501870 +0200	commit: Card dragged index position correct
+a741a0629b62ce20a16fd6cf0b93549141875380 39789a683c589ef103ecd3b42e4ef4ecedc19423 lindabaloyi <lindabaloyi10@gmail.com> 1764502770 +0200	commit: Table cards error move snap back
