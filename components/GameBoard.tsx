@@ -116,6 +116,24 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     }
   }, [actionChoices]);
 
+  // Handle staging creation from server
+  useEffect(() => {
+    const socket = (global as any).socket;
+    if (!socket) return;
+
+    const handleStagingCreated = (data: any) => {
+      console.log(`[GameBoard] Staging created from server:`, data);
+      // Client receives staging-created event but doesn't need to do anything special
+      // The game state update will show the staging stack
+    };
+
+    socket.on('staging-created', handleStagingCreated);
+
+    return () => {
+      socket.off('staging-created', handleStagingCreated);
+    };
+  }, []);
+
   // Hide navigation bar when entering game
   useEffect(() => {
     const hideNavBar = async () => {
@@ -240,6 +258,32 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
       });
     } else {
       console.error(`[GameBoard] Stack not found:`, stackId);
+    }
+  }, [sendAction, gameState.tableCards]);
+
+  const handleStagingAccept = useCallback((stackId: string) => {
+    console.log(`[GameBoard] Staging accept for stack: ${stackId}`);
+    const stack = gameState.tableCards.find(c => 'stackId' in c && c.stackId === stackId);
+    if (stack && 'stackId' in stack) {
+      sendAction({
+        type: 'finalizeStagingStack',
+        payload: { stack }
+      });
+    } else {
+      console.error(`[GameBoard] Cannot accept staging - stack not found: ${stackId}`);
+    }
+  }, [sendAction, gameState.tableCards]);
+
+  const handleStagingReject = useCallback((stackId: string) => {
+    console.log(`[GameBoard] Staging reject for stack: ${stackId}`);
+    const stackToCancel = gameState.tableCards.find(c => 'stackId' in c && c.stackId === stackId);
+    if (stackToCancel && 'stackId' in stackToCancel) {
+      sendAction({
+        type: 'cancelStagingStack',
+        payload: { stackToCancel }
+      });
+    } else {
+      console.error(`[GameBoard] Cannot reject staging - stack not found: ${stackId}`);
     }
   }, [sendAction, gameState.tableCards]);
 
@@ -424,6 +468,8 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
             onCancelStack={handleCancelStack}
             onTableCardDragStart={handleTableCardDragStart}
             onTableCardDragEnd={handleTableCardDragEnd}
+            onStagingAccept={handleStagingAccept}
+            onStagingReject={handleStagingReject}
           />
         </View>
 

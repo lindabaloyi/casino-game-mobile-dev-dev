@@ -338,6 +338,35 @@ export function canFinalizeStagingStack(stack: TemporaryStack): boolean {
 }
 
 /**
+ * Get staging stack from table cards by ID
+ */
+export function getStagingStack(tableCards: TableCard[], stackId: string): TemporaryStack | null {
+  const stack = tableCards.find(c =>
+    isTemporaryStack(c) && c.stackId === stackId
+  );
+  return stack as TemporaryStack || null;
+}
+
+/**
+ * Check if player has active staging
+ */
+export function hasActiveStaging(tableCards: TableCard[], playerIndex: number): boolean {
+  return tableCards.some(s =>
+    isTemporaryStack(s) && s.owner === playerIndex
+  );
+}
+
+/**
+ * Get active staging stack for player
+ */
+export function getActiveStagingStack(tableCards: TableCard[], playerIndex: number): TemporaryStack | null {
+  const stack = tableCards.find(s =>
+    isTemporaryStack(s) && s.owner === playerIndex
+  );
+  return stack as TemporaryStack || null;
+}
+
+/**
  * Type guards for runtime safety
  */
 export function isCard(obj: any): obj is Card {

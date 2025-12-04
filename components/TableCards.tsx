@@ -3,6 +3,7 @@ import { Dimensions, StyleSheet, View } from 'react-native';
 import { Card, TableCard } from '../multiplayer/server/game-logic/game-state';
 import { CardType } from './card';
 import CardStack from './CardStack';
+import StagingOverlay from './StagingOverlay';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -14,6 +15,8 @@ interface TableCardsProps {
   onCancelStack?: (stackId: string) => void;
   onTableCardDragStart?: (card: any) => void;
   onTableCardDragEnd?: (draggedItem: any, dropPosition: any) => void;
+  onStagingAccept?: (stackId: string) => void;
+  onStagingReject?: (stackId: string) => void;
 }
 
 // Helper function to get card type from union types
@@ -25,7 +28,17 @@ function getCardType(card: TableCard): 'loose' | 'temporary_stack' | 'build' {
 // Store last drop position for contact validation
 let lastDropPosition = null;
 
-const TableCards: React.FC<TableCardsProps> = ({ tableCards = [], onDropOnCard, currentPlayer, onFinalizeStack, onCancelStack, onTableCardDragStart, onTableCardDragEnd }) => {
+const TableCards: React.FC<TableCardsProps> = ({
+  tableCards = [],
+  onDropOnCard,
+  currentPlayer,
+  onFinalizeStack,
+  onCancelStack,
+  onTableCardDragStart,
+  onTableCardDragEnd,
+  onStagingAccept,
+  onStagingReject
+}) => {
   const tableRef = useRef<View>(null);
 
   const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
@@ -160,34 +173,54 @@ const TableCards: React.FC<TableCardsProps> = ({ tableCards = [], onDropOnCard, 
                   />
                 );
               } else if (itemType === 'temporary_stack') {
-                // Temporary stack - use CardStack with temp stack controls
+                // Temporary stack - use CardStack with StagingOverlay for controls
                 const tempStackItem = tableItem as any; // Type assertion for temp stack
                 const stackId = tempStackItem.stackId || `temp-${index}`;
                 const tempStackCards = tempStackItem.cards || [];
+                const isCurrentPlayerOwner = tempStackItem.owner === currentPlayer;
+
                 console.log(`[TableCards] Rendering temp stack:`, {
                   stackId: tempStackItem.stackId || stackId,
                   owner: tempStackItem.owner,
                   currentPlayer,
+                  isCurrentPlayerOwner,
                   cardCount: tempStackCards.length,
                   captureValue: tempStackItem.captureValue,  // Show the value to capture with
                   cards: tempStackCards.map((c: any) => `${c.rank}${c.suit}`)
                 });
+
                 return (
-                  <CardStack
-                    key={`table-temp-${index}`}
-                    stackId={tempStackItem.stackId || stackId}
-                    cards={tempStackCards}
-                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, stackId)}
-                    isBuild={false}
-                    currentPlayer={currentPlayer}
-                    isTemporaryStack={true}
-                    stackOwner={tempStackItem.owner}
-                    captureValue={tempStackItem.captureValue}  // Show capture value instead of card count
-                    onFinalizeStack={onFinalizeStack}
-                    onCancelStack={onCancelStack}
-                    style={{ zIndex: baseZIndex }}
-                    dragZIndex={dragZIndex}
-                  />
+                  <View key={`staging-container-${index}`} style={styles.stagingStackContainer}>
+                    <CardStack
+                      stackId={tempStackItem.stackId || stackId}
+                      cards={tempStackCards}
+                      onDropStack={(draggedItem) => handleDropOnStack(draggedItem, stackId)}
+                      isBuild={false}
+                      currentPlayer={currentPlayer}
+                      isTemporaryStack={true}
+                      stackOwner={tempStackItem.owner}
+                      captureValue={tempStackItem.captureValue}  // Show the value to capture with
+                      onFinalizeStack={onFinalizeStack}
+                      onCancelStack={onCancelStack}
+                      style={{ zIndex: baseZIndex }}
+                      dragZIndex={dragZIndex}
+                    />
+                    {/* Show staging overlay only for player's own temporary stacks */}
+                    {isCurrentPlayerOwner && (
+                      <StagingOverlay
+                        isVisible={true}
+                        stackId={tempStackItem.stackId || stackId}
+                        onAccept={() => {
+                          console.log(`[TableCards] Staging accept pressed for ${stackId}`);
+                          onStagingAccept?.(stackId);
+                        }}
+                        onReject={() => {
+                          console.log(`[TableCards] Staging reject pressed for ${stackId}`);
+                          onStagingReject?.(stackId);
+                        }}
+                      />
+                    )}
+                  </View>
                 );
               }
               return null;
@@ -225,14 +258,20 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 180,
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'center', // Center cards in each row
     alignItems: 'center',
     paddingHorizontal: 5,
-    flexWrap: 'wrap', // Critical: allows cards to wrap to next line
-    gap: 50, // Significantly increased spacing - enough space to fit another card between them
+    flexWrap: 'wrap', // Allows cards to wrap to new row
+    gap: 30, // Smaller gap to fit 5 cards naturally on mobile screens
+    alignSelf: 'center', // Center the container itself
   },
   looseCardContainer: {
     margin: 4, // 4px margin on all sides for loose cards
+  },
+  stagingStackContainer: {
+    position: 'relative', // Container for overlay positioning
+    alignItems: 'center',
+    justifyContent: 'center'
   },
 });
 

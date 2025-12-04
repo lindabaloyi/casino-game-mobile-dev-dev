@@ -28,6 +28,12 @@ const {
   handleAddToTemporaryCaptureStack
 } = require('./game-logic/game-actions.js');
 
+// Import staging validation functions
+const {
+  validateStagingCreation,
+  validateStagingAddition
+} = require('./game-logic/staging-validation.js');
+
 // Import shared type-safe functions (maintains JavaScript compatibility)
 const { initializeGame: sharedInitializeGame, validateGameState, determineActions } = require('./game-logic/shared-game-logic.js');
 
@@ -392,6 +398,47 @@ io.on('connection', (socket) => {
     }
 
     try {
+      // 🔵 STAGING INTERCEPT: Check if this is a hand card dropped on loose table card
+      // This must happen BEFORE determineActions to create staging instead of build modal
+      if (data.draggedItem.source === 'hand' && data.targetInfo.type === 'loose') {
+        console.log(`🎯 [STAGING_INTERCEPT] Detected hand→loose drop: ${data.draggedItem.card.rank}${data.draggedItem.card.suit} → ${data.targetInfo.card?.rank}${data.targetInfo.card?.suit}`);
+
+        // Find the actual table card from gameState
+        const tableCard = gameState.tableCards.find(tc =>
+          tc.type === 'loose' && tc.rank === data.targetInfo.card?.rank && tc.suit === data.targetInfo.card?.suit
+        );
+
+        if (tableCard) {
+          // Validate staging creation
+          const stagingValidation = validateStagingCreation(gameState, data.draggedItem.card, tableCard);
+          if (stagingValidation.valid) {
+            console.log(`✅ [STAGING_INTERCEPT] Validation passed, creating staging stack...`);
+
+            const newState = handleCreateStagingStack(gameState, data.draggedItem.card, tableCard, playerIndex);
+            gameState = newState;
+
+            // Notify client of staging creation
+            socket.emit('staging-created', {
+              requestId: data.requestId,
+              stack: gameState.tableCards.find(tc => tc.type === 'temporary_stack' && tc.owner === playerIndex)
+            });
+            console.log(`📡 [STAGING_INTERCEPT] Emitted staging-created event to client`);
+
+            // Broadcast the updated game state to all players
+            const stateToSend = JSON.parse(JSON.stringify(gameState));
+            io.emit('game-update', stateToSend);
+            console.log(`📊 [STAGING_INTERCEPT] Game state updated with staging stack`);
+
+            return; // Don't continue to determineActions
+          } else {
+            console.warn(`⚠️ [STAGING_INTERCEPT] Validation failed: ${stagingValidation.message}`);
+            // Fall through to normal determineActions flow
+          }
+        } else {
+          console.warn(`⚠️ [STAGING_INTERCEPT] Could not find target table card in gameState`);
+        }
+      }
+
       console.log(`🔍 [CARD_DROP] Calling determineActions...`);
       // Use existing determineActions function from shared-game-logic.js
       const result = determineActions(data.draggedItem, data.targetInfo, gameState);
