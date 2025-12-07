@@ -76,10 +76,10 @@ function determineActions(draggedItem, targetInfo, gameState) {
 
     if (trailActions.length > 0) {
       actions.push(...trailActions);
-      // Trail action should NOT end the turn - player can continue
+      // Trail action requires confirmation modal for player approval
       return {
         actions,
-        requiresModal: false,
+        requiresModal: true,
         errorMessage: null
       };
     }

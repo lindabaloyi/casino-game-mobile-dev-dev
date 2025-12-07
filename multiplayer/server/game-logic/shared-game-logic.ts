@@ -4,28 +4,12 @@
  */
 
 /**
- * Helper Functions
+ * Shared Game Logic Module
+ * Provides type-safe functions for both frontend and backend
  */
 
-/**
- * Get card rank value (A=1, 2-10=face value)
- */
-function rankValue(rank: string | number): number {
-  if (rank === 'A') return 1;
-  if (typeof rank === 'number') return rank;
-  if (typeof rank === 'string') {
-    const parsed = parseInt(rank, 10);
-    return isNaN(parsed) ? 0 : parsed;
-  }
-  return 0;
-}
-
-/**
- * Calculate sum of card values in array
- */
-function calculateCardSum(cards: Card[]): number {
-  return cards.reduce((sum, card) => sum + rankValue(card.rank), 0);
-}
+// Import types
+import { Build, Card, GameState, TableCard, TemporaryStack } from './game-state';
 
 /**
  * Determine what actions are possible when dropping a card
@@ -187,20 +171,20 @@ export function determineActions(
     };
   }
 
-  if (actions.length === 1) {
-    const action = actions[0];
-    if (action.type === 'trail' || action.type === 'capture') {
-      // Removed verbose auto-execute logging
-      return {
-        actions,
-        requiresModal: false,
-        errorMessage: null
-      };
-    }
+  // Trail actions ALWAYS require modal confirmation for player approval
+  const hasTrailAction = actions.some(action => action.type === 'trail');
+
+  if (actions.length === 1 && !hasTrailAction) {
+    // Single non-trail actions can auto-execute
+    return {
+      actions,
+      requiresModal: false,
+      errorMessage: null
+    };
   }
 
-  // Multiple actions require modal choice
-  console.log(`[SHARED_LOGIC] Modal required: ${actions.length} actions available`);
+  // Multiple actions OR Trail actions require modal choice/confirmation
+  console.log(`[SHARED_LOGIC] Modal required: ${actions.length} actions available${hasTrailAction ? ' (including trail confirmation)' : ''}`);
   return {
     actions,
     requiresModal: true,
@@ -208,7 +192,6 @@ export function determineActions(
   };
 }
 
-import { Build, Card, GameState, TableCard, TemporaryStack } from './game-state';
 
 /**
  * Initialize a new game state with shuffled deck and dealt cards
@@ -220,13 +203,18 @@ export function initializeGame(): GameState {
   const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
   let deck: Card[] = [];
 
-  // Create deck
+  // Create casino deck (A-10 only, no face cards)
   for (const suit of suits) {
     for (const rank of ranks) {
+      let value;
+      if (rank === 'A') value = 1;
+      else if (rank === '10') value = 10; // 10 equals 10
+      else value = parseInt(rank, 10);
+
       deck.push({
         suit,
         rank,
-        value: rank === 'A' ? 1 : parseInt(rank, 10)
+        value
       });
     }
   }
@@ -310,25 +298,37 @@ export function validateGameState(gameState: GameState): { valid: boolean; error
 }
 
 /**
- * Get cards that can be captured from table
+ * Shared Game Logic Module
+ * Provides type-safe functions for both frontend and backend
  */
-export function getCapturableCards(tableCards: TableCard[], handCard: Card): TableCard[] {
-  return tableCards.filter(tableCard => {
-    if (isCard(tableCard)) {
-      // Loose cards: can capture if rank matches
-      return tableCard.rank === handCard.rank;
-    } else if (isBuild(tableCard)) {
-      // Builds: can capture if value matches hand card value
-      return tableCard.value === handCard.value;
-    }
-    // Temporary stacks cannot be captured directly
-    return false;
-  });
+
+// Import types
+
+/**
+ * Helper Functions
+ */
+
+/**
+ * Get card rank value (A=1, 2-10=face value)
+ */
+function rankValue(rank: string | number): number {
+  if (rank === 'A') return 1;
+  if (typeof rank === 'number') return rank;
+  if (typeof rank === 'string') {
+    const parsed = parseInt(rank, 10);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
 }
 
 /**
- * Check if a staging stack can be finalized
+ * Calculate sum of card values in array
  */
+function calculateCardSum(cards: Card[]): number {
+  return cards.reduce((sum, card) => sum + rankValue(card.rank), 0);
+}
+
+
 export function canFinalizeStagingStack(stack: TemporaryStack): boolean {
   // Must have at least 1 hand card + 1 table card
   const handCards = stack.cards.filter(card => card.source === 'hand');

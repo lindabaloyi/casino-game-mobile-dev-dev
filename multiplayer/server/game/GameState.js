@@ -32,15 +32,15 @@ function initializeGame() {
   logger.debug('Initializing new game state...');
 
   const suits = ['♠', '♥', '♦', '♣'];
-  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
   let deck = [];
 
-  // Create standard 52-card deck
+  // Create casino deck (A-10 only, no face cards)
   for (const suit of suits) {
     for (const rank of ranks) {
       let value;
       if (rank === 'A') value = 1;
-      else if (['J', 'Q', 'K', '10'].includes(rank)) value = 10; // Face cards and 10 = 10
+      else if (rank === '10') value = 10; // 10 equals 10
       else value = parseInt(rank, 10);
 
       deck.push({
@@ -117,11 +117,10 @@ function validateGameState(gameState) {
 // ============================================================================
 
 /**
- * Get card rank value (A=1, 2-10, J/Q/K=10)
+ * Get card rank value (A=1, 2-10=face value)
  */
 function rankValue(rank) {
   if (rank === 'A') return 1;
-  if (['J', 'Q', 'K', '10'].includes(rank)) return 10;
   if (typeof rank === 'number') return rank;
   if (typeof rank === 'string') {
     const parsed = parseInt(rank, 10);

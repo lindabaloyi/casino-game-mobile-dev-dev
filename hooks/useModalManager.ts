@@ -50,11 +50,23 @@ export function useModalManager({
   const handleTrailConfirm = useCallback(() => {
     console.log(`[GameBoard] Trail confirmed for card:`, trailCard);
 
-    // Send the confirm-trail action with the card
+    // Validate trailCard before sending
+    if (!trailCard) {
+      console.error('[GameBoard] ERROR: No trailCard available for confirmation');
+      return;
+    }
+
+    console.log(`[GameBoard] Sending confirmTrail with card:`, {
+      rank: trailCard.rank,
+      suit: trailCard.suit,
+      fullCard: trailCard
+    });
+
+    // Send the confirmTrail action with the card (matches server registration)
     sendAction({
       type: 'execute-action',
       payload: {
-        type: 'confirm-trail',
+        type: 'confirmTrail',
         payload: {
           card: trailCard
         }

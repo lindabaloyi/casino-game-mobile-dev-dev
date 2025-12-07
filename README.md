@@ -25,14 +25,14 @@
 ## 🎮 **Game Overview**
 
 **Classic Casino Card Game** for 2 players featuring:
-- 🃏 **Standard 52-card deck** with A-K, including face cards (J, Q, K)
+- 🃏 **40-card deck** with A-10 only (no face cards)
 - 🎯 **Strategic gameplay**: Captures, Builds, and Trails
 - ⚡ **Real-time multiplayer** via WebSocket connections
 - 🎨 **Beautiful React Native UI** with drag & drop interactions
 - 🏠 **Cross-platform**: iOS, Android, Web support
 
 ### 🎯 **Core Game Mechanics:**
-- **Captures**: Take opponent's cards by matching values (10=J=Q=K)
+- **Captures**: Take opponent's cards by matching values
 - **Builds**: Create and extend card combinations (max value 10)
 - **Trail**: Add cards to table when no matches available
 - **Staging**: Create temporary stacks with built-in controls
@@ -116,7 +116,7 @@ npm run lint       # Run ESLint code quality checks
 2. **Two players connect** to start automatic matchmaking
 3. **Game begins** with each player receiving 10 cards per casino rules
 4. **Drag cards** from your hand to the table to:
-   - **Capture** cards matching your dropped card's value (10=J=Q=K)
+   - **Capture** cards matching your dropped card's value
    - **Build** new combinations worth more than your card
    - **Trail** when no moves are available
 

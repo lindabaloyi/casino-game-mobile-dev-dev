@@ -143,20 +143,30 @@ class GameCoordinatorService {
       return;
     }
 
-    // 🔍 [DEBUG] Log incoming client data for manual action selections
-    this.logger.debug('CLIENT PAYLOAD - execute-action:', JSON.stringify({
-      socketId: socket.id,
-      gameId: gameId,
-      action: data.action,
-      timestamp: new Date().toISOString()
-    }, null, 2));
-
     // Find player's index in the game
     const playerIndex = this.gameManager.getPlayerIndex(gameId, socket.id);
     if (playerIndex === null) {
       this.broadcaster.sendError(socket, 'Player not found in game');
       return;
     }
+
+    // 🔍 [DEBUG] Log incoming client data for manual action selections
+    this.logger.info('EXECUTE-ACTION RECEIVED:', {
+      socketId: socket.id,
+      gameId: gameId,
+      playerIndex: playerIndex,
+      actionType: data.action?.type,
+      payloadKeys: data.action?.payload ? Object.keys(data.action.payload) : [],
+      cardInfo: data.action?.payload?.card ? `${data.action.payload.card.rank}${data.action.payload.card.suit}` : 'no card',
+      timestamp: new Date().toISOString()
+    });
+
+    this.logger.debug('CLIENT PAYLOAD - execute-action:', JSON.stringify({
+      socketId: socket.id,
+      gameId: gameId,
+      action: data.action,
+      timestamp: new Date().toISOString()
+    }, null, 2));
 
     try {
       // ✅ FIX: Inject gameId into action payload for manual selections
@@ -168,7 +178,22 @@ class GameCoordinatorService {
         }
       };
 
+      this.logger.info('EXECUTE-ACTION PROCESSED:', {
+        gameId: gameId,
+        playerIndex: playerIndex,
+        finalActionType: actionToExecute.type,
+        payloadKeys: Object.keys(actionToExecute.payload),
+        cardInfo: actionToExecute.payload?.card ? `${actionToExecute.payload.card.rank}${actionToExecute.payload.card.suit}` : 'no card'
+      });
+
       const newGameState = this.actionRouter.executeAction(gameId, playerIndex, actionToExecute);
+
+      this.logger.info('EXECUTE-ACTION COMPLETED SUCCESSFULLY:', {
+        gameId: gameId,
+        actionType: actionToExecute.type,
+        currentPlayer: newGameState.currentPlayer,
+        tableCardCount: newGameState.tableCards?.length || 0
+      });
 
       // Broadcast to all game players
       this.broadcaster.broadcastGameUpdate(gameId, newGameState);
