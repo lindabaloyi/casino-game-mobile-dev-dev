@@ -213,6 +213,14 @@ function handleCardDrop(socket, data) {
     return;
   }
 
+  // 🔍 [DEBUG] Log incoming client data
+  console.log('🔍 [DEBUG] CLIENT PAYLOAD - card-drop:', JSON.stringify({
+    socketId: socket.id,
+    gameId: gameId,
+    payload: data,
+    timestamp: new Date().toISOString()
+  }, null, 2));
+
   // Find player's index in the game
   const playerIndex = gameManager.getPlayerIndex(gameId, socket.id);
   if (playerIndex === null) {
@@ -232,7 +240,20 @@ function handleCardDrop(socket, data) {
     if (result.actions.length === 1 && !result.requiresModal) {
       // Auto-execute single action
       console.log(`[SERVER] Auto-executing ${result.actions[0].type}`);
-      const newGameState = actionRouter.executeAction(gameId, playerIndex, result.actions[0]);
+
+      // ✅ FIX: Inject gameId into action payload before execution
+      // Remove undefined gameId from client payload first
+      const { gameId: undefinedGameId, ...cleanPayload } = result.actions[0].payload;
+
+      const actionToExecute = {
+        type: result.actions[0].type,
+        payload: {
+          ...cleanPayload,  // Clean payload without undefined gameId
+          gameId  // 🔧 Add the correct gameId
+        }
+      };
+
+      const newGameState = actionRouter.executeAction(gameId, playerIndex, actionToExecute);
 
       // Broadcast to all game players
       const gameSockets = Array.from(activeGames.entries())
@@ -253,6 +274,26 @@ function handleCardDrop(socket, data) {
     }
 
   } catch (error) {
+    // 🚨 [DEBUG] Log full error details for debugging
+    console.error('🚨 [DEBUG] FULL ERROR DETAILS - card-drop:', {
+      event: 'card-drop',
+      gameId,
+      playerIndex,
+      socketId: socket.id,
+      input: {
+        draggedItem: data.draggedItem,
+        targetInfo: data.targetInfo,
+        requestId: data.requestId
+      },
+      error: {
+        message: error.message,
+        stack: error.stack,
+        type: error.type || 'UNKNOWN_ERROR',
+        originalError: error.originalError
+      },
+      timestamp: new Date().toISOString()
+    });
+
     console.error(`[SERVER] Card drop failed:`, error);
     socket.emit('error', { message: 'Invalid move' });
   }
@@ -268,6 +309,14 @@ function handleExecuteAction(socket, data) {
     return;
   }
 
+  // 🔍 [DEBUG] Log incoming client data for manual action selections
+  console.log('🔍 [DEBUG] CLIENT PAYLOAD - execute-action:', JSON.stringify({
+    socketId: socket.id,
+    gameId: gameId,
+    action: data.action,
+    timestamp: new Date().toISOString()
+  }, null, 2));
+
   // Find player's index in the game
   const playerIndex = gameManager.getPlayerIndex(gameId, socket.id);
   if (playerIndex === null) {
@@ -276,7 +325,16 @@ function handleExecuteAction(socket, data) {
   }
 
   try {
-    const newGameState = actionRouter.executeAction(gameId, playerIndex, data.action);
+    // ✅ FIX: Inject gameId into action payload for manual selections
+    const actionToExecute = {
+      type: data.action.type,
+      payload: {
+        gameId,  // 🔧 Add gameId for manual action selections
+        ...data.action.payload
+      }
+    };
+
+    const newGameState = actionRouter.executeAction(gameId, playerIndex, actionToExecute);
 
     // Broadcast to all game players
     const gameSockets = Array.from(activeGames.entries())
@@ -289,6 +347,25 @@ function handleExecuteAction(socket, data) {
     });
 
   } catch (error) {
+    // 🚨 [DEBUG] Log full error details for debugging
+    console.error('🚨 [DEBUG] FULL ERROR DETAILS - execute-action:', {
+      event: 'execute-action',
+      gameId,
+      playerIndex,
+      socketId: socket.id,
+      input: {
+        actionType: data.action?.type,
+        payloadKeys: data.action?.payload ? Object.keys(data.action.payload) : []
+      },
+      error: {
+        message: error.message,
+        stack: error.stack,
+        type: error.type || 'UNKNOWN_ERROR',
+        originalError: error.originalError
+      },
+      timestamp: new Date().toISOString()
+    });
+
     console.error(`[SERVER] Execute action failed:`, error);
     socket.emit('error', { message: 'Action failed' });
   }

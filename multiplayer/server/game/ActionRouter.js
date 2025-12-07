@@ -40,6 +40,16 @@ class ActionRouter {
    */
   executeAction(gameId, playerIndex, action) {
     const { type: actionType } = action;
+
+    // ⚡ [DEBUG] Log action execution details
+    console.log('⚡ [DEBUG] ACTION EXECUTION START:', {
+      gameId,
+      playerIndex,
+      actionType,
+      payloadKeys: action.payload ? Object.keys(action.payload) : [],
+      timestamp: new Date().toISOString()
+    });
+
     logger.info('Routing action', { gameId, playerIndex, actionType });
 
     // Check if action type exists
@@ -70,6 +80,24 @@ class ActionRouter {
       const newGameState = handler(this.gameManager, playerIndex, action);
 
       logger.info('Action executed successfully', { gameId, actionType, newPlayer: newGameState.currentPlayer });
+
+      // ✅ [DEBUG] Log game state changes
+      console.log('✅ [DEBUG] ACTION COMPLETED:', {
+        gameId,
+        actionType,
+        beforeState: {
+          tableCardsCount: gameState.tableCards?.length || 0,
+          currentPlayer: gameState.currentPlayer,
+          gameOver: gameState.gameOver
+        },
+        afterState: {
+          tableCardsCount: newGameState.tableCards?.length || 0,
+          currentPlayer: newGameState.currentPlayer,
+          gameOver: newGameState.gameOver,
+          turnChanged: gameState.currentPlayer !== newGameState.currentPlayer
+        },
+        timestamp: new Date().toISOString()
+      });
 
       // Update GameManager's state
       this.gameManager.activeGames.set(gameId, newGameState);
