@@ -242,31 +242,19 @@ function determineActions(draggedItem, targetInfo, gameState) {
   }
 
   // If no actions found, check for trail
-  if (actions.length === 0 && (!targetInfo.type || targetInfo.type === 'table')) {
-    const hasActiveBuild = tableCards.some(card =>
-      card.type === 'build' && card.owner === currentPlayer
-    );
+  if (actions.length === 0) {
+    // 🚀 Use the new modular trail action determination
+    const { determineTrailActions } = require('./actions/trail');
+    const trailActions = determineTrailActions(draggedItem, targetInfo, gameState);
 
-    const wouldCreateDuplicate = tableCards.some(tableItem =>
-      isCard(tableItem) &&
-      tableItem.rank &&
-      rankValue(tableItem.rank) === draggedValue
-    );
-
-    if (!(gameState.round === 1 && hasActiveBuild) && !wouldCreateDuplicate) {
-      actions.push({
-        type: 'trail',
-        label: 'Trail Card',
-        payload: {
-          gameId: gameState.gameId,
-          draggedItem,
-          card: draggedCard
-        }
-      });
-    } else if (gameState.round === 1 && hasActiveBuild) {
-      logger.debug('Trail blocked: Round 1 with active build');
-    } else if (wouldCreateDuplicate) {
-      logger.debug('Trail blocked: Would create duplicate loose card');
+    if (trailActions.length > 0) {
+      actions.push(...trailActions);
+      // Trail action should NOT end the turn - player can continue
+      return {
+        actions,
+        requiresModal: false,
+        errorMessage: null
+      };
     }
   }
 
@@ -288,7 +276,7 @@ function determineActions(draggedItem, targetInfo, gameState) {
     if (action.type === 'trail') {
       return {
         actions,
-        requiresModal: false,
+        requiresModal: true, // 🔥 Always require confirmation for trail actions
         errorMessage: null
       };
     } else if (action.type === 'capture') {
@@ -329,4 +317,148 @@ function determineActions(draggedItem, targetInfo, gameState) {
   };
 }
 
-module.exports = determineActions;
+/**
+ * Check if current player can make any valid moves
+ * Used to determine if turn should switch
+ */
+function canPlayerMove(gameState) {
+  const { playerHands, currentPlayer, tableCards, round } = gameState;
+  const playerHand = playerHands[currentPlayer];
+
+  // 🎯 [DEBUG] Movement analysis start
+  console.log('🎯 [DEBUG] CAN PLAYER MOVE? - Analysis Start:', {
+    gameId: gameState.gameId || 'unknown',
+    currentPlayer,
+    handSize: playerHand.length,
+    tableCardsCount: tableCards.length,
+    round
+  });
+
+  // If player has no cards, they can't move
+  if (playerHand.length === 0) {
+    console.log('🎯 [DEBUG] CAN MOVE: false - No cards in hand');
+    return false;
+  }
+
+  // Check if any card in hand has a valid move
+  let hasValidMove = false;
+  let checkedCaptures = 0;
+  let checkedBuilds = 0;
+  let checkedTrails = 0;
+
+  for (const card of playerHand) {
+    console.log('🎯 [DEBUG] Checking card:', {
+      card: `${card.rank}${card.suit}`,
+      value: rankValue(card.rank)
+    });
+
+    // Try each card against each possible target
+    const draggedItem = { card, source: 'hand' };
+
+    // Check table targets (loose cards, builds, temp stacks)
+    for (const tableCard of tableCards) {
+      if (isCard(tableCard)) {
+        // Check capture possibility
+        if (rankValue(tableCard.rank) === rankValue(card.rank)) {
+          console.log('🎯 [DEBUG] FOUND CAPTURE:', {
+            card: `${card.rank}${card.suit}`,
+            against: `${tableCard.rank}${tableCard.suit}`,
+            reason: 'rank_match'
+          });
+          checkedCaptures++;
+          hasValidMove = true;
+          break;
+        }
+
+        checkedCaptures++;
+      } else if (isBuild(tableCard)) {
+        // Check capture of entire build
+        if (tableCard.value === rankValue(card.rank)) {
+          console.log('🎯 [DEBUG] FOUND BUILD CAPTURE:', {
+            card: `${card.rank}${card.suit}`,
+            buildValue: tableCard.value,
+            buildOwner: tableCard.owner
+          });
+          checkedBuilds++;
+          hasValidMove = true;
+          break;
+        }
+
+        // Check build extension possibilities
+        if (tableCard.owner === currentPlayer ||
+            (tableCard.isExtendable && tableCard.value + rankValue(card.rank) <= 10)) {
+          console.log('🎯 [DEBUG] FOUND BUILD EXTENSION:', {
+            card: `${card.rank}${card.suit}`,
+            buildValue: tableCard.value,
+            canExtend: tableCard.isExtendable,
+            newTotal: tableCard.value + rankValue(card.rank)
+          });
+          checkedBuilds++;
+          hasValidMove = true;
+          break;
+        }
+
+        checkedBuilds++;
+      } else if (isTemporaryStack(tableCard)) {
+        // Check stack capture possibilities
+        const stackValue = tableCard.captureValue || calculateCardSum(tableCard.cards || []);
+        if (stackValue === rankValue(card.rank)) {
+          console.log('🎯 [DEBUG] FOUND STACK CAPTURE:', {
+            card: `${card.rank}${card.suit}`,
+            stackValue,
+            stackCards: tableCard.cards?.length || 0
+          });
+          hasValidMove = true;
+          break;
+        }
+      }
+    }
+
+    if (hasValidMove) break;
+
+    // Check trail possibility
+    const { canTrailCard } = require('./validation/canTrailCard');
+    const canTrail = canTrailCard(card, gameState);
+    checkedTrails++;
+    if (canTrail) {
+      console.log('🎯 [DEBUG] FOUND TRAIL OPPORTUNITY:', {
+        card: `${card.rank}${card.suit}`,
+        reason: 'can_be_trailed'
+      });
+      hasValidMove = true;
+      break;
+    } else {
+      console.log('🎯 [DEBUG] TRAIL BLOCKED:', {
+        card: `${card.rank}${card.suit}`,
+        round,
+        hasActiveBuild: round === 1 && tableCards.some(tc =>
+          tc.type === 'build' && tc.owner === currentPlayer
+        ),
+        duplicateExists: tableCards.some(tc =>
+          isCard(tc) && rankValue(tc.rank) === rankValue(card.rank)
+        )
+      });
+    }
+  }
+
+  // 🎯 [DEBUG] Final decision
+  console.log('🎯 [DEBUG] CAN MOVE RESULT:', {
+    gameId: gameState.gameId || 'unknown',
+    currentPlayer,
+    hasValidMove,
+    summary: {
+      handSize: playerHand.length,
+      checkedCaptures,
+      checkedBuilds,
+      checkedTrails,
+      tableCards: tableCards.length,
+      round
+    }
+  });
+
+  return hasValidMove;
+}
+
+
+
+module.exports = { determineActions, canPlayerMove };

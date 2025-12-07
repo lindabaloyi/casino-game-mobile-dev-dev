@@ -5,6 +5,7 @@
  */
 
 const { createLogger } = require('../utils/logger');
+const { canPlayerMove } = require('./logic/determineActions');
 
 const logger = createLogger('ActionRouter');
 
@@ -79,7 +80,72 @@ class ActionRouter {
       // Pass gameState to handler instead of gameId
       const newGameState = handler(this.gameManager, playerIndex, action);
 
-      logger.info('Action executed successfully', { gameId, actionType, newPlayer: newGameState.currentPlayer });
+      // ✅ TURN MANAGEMENT: Check if current player can still move
+      let finalGameState = { ...newGameState };
+
+      // 🔄 [DEBUG] Turn management analysis
+      const currentPlayerCanMove = canPlayerMove(finalGameState);
+      console.log('🔄 [DEBUG] TURN MANAGEMENT:', {
+        gameId,
+        currentPlayer: finalGameState.currentPlayer,
+        canMove: currentPlayerCanMove,
+        playerHand: finalGameState.playerHands[finalGameState.currentPlayer].length + ' cards',
+        tableCards: finalGameState.tableCards.length + ' cards',
+        phase: currentPlayerCanMove ? 'continue_turn' : 'switch_turn'
+      });
+
+      if (!currentPlayerCanMove) {
+        // Player cannot move - switch to next player
+        const nextPlayer = (finalGameState.currentPlayer + 1) % 2;
+        finalGameState.currentPlayer = nextPlayer;
+
+        // 🔄 [DEBUG] Turn switch details
+        console.log('🔄 [DEBUG] TURN SWITCHED:', {
+          gameId,
+          reason: 'no_moves_available',
+          fromPlayer: newGameState.currentPlayer,
+          toPlayer: nextPlayer,
+          actionType
+        });
+
+        logger.info('Turn switched - player cannot move', {
+          gameId,
+          previousPlayer: newGameState.currentPlayer,
+          newPlayer: nextPlayer
+        });
+
+        // Check if next player can also move, or if game should end
+        const nextPlayerCanMove = canPlayerMove(finalGameState);
+        console.log('🔄 [DEBUG] NEXT PLAYER ANALYSIS:', {
+          gameId,
+          nextPlayer,
+          nextPlayerCanMove,
+          nextPlayerHand: finalGameState.playerHands[nextPlayer].length + ' cards',
+          bothCannotMove: !nextPlayerCanMove
+        });
+
+        if (!nextPlayerCanMove) {
+          // Neither player can move - game might be over
+          logger.warn('Neither player can move - potential game end', { gameId });
+          // You could implement game ending logic here
+        }
+      } else {
+        // 🔄 [DEBUG] Turn continues - player can still move
+        console.log('🔄 [DEBUG] TURN CONTINUES:', {
+          gameId,
+          player: finalGameState.currentPlayer,
+          remainingCards: finalGameState.playerHands[finalGameState.currentPlayer].length,
+          availableActions: 'computed_on_next_move',
+          reason: 'still_has_moves'
+        });
+      }
+
+      logger.info('Action executed successfully', {
+        gameId,
+        actionType,
+        finalPlayer: finalGameState.currentPlayer,
+        turnSwitched: newGameState.currentPlayer !== finalGameState.currentPlayer
+      });
 
       // ✅ [DEBUG] Log game state changes
       console.log('✅ [DEBUG] ACTION COMPLETED:', {
@@ -91,18 +157,19 @@ class ActionRouter {
           gameOver: gameState.gameOver
         },
         afterState: {
-          tableCardsCount: newGameState.tableCards?.length || 0,
-          currentPlayer: newGameState.currentPlayer,
-          gameOver: newGameState.gameOver,
-          turnChanged: gameState.currentPlayer !== newGameState.currentPlayer
+          tableCardsCount: finalGameState.tableCards?.length || 0,
+          currentPlayer: finalGameState.currentPlayer,
+          gameOver: finalGameState.gameOver,
+          turnChanged: gameState.currentPlayer !== finalGameState.currentPlayer,
+          canMove: canPlayerMove(finalGameState)
         },
         timestamp: new Date().toISOString()
       });
 
-      // Update GameManager's state
-      this.gameManager.activeGames.set(gameId, newGameState);
+      // Update GameManager's state with final game state (after turn logic)
+      this.gameManager.activeGames.set(gameId, finalGameState);
 
-      return newGameState;
+      return finalGameState;
 
     } catch (error) {
       logger.error('Handler execution failed', {

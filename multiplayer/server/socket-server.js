@@ -53,6 +53,8 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
   const actionHandlers = require('./game/actions');
   const actionTypeMapping = {
     trail: actionHandlers.handleTrail,
+    confirmTrail: actionHandlers.handleConfirmTrail,
+    cancelTrail: actionHandlers.handleCancelTrail,
     capture: actionHandlers.handleCapture,
     build: actionHandlers.handleBuild,
     createStagingStack: actionHandlers.handleCreateStagingStack,

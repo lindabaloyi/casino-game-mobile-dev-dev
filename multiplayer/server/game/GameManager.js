@@ -6,7 +6,7 @@
 
 const { initializeGame, validateGameState, clone } = require('./GameState');
 const { createLogger } = require('../utils/logger');
-const determineActions = require('./logic/determineActions');
+const { determineActions, canPlayerMove } = require('./logic/determineActions');
 
 const logger = createLogger('GameManager');
 
