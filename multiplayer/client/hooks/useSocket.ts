@@ -7,9 +7,73 @@ interface GameState {
   deck: string[];
 }
 
-const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || "http://localhost:3001";
+interface SocketEventHandlers {
+  setGameState: (gameState: GameState | null) => void;
+  setPlayerNumber: (playerNumber: number | null) => void;
+}
+
+// Socket configuration constants
+const SOCKET_CONFIG = {
+  URL: process.env.EXPO_PUBLIC_SOCKET_URL || "http://localhost:3001",
+  TRANSPORTS: ["websocket"],
+  RECONNECTION_ATTEMPTS: 10,
+  RECONNECTION_DELAY: 1500,
+};
+
 console.log("[ENV] SOCKET_URL read from .env:", process.env.EXPO_PUBLIC_SOCKET_URL);
-console.log("[ENV] Final SOCKET_URL used:", SOCKET_URL);
+console.log("[ENV] Final SOCKET_URL used:", SOCKET_CONFIG.URL);
+
+// Utility function to create socket event handlers
+const createSocketEventHandlers = (handlers: SocketEventHandlers) => ({
+  connect: (socket: Socket) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}][CLIENT] Connected to server, socket.id: ${socket.id}`);
+    console.log(`[${timestamp}][CLIENT] Connection details:`, {
+      id: socket.id,
+      connected: socket.connected,
+      transport: socket.io.engine.transport.name
+    });
+  },
+
+  'game-start': (data: { gameState: GameState; playerNumber: number }) => {
+    console.log('[CLIENT] Game started:', data);
+    handlers.setGameState(data.gameState);
+    handlers.setPlayerNumber(data.playerNumber);
+  },
+
+  'game-update': (updatedGameState: GameState) => {
+    console.log('[CLIENT] Game state updated:', {
+      currentPlayer: updatedGameState.currentTurn,
+      players: updatedGameState.players?.length || 0
+    });
+    handlers.setGameState(updatedGameState);
+  },
+
+  disconnect: (reason: string) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}][CLIENT] Disconnected from server, reason: ${reason}`);
+  },
+
+  'connect_error': (error: Error) => {
+    const timestamp = new Date().toISOString();
+    console.error(`[${timestamp}][CLIENT] Connection error:`, error.message || error);
+  },
+
+  reconnect: (attemptNumber: number) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}][CLIENT] Reconnected after ${attemptNumber} attempts`);
+  },
+
+  'reconnect_attempt': (attemptNumber: number) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}][CLIENT] Reconnect attempt ${attemptNumber}`);
+  },
+
+  'reconnect_error': (error: Error) => {
+    const timestamp = new Date().toISOString();
+    console.error(`[${timestamp}][CLIENT] Reconnect error:`, error.message || error);
+  }
+});
 
 export const useSocket = () => {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -17,75 +81,33 @@ export const useSocket = () => {
   const [playerNumber, setPlayerNumber] = useState<number | null>(null);
 
   const socketInstance = useMemo(() => {
-    console.log("[SOCKET] Creating connection to:", SOCKET_URL);
-    return io(SOCKET_URL, {
-      transports: ["websocket"], // disable polling
+    console.log("[SOCKET] Creating connection to:", SOCKET_CONFIG.URL);
+    return io(SOCKET_CONFIG.URL, {
+      transports: SOCKET_CONFIG.TRANSPORTS,
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1500,
+      reconnectionAttempts: SOCKET_CONFIG.RECONNECTION_ATTEMPTS,
+      reconnectionDelay: SOCKET_CONFIG.RECONNECTION_DELAY,
     });
   }, []);
 
   useEffect(() => {
     setSocket(socketInstance);
 
-    socketInstance.on('connect', () => {
-      const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}][CLIENT] Connected to server, socket.id: ${socketInstance.id}`);
-      console.log(`[${timestamp}][CLIENT] Connection details:`, {
-        id: socketInstance.id,
-        connected: socketInstance.connected,
-        transport: socketInstance.io.engine.transport.name
-      });
+    // Create event handlers using the factory function
+    const handlers = createSocketEventHandlers({
+      setGameState,
+      setPlayerNumber
     });
 
-    socketInstance.on('game-start', (data: { gameState: GameState; playerNumber: number }) => {
-      console.log('[CLIENT] Game started:', data);
-      setGameState(data.gameState);
-      setPlayerNumber(data.playerNumber);
-    });
-
-    socketInstance.on('game-update', (updatedGameState: GameState) => {
-      console.log('[CLIENT] Game state updated:', {
-        currentPlayer: updatedGameState.currentTurn,
-        players: updatedGameState.players?.length || 0
-      });
-      setGameState(updatedGameState);
-    });
-
-    socketInstance.on('disconnect', (reason) => {
-      const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}][CLIENT] Disconnected from server, reason: ${reason}`);
-      console.log(`[${timestamp}][CLIENT] Disconnect details:`, {
-        id: socketInstance.id,
-        connected: socketInstance.connected
-      });
-    });
-
-    socketInstance.on('connect_error', (error) => {
-      const timestamp = new Date().toISOString();
-      console.error(`[${timestamp}][CLIENT] Connection error:`, error.message || error);
-    });
-
-    socketInstance.on('reconnect', (attemptNumber) => {
-      const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}][CLIENT] Reconnected after ${attemptNumber} attempts`);
-    });
-
-    socketInstance.on('reconnect_attempt', (attemptNumber) => {
-      const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}][CLIENT] Reconnect attempt ${attemptNumber}`);
-    });
-
-    socketInstance.on('reconnect_error', (error) => {
-      const timestamp = new Date().toISOString();
-      console.error(`[${timestamp}][CLIENT] Reconnect error:`, error.message || error);
+    // Register event handlers using the centralized factory
+    Object.entries(handlers).forEach(([event, handler]) => {
+      socketInstance.on(event, handler);
     });
 
     return () => {
       socketInstance.close();
     };
-  }, [socketInstance]);
+  }, [socketInstance, setGameState, setPlayerNumber]);
 
   const sendAction = (action: any) => {
     const timestamp = new Date().toISOString();

@@ -1,12 +1,17 @@
 /**
- * Determine Actions Logic Module
+ * Determine Actions Logic Module - Refactored
  * Pure logic for determining what actions are possible when dropping cards
- * Migrated from shared-game-logic.js - SINGLE SOURCE OF TRUTH
+ * Now uses modular action determination for better maintainability
  */
 
-const { rankValue, calculateCardSum, isCard, isBuild, isTemporaryStack } = require('../GameState');
+const { rankValue, isCard, isBuild, isTemporaryStack, calculateCardSum } = require('../GameState');
 const { createLogger } = require('../../utils/logger');
 const logger = createLogger('DetermineActions');
+
+// Import specialized action modules
+const { determineCaptureActions, shouldAutoExecuteCapture } = require('./actions/captureActions');
+const { determineBuildActions } = require('./actions/buildActions');
+const { determineStackActions } = require('./actions/stackActions');
 
 /**
  * Determine what actions are possible when dropping a card
@@ -20,66 +25,20 @@ function determineActions(draggedItem, targetInfo, gameState) {
     currentPlayer: gameState.currentPlayer
   });
 
-  const actions = [];
+  let actions = [];
   const { card: draggedCard } = draggedItem;
-  const { tableCards, playerHands, playerCaptures, currentPlayer } = gameState;
-  const playerHand = playerHands[currentPlayer];
-  const playerCapturedCards = playerCaptures[currentPlayer];
-  const opponentCapturedCards = playerCaptures[(currentPlayer + 1) % 2];
+  const { tableCards } = gameState;
   const draggedValue = rankValue(draggedCard.rank);
 
   // Handle different drag sources
   if (draggedItem.source === 'table') {
-    // ===== TABLE-TO-TABLE DROPS (Phase 3: Temporary Stacks) =====
-    logger.debug('Table card drop detected', {
-      draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
-      targetType: targetInfo.type
-    });
-
-    if (targetInfo.type === 'loose') {
-      // Casino rule: Players can only have one temp stack at a time
-      const alreadyHasTempStack = tableCards.some(card =>
-        card.type === 'temporary_stack' && card.owner === currentPlayer
-      );
-
-      if (alreadyHasTempStack) {
-        logger.warn('Player already has temp stack - rejecting table drop');
-        return {
-          actions: [],
-          requiresModal: false,
-          errorMessage: 'You can only have one staging stack at a time.'
-        };
-      }
-
-      // Create temporary stack action
-      logger.debug('Creating temp stack action', {
-        value: draggedValue + rankValue(targetInfo.card.rank)
-      });
-      actions.push({
-        type: 'tableCardDrop',
-        label: `Create Stack (${draggedValue + rankValue(targetInfo.card.rank)})`,
-        payload: {
-          gameId: gameState.gameId, // Will be set by caller
-          draggedCard: draggedCard,
-          targetCard: targetInfo.card,
-          player: currentPlayer
-        }
-      });
-
-      // Auto-execute single table drop actions (don't require modal)
-      return {
-        actions,
-        requiresModal: false,
-        errorMessage: null
-      };
-    } else {
-      // Table drop on non-loose targets not supported yet
-      return {
-        actions: [],
-        requiresModal: false,
-        errorMessage: 'Invalid table card drop target'
-      };
+    // Use stack actions module for table-to-table drops
+    const stackResult = determineStackActions(draggedItem, targetInfo, gameState);
+    if ('errorMessage' in stackResult) {
+      // Special handling for stack actions (may return validation result)
+      return stackResult;
     }
+    actions = actions.concat(stackResult);
   } else if (draggedItem.source === 'captured') {
     // ===== CAPTURED CARD DROPS =====
     // Fall through to use same logic as hand cards
@@ -92,153 +51,21 @@ function determineActions(draggedItem, targetInfo, gameState) {
     };
   }
 
-  // Check for captures on table cards
-  tableCards.forEach((tableCard) => {
-    if (isCard(tableCard)) {
-      const cardValue = tableCard.rank ? rankValue(tableCard.rank) : 0;
-      if (cardValue === draggedValue) {
-        actions.push({
-          type: 'capture',
-          label: `Capture ${tableCard.rank}`,
-          payload: {
-            gameId: gameState.gameId,
-            draggedItem,
-            selectedTableCards: [tableCard],
-            targetCard: tableCard
-          }
-        });
-      }
-    } else if (isBuild(tableCard) && tableCard.value === draggedValue) {
-      actions.push({
-        type: 'capture',
-        label: `Capture Build (${tableCard.value})`,
-        payload: {
-          gameId: gameState.gameId,
-          draggedItem,
-          selectedTableCards: [tableCard],
-          targetCard: tableCard
-        }
-      });
-    } else if (isTemporaryStack(tableCard)) {
-      const stackCaptureValue = tableCard.captureValue || calculateCardSum(tableCard.cards || []);
-      if (stackCaptureValue === draggedValue) {
-        actions.push({
-          type: 'capture',
-          label: `Capture Stack (${stackCaptureValue})`,
-          payload: {
-            gameId: gameState.gameId,
-            draggedItem,
-            selectedTableCards: [tableCard],
-            targetCard: tableCard
-          }
-        });
-      }
-    }
-  });
-
-  // Check for adding to temporary stacks
-  if (targetInfo.type === 'temporary_stack') {
-    const targetStack = tableCards.find(c =>
-      c.type === 'temporary_stack' && c.stackId === targetInfo.stackId
-    );
-
-    if (targetStack) {
-      logger.debug('Add to temp stack detected', {
-        stackId: targetStack.stackId,
-        currentValue: targetStack.value,
-        newValue: targetStack.value + draggedValue
-      });
-      actions.push({
-        type: 'addToStagingStack',
-        label: `Add to Stack (${targetStack.value} → ${targetStack.value + draggedValue})`,
-        payload: {
-          gameId: gameState.gameId,
-          draggedItem,
-          targetStack
-        }
-      });
-    }
+  // Use modular action determination
+  if (draggedItem.source !== 'table') {
+    // Only run these for non-table sources to avoid duplication
+    const captureActions = determineCaptureActions(draggedItem, gameState);
+    actions = actions.concat(captureActions);
   }
 
-  // Check for builds (dropping on loose card)
-  if (targetInfo.type === 'loose') {
-    const targetCard = tableCards.find(c =>
-      c.rank === targetInfo.card?.rank && c.suit === targetInfo.card?.suit
-    );
+  const buildActions = determineBuildActions(draggedItem, targetInfo, gameState);
+  const stackActionsResult = determineStackActions(draggedItem, targetInfo, gameState);
 
-    if (targetCard) {
-      const targetValue = rankValue(targetCard.rank);
+  actions = actions.concat(buildActions);
 
-      const hasCaptureCard = playerHand.some(card =>
-        rankValue(card.rank) === targetValue + draggedValue &&
-        !(card.rank === draggedCard.rank && card.suit === draggedCard.suit)
-      );
-
-      if (hasCaptureCard && (targetValue + draggedValue) <= 10) {
-        const hasExistingBuild = tableCards.some(card =>
-          card.type === 'build' && card.owner === currentPlayer
-        );
-
-        if (!hasExistingBuild) {
-          logger.debug('Build detected', {
-            handCard: draggedValue,
-            tableCard: targetValue,
-            buildValue: targetValue + draggedValue
-          });
-          actions.push({
-            type: 'build',
-            label: `Build ${targetValue + draggedValue} (${draggedValue}+${targetValue})`,
-            payload: {
-              gameId: gameState.gameId,
-              draggedItem,
-              tableCardsInBuild: [targetCard],
-              buildValue: targetValue + draggedValue,
-              biggerCard: draggedValue > targetValue ? draggedCard : targetCard,
-              smallerCard: draggedValue < targetValue ? draggedCard : targetCard
-            }
-          });
-        }
-      }
-    }
-  }
-
-  // Check for build extensions
-  if (targetInfo.type === 'build') {
-    const targetBuild = tableCards.find(c =>
-      c.type === 'build' && c.buildId === targetInfo.buildId
-    );
-
-    if (targetBuild) {
-      if (targetBuild.owner === currentPlayer) {
-        actions.push({
-          type: 'addToOwnBuild',
-          label: `Add to Build (${targetBuild.value})`,
-          payload: {
-            gameId: gameState.gameId,
-            draggedItem,
-            buildToAddTo: targetBuild
-          }
-        });
-      } else if (targetBuild.isExtendable) {
-        const newValue = targetBuild.value + draggedValue;
-        if (newValue <= 10) {
-          logger.debug('Opponent build extension', {
-            buildId: targetBuild.buildId,
-            oldValue: targetBuild.value,
-            newValue: newValue
-          });
-          actions.push({
-            type: 'addToOpponentBuild',
-            label: `Extend to ${newValue}`,
-            payload: {
-              gameId: gameState.gameId,
-              draggedItem,
-              buildToAddTo: targetBuild
-            }
-          });
-        }
-      }
-    }
+  // Handle different return types from stackActions
+  if (Array.isArray(stackActionsResult)) {
+    actions = actions.concat(stackActionsResult);
   }
 
   // If no actions found, check for trail

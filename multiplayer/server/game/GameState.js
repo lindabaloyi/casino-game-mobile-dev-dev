@@ -7,6 +7,20 @@
 const { createLogger } = require('../utils/logger');
 const logger = createLogger('GameState');
 
+// Game configuration constants
+const GAME_CONFIG = {
+  MAX_PLAYERS: 2,
+  INITIAL_CARDS_PER_PLAYER: 10,  // 10 cards per player for round 1 (total 20 cards)
+  MAX_BUILD_VALUE: 10
+};
+
+// Validation rules for game state
+const VALIDATION_RULES = {
+  playerHands: (hands) => Array.isArray(hands) && hands.length === GAME_CONFIG.MAX_PLAYERS,
+  playerCaptures: (captures) => Array.isArray(captures) && captures.length === GAME_CONFIG.MAX_PLAYERS,
+  currentPlayer: (player) => typeof player === 'number' && player >= 0 && player < GAME_CONFIG.MAX_PLAYERS
+};
+
 // ============================================================================
 // CORE FUNCTIONS (Extracted from shared-game-logic.js)
 // ============================================================================
@@ -18,16 +32,21 @@ function initializeGame() {
   logger.debug('Initializing new game state...');
 
   const suits = ['♠', '♥', '♦', '♣'];
-  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
   let deck = [];
 
-  // Create deck
+  // Create standard 52-card deck
   for (const suit of suits) {
     for (const rank of ranks) {
+      let value;
+      if (rank === 'A') value = 1;
+      else if (['J', 'Q', 'K', '10'].includes(rank)) value = 10; // Face cards and 10 = 10
+      else value = parseInt(rank, 10);
+
       deck.push({
         suit,
         rank,
-        value: rank === 'A' ? 1 : parseInt(rank, 10)
+        value
       });
     }
   }
@@ -39,10 +58,12 @@ function initializeGame() {
   }
 
   // Deal cards
-  const playerHands = [[], []];
-  for (let i = 0; i < 10; i++) {
-    playerHands[0].push(deck.pop());
-    playerHands[1].push(deck.pop());
+  const playerHands = Array(GAME_CONFIG.MAX_PLAYERS).fill(null).map(() => []);
+  const totalCardsToDeal = GAME_CONFIG.INITIAL_CARDS_PER_PLAYER * GAME_CONFIG.MAX_PLAYERS;
+
+  for (let i = 0; i < totalCardsToDeal; i++) {
+    const playerIndex = i % GAME_CONFIG.MAX_PLAYERS;
+    playerHands[playerIndex].push(deck.pop());
   }
 
   return {
@@ -71,20 +92,21 @@ function validateGameState(gameState) {
     return { valid: false, errors };
   }
 
-  if (!Array.isArray(gameState.playerHands) || gameState.playerHands.length !== 2) {
-    errors.push('playerHands must be an array of 2 elements');
+  // Use centralized validation rules
+  if (!VALIDATION_RULES.playerHands(gameState.playerHands)) {
+    errors.push(`playerHands must be an array of ${GAME_CONFIG.MAX_PLAYERS} elements`);
   }
 
   if (!Array.isArray(gameState.tableCards)) {
     errors.push('tableCards must be an array');
   }
 
-  if (!Array.isArray(gameState.playerCaptures) || gameState.playerCaptures.length !== 2) {
-    errors.push('playerCaptures must be an array of 2 elements');
+  if (!VALIDATION_RULES.playerCaptures(gameState.playerCaptures)) {
+    errors.push(`playerCaptures must be an array of ${GAME_CONFIG.MAX_PLAYERS} elements`);
   }
 
-  if (typeof gameState.currentPlayer !== 'number' || gameState.currentPlayer < 0 || gameState.currentPlayer > 1) {
-    errors.push('currentPlayer must be 0 or 1');
+  if (!VALIDATION_RULES.currentPlayer(gameState.currentPlayer)) {
+    errors.push(`currentPlayer must be a number between 0 and ${GAME_CONFIG.MAX_PLAYERS - 1}`);
   }
 
   return { valid: errors.length === 0, errors };
@@ -95,10 +117,11 @@ function validateGameState(gameState) {
 // ============================================================================
 
 /**
- * Get card rank value (A=1, 2-10=face value)
+ * Get card rank value (A=1, 2-10, J/Q/K=10)
  */
 function rankValue(rank) {
   if (rank === 'A') return 1;
+  if (['J', 'Q', 'K', '10'].includes(rank)) return 10;
   if (typeof rank === 'number') return rank;
   if (typeof rank === 'string') {
     const parsed = parseInt(rank, 10);

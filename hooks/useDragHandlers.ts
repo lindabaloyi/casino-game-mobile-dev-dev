@@ -1,4 +1,33 @@
 import { useCallback, useState } from 'react';
+import { Card, GameState } from '../multiplayer/server/game-logic/game-state';
+
+// Type definitions for drag operations and UI
+interface DraggedItem {
+  card: Card;
+  source: string;
+  player?: number;
+}
+
+interface TargetInfo {
+  type: string;
+  card?: Card;
+  stackId?: string;
+  build?: any;
+  stack?: any;
+  index?: number;
+  area?: string;
+}
+
+interface ModalInfo {
+  visible: boolean;
+  title: string;
+  message: string;
+}
+
+interface DragTurnState {
+  isMyTurn: boolean;
+  currentPlayer: number;
+}
 
 /**
  * Custom hook to manage all drag and drop behavior in GameBoard
@@ -11,15 +40,15 @@ export function useDragHandlers({
   setCardToReset,
   setErrorModal
 }: {
-  gameState: any;
+  gameState: GameState;
   playerNumber: number;
   sendAction: (action: any) => void;
   setCardToReset: (card: { rank: string; suit: string } | null) => void;
-  setErrorModal: (modal: { visible: boolean; title: string; message: string } | null) => void;
+  setErrorModal: (modal: ModalInfo | null) => void;
 }) {
-  const [draggedCard, setDraggedCard] = useState<any>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragTurnState, setDragTurnState] = useState<any>(null);
+  const [draggedCard, setDraggedCard] = useState<Card | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [dragTurnState, setDragTurnState] = useState<DragTurnState | null>(null);
 
   const isMyTurn = gameState.currentPlayer === playerNumber;
 
@@ -106,7 +135,7 @@ export function useDragHandlers({
           console.log(`🌟 [TableDrag] Target card: ${dropPosition.targetCard.rank}${dropPosition.targetCard.suit}`);
 
           // Find target card index for proper server validation
-          const targetIndex = gameState.tableCards.findIndex(card => {
+          const targetIndex = gameState.tableCards.findIndex((card: any) => {
             // Check if it's a loose card (no type property or type === 'loose')
             const isLooseCard = 'rank' in card && 'suit' in card && (!('type' in card) || (card as any).type === 'loose');
             if (isLooseCard) {

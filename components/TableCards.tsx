@@ -1,9 +1,10 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useRef } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import { Card, TableCard } from '../multiplayer/server/game-logic/game-state';
-import { CardType } from './card';
-import CardStack from './CardStack';
-import StagingOverlay from './StagingOverlay';
+import { BuildCardRenderer } from './table/BuildCardRenderer';
+import { LooseCardRenderer } from './table/LooseCardRenderer';
+import { useTableInteractionManager } from './table/TableInteractionManager';
+import { TempStackRenderer } from './table/TempStackRenderer';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -41,67 +42,11 @@ const TableCards: React.FC<TableCardsProps> = ({
 }) => {
   const tableRef = useRef<View>(null);
 
-  const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
-    // Parse stack ID to get target information
-    const parts = stackId.split('-');
-    const targetType = parts[0]; // 'loose', 'build', or 'temp'
-    const targetIndex = parseInt(parts[1]);
-
-    if (targetType === 'loose') {
-      // Dropped on a loose card
-      const targetCard = tableCards[targetIndex];
-
-      if (targetCard && getCardType(targetCard) === 'loose') {
-        const looseCard = targetCard as Card; // Type assertion for loose card
-        // Check if this is a table-to-table drop
-        if (draggedItem.source === 'table') {
-          console.log(`🎯 Table-to-table drop: ${draggedItem.card.rank}${draggedItem.card.suit} → ${looseCard.rank}${looseCard.suit}`);
-
-          // For table-to-table drops, mark as handled but requiring server validation
-          // This ensures the drop is handled (no snap-back) but goes through determineActions
-          console.log(`🎯 [TableDrop:DEBUG] Table zone detected - marking for server validation`);
-
-          return {
-            tableZoneDetected: true,
-            targetType: 'loose',
-            targetCard: looseCard,
-            draggedItem
-          };
-        } else {
-          // Normal hand-to-table drop
-          return onDropOnCard?.(draggedItem, {
-            type: 'loose',
-            card: looseCard,
-            index: targetIndex
-          }) || false;
-        }
-      }
-    } else if (targetType === 'build') {
-      // Dropped on a build
-      const targetBuild = tableCards[targetIndex];
-      if (targetBuild && getCardType(targetBuild) === 'build') {
-        return onDropOnCard?.(draggedItem, {
-          type: 'build',
-          build: targetBuild,
-          index: targetIndex
-        }) || false;
-      }
-    } else if (targetType === 'temp') {
-      // Dropped on a temporary stack
-      const targetStack = tableCards[targetIndex];
-      if (targetStack && getCardType(targetStack) === 'temporary_stack') {
-        const tempStack = targetStack as any; // Type assertion for temp stack
-        return onDropOnCard?.(draggedItem, {
-          type: 'temporary_stack',
-          stack: tempStack,
-          stackId: tempStack.stackId,
-          index: targetIndex
-        }) || false;
-      }
-    }
-
-    return false;
-  }, [tableCards, onDropOnCard]);
+  // Use interaction manager hook for drop handling
+  const { handleDropOnStack } = useTableInteractionManager({
+    tableCards,
+    onDropOnCard: onDropOnCard || (() => false)
+  });
 
   return (
     <View ref={tableRef} style={styles.tableContainer}>
@@ -116,113 +61,54 @@ const TableCards: React.FC<TableCardsProps> = ({
               // Calculate z-index hierarchy: later cards stack higher
               const baseZIndex = tableCards.length - index; // Reverse index for stacking
               const dragZIndex = tableCards.length + 1000; // Always higher than any base z-index
-              console.log(`[TableCards:DEBUG] 📚 Z-Index hierarchy for index ${index}: baseZIndex=${baseZIndex}, totalCards=${tableCards.length}, dragZIndex=${dragZIndex}`);
 
-              // Handle different table item types using union type helper
+              // Handle different table item types using renderer components
               const itemType = getCardType(tableItem);
+
               if (itemType === 'loose') {
-                // Loose card - use CardStack for drop zone
-                const looseCard = tableItem as Card; // Type assertion for loose card
-                const stackId = `loose-${index}`;
-
-                // Get card bounds for contact validation (store globally for drop validation)
-                const cardBounds = {
-                  stackId,
-                  index,
-                  // These will be calculated by CardStack measurement
-                  bounds: null as any
-                };
-
-                // Store card bounds globally for contact validation
-                if (!(global as any).cardBounds) {
-                  (global as any).cardBounds = {};
-                }
-                (global as any).cardBounds[stackId] = cardBounds;
-
                 return (
-                  <CardStack
-                    key={`table-card-${index}-${looseCard.rank}-${looseCard.suit}`}
-                    stackId={stackId}
-                    cards={[looseCard as CardType]}
-                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, stackId)}
-                    isBuild={false}
-                    currentPlayer={currentPlayer}
-                    draggable={true}
-                    onDragStart={onTableCardDragStart}
-                    onDragEnd={onTableCardDragEnd}
-                    dragSource="table"
-                    style={{ zIndex: baseZIndex }}
+                  <LooseCardRenderer
+                    key={`table-card-${index}-${(tableItem as Card).rank}-${(tableItem as Card).suit}`}
+                    tableItem={tableItem}
+                    index={index}
+                    baseZIndex={baseZIndex}
                     dragZIndex={dragZIndex}
+                    currentPlayer={currentPlayer}
+                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, `loose-${index}`) as boolean}
+                    onTableCardDragStart={onTableCardDragStart}
+                    onTableCardDragEnd={onTableCardDragEnd}
                   />
                 );
               } else if (itemType === 'build') {
-                // Build - use CardStack with build indicators
-                const buildItem = tableItem as any; // Type assertion for build
-                const stackId = `build-${index}`;
-                const buildCards = buildItem.cards || [tableItem as CardType];
                 return (
-                  <CardStack
+                  <BuildCardRenderer
                     key={`table-build-${index}`}
-                    stackId={stackId}
-                    cards={buildCards}
-                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, stackId)}
-                    buildValue={buildItem.value}
-                    isBuild={true}
+                    tableItem={tableItem}
+                    index={index}
+                    baseZIndex={baseZIndex}
+                    dragZIndex={dragZIndex}
                     currentPlayer={currentPlayer}
-                    style={{ zIndex: baseZIndex }}
+                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, `build-${index}`) as boolean}
                   />
                 );
               } else if (itemType === 'temporary_stack') {
-                // Temporary stack - use CardStack with StagingOverlay for controls
-                const tempStackItem = tableItem as any; // Type assertion for temp stack
-                const stackId = tempStackItem.stackId || `temp-${index}`;
-                const tempStackCards = tempStackItem.cards || [];
-                const isCurrentPlayerOwner = tempStackItem.owner === currentPlayer;
-
-                console.log(`[TableCards] Rendering temp stack:`, {
-                  stackId: tempStackItem.stackId || stackId,
-                  owner: tempStackItem.owner,
-                  currentPlayer,
-                  isCurrentPlayerOwner,
-                  cardCount: tempStackCards.length,
-                  captureValue: tempStackItem.captureValue,  // Show the value to capture with
-                  cards: tempStackCards.map((c: any) => `${c.rank}${c.suit}`)
-                });
-
                 return (
-                  <View key={`staging-container-${index}`} style={styles.stagingStackContainer}>
-                    <CardStack
-                      stackId={tempStackItem.stackId || stackId}
-                      cards={tempStackCards}
-                      onDropStack={(draggedItem) => handleDropOnStack(draggedItem, stackId)}
-                      isBuild={false}
-                      currentPlayer={currentPlayer}
-                      isTemporaryStack={true}
-                      stackOwner={tempStackItem.owner}
-                      captureValue={tempStackItem.captureValue}  // Show the value to capture with
-                      onFinalizeStack={onFinalizeStack}
-                      onCancelStack={onCancelStack}
-                      style={{ zIndex: baseZIndex }}
-                      dragZIndex={dragZIndex}
-                    />
-                    {/* Show staging overlay only for player's own temporary stacks */}
-                    {isCurrentPlayerOwner && (
-                      <StagingOverlay
-                        isVisible={true}
-                        stackId={tempStackItem.stackId || stackId}
-                        onAccept={() => {
-                          console.log(`[TableCards] Staging accept pressed for ${stackId}`);
-                          onStagingAccept?.(stackId);
-                        }}
-                        onReject={() => {
-                          console.log(`[TableCards] Staging reject pressed for ${stackId}`);
-                          onStagingReject?.(stackId);
-                        }}
-                      />
-                    )}
-                  </View>
+                  <TempStackRenderer
+                    key={`staging-container-${index}`}
+                    tableItem={tableItem}
+                    index={index}
+                    baseZIndex={baseZIndex}
+                    dragZIndex={dragZIndex}
+                    currentPlayer={currentPlayer}
+                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, (tableItem as any).stackId || `temp-${index}`) as boolean}
+                    onFinalizeStack={onFinalizeStack}
+                    onCancelStack={onCancelStack}
+                    onStagingAccept={onStagingAccept}
+                    onStagingReject={onStagingReject}
+                  />
                 );
               }
+
               return null;
             })}
           </View>
