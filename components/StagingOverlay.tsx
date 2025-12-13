@@ -45,6 +45,11 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
       style={[styles.overlayContainer, { opacity: fadeAnim }]}
       pointerEvents={disabled ? 'none' : 'auto'}
     >
+      {/* Staging indicator */}
+      <View style={styles.stagingIndicator}>
+        <Text style={styles.indicatorText}>STAGING</Text>
+      </View>
+
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.actionButton, styles.acceptButton, disabled && styles.disabled]}
@@ -92,11 +97,6 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
           <Text style={styles.buttonText}>Cancel</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Staging indicator */}
-      <View style={styles.stagingIndicator}>
-        <Text style={styles.indicatorText}>STAGING</Text>
-      </View>
     </Animated.View>
   );
 };
@@ -104,34 +104,27 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
 const styles = StyleSheet.create({
   overlayContainer: {
     position: 'absolute',
-    top: -50,
+    bottom: -70, // Keep at -90 as requested
     left: 0,
     right: 0,
     alignItems: 'center',
     zIndex: 1000,
-    pointerEvents: 'none' // Container doesn't block, individual buttons do
+    pointerEvents: 'none', // Container doesn't block, individual buttons do
+    transform: [{ scale: 0.6 }] // Much smaller to not overpower the card
   },
   buttonContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 25,
     padding: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
     elevation: 10,
-    borderWidth: 2,
-    borderColor: '#007AFF'
   },
   actionButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: 20,
-    marginHorizontal: 4,
-    minWidth: 80,
+    marginHorizontal: 2,
+    minWidth: 60,
     pointerEvents: 'auto' // Buttons can be pressed
   },
   acceptButton: {
@@ -149,9 +142,9 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#333',
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 2,
     textAlign: 'center'
   },
   stagingIndicator: {

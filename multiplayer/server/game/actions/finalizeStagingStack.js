@@ -9,6 +9,11 @@ const logger = createLogger('FinalizeStagingStack');
 function handleFinalizeStagingStack(gameManager, playerIndex, action) {
   const { gameId } = action.payload;
   const gameState = gameManager.getGameState(gameId);
+
+  if (!gameState) {
+    throw new Error(`Game ${gameId} not found`);
+  }
+
   const { stack, buildValue } = action.payload;
 
   logger.info('[STAGING_ACCEPT] Starting staging stack finalization', {

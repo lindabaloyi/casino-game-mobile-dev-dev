@@ -208,29 +208,7 @@ const CardStack = memo<CardStackProps>(({
         </View>
       )}
 
-      {/* Approve/Decline buttons for temporary stacks owned by current player */}
-      {isTemporaryStack && stackOwner === currentPlayer && (
-        <View style={styles.tempStackControls}>
-          <TouchableOpacity
-            style={[styles.controlButton, styles.approveButton]}
-            onPress={() => {
-              console.log(`[CardStack] Accept button pressed for ${stackId}`);
-              onFinalizeStack?.(stackId);
-            }}
-          >
-            <Text style={styles.controlButtonText}>✓</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.controlButton, styles.cancelButton]}
-            onPress={() => {
-              console.log(`[CardStack] Decline button pressed for ${stackId}`);
-              onCancelStack?.(stackId);
-            }}
-          >
-            <Text style={styles.controlButtonText}>✗</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+
     </View>
   );
 });
@@ -301,33 +279,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  tempStackControls: {
-    position: 'absolute',
-    bottom: -40,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  controlButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-  },
-  approveButton: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#2E7D32',
-  },
-  cancelButton: {
-    backgroundColor: '#F44336',
-    borderColor: '#C62828',
-  },
-  controlButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+
 });
 
 export default CardStack;
