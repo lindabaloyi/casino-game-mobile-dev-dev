@@ -60,8 +60,11 @@ export function TempStackRenderer({
     console.log(`[TEMP_STACK_RENDERER] 👑 Player owns this stack - showing STAGING OVERLAY with Accept/Cancel buttons`, {
       stackId,
       player: currentPlayer,
-      overlayEnabled: true
+      overlayEnabled: true,
+      stackCards: tempStackCards.length,
+      stagingSource: tempStackCards.length > 1 ? 'table-to-loose-drop' : 'unknown'
     });
+    console.log(`🎯 [STAGING_DEBUG] STAGING OVERLAY SHOULD APPEAR for stack ${stackId} - Accept/Cancel buttons visible`);
   } else {
     console.log(`[TEMP_STACK_RENDERER] 👀 Player does NOT own this stack - NO overlay shown`, {
       stackId,

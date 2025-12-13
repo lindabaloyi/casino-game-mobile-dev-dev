@@ -202,81 +202,91 @@ export function useDragHandlers({
         zoneHandledBy: 'unknown'
       });
 
-      // Check if this drop needs server validation (table zone detected but contact not validated)
+      // Check if this is a table zone detected drop (table-to-loose staging)
       if (dropPosition.tableZoneDetected) {
-        console.log(`🌟 [TableDrag] 🎯 STAGING DROP DETECTED - table zone detected flagged for server validation`, {
+        console.log(`🌟 [TableDrag] 🎯 TABLE-TO-LOOSE STAGING DETECTED - sending action to server`, {
           draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit} (val:${draggedItem.card.value})`,
+          tableZoneDetected: dropPosition.tableZoneDetected,
+          needsServerValidation: dropPosition.needsServerValidation,
           targetType: dropPosition.targetType,
-          needsServerValidation: dropPosition.needsServerValidation || false
+          targetCard: dropPosition.targetCard ? `${dropPosition.targetCard.rank}${dropPosition.targetCard.suit}` : 'none'
+        });
+        // Validate target card exists
+        if (!dropPosition.targetCard) {
+          console.error(`🌟 [TableDrag] ❌ No target card detected for table-to-loose drop`, {
+            draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+            dropPosition
+          });
+          return;
+        }
+
+        console.log(`🎯 [STAGING_DEBUG] TABLE CARD STAGING: ${draggedItem.card.rank}${draggedItem.card.suit} → loose ${dropPosition.targetCard.rank}${dropPosition.targetCard.suit} - EXPECT STAGING OVERLAY`);
+
+        // For table-to-loose drops, send card-drop action to trigger staging
+        // Use the actual target information detected by the drop zone
+        const targetIndex = gameState.tableCards.findIndex((card: any) => {
+          if (!card || typeof card !== 'object') return false;
+          // Check if it's a loose card (no type property or type === 'loose')
+          const isLooseCard = 'rank' in card && 'suit' in card && (!('type' in card) || (card as any).type === 'loose');
+          if (!isLooseCard) return false;
+          // Match the target card detected by drop zone
+          return card.rank === dropPosition.targetCard.rank &&
+                 card.suit === dropPosition.targetCard.suit;
         });
 
-        // Route through Phase 2 card-drop event for server-centric validation
-        if (dropPosition.targetType === 'loose' && dropPosition.targetCard) {
-          console.log(`🌟 [TableDrag] 🎴 STAGING: Loose card-to-loose card drop potential - sending to server`, {
-            draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit} (val:${draggedItem.card.value})`,
-            targetCard: `${dropPosition.targetCard.rank}${dropPosition.targetCard.suit} (val:${dropPosition.targetCard.value})`,
-            combinedValue: draggedItem.card.value + dropPosition.targetCard.value
+        console.log(`🌟 [TableDrag] Target card lookup:`, {
+          targetCard: dropPosition.targetCard,
+          foundAtIndex: targetIndex,
+          totalTableCards: gameState.tableCards.length
+        });
+
+        if (targetIndex === -1) {
+          console.error(`🌟 [TableDrag] ❌ Could not find target card in table state`, {
+            targetCard: dropPosition.targetCard,
+            tableCards: gameState.tableCards.map((c: any) => c ? `${c.rank}${c.suit}` : 'null')
           });
-
-          // Find target card index for proper server validation
-          const targetIndex = gameState.tableCards.findIndex((card: any) => {
-            // Check if it's a loose card (no type property or type === 'loose')
-            const isLooseCard = 'rank' in card && 'suit' in card && (!('type' in card) || (card as any).type === 'loose');
-            if (isLooseCard) {
-              return (card as any).rank === dropPosition.targetCard.rank &&
-                     (card as any).suit === dropPosition.targetCard.suit;
-            }
-            return false;
-          });
-
-          console.log(`🌟 [TableDrag] Target card index found: ${targetIndex}`, {
-            searchCriteria: `${dropPosition.targetCard.rank}${dropPosition.targetCard.suit}`,
-            foundAtIndex: targetIndex,
-            totalTableCards: gameState.tableCards.length
-          });
-
-          // Send through Phase 2 system for validation
-          const actionPayload = {
-            type: 'card-drop',
-            payload: {
-              draggedItem: {
-                card: draggedItem.card,
-                source: 'table',
-                player: playerNumber
-              },
-              targetInfo: {
-                type: 'loose',
-                card: dropPosition.targetCard,
-                index: targetIndex,
-                draggedSource: 'table' // For staging, this is table-to-table
-              },
-              requestId: Date.now()
-            }
-          };
-
-          console.log(`🌟 [TableDrag] 🚀 SENDING STAGING ACTION TO SERVER:`, {
-            actionType: 'card-drop',
-            draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
-            targetCard: `${dropPosition.targetCard.rank}${dropPosition.targetCard.suit}`,
-            player: playerNumber,
-            requestId: actionPayload.payload.requestId
-          });
-
-          sendAction(actionPayload);
-
-          console.log(`🌟 [TableDrag] ✅ Table-to-table staging action sent to server - expecting temp stack creation`);
           return;
-        } else {
-          console.log(`🌟 [TableDrag] ❌ Not a loose-to-loose drop - no staging action needed`);
         }
+
+        const actionPayload = {
+          type: 'card-drop',
+          payload: {
+            draggedItem: {
+              card: draggedItem.card,
+              source: 'table',
+              player: playerNumber
+            },
+            targetInfo: {
+              type: 'loose',
+              card: dropPosition.targetCard, // Use actual target card
+              index: targetIndex, // Use actual target index
+              draggedSource: 'table'
+            },
+            requestId: Date.now()
+          }
+        };
+
+        console.log(`🌟 [TableDrag] 🚀 SENDING TABLE-TO-LOOSE STAGING ACTION TO SERVER:`, {
+          actionType: 'card-drop',
+          draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+          player: playerNumber,
+          requestId: actionPayload.payload.requestId
+        });
+
+        sendAction(actionPayload);
+
+        console.log(`🌟 [TableDrag] ✅ Table-to-loose staging action sent - expecting temp stack creation and overlay`);
+        return;
       }
 
       // For fully validated drops (contactValidated = true), no server routing needed
-      console.log(`🌟 [TableDrag] Table card drop was fully validated - no server routing needed`, {
-        contactValidated: dropPosition.contactValidated,
-        handledWithoutServer: true
-      });
-      return;
+      if (dropPosition.contactValidated) {
+        console.log(`🌟 [TableDrag] Table card drop was fully validated - no server routing needed`, {
+          contactValidated: dropPosition.contactValidated,
+          handledWithoutServer: true
+        });
+        return;
+      }
     }
 
     // If not handled by any zone, it's an invalid drop - snap back
@@ -284,7 +294,7 @@ export function useDragHandlers({
   }, [sendAction, gameState.tableCards, playerNumber]);
 
   const handleCapturedCardDragStart = useCallback((card: any) => {
-    console.log(`🃏 [CapturedDrag] Captured card drag start:`, card);
+    console.log(`� [CapturedDrag] Captured card drag start:`, card);
     if (!isMyTurn) {
       console.log(`❌ Not your turn - ignoring captured card drag`);
       return;
@@ -302,7 +312,7 @@ export function useDragHandlers({
 
     // Handle captured card drops through same drop system
     if (dropPosition.handled) {
-      console.log(`🃏 [CapturedDrag] Captured card drop was handled by a zone`);
+      console.log(`� [CapturedDrag] Captured card drop was handled by a zone`);
       // The drop zone handlers will route this through Phase 2 system
       return;
     }

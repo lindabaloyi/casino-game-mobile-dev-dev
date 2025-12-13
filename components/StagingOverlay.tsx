@@ -39,6 +39,7 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
     hasOnAccept: typeof onAccept === 'function',
     hasOnReject: typeof onReject === 'function'
   });
+  console.log(`🎯 [STAGING_DEBUG] STAGING OVERLAY RENDERED: Accept/Cancel buttons should be visible for stack ${stackId}`);
 
   return (
     <Animated.View
@@ -104,13 +105,13 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
 const styles = StyleSheet.create({
   overlayContainer: {
     position: 'absolute',
-    bottom: -70, // Keep at -90 as requested
+    bottom: -70, // Exact position for staging overlay
     left: 0,
     right: 0,
     alignItems: 'center',
     zIndex: 1000,
     pointerEvents: 'none', // Container doesn't block, individual buttons do
-    transform: [{ scale: 0.6 }] // Much smaller to not overpower the card
+    transform: [{ scale: 0.6 }] // Scale as specified
   },
   buttonContainer: {
     flexDirection: 'row',

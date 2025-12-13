@@ -166,6 +166,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
                   dropPosition.handled = true;
                   dropPosition.targetType = dropResult.targetType;
                   dropPosition.targetCard = dropResult.targetCard;
+                  dropPosition.tableZoneDetected = dropResult.tableZoneDetected;
                   dropPosition.needsServerValidation = true; // New flag
                   console.log(`[DraggableCard:DEBUG] Table card zone detected - needs server validation`);
                 } else {
@@ -216,6 +217,13 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
 
       // Notify parent of drag end
       if (onDragEnd) {
+        console.log(`[DraggableCard:DEBUG] 📤 CALLING onDragEnd with dropPosition:`, {
+          handled: dropPosition.handled,
+          targetType: dropPosition.targetType,
+          targetCard: dropPosition.targetCard ? `${dropPosition.targetCard.rank}${dropPosition.targetCard.suit}` : 'none',
+          tableZoneDetected: dropPosition.tableZoneDetected,
+          contactValidated: dropPosition.contactValidated
+        });
         const draggedItem = {
           card,
           source,

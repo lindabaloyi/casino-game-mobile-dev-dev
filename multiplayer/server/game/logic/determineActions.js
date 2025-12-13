@@ -100,16 +100,16 @@ function determineActions(draggedItem, targetInfo, gameState) {
       return stackResult; // Return error or auto-execute result immediately
     }
 
-    if (Array.isArray(stackResult) && stackResult.length > 0) {
+    if (Array.isArray(stackResult.actions) && stackResult.actions.length > 0) {
       logger.info('[STAGING_DEBUG] ✅ STAGING ACTION FOUND - prioritizing staging over other moves', {
         gameId: gameState.gameId || 'unknown',
-        stagingActionsCount: stackResult.length,
-        stagingActionTypes: stackResult.map(a => a.type),
-        firstActionType: stackResult[0].type,
-        isAutoExecute: stackResult[0].type === 'tableCardDrop',
+        stagingActionsCount: stackResult.actions.length,
+        stagingActionTypes: stackResult.actions.map(a => a.type),
+        firstActionType: stackResult.actions[0].type,
+        isAutoExecute: stackResult.actions[0].type === 'tableCardDrop',
         timestamp: new Date().toISOString()
       });
-      actions = actions.concat(stackResult);
+      actions = actions.concat(stackResult.actions);
     } else {
       logger.warn('[STAGING_DEBUG] ❌ No staging actions available for this drop', {
         gameId: gameState.gameId || 'unknown',

@@ -24,7 +24,7 @@ function canTrailCard(card, gameState) {
 
   // Check for duplicate loose cards
   const duplicateExists = tableCards.some(tc =>
-    tc.type === undefined || tc.type === 'loose' &&
+    (tc.type === undefined || tc.type === 'loose') &&
     rankValue(tc.rank) === cardValue
   );
 
