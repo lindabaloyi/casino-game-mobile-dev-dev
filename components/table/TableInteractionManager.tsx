@@ -15,14 +15,41 @@ interface TableInteractionManagerProps {
 export function useTableInteractionManager({ tableCards, onDropOnCard }: TableInteractionManagerProps) {
 
   const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
+    console.log('[HANDLE DROP ON STACK]', {
+      targetStackId: stackId,
+      parsedTarget: { type: 'loose', index: parseInt(stackId.split('-')[1]) },
+      draggedSource: draggedItem.source
+    });
+
+console.log(`[TABLE_INTERACTION] 🎯 LOOSE CARD DROP DETECTED:`, {
+  draggedItem: draggedItem ? `${draggedItem.card?.rank}${draggedItem.card?.suit} (${draggedItem.source})` : 'null',
+  stackId: stackId || 'null',
+  tableCardsCount: tableCards.length,
+  shouldTrigger: 'STAGING with targetType="loose"'
+});
+
     // Parse stack ID to get target information
     const parts = stackId.split('-');
     const targetType = parts[0]; // 'loose', 'build', or 'temp'
     const targetIndex = parseInt(parts[1]);
 
+    console.log(`[TABLE_INTERACTION] 📋 Parsed stack info:`, {
+      targetType,
+      targetIndex,
+      parts: parts,
+      isValidIndex: targetIndex >= 0 && targetIndex < tableCards.length
+    });
+
     if (targetType === 'loose') {
       // Dropped on a loose card
       const targetCard = tableCards[targetIndex];
+
+      console.log(`[TABLE_INTERACTION] 🔍 Checking target card:`, {
+        targetIndex,
+        targetCard,
+        hasType: 'type' in targetCard,
+        isLooseCard: targetCard && !('type' in targetCard)
+      });
 
       if (targetCard && !('type' in targetCard)) {
         const looseCard = targetCard as any; // Type assertion for loose card
@@ -39,12 +66,23 @@ export function useTableInteractionManager({ tableCards, onDropOnCard }: TableIn
             draggedItem
           };
         } else {
-          // Normal hand-to-table drop
-          return onDropOnCard?.(draggedItem, {
+          // Normal hand-to-table drop - but check if this could be STAGING
+          console.log(`[TABLE_INTERACTION] 💡 Hand-to-loose drop detected - potential STAGING:`, {
+            handCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+            looseCard: `${looseCard.rank}${looseCard.suit}`,
+            shouldCreateStaging: true
+          });
+
+          const dropResult = onDropOnCard?.(draggedItem, {
             type: 'loose',
             card: looseCard,
             index: targetIndex
-          }) || false;
+          });
+
+          // ✅ FIX: Return the result of onDropOnCard to ensure DraggableCard recognizes successful drop
+          // The server will confirm staging via game state update
+          console.log(`[TABLE_INTERACTION] 🎯 STAGING HAND-TO-LOOSE: Drop result = ${dropResult}, keeping card in place for server confirmation`);
+          return dropResult || true;
         }
       }
     } else if (targetType === 'build') {

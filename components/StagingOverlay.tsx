@@ -27,9 +27,18 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
     }).start();
   }, [isVisible, fadeAnim]);
 
-  if (!isVisible) return null;
+  if (!isVisible) {
+    console.log(`[STAGING_OVERLAY] Overlay hidden for stack ${stackId || 'unknown'}`);
+    return null;
+  }
 
-  console.log(`[STAGING_OVERLAY] Rendering overlay for stack ${stackId}, disabled: ${disabled}`);
+  console.log(`[STAGING_OVERLAY] 🎬 Rendering staging overlay for stack ${stackId}, disabled: ${disabled}`, {
+    isVisible,
+    stackId,
+    disabled,
+    hasOnAccept: typeof onAccept === 'function',
+    hasOnReject: typeof onReject === 'function'
+  });
 
   return (
     <Animated.View
@@ -40,8 +49,17 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
         <TouchableOpacity
           style={[styles.actionButton, styles.acceptButton, disabled && styles.disabled]}
           onPress={() => {
-            console.log(`[STAGING_OVERLAY] Accept pressed for stack ${stackId}`);
-            onAccept();
+            console.log(`[STAGING_OVERLAY] ✅ ACCEPT button pressed for stack ${stackId}`, {
+              stackId,
+              disabled,
+              timestamp: Date.now(),
+              action: 'finalizeStagingStack'
+            });
+            if (onAccept) {
+              onAccept();
+            } else {
+              console.error(`[STAGING_OVERLAY] No onAccept callback provided for stack ${stackId}`);
+            }
           }}
           disabled={disabled}
           accessibilityLabel="Accept staging build"
@@ -54,8 +72,17 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
         <TouchableOpacity
           style={[styles.actionButton, styles.rejectButton, disabled && styles.disabled]}
           onPress={() => {
-            console.log(`[STAGING_OVERLAY] Reject pressed for stack ${stackId}`);
-            onReject();
+            console.log(`[STAGING_OVERLAY] ❌ CANCEL button pressed for stack ${stackId}`, {
+              stackId,
+              disabled,
+              timestamp: Date.now(),
+              action: 'cancelStagingStack'
+            });
+            if (onReject) {
+              onReject();
+            } else {
+              console.error(`[STAGING_OVERLAY] No onReject callback provided for stack ${stackId}`);
+            }
           }}
           disabled={disabled}
           accessibilityLabel="Cancel staging build"

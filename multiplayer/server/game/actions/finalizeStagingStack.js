@@ -11,21 +11,54 @@ function handleFinalizeStagingStack(gameManager, playerIndex, action) {
   const gameState = gameManager.getGameState(gameId);
   const { stack, buildValue } = action.payload;
 
-  logger.info('Finalizing staging stack', {
+  logger.info('[STAGING_ACCEPT] Starting staging stack finalization', {
     playerIndex,
     stackId: stack.stackId,
     buildValue,
-    gameId
+    gameId,
+    currentPlayer: gameState.currentPlayer,
+    isPlayerTurn: playerIndex === gameState.currentPlayer
+  });
+
+  logger.debug('[STAGING_ACCEPT] Stack details', {
+    stackOwner: stack.owner,
+    stackCards: stack.cards?.map(c => `${c.rank}${c.suit}(${c.source})`) || [],
+    stackValue: stack.value,
+    handCardCount: stack.cards?.filter(c => c.source === 'hand').length || 0,
+    tableCardCount: stack.cards?.filter(c => c.source === 'table').length || 0
   });
 
   // Find the staging stack
+  logger.debug('[STAGING_ACCEPT] Searching for staging stack on table', {
+    searchingStackId: stack.stackId,
+    tableCardsCount: gameState.tableCards.length,
+    tableTempStacks: gameState.tableCards.filter(card =>
+      card.type === 'temporary_stack'
+    ).map(s => ({
+      stackId: s.stackId,
+      owner: s.owner
+    }))
+  });
+
   const stackIndex = gameState.tableCards.findIndex(card =>
     card.type === 'temporary_stack' && card.stackId === stack.stackId
   );
 
   if (stackIndex === -1) {
+    logger.error('[STAGING_ACCEPT] Staging stack not found - aborting', {
+      requestedStackId: stack.stackId,
+      availableStacks: gameState.tableCards.filter(card =>
+        card.type === 'temporary_stack'
+      ).map(s => s.stackId)
+    });
     throw new Error('Staging stack not found');
   }
+
+  logger.info('[STAGING_ACCEPT] Staging stack found - proceeding with finalization', {
+    stackIndex,
+    stackId: stack.stackId,
+    buildValue
+  });
 
   const stagingStack = gameState.tableCards[stackIndex];
   const handCards = stagingStack.cards.filter(card => card.source === 'hand');

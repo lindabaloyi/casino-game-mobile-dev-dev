@@ -19,6 +19,11 @@ const { determineStackActions } = require('./actions/stackActions');
  * Returns possible actions, whether modal is required, and validation errors
  */
 function determineActions(draggedItem, targetInfo, gameState) {
+  console.log('[determineActions] evaluating drop', {
+    source: draggedItem.source,
+    targetType: targetInfo.type
+  });
+
   logger.debug('Determining actions', {
     draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
     targetType: targetInfo.type,
@@ -30,45 +35,116 @@ function determineActions(draggedItem, targetInfo, gameState) {
   const { tableCards } = gameState;
   const draggedValue = rankValue(draggedCard.rank);
 
-  // Handle different drag sources
-  if (draggedItem.source === 'table') {
-    // Use stack actions module for table-to-table drops
+  logger.debug('[DETERMINE_ACTIONS] Starting action determination', {
+    draggedSource: draggedItem.source,
+    targetType: targetInfo.type,
+    targetCardExists: !!targetInfo.card,
+    draggedSourceFromTargetInfo: targetInfo.draggedSource,
+    tableCardsCount: tableCards.length,
+    targetCardInTableCards: targetInfo.index !== undefined ?
+      (gameState.tableCards[targetInfo.index] ?
+        `${gameState.tableCards[targetInfo.index].rank}${gameState.tableCards[targetInfo.index].suit}` :
+        'invalid-index') :
+      'no-index'
+  });
+
+  // 🔸 STEP 1: Check for staging actions FIRST (highest priority)
+  // Staging applies to hand/table cards dropped on loose cards
+  const stagingCondition = (draggedItem.source === 'table' || draggedItem.source === 'hand') && targetInfo.type === 'loose';
+  logger.info(`[STAGING_DEBUG] 🎯 STAGING CHECK: condition=${stagingCondition}`, {
+    gameId: gameState.gameId || 'unknown',
+    draggedSource: draggedItem.source,
+    targetType: targetInfo.type,
+    targetCardExists: !!targetInfo.card,
+    targetIndex: targetInfo.index,
+    stagingCondition: stagingCondition,
+    stagingTarget: targetInfo.card ? `${targetInfo.card.rank}${targetInfo.card.suit} (val:${targetInfo.card.value})` : 'null',
+    draggedCard: `${draggedCard.rank}${draggedCard.suit} (val:${draggedValue})`,
+    timestamp: new Date().toISOString()
+  });
+
+  if (stagingCondition) {
+    console.log('[determineActions] STAGING PATH TAKEN');
+
+    logger.info('[STAGING_DEBUG] 🔍 ATTEMPTING STAGING for hand-to-loose drop', {
+      gameId: gameState.gameId || 'unknown',
+      draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+      targetCard: targetInfo.card ? `${targetInfo.card.rank}${targetInfo.card.suit}` : 'null',
+      targetType: targetInfo.type,
+      combinedValue: targetInfo.card ? draggedValue + targetInfo.card.value : 'n/a',
+      proceedingToStackActions: true,
+      timestamp: new Date().toISOString()
+    });
+
     const stackResult = determineStackActions(draggedItem, targetInfo, gameState);
+    logger.info('[STAGING_DEBUG] 📋 determineStackActions RESULT:', {
+      gameId: gameState.gameId || 'unknown',
+      resultType: typeof stackResult,
+      isArray: Array.isArray(stackResult),
+      hasErrorMessage: 'errorMessage' in stackResult,
+      errorMessage: stackResult.errorMessage || 'none',
+      actionsCount: Array.isArray(stackResult) ? stackResult.length : 'n/a',
+      actionTypes: Array.isArray(stackResult) ? stackResult.map(a => a.type) : 'n/a',
+      timestamp: new Date().toISOString()
+    });
+
     if ('errorMessage' in stackResult) {
-      // Special handling for stack actions (may return validation result)
-      return stackResult;
+      logger.error('[STAGING_DEBUG] ❌ STAGING BLOCKED by determineStackActions:', {
+        gameId: gameState.gameId || 'unknown',
+        errorMessage: stackResult.errorMessage,
+        draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+        targetCard: targetInfo.card ? `${targetInfo.card.rank}${targetInfo.card.suit}` : 'null',
+        returningErrorToClient: true,
+        timestamp: new Date().toISOString()
+      });
+      return stackResult; // Return error or auto-execute result immediately
     }
-    actions = actions.concat(stackResult);
-  } else if (draggedItem.source === 'captured') {
-    // ===== CAPTURED CARD DROPS =====
-    // Fall through to use same logic as hand cards
-  } else if (draggedItem.source !== 'hand') {
-    // Unknown drag source
-    return {
-      actions: [],
-      requiresModal: false,
-      errorMessage: 'Unsupported drag source'
-    };
+
+    if (Array.isArray(stackResult) && stackResult.length > 0) {
+      logger.info('[STAGING_DEBUG] ✅ STAGING ACTION FOUND - prioritizing staging over other moves', {
+        gameId: gameState.gameId || 'unknown',
+        stagingActionsCount: stackResult.length,
+        stagingActionTypes: stackResult.map(a => a.type),
+        firstActionType: stackResult[0].type,
+        isAutoExecute: stackResult[0].type === 'tableCardDrop',
+        timestamp: new Date().toISOString()
+      });
+      actions = actions.concat(stackResult);
+    } else {
+      logger.warn('[STAGING_DEBUG] ❌ No staging actions available for this drop', {
+        gameId: gameState.gameId || 'unknown',
+        draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+        targetCard: targetInfo.card ? `${targetInfo.card.rank}${targetInfo.card.suit}` : 'null',
+        proceedingToOtherActions: true,
+        timestamp: new Date().toISOString()
+      });
+    }
+  } else {
+    logger.info('[STAGING_DEBUG] ⏭️ STAGING CONDITION NOT MET - proceeding to other actions', {
+      gameId: gameState.gameId || 'unknown',
+      draggedSource: draggedItem.source,
+      targetType: targetInfo.type,
+      stagingCondition,
+      timestamp: new Date().toISOString()
+    });
   }
 
-  // Use modular action determination
-  if (draggedItem.source !== 'table') {
-    // Only run these for non-table sources to avoid duplication
-    const captureActions = determineCaptureActions(draggedItem, gameState);
-    actions = actions.concat(captureActions);
+  // 🔸 STEP 2: If no staging actions were found, check for regular moves
+  if (actions.length === 0) {
+    if (draggedItem.source !== 'table') {
+      // Add capture/trail actions for hand/captured cards
+      const captureActions = determineCaptureActions(draggedItem, gameState);
+      logger.debug('[DETERMINE_ACTIONS] Adding capture actions', { count: captureActions.length });
+      actions = actions.concat(captureActions);
+    }
+
+    // Add build actions for all card types
+    const buildActions = determineBuildActions(draggedItem, targetInfo, gameState);
+    logger.debug('[DETERMINE_ACTIONS] Adding build actions', { count: buildActions.length });
+    actions = actions.concat(buildActions);
   }
 
-  const buildActions = determineBuildActions(draggedItem, targetInfo, gameState);
-  const stackActionsResult = determineStackActions(draggedItem, targetInfo, gameState);
-
-  actions = actions.concat(buildActions);
-
-  // Handle different return types from stackActions
-  if (Array.isArray(stackActionsResult)) {
-    actions = actions.concat(stackActionsResult);
-  }
-
-  // If no actions found, check for trail
+  // 🔸 STEP 3: If still no actions found, check for trail
   if (actions.length === 0) {
     // 🚀 Use the new modular trail action determination
     const { determineTrailActions } = require('./actions/trail');

@@ -41,15 +41,35 @@ export function TempStackRenderer({
   const tempStackCards = tempStackItem.cards || [];
   const isCurrentPlayerOwner = tempStackItem.owner === currentPlayer;
 
-  console.log(`[TempStackRenderer] Rendering temp stack:`, {
+  console.log(`[TEMP_STACK_RENDERER] 🎴 Rendering TEMPORARY STACKING STACK:`, {
     stackId: tempStackItem.stackId || stackId,
     owner: tempStackItem.owner,
     currentPlayer,
     isCurrentPlayerOwner,
     cardCount: tempStackCards.length,
     captureValue: tempStackItem.captureValue,
-    cards: tempStackCards.map((c: any) => `${c.rank}${c.suit}`)
+    stackValue: tempStackItem.value,
+    cards: tempStackCards.map((c: any) => `${c.rank}${c.suit}(${c.source})`),
+    index,
+    baseZIndex,
+    hasStagingCallbacks: !!(onStagingAccept && onStagingReject),
+    hasLegacyCallbacks: !!(onFinalizeStack && onCancelStack)
   });
+
+  if (isCurrentPlayerOwner) {
+    console.log(`[TEMP_STACK_RENDERER] 👑 Player owns this stack - showing STAGING OVERLAY with Accept/Cancel buttons`, {
+      stackId,
+      player: currentPlayer,
+      overlayEnabled: true
+    });
+  } else {
+    console.log(`[TEMP_STACK_RENDERER] 👀 Player does NOT own this stack - NO overlay shown`, {
+      stackId,
+      owner: tempStackItem.owner,
+      currentPlayer,
+      overlayEnabled: false
+    });
+  }
 
   return (
     <View key={`staging-container-${index}`} style={styles.stagingStackContainer}>
@@ -73,11 +93,21 @@ export function TempStackRenderer({
           isVisible={true}
           stackId={tempStackItem.stackId || stackId}
           onAccept={() => {
-            console.log(`[TempStackRenderer] Staging accept pressed for ${stackId}`);
+            console.log(`[TEMP_STACK_RENDERER] 📨 ACCEPT callback triggered for stack ${stackId}`, {
+              stackId,
+              callingOnStagingAccept: !!onStagingAccept,
+              callbackType: 'onStagingAccept',
+              timestamp: Date.now()
+            });
             onStagingAccept?.(stackId);
           }}
           onReject={() => {
-            console.log(`[TempStackRenderer] Staging reject pressed for ${stackId}`);
+            console.log(`[TEMP_STACK_RENDERER] 📨 CANCEL callback triggered for stack ${stackId}`, {
+              stackId,
+              callingOnStagingReject: !!onStagingReject,
+              callbackType: 'onStagingReject',
+              timestamp: Date.now()
+            });
             onStagingReject?.(stackId);
           }}
         />

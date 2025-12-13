@@ -14,32 +14,17 @@ function handleTrail(gameManager, playerIndex, action) {
   }
   const { card } = action.payload;
 
-  logger.info('Trailed card', { playerIndex, card: `${card.rank}${card.suit}`, gameId });
+  console.log(`TRAIL: P${playerIndex + 1} trails ${card.rank}${card.suit} (game ${gameId})`);
 
   // Find and remove card from player's hand
   const playerHand = gameState.playerHands[playerIndex];
-
-  // Debug: Log hand contents
-  logger.debug('Player hand contents', {
-    playerIndex,
-    handSize: playerHand.length,
-    handCards: playerHand.map(c => `${c.rank}${c.suit}`),
-    searchingFor: `${card.rank}${card.suit}`
-  });
-
   const cardIndex = playerHand.findIndex(c =>
     c.rank === card.rank && c.suit === card.suit
   );
 
   if (cardIndex === -1) {
-    const error = new Error(`Card not found in hand: ${card.rank}${card.suit}`);
-    logger.error('Trail failed - card not in hand', {
-      playerIndex,
-      card: card,
-      gameId,
-      handCards: playerHand.map(c => ({ rank: c.rank, suit: c.suit }))
-    });
-    throw error;
+    const handCards = playerHand.map(c => `${c.rank}${c.suit}`).join(', ');
+    throw new Error(`Card ${card.rank}${card.suit} not in P${playerIndex + 1}'s hand. Hand: [${handCards}]`);
   }
 
   const newGameState = { ...gameState };
@@ -53,7 +38,7 @@ function handleTrail(gameManager, playerIndex, action) {
   // Add to table as loose card
   newGameState.tableCards = [
     ...gameState.tableCards,
-    { ...trailedCard, type: 'loose' }
+    trailedCard
   ];
 
   logger.info('Trail completed', {

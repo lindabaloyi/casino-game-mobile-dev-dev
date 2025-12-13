@@ -70,14 +70,51 @@ export function useDragHandlers({
   }, []);
 
   const handleDropOnCard = useCallback((draggedItem: any, targetInfo: any) => {
-    console.log(`🏆 [GameBoard] Card dropped - START:`, {
+    console.log(`🏆 [STAGING_DEBUG] Card dropped - START:`, {
       draggedCard: draggedItem.card.rank + draggedItem.card.suit,
       source: draggedItem.source,
       targetType: targetInfo.type,
       targetArea: targetInfo.area,
       isMyTurn,
-      currentPlayer: gameState.currentPlayer
+      currentPlayer: gameState.currentPlayer,
+      targetCard: targetInfo.card ? targetInfo.card.rank + targetInfo.card.suit : 'none',
+      targetIndex: targetInfo.index,
+      timestamp: Date.now()
     });
+
+    // 🔍 DETECT STAGING DROP early
+    const isStagingDrop = (draggedItem.source === 'hand' || draggedItem.source === 'table') && targetInfo.type === 'loose';
+    const isAutoValidDrop = !isStagingDrop; // Regular drops can be validated immediately
+
+    console.log(`🔍 [STAGING_DEBUG] Drop analysis:`, {
+      isStagingDrop,
+      isAutoValidDrop,
+      draggedSource: draggedItem.source,
+      targetType: targetInfo.type,
+      draggedCardValue: draggedItem.card.value,
+      targetCardValue: targetInfo.card ? targetInfo.card.value : 'none',
+      combinedValue: targetInfo.card ? draggedItem.card.value + targetInfo.card.value : 'n/a'
+    });
+
+    if (isStagingDrop) {
+      console.log(`🎯 [STAGING_DEBUG] STAGING DROP DETECTED: ${draggedItem.card.rank}${draggedItem.card.suit} → loose ${targetInfo.card.rank}${targetInfo.card.suit}`);
+      console.log(`🎯 [STAGING_DEBUG] STAGING: Will send to server for validation - DO NOT validate locally!`);
+      console.log(`🎯 [STAGING_DEBUG] STAGING PAYLOAD PREP:`, {
+        draggedItem: {
+          card: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+          source: draggedItem.source,
+          player: draggedItem.player
+        },
+        targetInfo: {
+          type: targetInfo.type,
+          card: targetInfo.card ? `${targetInfo.card.rank}${targetInfo.card.suit}` : null,
+          index: targetInfo.index,
+          draggedSource: draggedItem.source
+        }
+      });
+    } else if (isAutoValidDrop) {
+      console.log(`✅ [STAGING_DEBUG] REGULAR VALID DROP: ${draggedItem.card.rank}${draggedItem.card.suit} → ${targetInfo.type} - validating locally`);
+    }
 
     if (!isMyTurn) {
       setErrorModal({ visible: true, title: 'Not Your Turn', message: 'Please wait for your turn.' });
@@ -91,14 +128,51 @@ export function useDragHandlers({
     });
 
     // Send raw drop event to server
-    sendAction({
+    const actionPayload = {
       type: 'card-drop',
       payload: {
         draggedItem,
-        targetInfo,
+        targetInfo: {
+          ...targetInfo,
+          draggedSource: draggedItem.source // Add draggedSource for staging logic
+        },
         requestId: Date.now() // For matching responses
       }
+    };
+
+    console.log(`[DRAG_HANDLERS] 📤 SENDING TO SERVER - Potential Staging Action:`, {
+      draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+      draggedSource: draggedItem.source,
+      targetType: targetInfo.type,
+      targetCard: targetInfo.card ? `${targetInfo.card.rank}${targetInfo.card.suit}` : 'null',
+      hasStagingPotential: (draggedItem.source === 'hand' && targetInfo.type === 'loose'),
+      payloadDraggedSource: actionPayload.payload.targetInfo.draggedSource
     });
+
+    console.log('[STAGING DROP SENT TO SERVER]', {
+      source: draggedItem.source,
+      targetType: targetInfo.type,
+      draggedCardId: draggedItem.card.id,
+      targetCardId: targetInfo.card?.id
+    });
+
+    console.log(`[DRAG_HANDLERS] 🔍 DEBUG: Sending card-drop action to server`, {
+      actionType: 'card-drop',
+      draggedItem: {
+        card: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+        source: draggedItem.source,
+        player: draggedItem.player
+      },
+      targetInfo: {
+        type: targetInfo.type,
+        card: targetInfo.card ? `${targetInfo.card.rank}${targetInfo.card.suit}` : null,
+        index: targetInfo.index,
+        draggedSource: draggedItem.source
+      },
+      requestId: actionPayload.payload.requestId
+    });
+
+    sendAction(actionPayload);
 
     return true;
   }, [isMyTurn, gameState.currentPlayer, setCardToReset, setErrorModal, sendAction]);
@@ -123,16 +197,26 @@ export function useDragHandlers({
 
     // Handle table-to-table drops through Phase 2 system
     if (dropPosition.handled) {
-      console.log(`🌟 [TableDrag] Table card drop was handled by a zone`);
+      console.log(`🌟 [TableDrag] Table card drop was handled by a zone`, {
+        handled: dropPosition.handled,
+        zoneHandledBy: 'unknown'
+      });
 
       // Check if this drop needs server validation (table zone detected but contact not validated)
-      if (dropPosition.needsServerValidation) {
-        console.log(`🌟 [TableDrag] Table card drop needs server validation - routing through Phase 2`);
+      if (dropPosition.tableZoneDetected) {
+        console.log(`🌟 [TableDrag] 🎯 STAGING DROP DETECTED - table zone detected flagged for server validation`, {
+          draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit} (val:${draggedItem.card.value})`,
+          targetType: dropPosition.targetType,
+          needsServerValidation: dropPosition.needsServerValidation || false
+        });
 
         // Route through Phase 2 card-drop event for server-centric validation
-        if (dropPosition.targetType === 'loose') {
-          console.log(`🌟 [TableDrag] Table card dropped near loose card - validating with server`);
-          console.log(`🌟 [TableDrag] Target card: ${dropPosition.targetCard.rank}${dropPosition.targetCard.suit}`);
+        if (dropPosition.targetType === 'loose' && dropPosition.targetCard) {
+          console.log(`🌟 [TableDrag] 🎴 STAGING: Loose card-to-loose card drop potential - sending to server`, {
+            draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit} (val:${draggedItem.card.value})`,
+            targetCard: `${dropPosition.targetCard.rank}${dropPosition.targetCard.suit} (val:${dropPosition.targetCard.value})`,
+            combinedValue: draggedItem.card.value + dropPosition.targetCard.value
+          });
 
           // Find target card index for proper server validation
           const targetIndex = gameState.tableCards.findIndex((card: any) => {
@@ -145,8 +229,14 @@ export function useDragHandlers({
             return false;
           });
 
+          console.log(`🌟 [TableDrag] Target card index found: ${targetIndex}`, {
+            searchCriteria: `${dropPosition.targetCard.rank}${dropPosition.targetCard.suit}`,
+            foundAtIndex: targetIndex,
+            totalTableCards: gameState.tableCards.length
+          });
+
           // Send through Phase 2 system for validation
-          sendAction({
+          const actionPayload = {
             type: 'card-drop',
             payload: {
               draggedItem: {
@@ -157,19 +247,35 @@ export function useDragHandlers({
               targetInfo: {
                 type: 'loose',
                 card: dropPosition.targetCard,
-                index: targetIndex
+                index: targetIndex,
+                draggedSource: 'table' // For staging, this is table-to-table
               },
               requestId: Date.now()
             }
+          };
+
+          console.log(`🌟 [TableDrag] 🚀 SENDING STAGING ACTION TO SERVER:`, {
+            actionType: 'card-drop',
+            draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+            targetCard: `${dropPosition.targetCard.rank}${dropPosition.targetCard.suit}`,
+            player: playerNumber,
+            requestId: actionPayload.payload.requestId
           });
 
-          console.log(`🌟 [TableDrag] Table-to-table validation sent through Phase 2 system`);
+          sendAction(actionPayload);
+
+          console.log(`🌟 [TableDrag] ✅ Table-to-table staging action sent to server - expecting temp stack creation`);
           return;
+        } else {
+          console.log(`🌟 [TableDrag] ❌ Not a loose-to-loose drop - no staging action needed`);
         }
       }
 
       // For fully validated drops (contactValidated = true), no server routing needed
-      console.log(`🌟 [TableDrag] Table card drop was fully validated - no server routing needed`);
+      console.log(`🌟 [TableDrag] Table card drop was fully validated - no server routing needed`, {
+        contactValidated: dropPosition.contactValidated,
+        handledWithoutServer: true
+      });
       return;
     }
 

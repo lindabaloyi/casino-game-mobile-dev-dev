@@ -42,129 +42,54 @@ class ActionRouter {
   executeAction(gameId, playerIndex, action) {
     const { type: actionType } = action;
 
-    // ⚡ [DEBUG] Log action execution details
-    console.log('⚡ [DEBUG] ACTION EXECUTION START:', {
-      gameId,
-      playerIndex,
-      actionType,
-      payloadKeys: action.payload ? Object.keys(action.payload) : [],
-      timestamp: new Date().toISOString()
-    });
-
-    logger.info('Routing action', { gameId, playerIndex, actionType });
+    logger.info(`Action: ${actionType} by P${playerIndex + 1} in game ${gameId}`);
 
     // Check if action type exists
     if (!this.actionHandlers[actionType]) {
-      const error = {
-        type: this.ErrorTypes.UNKNOWN_ACTION,
-        message: `Unknown action type: ${actionType}`,
-        actionType: actionType,
-        availableActions: Object.keys(this.actionHandlers)
-      };
-
-      logger.error('Unknown action type', error);
-      throw error;
+      const available = Object.keys(this.actionHandlers).join(', ');
+      throw new Error(`Unknown action: ${actionType}. Available: ${available}`);
     }
 
     try {
-      // Get game state from GameManager
+      // Get game state and execute action
       const gameState = this.gameManager.getGameState(gameId);
       if (!gameState) {
         throw new Error(`Game ${gameId} not found`);
       }
 
-      // Get handler and execute
-      const handler = this.actionHandlers[actionType];
-      logger.debug('Executing handler', { actionType });
+      const newGameState = this.actionHandlers[actionType](this.gameManager, playerIndex, action);
 
-      // Pass gameState to handler instead of gameId
-      const newGameState = handler(this.gameManager, playerIndex, action);
-
-      // ✅ TURN MANAGEMENT: Check if current player can still move
+      // ✅ TURN MANAGEMENT
       let finalGameState = { ...newGameState };
-
-      // 🔄 [DEBUG] Turn management analysis
       const currentPlayerCanMove = canPlayerMove(finalGameState);
-      console.log('🔄 [DEBUG] TURN MANAGEMENT:', {
-        gameId,
-        currentPlayer: finalGameState.currentPlayer,
-        canMove: currentPlayerCanMove,
-        playerHand: finalGameState.playerHands[finalGameState.currentPlayer].length + ' cards',
-        tableCards: finalGameState.tableCards.length + ' cards',
-        phase: currentPlayerCanMove ? 'continue_turn' : 'switch_turn'
-      });
+      const forceTurnSwitch = (actionType === 'trail' || actionType === 'confirmTrail');
 
-      if (!currentPlayerCanMove) {
-        // Player cannot move - switch to next player
+      const phase = (currentPlayerCanMove && !forceTurnSwitch) ? 'continue' : 'switch';
+      console.log(`TURN: P${finalGameState.currentPlayer + 1} -> ${phase} (${actionType})`);
+
+      if (!currentPlayerCanMove || forceTurnSwitch) {
+        // Switch to next player
         const nextPlayer = (finalGameState.currentPlayer + 1) % 2;
         finalGameState.currentPlayer = nextPlayer;
 
-        // 🔄 [DEBUG] Turn switch details
-        console.log('🔄 [DEBUG] TURN SWITCHED:', {
-          gameId,
-          reason: 'no_moves_available',
-          fromPlayer: newGameState.currentPlayer,
-          toPlayer: nextPlayer,
-          actionType
-        });
+        const fromPlayer = newGameState.currentPlayer;
+        console.log(`TURN SWITCH: P${fromPlayer + 1} -> P${nextPlayer + 1} (${actionType})`);
 
-        logger.info('Turn switched - player cannot move', {
-          gameId,
-          previousPlayer: newGameState.currentPlayer,
-          newPlayer: nextPlayer
-        });
-
-        // Check if next player can also move, or if game should end
-        const nextPlayerCanMove = canPlayerMove(finalGameState);
-        console.log('🔄 [DEBUG] NEXT PLAYER ANALYSIS:', {
-          gameId,
-          nextPlayer,
-          nextPlayerCanMove,
-          nextPlayerHand: finalGameState.playerHands[nextPlayer].length + ' cards',
-          bothCannotMove: !nextPlayerCanMove
-        });
-
-        if (!nextPlayerCanMove) {
-          // Neither player can move - game might be over
-          logger.warn('Neither player can move - potential game end', { gameId });
-          // You could implement game ending logic here
+        // Keep TRAIL_FIX log for debugging trail turn management
+        if (forceTurnSwitch) {
+          console.log(`TRAIL_FIX: ${actionType} forced turn end - P${fromPlayer + 1} -> P${nextPlayer + 1}`);
         }
-      } else {
-        // 🔄 [DEBUG] Turn continues - player can still move
-        console.log('🔄 [DEBUG] TURN CONTINUES:', {
-          gameId,
-          player: finalGameState.currentPlayer,
-          remainingCards: finalGameState.playerHands[finalGameState.currentPlayer].length,
-          availableActions: 'computed_on_next_move',
-          reason: 'still_has_moves'
-        });
+
+        // Check if next player can move
+        const nextPlayerCanMove = canPlayerMove(finalGameState);
+        if (!nextPlayerCanMove) {
+          console.log(`GAME END: Neither player can move (game ${gameId})`);
+        }
       }
 
-      logger.info('Action executed successfully', {
-        gameId,
-        actionType,
-        finalPlayer: finalGameState.currentPlayer,
-        turnSwitched: newGameState.currentPlayer !== finalGameState.currentPlayer
-      });
-
-      // ✅ [DEBUG] Log game state changes
-      console.log('✅ [DEBUG] ACTION COMPLETED:', {
-        gameId,
-        actionType,
-        beforeState: {
-          tableCardsCount: gameState.tableCards?.length || 0,
-          currentPlayer: gameState.currentPlayer,
-          gameOver: gameState.gameOver
-        },
-        afterState: {
-          tableCardsCount: finalGameState.tableCards?.length || 0,
-          currentPlayer: finalGameState.currentPlayer,
-          gameOver: finalGameState.gameOver,
-          turnChanged: gameState.currentPlayer !== finalGameState.currentPlayer,
-          canMove: canPlayerMove(finalGameState)
-        },
-        timestamp: new Date().toISOString()
-      });
+      // Keep essential action completion info
+      const turnChanged = newGameState.currentPlayer !== finalGameState.currentPlayer;
+      console.log(`ACTION: ${actionType} completed - turn changed: ${turnChanged}`);
 
       // Update GameManager's state with final game state (after turn logic)
       this.gameManager.activeGames.set(gameId, finalGameState);

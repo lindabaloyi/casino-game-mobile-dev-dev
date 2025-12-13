@@ -51,60 +51,186 @@ class GameCoordinatorService {
    * Handle card drop action coordination
    */
   handleCardDrop(socket, data) {
+    console.log('[SERVER] card-drop received', {
+      playerId: data.draggedItem.player,
+      draggedSource: data.draggedItem.source,
+      targetType: data.targetInfo.type,
+      draggedCardId: data.draggedItem.card.id,
+      targetCardId: data.targetInfo.card?.id
+    });
+
     const gameId = this.matchmaking.getGameId(socket.id);
     if (!gameId) {
+      this.logger.error('[STAGING_DEBUG] ❌ CARD_DROP: Not in active game', {
+        socketId: socket.id,
+        timestamp: new Date().toISOString()
+      });
       this.broadcaster.sendError(socket, 'Not in an active game');
       return;
     }
 
     // 🔍 [DEBUG] Log incoming client data
-    this.logger.debug('CLIENT PAYLOAD - card-drop:', JSON.stringify({
+    this.logger.info('[STAGING_DEBUG] 📨 CLIENT PAYLOAD RECEIVED - card-drop:', {
       socketId: socket.id,
       gameId: gameId,
-      payload: data,
+      requestId: data.requestId,
+      draggedItem: {
+        card: data.draggedItem.card ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit} (val:${data.draggedItem.card.value})` : 'no card',
+        source: data.draggedItem.source,
+        player: data.draggedItem.player
+      },
+      targetInfo: {
+        type: data.targetInfo.type,
+        card: data.targetInfo.card ? `${data.targetInfo.card.rank}${data.targetInfo.card.suit} (val:${data.targetInfo.card.value})` : 'no card',
+        index: data.targetInfo.index,
+        draggedSource: data.targetInfo.draggedSource
+      },
+      isStagingCandidate: (data.draggedItem.source === 'hand' && data.targetInfo.type === 'loose'),
       timestamp: new Date().toISOString()
-    }, null, 2));
+    });
 
     // Find player's index in the game
     const playerIndex = this.gameManager.getPlayerIndex(gameId, socket.id);
     if (playerIndex === null) {
+      this.logger.error('[STAGING_DEBUG] ❌ CARD_DROP: Player not found in game', {
+        socketId: socket.id,
+        gameId: gameId,
+        timestamp: new Date().toISOString()
+      });
       this.broadcaster.sendError(socket, 'Player not found in game');
       return;
     }
 
+    this.logger.info('[STAGING_DEBUG] 👤 PLAYER VALIDATED:', {
+      socketId: socket.id,
+      gameId: gameId,
+      playerIndex: playerIndex,
+      proceedingToDetermineActions: true
+    });
+
     try {
+      // 🔍 DEBUG: Log what we're sending to determineActions
+      this.logger.info('[STAGING_DEBUG] 🎯 CALLING determineActions with:', {
+        gameId,
+        playerIndex,
+        draggedItem: {
+          card: data.draggedItem.card ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit}` : 'no card',
+          source: data.draggedItem.source,
+          player: data.draggedItem.player
+        },
+        targetInfo: {
+          type: data.targetInfo.type,
+          card: data.targetInfo.card ? `${data.targetInfo.card.rank}${data.targetInfo.card.suit}` : 'no card',
+          index: data.targetInfo.index,
+          draggedSource: data.targetInfo.draggedSource
+        },
+        stagingExpected: (data.draggedItem.source === 'hand' && data.targetInfo.type === 'loose')
+      });
+
       // Use GameManager's determineActions (which will delegate to logic module)
       const result = this.gameManager.determineActions(gameId, data.draggedItem, data.targetInfo);
 
+      console.log('[SERVER] determineActions result', {
+        actionCount: result.actions.length,
+        actionTypes: result.actions.map(a => a.type)
+      });
+
+      this.logger.info('[STAGING_DEBUG] 📋 determineActions RESULT:', {
+        gameId,
+        playerIndex,
+        hasActions: result.actions?.length > 0,
+        actionCount: result.actions?.length || 0,
+        requiresModal: result.requiresModal,
+        errorMessage: result.errorMessage,
+        actionTypes: result.actions?.map(a => a.type) || [],
+        isStagingAction: result.actions?.some(a => a.type === 'tableCardDrop'),
+        timestamp: new Date().toISOString()
+      });
+
       if (result.errorMessage) {
+        this.logger.error('[STAGING_DEBUG] ❌ CARD_DROP BLOCKED by determineActions:', {
+          gameId,
+          playerIndex,
+          errorMessage: result.errorMessage,
+          draggedCard: data.draggedItem.card ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit}` : 'no card',
+          targetCard: data.targetInfo.card ? `${data.targetInfo.card.rank}${data.targetInfo.card.suit}` : 'no card',
+          timestamp: new Date().toISOString()
+        });
         this.broadcaster.sendError(socket, result.errorMessage);
         return;
       }
 
       if (result.actions.length === 1 && !result.requiresModal) {
         // Auto-execute single action
-        this.logger.info(`Auto-executing ${result.actions[0].type}`);
+        const actionToExecute = result.actions[0];
+        this.logger.info('[STAGING_DEBUG] ⚡ AUTO-EXECUTING SINGLE ACTION:', {
+          gameId,
+          playerIndex,
+          actionType: actionToExecute.type,
+          isStagingAction: actionToExecute.type === 'tableCardDrop',
+          draggedCard: data.draggedItem.card ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit}` : 'no card',
+          targetCard: data.targetInfo.card ? `${data.targetInfo.card.rank}${data.targetInfo.card.suit}` : 'no card',
+          proceedingToActionRouter: true
+        });
 
         // ✅ FIX: Inject gameId into action payload before execution
         // Remove undefined gameId from client payload first
-        const { gameId: undefinedGameId, ...cleanPayload } = result.actions[0].payload;
+        const { gameId: undefinedGameId, ...cleanPayload } = actionToExecute.payload;
 
-        const actionToExecute = {
-          type: result.actions[0].type,
+        const finalActionToExecute = {
+          type: actionToExecute.type,
           payload: {
             ...cleanPayload,  // Clean payload without undefined gameId
             gameId  // 🔧 Add the correct gameId
           }
         };
 
-        const newGameState = this.actionRouter.executeAction(gameId, playerIndex, actionToExecute);
+        this.logger.info('[STAGING_DEBUG] 🚀 EXECUTING ACTION VIA ActionRouter:', {
+          gameId,
+          playerIndex,
+          actionType: finalActionToExecute.type,
+          payloadKeys: Object.keys(finalActionToExecute.payload),
+          hasGameId: !!finalActionToExecute.payload.gameId,
+          timestamp: new Date().toISOString()
+        });
+
+        const newGameState = this.actionRouter.executeAction(gameId, playerIndex, finalActionToExecute);
+
+        this.logger.info('[STAGING_DEBUG] ✅ ACTION EXECUTED SUCCESSFULLY:', {
+          gameId,
+          playerIndex,
+          actionType: finalActionToExecute.type,
+          newCurrentPlayer: newGameState.currentPlayer,
+          tableCardCountBefore: this.gameManager.getGameState(gameId).tableCards.length,
+          tableCardCountAfter: newGameState.tableCards.length,
+          broadcastingToClients: true,
+          timestamp: new Date().toISOString()
+        });
 
         // Broadcast to all game players
         this.broadcaster.broadcastGameUpdate(gameId, newGameState);
 
       } else if (result.actions.length > 0) {
         // Send action choices to client for modal selection
+        this.logger.info('[STAGING_DEBUG] 📤 SENDING ACTION CHOICES TO CLIENT:', {
+          gameId,
+          playerIndex,
+          actionCount: result.actions.length,
+          actionTypes: result.actions.map(a => a.type),
+          requestId: data.requestId,
+          requiresModal: true,
+          timestamp: new Date().toISOString()
+        });
         this.broadcaster.sendActionChoices(socket, result.actions, data.requestId);
+      } else {
+        this.logger.warn('[STAGING_DEBUG] ⚠️ NO VALID ACTIONS FOUND:', {
+          gameId,
+          playerIndex,
+          draggedCard: data.draggedItem.card ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit}` : 'no card',
+          targetType: data.targetInfo.type,
+          sendingErrorToClient: true,
+          timestamp: new Date().toISOString()
+        });
       }
 
     } catch (error) {
