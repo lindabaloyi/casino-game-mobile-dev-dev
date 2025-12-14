@@ -49,8 +49,9 @@ function determineActions(draggedItem, targetInfo, gameState) {
   });
 
   // 🔸 STEP 1: Check for staging actions FIRST (highest priority)
-  // Staging applies to hand/table cards dropped on loose cards
-  const stagingCondition = (draggedItem.source === 'table' || draggedItem.source === 'hand') && targetInfo.type === 'loose';
+  // Staging applies to hand/table cards dropped on loose cards OR temporary stacks
+  const stagingCondition = (draggedItem.source === 'table' || draggedItem.source === 'hand') &&
+    (targetInfo.type === 'loose' || targetInfo.type === 'temporary_stack');
   logger.info(`[STAGING_DEBUG] 🎯 STAGING CHECK: condition=${stagingCondition}`, {
     gameId: gameState.gameId || 'unknown',
     draggedSource: draggedItem.source,

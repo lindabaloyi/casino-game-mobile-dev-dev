@@ -45,7 +45,8 @@ function determineStackActions(draggedItem, targetInfo, gameState) {
     timestamp: new Date().toISOString()
   });
 
-  if (draggedItem.source === 'table' || (draggedItem.source === 'hand' && targetInfo.type === 'loose')) {
+  if (draggedItem.source === 'table' || (draggedItem.source === 'hand' && targetInfo.type === 'loose') ||
+      (draggedItem.source === 'table' && targetInfo.type === 'temporary_stack')) {
     logger.info('[STAGING_DEBUG] ✅ STAGING CONDITION MET:', {
       gameId: gameId || 'unknown',
       draggedSource: draggedItem.source,
@@ -66,7 +67,7 @@ function determineStackActions(draggedItem, targetInfo, gameState) {
     });
 
     if (targetInfo.type === 'loose') {
-      logger.info('[STAGING_DEBUG] 🎴 LOOSE TARGET DETECTED - PREPARING STAGING STACK:', {
+      logger.info('[STAGING_DEBUG] 🎴 LOOSE TARGET DETECTED - CREATING NEW STAGING STACK:', {
         gameId: gameId || 'unknown',
         draggedCard: `${draggedCard.rank}${draggedCard.suit} (val:${draggedValue})`,
         targetCard: `${targetInfo.card.rank}${targetInfo.card.suit} (val:${rankValue(targetInfo.card.rank)})`,
@@ -74,37 +75,12 @@ function determineStackActions(draggedItem, targetInfo, gameState) {
         timestamp: new Date().toISOString()
       });
 
-      // STAGING STACKS BYPASS ALL VALIDATION - No checks for existing temp stacks
-      // According to bug report: "Staging stacks should be unconditional and must bypass all stack validation rules"
-      logger.info('[STAGING_DEBUG] ✅ STAGING STACKS BYPASS VALIDATION - NO EXISTING STACK CHECK:', {
-        gameId: gameId || 'unknown',
-        draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
-        targetCard: `${targetInfo.card.rank}${targetInfo.card.suit}`,
-        bypassedValidation: true,
-        timestamp: new Date().toISOString()
-      });
-
-      logger.info('[STAGING_DEBUG] ✅ TEMP STACK VALIDATION PASSED - CREATING tableCardDrop ACTION:', {
-        gameId: gameId || 'unknown',
-        actionType: 'tableCardDrop',
-        draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
-        targetCard: `${targetInfo.card.rank}${targetInfo.card.suit}`,
-        player: currentPlayer,
-        newStackValue: draggedValue + rankValue(targetInfo.card.rank),
-        timestamp: new Date().toISOString()
-      });
-
-      console.log('[determineStackActions] creating staging action', {
-        draggedCardId: draggedItem.card.id,
-        targetCardId: targetInfo.card.id
-      });
-
-      // Create temporary stack action
+      // Create temporary stack action for new stack
       const tableCardDropAction = {
         type: 'tableCardDrop',
         label: `Create Stack (${draggedValue + rankValue(targetInfo.card.rank)})`,
         payload: {
-          gameId: gameId, // Will be set by caller
+          gameId: gameId,
           draggedCard: draggedCard,
           targetCard: targetInfo.card,
           draggedSource: draggedItem.source,
@@ -114,38 +90,89 @@ function determineStackActions(draggedItem, targetInfo, gameState) {
 
       actions.push(tableCardDropAction);
 
-      logger.info('[STAGING_DEBUG] 🎯 TABLE DROP ACTION CREATED - RETURNING FOR AUTO-EXECUTION:', {
+      logger.info('[STAGING_DEBUG] 🎯 NEW STAGING STACK ACTION CREATED:', {
         gameId: gameId || 'unknown',
-        actionCount: actions.length,
         actionType: tableCardDropAction.type,
-        requiresModal: false,
-        errorMessage: null,
+        draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+        targetCard: `${targetInfo.card.rank}${targetInfo.card.suit}`,
         timestamp: new Date().toISOString()
       });
 
-      // Auto-execute single table drop actions (don't require modal)
       return {
         actions,
         requiresModal: false,
         errorMessage: null
       };
+    } else if (targetInfo.type === 'temporary_stack') {
+      logger.info('[STAGING_DEBUG] 📦 TEMPORARY STACK TARGET DETECTED - ADDING TO EXISTING STAGING STACK:', {
+        gameId: gameId || 'unknown',
+        draggedCard: `${draggedCard.rank}${draggedCard.suit} (val:${draggedValue})`,
+        targetStackId: targetInfo.stackId,
+        unlimitedStagingAddition: true,
+        timestamp: new Date().toISOString()
+      });
+
+      // Find the target temporary stack
+      const targetStack = tableCards.find(c =>
+        c.type === 'temporary_stack' && c.stackId === targetInfo.stackId
+      );
+
+      if (targetStack) {
+        // Create action to add to existing temporary stack
+        const addToStagingAction = {
+          type: 'addToStagingStack',
+          label: `Add to Stack (${targetStack.value} → ${targetStack.value + draggedValue})`,
+          payload: {
+            gameId: gameState.gameId,
+            draggedItem,
+            targetStack
+          }
+        };
+
+        actions.push(addToStagingAction);
+
+        logger.info('[STAGING_DEBUG] 🎯 ADD TO STAGING STACK ACTION CREATED:', {
+          gameId: gameId || 'unknown',
+          actionType: addToStagingAction.type,
+          draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+          targetStackId: targetInfo.stackId,
+          currentValue: targetStack.value,
+          newValue: targetStack.value + draggedValue,
+          timestamp: new Date().toISOString()
+        });
+
+        return {
+          actions,
+          requiresModal: false,
+          errorMessage: null
+        };
+      } else {
+        logger.warn('[STAGING_DEBUG] ⚠️ TARGET TEMPORARY STACK NOT FOUND:', {
+          gameId: gameId || 'unknown',
+          targetStackId: targetInfo.stackId,
+          availableStacks: tableCards.filter(c => c.type === 'temporary_stack').map(c => c.stackId),
+          timestamp: new Date().toISOString()
+        });
+
+        return {
+          actions: [],
+          requiresModal: false,
+          errorMessage: 'Target temporary stack not found'
+        };
+      }
     } else {
-      logger.warn('[STAGING_DEBUG] ⚠️ TABLE DROP ON NON-LOOSE TARGET NOT SUPPORTED:', {
+      logger.warn('[STAGING_DEBUG] ⚠️ STAGING DROP ON UNSUPPORTED TARGET TYPE:', {
         gameId: gameId || 'unknown',
         targetType: targetInfo.type,
         draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
-        returningError: true,
+        supportedTypes: ['loose', 'temporary_stack'],
         timestamp: new Date().toISOString()
       });
-      console.warn('[determineStackActions] STAGING REJECTED', {
-        reason: 'Invalid table card drop target - not a loose card'
-      });
 
-      // Table drop on non-loose targets not supported
       return {
         actions: [],
         requiresModal: false,
-        errorMessage: 'Invalid table card drop target'
+        errorMessage: 'Unsupported staging target type'
       };
     }
   } else {
@@ -159,24 +186,7 @@ function determineStackActions(draggedItem, targetInfo, gameState) {
     });
   }
 
-  // Check for adding to existing temporary stacks
-  if (targetInfo.type === 'temporary_stack') {
-    const targetStack = tableCards.find(c =>
-      c.type === 'temporary_stack' && c.stackId === targetInfo.stackId
-    );
 
-    if (targetStack) {
-      actions.push({
-        type: 'addToStagingStack',
-        label: `Add to Stack (${targetStack.value} → ${targetStack.value + draggedValue})`,
-        payload: {
-          gameId: gameState.gameId,
-          draggedItem,
-          targetStack
-        }
-      });
-    }
-  }
 
   return actions;
 }

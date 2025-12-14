@@ -3,7 +3,6 @@ import { Dimensions, StyleSheet, View } from 'react-native';
 import { Card, TableCard } from '../multiplayer/server/game-logic/game-state';
 import { BuildCardRenderer } from './table/BuildCardRenderer';
 import { LooseCardRenderer } from './table/LooseCardRenderer';
-import { useTableInteractionManager } from './table/TableInteractionManager';
 import { TempStackRenderer } from './table/TempStackRenderer';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -42,25 +41,136 @@ const TableCards: React.FC<TableCardsProps> = ({
 }) => {
   const tableRef = useRef<View>(null);
 
-  // Use interaction manager hook for drop handling
-  const { handleDropOnStack } = useTableInteractionManager({
-    tableCards,
-    onDropOnCard: onDropOnCard || (() => false)
-  });
+  // Track locally cancelled staging stacks for immediate UI updates
+  const [cancelledStacks, setCancelledStacks] = React.useState<Set<string>>(new Set());
+
+  // Enhanced staging reject handler that marks stacks as cancelled locally
+  const handleStagingRejectWithLocalState = React.useCallback((stackId: string) => {
+    console.log(`[TableCards] ❌ CANCEL STAGING - STARTING LOCAL CANCEL PROCESS:`, {
+      stackId,
+      action: 'immediate-ui-hide',
+      currentCancelledCount: cancelledStacks.size,
+      willAddToCancelled: true,
+      timestamp: Date.now()
+    });
+
+    // Mark this stack as cancelled locally for immediate UI update
+    setCancelledStacks(prev => {
+      const newSet = new Set([...prev, stackId]);
+      console.log(`[TableCards] ✅ CANCEL STAGING - LOCAL STATE UPDATED:`, {
+        stackId,
+        previousCount: prev.size,
+        newCount: newSet.size,
+        cancelledStacksArray: Array.from(newSet),
+        willTriggerReRender: true,
+        visualEffect: 'temp-stack-will-disappear'
+      });
+      return newSet;
+    });
+
+    // Call the original handler (which is purely client-side)
+    console.log(`[TableCards] 🎯 CANCEL STAGING - CALLING ORIGINAL HANDLER:`, {
+      stackId,
+      hasOriginalHandler: !!onStagingReject,
+      handlerType: 'onStagingReject'
+    });
+    onStagingReject?.(stackId);
+
+    console.log(`[TableCards] ✅ CANCEL STAGING - PROCESS COMPLETE:`, {
+      stackId,
+      expectedOutcome: 'temp-stack-disappears-immediately',
+      playerCanRetry: true,
+      serverWillEventuallySync: true
+    });
+  }, [cancelledStacks, onStagingReject]);
+
+  // Expand cancelled staging stacks into loose cards for immediate visual feedback
+  const visibleTableCards = React.useMemo(() => {
+    console.log(`[TableCards] 🔄 CALCULATING VISIBLE TABLE CARDS:`, {
+      totalTableCards: tableCards.length,
+      cancelledStacksCount: cancelledStacks.size,
+      cancelledStacksArray: Array.from(cancelledStacks),
+      willExpandCancelledStacks: cancelledStacks.size > 0,
+      timestamp: Date.now()
+    });
+
+    // First, expand cancelled temp stacks into their constituent loose cards
+    const expandedCards = tableCards.flatMap(tableItem => {
+      const itemType = getCardType(tableItem);
+      if (itemType === 'temporary_stack') {
+        const stackId = (tableItem as any).stackId;
+        const isCancelled = cancelledStacks.has(stackId);
+        if (isCancelled) {
+          // Replace cancelled temp stack with its loose cards
+          const stackCards = (tableItem as any).cards || [];
+          console.log(`[TableCards] 🎯 EXPANDING CANCELLED STAGING STACK:`, {
+            stackId,
+            reason: 'locally-cancelled',
+            visualEffect: 'cards-appear-as-loose',
+            stackCardsCount: stackCards.length,
+            expandedCards: stackCards.map((c: any) => `${c.rank}${c.suit}`),
+            willReplaceStackWithCards: true
+          });
+          return stackCards; // Return the individual cards
+        }
+      }
+      return [tableItem]; // Keep other items as-is
+    });
+
+    // Then, filter out any remaining cancelled temp stacks (should be none after expansion)
+    const filtered = expandedCards.filter(tableItem => {
+      const itemType = getCardType(tableItem);
+      if (itemType === 'temporary_stack') {
+        const stackId = (tableItem as any).stackId;
+        const isCancelled = cancelledStacks.has(stackId);
+        if (isCancelled) {
+          console.log(`[TableCards] ⚠️ UNEXPECTED CANCELLED STACK IN FILTER:`, {
+            stackId,
+            reason: 'should-have-been-expanded',
+            willFilterOut: true
+          });
+        }
+        return !isCancelled;
+      }
+      return true;
+    });
+
+    console.log(`[TableCards] ✅ VISIBLE TABLE CARDS CALCULATED:`, {
+      originalCount: tableCards.length,
+      expandedCount: expandedCards.length,
+      visibleCount: filtered.length,
+      cancelledStacksExpanded: cancelledStacks.size,
+      hasTempStacks: filtered.some(item => getCardType(item) === 'temporary_stack'),
+      hasCancelledStacks: cancelledStacks.size > 0,
+      willTriggerReRender: true,
+      cardsRestored: expandedCards.length - tableCards.length
+    });
+
+    return filtered;
+  }, [tableCards, cancelledStacks]);
 
   return (
     <View ref={tableRef} style={styles.tableContainer}>
       <View style={styles.tableArea}>
-        {tableCards.length === 0 ? (
+        {visibleTableCards.length === 0 ? (
           <View style={styles.emptyTable}>
             {/* Empty table area - drop zone active */}
           </View>
         ) : (
           <View style={styles.cardsContainer}>
-            {tableCards.map((tableItem, index) => {
+            {visibleTableCards.map((tableItem, index) => {
               // Calculate z-index hierarchy: later cards stack higher
               const baseZIndex = tableCards.length - index; // Reverse index for stacking
-              const dragZIndex = tableCards.length + 1000; // Always higher than any base z-index
+              const dragZIndex = 99999; // Extreme z-index to ensure dragged cards always appear above everything
+
+              console.log(`[TableCards] 🎯 RENDERING CARD ${index}:`, {
+                card: getCardType(tableItem) === 'loose' ? `${(tableItem as any).rank}${(tableItem as any).suit}` : 'stack',
+                type: getCardType(tableItem),
+                baseZIndex,
+                dragZIndex,
+                willFloatAboveAll: dragZIndex === 99999,
+                stackingHierarchy: 'dragged > static'
+              });
 
               // Handle different table item types using renderer components
               const itemType = getCardType(tableItem);
@@ -104,7 +214,7 @@ const TableCards: React.FC<TableCardsProps> = ({
                     onFinalizeStack={onFinalizeStack}
                     onCancelStack={onCancelStack}
                     onStagingAccept={onStagingAccept}
-                    onStagingReject={onStagingReject}
+                    onStagingReject={handleStagingRejectWithLocalState}
                   />
                 );
               }

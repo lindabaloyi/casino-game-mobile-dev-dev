@@ -43,6 +43,7 @@ export function TempStackRenderer({
 
   console.log(`[TEMP_STACK_RENDERER] 🎴 Rendering TEMPORARY STACKING STACK:`, {
     stackId: tempStackItem.stackId || stackId,
+    dropZoneId: `temp-${index}`, // This is what drop zones use
     owner: tempStackItem.owner,
     currentPlayer,
     isCurrentPlayerOwner,
@@ -53,8 +54,10 @@ export function TempStackRenderer({
     index,
     baseZIndex,
     hasStagingCallbacks: !!(onStagingAccept && onStagingReject),
-    hasLegacyCallbacks: !!(onFinalizeStack && onCancelStack)
+    hasLegacyCallbacks: !!(onFinalizeStack && onCancelStack),
+    unlimitedStagingEnabled: true
   });
+  console.log(`🎯 [STAGING_DEBUG] TEMP STACK ${index} READY: Can accept unlimited loose card drops`);
 
   if (isCurrentPlayerOwner) {
     console.log(`[TEMP_STACK_RENDERER] 👑 Player owns this stack - showing STAGING OVERLAY with Accept/Cancel buttons`, {
@@ -77,7 +80,7 @@ export function TempStackRenderer({
   return (
     <View key={`staging-container-${index}`} style={styles.stagingStackContainer}>
       <CardStack
-        stackId={tempStackItem.stackId || stackId}
+        stackId={`temp-${index}`} // Force simple temp-{index} format for drop zones
         cards={tempStackCards}
         onDropStack={onDropStack}
         isBuild={false}

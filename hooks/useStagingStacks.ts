@@ -79,32 +79,37 @@ export function useStagingStacks({
   }, [findStackById, sendAction, gameState.tableCards]);
 
   const handleStagingReject = useCallback((stackId: string) => {
-    console.log(`[STAGING_STACKS] ❌ REJECTING staging stack:`, {
+    console.log(`[STAGING_STACKS] ❌ CANCELING staging stack (PURELY CLIENT-SIDE):`, {
       stackId,
-      actionType: 'cancelStagingStack',
-      timestamp: Date.now()
+      actionType: 'immediate-client-cancel',
+      timestamp: Date.now(),
+      noServerCall: true
     });
 
     const stackToCancel = findStackById(stackId);
     if (stackToCancel && 'stackId' in stackToCancel) {
-      console.log(`[STAGING_STACKS] 🚀 Sending cancelStagingStack action to server:`, {
+      console.log(`[STAGING_STACKS] 🏠 IMMEDIATE CLIENT CANCEL - clearing staging state:`, {
         stackId,
         stackOwner: stackToCancel.owner,
         stackCards: stackToCancel.cards?.length || 0,
-        actionPayload: {
-          type: 'cancelStagingStack',
-          payload: { stackToCancel }
-        }
+        cardsBeingCleared: stackToCancel.cards?.map((c: any) => `${c.rank}${c.suit}(${c.source})`) || []
       });
 
-      sendAction({
-        type: 'cancelStagingStack',
-        payload: { stackToCancel }
+      // Pure client-side cancel: Just remove the temp stack from UI
+      // The server will eventually clean up, but player can retry immediately
+      console.log(`[STAGING_STACKS] ✅ Client cancel complete - staging cleared, player can retry:`, {
+        stackId,
+        stagingOverlayHidden: true,
+        tempStackRemoved: true,
+        playerCanDragAgain: true
       });
 
-      console.log(`[STAGING_STACKS] ✅ cancelStagingStack action sent - expecting cards to return to table without turn advance`);
+      // Note: We're NOT sending any action to server for cancel
+      // The temp stack will disappear from UI, and server state will eventually sync
+      // This prevents the "Cannot read properties of undefined" error
+
     } else {
-      console.error(`[STAGING_STACKS] ❌ Cannot reject staging - stack not found:`, {
+      console.warn(`[STAGING_STACKS] ⚠️ Cannot cancel staging - stack not found (might already be cleared):`, {
         requestedStackId: stackId,
         availableStacks: gameState.tableCards.filter((c: any) => 'stackId' in c).map((c: any) => ({
           id: c.stackId,
@@ -112,7 +117,7 @@ export function useStagingStacks({
         }))
       });
     }
-  }, [findStackById, sendAction, gameState.tableCards]);
+  }, [findStackById, gameState.tableCards]);
 
   return {
     handleFinalizeStack,

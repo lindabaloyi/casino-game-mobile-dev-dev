@@ -96,16 +96,57 @@ console.log(`[TABLE_INTERACTION] 🎯 LOOSE CARD DROP DETECTED:`, {
         }) || false;
       }
     } else if (targetType === 'temp') {
+      console.log(`[TABLE_INTERACTION] 🎯 TEMPORARY STACK DROP DETECTED:`, {
+        draggedItem: draggedItem ? `${draggedItem.card?.rank}${draggedItem.card?.suit} (${draggedItem.source})` : 'null',
+        stackId: stackId || 'null',
+        targetIndex,
+        isValidIndex: targetIndex >= 0 && targetIndex < tableCards.length,
+        targetStackExists: tableCards[targetIndex] ? true : false,
+        targetStackType: tableCards[targetIndex] && typeof tableCards[targetIndex] === 'object' && 'type' in tableCards[targetIndex] ? (tableCards[targetIndex] as any).type : 'card',
+        unlimitedStagingEnabled: true
+      });
+
       // Dropped on a temporary stack
       const targetStack = tableCards[targetIndex];
       if (targetStack && 'type' in targetStack && targetStack.type === 'temporary_stack') {
         const tempStack = targetStack as any; // Type assertion for temp stack
-        return onDropOnCard?.(draggedItem, {
+        console.log(`[TABLE_INTERACTION] ✅ TEMP STACK DROP VALID:`, {
+          tempStackId: tempStack.stackId,
+          tempStackCards: tempStack.cards?.length || 0,
+          tempStackValue: tempStack.value,
+          draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+          newStackValue: tempStack.value + (draggedItem.card?.value || 0),
+          stagingAddition: true
+        });
+
+        const dropResult = onDropOnCard?.(draggedItem, {
           type: 'temporary_stack',
           stack: tempStack,
           stackId: tempStack.stackId,
           index: targetIndex
         }) || false;
+
+        console.log(`[TABLE_INTERACTION] 🎯 TEMP STACK DROP RESULT:`, {
+          dropResult,
+          actionSent: dropResult ? 'addToStagingStack' : 'none',
+          stagingContinued: dropResult
+        });
+
+        // For table card drops on temp stacks, return object with tableZoneDetected
+        // to ensure DraggableCard sets dropPosition.handled = true
+        return {
+          tableZoneDetected: true,
+          targetType: 'temporary_stack',
+          targetStack: tempStack,
+          actionSent: dropResult
+        };
+      } else {
+        console.log(`[TABLE_INTERACTION] ❌ TEMP STACK DROP INVALID:`, {
+          targetIndex,
+          targetStackType: targetStack && 'type' in targetStack ? (targetStack as any).type : 'none',
+          expectedType: 'temporary_stack',
+          dropRejected: true
+        });
       }
     }
 
