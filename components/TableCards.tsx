@@ -3,6 +3,7 @@ import { Dimensions, StyleSheet, View } from 'react-native';
 import { Card, TableCard } from '../multiplayer/server/game-logic/game-state';
 import { BuildCardRenderer } from './table/BuildCardRenderer';
 import { LooseCardRenderer } from './table/LooseCardRenderer';
+import { useTableInteractionManager } from './table/TableInteractionManager';
 import { TempStackRenderer } from './table/TempStackRenderer';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -40,6 +41,12 @@ const TableCards: React.FC<TableCardsProps> = ({
   onStagingReject
 }) => {
   const tableRef = useRef<View>(null);
+
+  // Use table interaction manager for drop handling
+  const { handleDropOnStack } = useTableInteractionManager({
+    tableCards,
+    onDropOnCard: onDropOnCard || (() => false)
+  });
 
   // Track locally cancelled staging stacks for immediate UI updates
   const [cancelledStacks, setCancelledStacks] = React.useState<Set<string>>(new Set());
