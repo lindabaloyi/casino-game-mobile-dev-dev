@@ -68,12 +68,20 @@ class ActionDeterminationEngine {
    */
   determineActions(draggedItem, targetInfo, gameState) {
     console.log('[ENGINE] ===== ACTION DETERMINATION START =====');
-    console.log('[ENGINE] Input:', {
+
+    // 🔍 DEBUG: Full game state context
+    console.log('[ENGINE] Full context:', {
       draggedSource: draggedItem?.source,
       draggedCard: draggedItem?.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
       targetType: targetInfo?.type,
       targetArea: targetInfo?.area,
-      gameId: gameState?.gameId
+      gameId: gameState?.gameId,
+      currentPlayer: gameState?.currentPlayer,
+      tableCardsCount: gameState?.tableCards?.length || 0,
+      playerHands: gameState?.playerHands?.map((h, i) => ({
+        player: i,
+        handSize: h?.length || 0
+      })) || []
     });
 
     logger.debug('ActionDeterminationEngine: Starting evaluation', {

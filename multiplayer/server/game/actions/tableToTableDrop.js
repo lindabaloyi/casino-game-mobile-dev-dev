@@ -13,6 +13,14 @@ function handleTableToTableDrop(gameManager, playerIndex, action) {
   console.log('[SERVER_CRASH_DEBUG] playerIndex:', playerIndex);
   console.log('[SERVER_CRASH_DEBUG] action.payload:', JSON.stringify(action.payload, null, 2));
 
+  // 🔍 DEBUG: Pre-execution state
+  console.log('[SERVER_DEBUG] PRE-EXECUTION STATE:', {
+    gameId: action.payload.gameId,
+    playerIndex,
+    draggedCard: action.payload.draggedItem?.card ? `${action.payload.draggedItem.card.rank}${action.payload.draggedItem.card.suit}` : 'none',
+    targetCard: action.payload.targetInfo?.card ? `${action.payload.targetInfo.card.rank}${action.payload.targetInfo.card.suit}` : 'none'
+  });
+
   try {
     console.log('[TEMP_STACK] 🏃 TABLE_TO_TABLE_DROP executing');
     console.log('[TEMP_STACK] Input action payload:', JSON.stringify(action.payload, null, 2));
@@ -52,51 +60,71 @@ function handleTableToTableDrop(gameManager, playerIndex, action) {
     throw new Error('TableToTableDrop handler requires loose card target');
   }
 
-  // ✅ OPTIMIZED: Remove original cards before creating temp stack (single-pass)
+  // ✅ FIXED: Remove original cards before creating temp stack
   console.log('[TEMP_STACK] Removing original cards before creating temp stack');
 
-  // Single-pass optimization: collect indices to remove in one iteration
+  // 🔍 CRITICAL DEBUG: Table structure analysis
+  console.log('[DEBUG] Table items analysis:', {
+    totalItems: gameState.tableCards.length,
+    items: gameState.tableCards.map((item, i) => ({
+      index: i,
+      type: item.type || 'loose',
+      hasRank: 'rank' in item,
+      rank: item.rank,
+      suit: item.suit,
+      isTempStack: item.type === 'temporary_stack',
+      tempStackCards: item.type === 'temporary_stack' ? item.cards?.length : 'N/A'
+    }))
+  });
+
   const indicesToRemove = [];
 
+  // 🔥 FIXED LOOP: Only check loose cards, skip temp stacks
   for (let i = 0; i < gameState.tableCards.length; i++) {
-    const card = gameState.tableCards[i];
+    const tableItem = gameState.tableCards[i];
 
-    // Check for dragged card
-    if (card.rank === draggedItem.card.rank &&
-        card.suit === draggedItem.card.suit &&
-        !indicesToRemove.includes(i)) {
-      indicesToRemove.push(i);
+    // ✅ CRITICAL: Skip temp stacks and builds
+    if (tableItem.type && tableItem.type !== 'loose') {
+      console.log(`[DEBUG] Skipping ${tableItem.type} at index ${i}`);
+      continue;
     }
 
-    // Check for target card (could be same index if same card!)
-    if (card.rank === targetInfo.card.rank &&
-        card.suit === targetInfo.card.suit &&
-        !indicesToRemove.includes(i)) {
+    // Now safe to check rank/suit
+    const isDraggedCard = tableItem.rank === draggedItem.card.rank &&
+                          tableItem.suit === draggedItem.card.suit;
+    const isTargetCard = tableItem.rank === targetInfo.card.rank &&
+                          tableItem.suit === targetInfo.card.suit;
+
+    if (isDraggedCard && !indicesToRemove.includes(i)) {
       indicesToRemove.push(i);
+      console.log(`[DEBUG] Found dragged card ${tableItem.rank}${tableItem.suit} at index ${i}`);
+    }
+
+    if (isTargetCard && !indicesToRemove.includes(i)) {
+      indicesToRemove.push(i);
+      console.log(`[DEBUG] Found target card ${tableItem.rank}${tableItem.suit} at index ${i}`);
     }
   }
 
   console.log('[TEMP_STACK] Card indices to remove:', {
     indicesToRemove,
     count: indicesToRemove.length,
+    expectedCount: 2,
     draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
     targetCard: `${targetInfo.card.rank}${targetInfo.card.suit}`
   });
 
-  // Enhanced edge case handling: prevent removing same card twice
-  if (indicesToRemove.length === 1) {
-    // Only one unique card found (dragged and target are same) - remove it once
-    console.log(`[TEMP_STACK] Edge case: removing same card once at index ${indicesToRemove[0]}`);
-    gameState.tableCards.splice(indicesToRemove[0], 1);
-  } else if (indicesToRemove.length === 2) {
-    // Two different cards - remove both in reverse order
-    indicesToRemove.sort((a, b) => b - a).forEach(index => {
-      console.log(`[TEMP_STACK] Removing card at index ${index}:`, gameState.tableCards[index]);
-      gameState.tableCards.splice(index, 1);
-    });
-  } else {
-    console.warn('[TEMP_STACK] Unexpected: found', indicesToRemove.length, 'indices to remove');
+  // 🔥 CRITICAL VALIDATION: Must find exactly 2 loose cards
+  if (indicesToRemove.length !== 2) {
+    console.error('[TEMP_STACK] ❌ CRITICAL: Expected to remove 2 loose cards, found', indicesToRemove.length);
+    throw new Error(`Table-to-table drop: Expected 2 cards to remove, found ${indicesToRemove.length}`);
   }
+
+  // Remove cards in reverse order to maintain indices
+  indicesToRemove.sort((a, b) => b - a).forEach(index => {
+    console.log(`[TEMP_STACK] Removing card at index ${index}:`, gameState.tableCards[index]);
+    gameState.tableCards.splice(index, 1);
+  });
 
   console.log('[TEMP_STACK] Game state after removing originals:', {
     remainingCards: gameState.tableCards.length,

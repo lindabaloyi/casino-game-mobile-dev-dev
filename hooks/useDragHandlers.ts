@@ -82,6 +82,24 @@ export function useDragHandlers({
       timestamp: Date.now()
     });
 
+    // 🔍 DEBUG: Current table state before action
+    console.log(`🔍 [STAGING_DEBUG] Current table state:`, {
+      tableCardsCount: gameState.tableCards?.length || 0,
+      tableCards: gameState.tableCards?.map((card: any, index) => ({
+        index,
+        type: card?.type || 'loose',
+        card: card?.type === 'temporary_stack'
+          ? `temp-stack(${card.stackId})[${card.cards?.length || 0} cards]`
+          : `${card?.rank || 'no-rank'}${card?.suit || 'no-suit'}`,
+        owner: card?.owner
+      })) || [],
+      playerHands: gameState.playerHands?.map((hand, idx) => ({
+        player: idx,
+        handSize: hand?.length || 0,
+        cards: hand?.map((c: any) => `${c.rank}${c.suit}`) || []
+      })) || []
+    });
+
     // 🔍 DETECT STAGING DROP early
     const isStagingDrop = (draggedItem.source === 'hand' || draggedItem.source === 'table') && targetInfo.type === 'loose';
     const isAutoValidDrop = !isStagingDrop; // Regular drops can be validated immediately

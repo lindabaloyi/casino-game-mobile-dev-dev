@@ -186,44 +186,123 @@ function handleHandToTableDrop(gameManager, playerIndex, action) {
 }
 ```
 
-## 🔍 Comprehensive Debug Logging
+## 🔍 Comprehensive Debug Logging System (ENHANCED)
 
-### Server-Side Logging Coverage
+### **🎯 Complete Debug Coverage Added:**
 
-#### Action Determination Logs
+#### **1. Client-Side Drag Operations (`useDragHandlers.ts`)**
 ```javascript
-console.log('[ENGINE] ===== ACTION DETERMINATION START =====');
-console.log('[ENGINE] Input:', { draggedSource, draggedCard, targetType });
-console.log('[ENGINE] Matching rules found:', count);
-console.log('[ENGINE] Rule 0: table-to-table-staging (priority: 100)');
-console.log('[STATE_MACHINE] Action result:', actionDetails);
+// Pre-action table state analysis
+console.log(`🔍 [STAGING_DEBUG] Current table state:`, {
+  tableCardsCount: gameState.tableCards?.length || 0,
+  tableCards: gameState.tableCards?.map((card, index) => ({
+    index, type: card?.type || 'loose',
+    card: card?.type === 'temporary_stack'
+      ? `temp-stack(${card.stackId})[${card.cards?.length || 0} cards]`
+      : `${card?.rank || 'no-rank'}${card?.suit || 'no-suit'}`,
+    owner: card?.owner
+  })) || [],
+  playerHands: gameState.playerHands?.map((hand, idx) => ({
+    player: idx, handSize: hand?.length || 0,
+    cards: hand?.map(c => `${c.rank}${c.suit}`) || []
+  })) || []
+});
 ```
 
-#### Rule Evaluation Logs
+#### **2. Action Determination Engine (`actionDetermination.js`)**
 ```javascript
-console.log('[STAGING_RULE] Evaluating table-to-table staging');
-console.log('[STAGING_RULE] Table-to-table staging condition:', true/false);
-console.log('[STAGING_RULE] Creating table-to-table action with payload');
+// Full context logging
+console.log('[ENGINE] Full context:', {
+  draggedSource: draggedItem?.source,
+  draggedCard: draggedItem?.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
+  targetType: targetInfo?.type,
+  gameId: gameState?.gameId,
+  currentPlayer: gameState?.currentPlayer,
+  tableCardsCount: gameState?.tableCards?.length || 0,
+  playerHands: gameState?.playerHands?.map((h, i) => ({
+    player: i, handSize: h?.length || 0
+  })) || []
+});
 ```
 
-#### Handler Execution Logs
+#### **3. Server Handler Debugging (`tableToTableDrop.js`)**
 ```javascript
-console.log('[TEMP_STACK] Game state before operation:', stateDetails);
-console.log('[TEMP_STACK] Removing original cards before creating temp stack');
-console.log('[TEMP_STACK] Card indices to remove:', { draggedIndex, targetIndex });
-console.log('[TEMP_STACK] Game state after removing originals:', stateDetails);
-console.log('[TEMP_STACK] Created temp stack:', stackDetails);
-console.log('[TEMP_STACK] Final game state:', finalState);
+// Pre-execution state
+console.log('[SERVER_DEBUG] PRE-EXECUTION STATE:', {
+  gameId: action.payload.gameId,
+  playerIndex,
+  draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+  targetCard: `${targetInfo.card.rank}${targetInfo.card.suit}`
+});
+
+// Table structure analysis
+console.log('[DEBUG] Table items analysis:', {
+  totalItems: gameState.tableCards.length,
+  items: gameState.tableCards.map((item, i) => ({
+    index: i, type: item.type || 'loose',
+    hasRank: 'rank' in item, rank: item.rank, suit: item.suit,
+    isTempStack: item.type === 'temporary_stack'
+  }))
+});
+
+// Card finding process
+console.log(`[DEBUG] Found dragged card ${tableItem.rank}${tableItem.suit} at index ${i}`);
+console.log(`[DEBUG] Found target card ${tableItem.rank}${tableItem.suit} at index ${i}`);
 ```
 
-### Client-Side Logging Coverage
-
-#### Action Reception Logs
+#### **4. Validation System (`GameState.js`)**
 ```javascript
-console.log('[CLIENT_DEBUG] ===== ACTION CHOICES RECEIVED =====');
-console.log('[CLIENT_DEBUG] Actions count:', count);
-console.log('[CLIENT_DEBUG] Actions types:', actionTypes);
-console.log('[CLIENT_DEBUG] Single trail action detected');
+// Comprehensive duplicate detection
+function validateNoDuplicates(gameState) {
+  console.log('[VALIDATION] 🔍 Checking for card duplicates across all game locations...');
+
+  // Checks table (loose + temp stacks), hands, and captures
+  // Reports detailed locations of any duplicates found
+}
+```
+
+### **📊 Debug Log Categories:**
+
+| Log Category | Purpose | Location |
+|--------------|---------|----------|
+| `[STAGING_DEBUG]` | Client drag/drop analysis | `useDragHandlers.ts` |
+| `[ENGINE]` | Action determination process | `actionDetermination.js` |
+| `[SERVER_DEBUG]` | Server handler execution | `tableToTableDrop.js` |
+| `[DEBUG]` | Detailed operation steps | All handlers |
+| `[VALIDATION]` | Duplicate detection | `GameState.js` |
+| `[TEMP_STACK]` | Temp stack operations | All temp stack handlers |
+
+### **🎯 Debug Output Example:**
+```
+🔍 [STAGING_DEBUG] Current table state: { tableCardsCount: 3, tableCards: [...] }
+[ENGINE] ===== ACTION DETERMINATION START =====
+[ENGINE] Full context: { draggedSource: "table", targetType: "loose", ... }
+[SERVER_DEBUG] PRE-EXECUTION STATE: { draggedCard: "5♣", targetCard: "4♦" }
+[DEBUG] Table items analysis: { totalItems: 3, items: [...] }
+[DEBUG] Found dragged card 5♣ at index 1
+[DEBUG] Found target card 4♦ at index 2
+[TEMP_STACK] Card indices to remove: { indicesToRemove: [1,2], count: 2 }
+[VALIDATION] ✅ No duplicates found across all game locations
+```
+
+### **🚀 Debug Commands:**
+
+**To enable full debugging:**
+```bash
+# All temp stack logs are now active by default
+# Look for logs starting with [STAGING_DEBUG], [ENGINE], [SERVER_DEBUG], etc.
+```
+
+**To filter specific logs:**
+```bash
+# In browser console:
+console.log = (function(original) {
+  return function(...args) {
+    if (args[0]?.includes?.('[TEMP_STACK]')) {
+      original.apply(console, args);
+    }
+  };
+})(console.log);
 ```
 
 ## 🧪 Testing & Validation
