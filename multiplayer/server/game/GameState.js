@@ -164,6 +164,90 @@ function clone(gameState) {
   return JSON.parse(JSON.stringify(gameState));
 }
 
+/**
+ * Validate that no duplicate cards exist in game state
+ * Checks for card duplication issues in temp stacks, loose cards, and player hands
+ */
+function validateNoDuplicates(gameState) {
+  console.log('[VALIDATION] 🔍 Checking for card duplicates across all game locations...');
+
+  const allCards = [];
+  const cardLocations = [];
+
+  // Collect all cards from table (loose + temp stacks)
+  gameState.tableCards.forEach((item, tableIndex) => {
+    if (item.type === 'temporary_stack' && item.cards) {
+      // Add all cards from temp stacks
+      item.cards.forEach((card, stackIndex) => {
+        const cardId = `${card.rank}${card.suit}`;
+        allCards.push(cardId);
+        cardLocations.push(`table-temp-stack-${item.stackId}-pos${stackIndex}`);
+      });
+    } else if (item.rank && item.suit) {
+      // Add loose cards
+      const cardId = `${item.rank}${item.suit}`;
+      allCards.push(cardId);
+      cardLocations.push(`table-loose-index${tableIndex}`);
+    }
+  });
+
+  // Check player hands to ensure no cross-contamination
+  gameState.playerHands.forEach((hand, playerIndex) => {
+    hand.forEach((card, handIndex) => {
+      const cardId = `${card.rank}${card.suit}`;
+      allCards.push(cardId);
+      cardLocations.push(`hand-p${playerIndex}-pos${handIndex}`);
+    });
+  });
+
+  // Check player captures for completeness
+  gameState.playerCaptures.forEach((captures, playerIndex) => {
+    captures.forEach((card, captureIndex) => {
+      const cardId = `${card.rank}${card.suit}`;
+      allCards.push(cardId);
+      cardLocations.push(`captures-p${playerIndex}-pos${captureIndex}`);
+    });
+  });
+
+  const uniqueCards = [...new Set(allCards)];
+  const hasDuplicates = allCards.length !== uniqueCards.length;
+
+  if (hasDuplicates) {
+    // Find which cards are duplicated and where they appear
+    const duplicateCards = [];
+    const locationMap = {};
+
+    allCards.forEach((cardId, index) => {
+      if (!locationMap[cardId]) {
+        locationMap[cardId] = [];
+      }
+      locationMap[cardId].push(cardLocations[index]);
+
+      // Count occurrences
+      const occurrences = allCards.filter(c => c === cardId).length;
+      if (occurrences > 1 && !duplicateCards.includes(cardId)) {
+        duplicateCards.push(cardId);
+      }
+    });
+
+    console.error('[VALIDATION] ❌ DUPLICATES FOUND:', {
+      totalCards: allCards.length,
+      uniqueCards: uniqueCards.length,
+      duplicateCards: duplicateCards,
+      duplicateCount: duplicateCards.length,
+      detailedLocations: duplicateCards.map(cardId => ({
+        card: cardId,
+        locations: locationMap[cardId],
+        occurrenceCount: locationMap[cardId].length
+      }))
+    });
+    return false;
+  }
+
+  console.log('[VALIDATION] ✅ No duplicates found across all game locations');
+  return true;
+}
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
@@ -171,6 +255,7 @@ function clone(gameState) {
 module.exports = {
   initializeGame,
   validateGameState,
+  validateNoDuplicates,
   clone,
   rankValue,
   calculateCardSum,

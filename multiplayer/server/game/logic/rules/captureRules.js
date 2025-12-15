@@ -9,25 +9,44 @@ const captureRules = [
   {
     id: 'single-card-capture',
     condition: (context) => {
+      console.log('[CAPTURE_RULE] Evaluating single card capture:', {
+        draggedSource: context.draggedItem?.source,
+        targetType: context.targetInfo?.type,
+        isCard: isCard(context.targetInfo?.card)
+      });
+
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
-      const tableCards = context.tableCards || [];
 
       // Only for hand cards
-      if (draggedItem?.source !== 'hand') return false;
+      if (draggedItem?.source !== 'hand') {
+        console.log('[CAPTURE_RULE] ❌ Not hand card, rejecting capture');
+        return false;
+      }
 
       // Target must be a loose card
-      if (targetInfo?.type !== 'loose' || !isCard(targetInfo.card)) return false;
+      if (targetInfo?.type !== 'loose' || !isCard(targetInfo.card)) {
+        console.log('[CAPTURE_RULE] ❌ Not loose card, rejecting capture');
+        return false;
+      }
 
       const draggedValue = rankValue(draggedItem.card.rank);
       const targetValue = rankValue(targetInfo.card.rank);
+      const matches = draggedValue === targetValue;
 
-      return draggedValue === targetValue;
+      console.log('[CAPTURE_RULE] Value check:', { draggedValue, targetValue, matches });
+      return matches;
     },
-    action: {
-      type: 'capture',
-      targetCards: (context) => [context.targetInfo.card],
-      captureValue: (context) => rankValue(context.draggedItem.card.rank)
+    action: (context) => {  // ✅ OPTION B: Function returns complete object
+      console.log('[CAPTURE_RULE] Creating single card capture action');
+      const action = {
+        type: 'capture',
+        targetCards: [context.targetInfo.card],
+        captureValue: rankValue(context.draggedItem.card.rank),
+        captureType: 'single'
+      };
+      console.log('[CAPTURE_RULE] Single capture action created:', JSON.stringify(action, null, 2));
+      return action;
     },
     requiresModal: false,
     priority: 50,
@@ -36,24 +55,44 @@ const captureRules = [
   {
     id: 'build-capture',
     condition: (context) => {
+      console.log('[CAPTURE_RULE] Evaluating build capture:', {
+        draggedSource: context.draggedItem?.source,
+        targetType: context.targetInfo?.type,
+        isBuild: isBuild(context.targetInfo?.card)
+      });
+
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
       // Only for hand cards
-      if (draggedItem?.source !== 'hand') return false;
+      if (draggedItem?.source !== 'hand') {
+        console.log('[CAPTURE_RULE] ❌ Not hand card, rejecting build capture');
+        return false;
+      }
 
       // Target must be a build
-      if (!isBuild(targetInfo?.card)) return false;
+      if (!isBuild(targetInfo?.card)) {
+        console.log('[CAPTURE_RULE] ❌ Not a build, rejecting build capture');
+        return false;
+      }
 
       const draggedValue = rankValue(draggedItem.card.rank);
       const buildValue = targetInfo.card.value;
+      const matches = draggedValue === buildValue;
 
-      return draggedValue === buildValue;
+      console.log('[CAPTURE_RULE] Build value check:', { draggedValue, buildValue, matches });
+      return matches;
     },
-    action: {
-      type: 'capture',
-      targetCards: (context) => context.targetInfo.card.cards || [],
-      captureValue: (context) => context.targetInfo.card.value
+    action: (context) => {  // ✅ OPTION B: Function returns complete object
+      console.log('[CAPTURE_RULE] Creating build capture action');
+      const action = {
+        type: 'capture',
+        targetCards: context.targetInfo.card.cards || [],
+        captureValue: context.targetInfo.card.value,
+        captureType: 'build'
+      };
+      console.log('[CAPTURE_RULE] Build capture action created:', JSON.stringify(action, null, 2));
+      return action;
     },
     requiresModal: false,
     priority: 45,
@@ -62,26 +101,46 @@ const captureRules = [
   {
     id: 'temp-stack-capture',
     condition: (context) => {
+      console.log('[CAPTURE_RULE] Evaluating temp stack capture:', {
+        draggedSource: context.draggedItem?.source,
+        targetType: context.targetInfo?.type,
+        isTempStack: isTemporaryStack(context.targetInfo?.card)
+      });
+
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
       // Only for hand cards
-      if (draggedItem?.source !== 'hand') return false;
+      if (draggedItem?.source !== 'hand') {
+        console.log('[CAPTURE_RULE] ❌ Not hand card, rejecting temp stack capture');
+        return false;
+      }
 
       // Target must be a temporary stack
-      if (!isTemporaryStack(targetInfo?.card)) return false;
+      if (!isTemporaryStack(targetInfo?.card)) {
+        console.log('[CAPTURE_RULE] ❌ Not a temp stack, rejecting temp stack capture');
+        return false;
+      }
 
       const draggedValue = rankValue(draggedItem.card.rank);
       const stackValue = targetInfo.card.captureValue ||
                         calculateCardSum(targetInfo.card.cards || []);
+      const matches = draggedValue === stackValue;
 
-      return draggedValue === stackValue;
+      console.log('[CAPTURE_RULE] Temp stack value check:', { draggedValue, stackValue, matches });
+      return matches;
     },
-    action: {
-      type: 'capture',
-      targetCards: (context) => context.targetInfo.card.cards || [],
-      captureValue: (context) => context.targetInfo.card.captureValue ||
-                                 calculateCardSum(context.targetInfo.card.cards || [])
+    action: (context) => {  // ✅ OPTION B: Function returns complete object
+      console.log('[CAPTURE_RULE] Creating temp stack capture action');
+      const action = {
+        type: 'capture',
+        targetCards: context.targetInfo.card.cards || [],
+        captureValue: context.targetInfo.card.captureValue ||
+                     calculateCardSum(context.targetInfo.card.cards || []),
+        captureType: 'temp-stack'
+      };
+      console.log('[CAPTURE_RULE] Temp stack capture action created:', JSON.stringify(action, null, 2));
+      return action;
     },
     requiresModal: false,
     priority: 40,
