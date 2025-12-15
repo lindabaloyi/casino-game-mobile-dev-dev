@@ -5,7 +5,7 @@
  */
 
 const { createLogger } = require('../utils/logger');
-const { canPlayerMove } = require('./logic/determineActions');
+const { canPlayerMove } = require('./logic/actionDetermination');
 
 const logger = createLogger('ActionRouter');
 

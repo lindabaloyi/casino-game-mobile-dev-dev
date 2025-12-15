@@ -14,7 +14,8 @@ const handleFinalizeStagingStack = require('./finalizeStagingStack');
 const handleCancelStagingStack = require('./cancelStagingStack');
 const handleAddToOpponentBuild = require('./addToOpponentBuild');
 const handleAddToOwnBuild = require('./addToOwnBuild');
-const handleTableCardDrop = require('./tableCardDrop');
+const handleTableToTableDrop = require('./tableToTableDrop');
+const handleHandToTableDrop = require('./handToTableDrop');
 const handleCreateBuildWithValue = require('./createBuildWithValue');
 const handleAddToTemporaryCaptureStack = require('./addToTemporaryCaptureStack');
 
@@ -30,7 +31,8 @@ module.exports = {
   handleCancelStagingStack,
   handleAddToOpponentBuild,
   handleAddToOwnBuild,
-  handleTableCardDrop,
+  handleTableToTableDrop,
+  handleHandToTableDrop,
   handleCreateBuildWithValue,
   handleAddToTemporaryCaptureStack
 };

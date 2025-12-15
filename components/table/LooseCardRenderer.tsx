@@ -14,7 +14,7 @@ interface LooseCardRendererProps {
   baseZIndex: number;
   dragZIndex: number;
   currentPlayer: number;
-  onDropStack: (draggedItem: any) => boolean;
+  onDropStack: (draggedItem: any) => boolean | any;
   onTableCardDragStart?: (card: any) => void;
   onTableCardDragEnd?: (draggedItem: any, dropPosition: any) => void;
 }

@@ -92,23 +92,42 @@ export function useServerListeners({
   // Handle action choices when they arrive (Phase 2: server-centric logic)
   useEffect(() => {
     if (actionChoices && actionChoices.actions) {
-      console.log('[GameBoard] Action choices received:', actionChoices);
+      console.log('[CLIENT_DEBUG] ===== ACTION CHOICES RECEIVED =====');
+      console.log('[CLIENT_DEBUG] Raw actionChoices:', JSON.stringify(actionChoices, null, 2));
+      console.log('[CLIENT_DEBUG] Actions count:', actionChoices.actions.length);
+      console.log('[CLIENT_DEBUG] Actions types:', actionChoices.actions.map((a: any) => a.type));
 
       // Check if this is a single trail action that requires confirmation
       if (actionChoices.actions.length === 1 && actionChoices.actions[0].type === 'trail') {
         const trailAction = actionChoices.actions[0];
-        console.log('[GameBoard] Single trail action detected, showing trail confirmation modal for:', trailAction.payload.card);
+        console.log('[CLIENT_DEBUG] Single trail action detected');
+        console.log('[CLIENT_DEBUG] Trail action structure:', JSON.stringify(trailAction, null, 2));
+        console.log('[CLIENT_DEBUG] Checking trailAction.payload:', !!trailAction.payload);
+        console.log('[CLIENT_DEBUG] Checking trailAction.payload.card:', !!trailAction.payload?.card);
 
-        setTrailCard(trailAction.payload.card);
-        return;
+        if (trailAction.payload && trailAction.payload.card) {
+          console.log('[CLIENT_DEBUG] Setting trail card:', trailAction.payload.card);
+          setTrailCard(trailAction.payload.card);
+          console.log('[CLIENT_DEBUG] Trail card set successfully');
+          return;
+        } else {
+          console.error('[CLIENT_DEBUG] ❌ TRAIL ACTION MALFORMED:', {
+            hasPayload: !!trailAction.payload,
+            payloadKeys: trailAction.payload ? Object.keys(trailAction.payload) : 'no payload',
+            fullAction: trailAction
+          });
+          return;
+        }
       }
 
+      console.log('[CLIENT_DEBUG] Setting modal for multiple actions');
       setModalInfo({
         title: 'Choose Your Action',
         message: 'What would you like to do?',
         actions: actionChoices.actions,
         requestId: actionChoices.requestId
       });
+      console.log('[CLIENT_DEBUG] Modal set successfully');
     }
   }, [actionChoices, setModalInfo, setTrailCard]);
 

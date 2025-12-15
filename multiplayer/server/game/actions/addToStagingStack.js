@@ -7,79 +7,78 @@ const { createLogger } = require('../../utils/logger');
 const logger = createLogger('AddToStagingStack');
 
 function handleAddToStagingStack(gameManager, playerIndex, action) {
-  const { gameId } = action.payload;
-  const gameState = gameManager.getGameState(gameId);
-  const { draggedItem, targetStack } = action.payload;
+  const { gameId, stackId, card, source } = action.payload;
 
-  logger.info('Adding to staging stack', {
-    playerIndex,
-    draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
-    stackId: targetStack.stackId,
-    gameId
+  console.log('[SIMPLE STAGING] Adding card to temp stack:', {
+    gameId,
+    stackId,
+    card: `${card.rank}${card.suit}`,
+    source,
+    playerIndex
   });
 
-  // Find the temp stack
-  const stackIndex = gameState.tableCards.findIndex(card =>
-    card.type === 'temporary_stack' && card.stackId === targetStack.stackId
+  const gameState = gameManager.getGameState(gameId);
+
+  // Find or create temp stack (senior lead's approach)
+  let tempStack = gameState.tableCards.find(item =>
+    item.type === 'temporary_stack' && item.stackId === stackId
   );
 
-  if (stackIndex === -1) {
-    throw new Error('Temporary stack not found');
+  if (!tempStack) {
+    console.log('[SIMPLE STAGING] Creating new temp stack for player');
+    tempStack = {
+      type: 'temporary_stack',
+      stackId: stackId || `staging-${Date.now()}`,
+      cards: [],
+      owner: playerIndex,
+      value: 0
+    };
+    gameState.tableCards.push(tempStack);
   }
 
-  // Validation and card removal based on source
-  let addedCard;
-
-  if (draggedItem.source === 'captured') {
-    // Add opponent's captured card to temp stack
-    const opponentIndex = draggedItem.player; // Note: this seems wrong in original - should be current player's captures?
-    if (gameState.playerCaptures[playerIndex].length === 0) {
-      throw new Error("No captured cards available");
-    }
-    addedCard = gameState.playerCaptures[playerIndex].pop();
-  } else {
-    // Add from player's hand
-    const playerHand = gameState.playerHands[playerIndex];
-    const handIndex = playerHand.findIndex(c =>
-      c.rank === draggedItem.card.rank && c.suit === draggedItem.card.suit
-    );
-
-    if (handIndex === -1) {
-      throw new Error("Hand card not found");
-    }
-
-    addedCard = playerHand.splice(handIndex, 1)[0];
-  }
-
-  // Update the temp stack
-  const tempStack = gameState.tableCards[stackIndex];
-  const updatedStack = {
-    ...tempStack,
-    cards: [...tempStack.cards, { ...addedCard, source: draggedItem.source }],
-    value: tempStack.value + addedCard.value,
-    possibleBuilds: [...(tempStack.possibleBuilds || [tempStack.value]), tempStack.value + addedCard.value]
-  };
-
-  const newGameState = {
-    ...gameState,
-    tableCards: gameState.tableCards.map((card, idx) =>
-      idx === stackIndex ? updatedStack : card
-    ),
-    playerHands: draggedItem.source === 'hand' ? gameState.playerHands.map((hand, idx) =>
-      idx === playerIndex ? [...gameState.playerHands[playerIndex]] : hand
-    ) : gameState.playerHands,
-    playerCaptures: draggedItem.source === 'captured' ? gameState.playerCaptures.map((captures, idx) =>
-      idx === playerIndex ? [...gameState.playerCaptures[playerIndex]] : captures
-    ) : gameState.playerCaptures
-  };
-
-  logger.info('Added to staging stack successfully', {
-    stackId: targetStack.stackId,
-    newValue: updatedStack.value,
-    cardCount: updatedStack.cards.length
+  // SIMPLE: Just add the card, no validation
+  console.log('[SIMPLE STAGING] Adding card to stack:', {
+    beforeCount: tempStack.cards.length,
+    card: `${card.rank}${card.suit}`,
+    source
   });
 
-  return newGameState;
+  tempStack.cards.push({
+    ...card,
+    source: source || 'unknown'
+  });
+
+  // Update value if available
+  if (card.value) {
+    tempStack.value = (tempStack.value || 0) + card.value;
+  }
+
+  // Remove from source (hand or captures)
+  if (source === 'hand') {
+    const handIndex = gameState.playerHands[playerIndex].findIndex(c =>
+      c.rank === card.rank && c.suit === card.suit
+    );
+    if (handIndex >= 0) {
+      gameState.playerHands[playerIndex].splice(handIndex, 1);
+    }
+  } else if (source === 'captured') {
+    // Remove from player's captures
+    const captureIndex = gameState.playerCaptures[playerIndex].findIndex(c =>
+      c.rank === card.rank && c.suit === card.suit
+    );
+    if (captureIndex >= 0) {
+      gameState.playerCaptures[playerIndex].splice(captureIndex, 1);
+    }
+  }
+
+  console.log('[SIMPLE STAGING] Card added successfully:', {
+    stackId: tempStack.stackId,
+    newCardCount: tempStack.cards.length,
+    newValue: tempStack.value,
+    remainingHand: gameState.playerHands[playerIndex].length
+  });
+
+  return gameState;
 }
 
 module.exports = handleAddToStagingStack;

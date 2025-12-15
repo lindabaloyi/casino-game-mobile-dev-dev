@@ -91,69 +91,93 @@ const TableCards: React.FC<TableCardsProps> = ({
     });
   }, [cancelledStacks, onStagingReject]);
 
-  // Expand cancelled staging stacks into loose cards for immediate visual feedback
+  // FIXED: Preserve original positions when expanding cancelled stacks
   const visibleTableCards = React.useMemo(() => {
-    console.log(`[TableCards] 🔄 CALCULATING VISIBLE TABLE CARDS:`, {
+    console.log(`[TableCards] 🔄 POSITION-PRESERVING EXPANSION:`, {
       totalTableCards: tableCards.length,
       cancelledStacksCount: cancelledStacks.size,
-      cancelledStacksArray: Array.from(cancelledStacks),
-      willExpandCancelledStacks: cancelledStacks.size > 0,
-      timestamp: Date.now()
+      cancelledStacksList: Array.from(cancelledStacks)
     });
 
-    // First, expand cancelled temp stacks into their constituent loose cards
-    const expandedCards = tableCards.flatMap(tableItem => {
+    // Use flatMap to expand cancelled temp stacks into individual cards
+    // while maintaining original array structure and positions
+    const transformedCards = tableCards.flatMap((tableItem, originalIndex) => {
+      // Handle null/undefined items
+      if (!tableItem) {
+        console.warn(`[TableCards] ⚠️ Found null table item at index ${originalIndex}`);
+        return [];
+      }
+
       const itemType = getCardType(tableItem);
+
+      // Check if this is a cancelled temp stack
       if (itemType === 'temporary_stack') {
         const stackId = (tableItem as any).stackId;
         const isCancelled = cancelledStacks.has(stackId);
+
         if (isCancelled) {
-          // Replace cancelled temp stack with its loose cards
+          console.log(`[TableCards] 🔄 EXPANDING CANCELLED STACK IN-PLACE:`, {
+            stackId,
+            originalIndex,
+            cardsCount: (tableItem as any).cards?.length || 0,
+            action: 'replace-with-individual-cards-at-same-position'
+          });
+
+          // Return the individual cards from the stack
           const stackCards = (tableItem as any).cards || [];
-          console.log(`[TableCards] 🎯 EXPANDING CANCELLED STAGING STACK:`, {
-            stackId,
-            reason: 'locally-cancelled',
-            visualEffect: 'cards-appear-as-loose',
-            stackCardsCount: stackCards.length,
-            expandedCards: stackCards.map((c: any) => `${c.rank}${c.suit}`),
-            willReplaceStackWithCards: true
-          });
-          return stackCards; // Return the individual cards
+
+          // Handle edge case: empty cards array
+          if (stackCards.length === 0) {
+            console.warn(`[TableCards] ⚠️ Cancelled stack ${stackId} has no cards`);
+            return []; // Remove from array entirely
+          }
+
+          // Add position metadata to track original location
+          return stackCards.map((card: any, cardIndex: number) => ({
+            ...card,
+            // Simplified metadata names
+            _cancelledStackId: stackId,
+            _pos: originalIndex, // Original stack position
+            _inStackIdx: cardIndex // Index within the original stack
+          }));
         }
+
+        // Not cancelled - keep the temp stack as-is
+        console.log(`[TableCards] ✅ PRESERVING ACTIVE TEMP STACK:`, {
+          stackId,
+          originalIndex,
+          cardsCount: (tableItem as any).cards?.length || 0
+        });
+        return [tableItem];
       }
-      return [tableItem]; // Keep other items as-is
+
+      // Not a temp stack - keep as-is
+      return [tableItem];
     });
 
-    // Then, filter out any remaining cancelled temp stacks (should be none after expansion)
-    const filtered = expandedCards.filter(tableItem => {
-      const itemType = getCardType(tableItem);
-      if (itemType === 'temporary_stack') {
-        const stackId = (tableItem as any).stackId;
-        const isCancelled = cancelledStacks.has(stackId);
-        if (isCancelled) {
-          console.log(`[TableCards] ⚠️ UNEXPECTED CANCELLED STACK IN FILTER:`, {
-            stackId,
-            reason: 'should-have-been-expanded',
-            willFilterOut: true
-          });
-        }
-        return !isCancelled;
-      }
-      return true;
-    });
-
-    console.log(`[TableCards] ✅ VISIBLE TABLE CARDS CALCULATED:`, {
+    console.log(`[TableCards] ✅ POSITION PRESERVATION COMPLETE:`, {
       originalCount: tableCards.length,
-      expandedCount: expandedCards.length,
-      visibleCount: filtered.length,
-      cancelledStacksExpanded: cancelledStacks.size,
-      hasTempStacks: filtered.some(item => getCardType(item) === 'temporary_stack'),
-      hasCancelledStacks: cancelledStacks.size > 0,
-      willTriggerReRender: true,
-      cardsRestored: expandedCards.length - tableCards.length
+      transformedCount: transformedCards.length,
+      expansionCount: transformedCards.length - tableCards.length,
+
+      // Detailed transformation tracking
+      transformationMap: {
+        originalItems: tableCards.map((item, i) => ({
+          index: i,
+          type: item ? getCardType(item) : 'null',
+          stackId: item && getCardType(item) === 'temporary_stack' ? (item as any).stackId : null,
+          cancelled: item && getCardType(item) === 'temporary_stack' ? cancelledStacks.has((item as any).stackId) : false
+        })),
+        transformedItems: transformedCards.map((item, i) => ({
+          index: i,
+          type: item ? getCardType(item) : 'null',
+          fromCancelledStack: !!(item as any)._cancelledStackId,
+          originalPosition: (item as any)._pos || null
+        }))
+      }
     });
 
-    return filtered;
+    return transformedCards;
   }, [tableCards, cancelledStacks]);
 
   return (
@@ -165,33 +189,44 @@ const TableCards: React.FC<TableCardsProps> = ({
           </View>
         ) : (
           <View style={styles.cardsContainer}>
-            {visibleTableCards.map((tableItem, index) => {
-              // Calculate z-index hierarchy: later cards stack higher
-              const baseZIndex = tableCards.length - index; // Reverse index for stacking
-              const dragZIndex = 99999; // Extreme z-index to ensure dragged cards always appear above everything
+            {visibleTableCards.map((tableItem, visibleIndex) => {
+              // Find the original position for this card using metadata
+              const originalPosition = (tableItem as any)._pos !== undefined
+                ? (tableItem as any)._pos
+                : visibleIndex; // Fallback for non-expanded cards
 
-              console.log(`[TableCards] 🎯 RENDERING CARD ${index}:`, {
-                card: getCardType(tableItem) === 'loose' ? `${(tableItem as any).rank}${(tableItem as any).suit}` : 'stack',
-                type: getCardType(tableItem),
-                baseZIndex,
-                dragZIndex,
-                willFloatAboveAll: dragZIndex === 99999,
-                stackingHierarchy: 'dragged > static'
+              // Calculate z-index hierarchy: later cards stack higher
+              const baseZIndex = tableCards.length - visibleIndex;
+              const dragZIndex = 99999;
+
+              console.log(`[TableCards] 📍 POSITION MAPPING:`, {
+                visibleIndex,
+                originalPosition,
+                card: getCardType(tableItem) === 'loose' ?
+                  `${(tableItem as any).rank}${(tableItem as any).suit}` : 'stack',
+                fromCancelledStack: !!(tableItem as any)._cancelledStackId
               });
 
-              // Handle different table item types using renderer components
               const itemType = getCardType(tableItem);
 
               if (itemType === 'loose') {
                 return (
                   <LooseCardRenderer
-                    key={`table-card-${index}-${(tableItem as Card).rank}-${(tableItem as Card).suit}`}
+                    key={`loose-${originalPosition}-${(tableItem as Card).rank}-${(tableItem as Card).suit}`}
                     tableItem={tableItem}
-                    index={index}
+                    index={originalPosition} // Use ORIGINAL position for drop handling
                     baseZIndex={baseZIndex}
                     dragZIndex={dragZIndex}
                     currentPlayer={currentPlayer}
-                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, `loose-${index}`) as boolean}
+                    onDropStack={(draggedItem) => {
+                      console.log(`[TableCards] 🎯 DROP ON LOOSE CARD:`, {
+                        visibleIndex,
+                        originalPosition,
+                        card: `${(tableItem as Card).rank}${(tableItem as Card).suit}`,
+                        draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`
+                      });
+                      return handleDropOnStack(draggedItem, `loose-${originalPosition}`);
+                    }}
                     onTableCardDragStart={onTableCardDragStart}
                     onTableCardDragEnd={onTableCardDragEnd}
                   />
@@ -199,25 +234,25 @@ const TableCards: React.FC<TableCardsProps> = ({
               } else if (itemType === 'build') {
                 return (
                   <BuildCardRenderer
-                    key={`table-build-${index}`}
+                    key={`table-build-${originalPosition}`}
                     tableItem={tableItem}
-                    index={index}
+                    index={originalPosition}
                     baseZIndex={baseZIndex}
                     dragZIndex={dragZIndex}
                     currentPlayer={currentPlayer}
-                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, `build-${index}`) as boolean}
+                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, `build-${originalPosition}`)}
                   />
                 );
               } else if (itemType === 'temporary_stack') {
                 return (
                   <TempStackRenderer
-                    key={`staging-container-${index}`}
+                    key={`staging-container-${originalPosition}`}
                     tableItem={tableItem}
-                    index={index}
+                    index={originalPosition}
                     baseZIndex={baseZIndex}
                     dragZIndex={dragZIndex}
                     currentPlayer={currentPlayer}
-                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, (tableItem as any).stackId || `temp-${index}`) as boolean}
+                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, (tableItem as any).stackId || `temp-${originalPosition}`)}
                     onFinalizeStack={onFinalizeStack}
                     onCancelStack={onCancelStack}
                     onStagingAccept={onStagingAccept}

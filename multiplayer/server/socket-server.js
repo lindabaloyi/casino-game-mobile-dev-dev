@@ -72,7 +72,8 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
     cancelStagingStack: actionHandlers.handleCancelStagingStack,
     addToOpponentBuild: actionHandlers.handleAddToOpponentBuild,
     addToOwnBuild: actionHandlers.handleAddToOwnBuild,
-    tableCardDrop: actionHandlers.handleTableCardDrop,
+    tableToTableDrop: actionHandlers.handleTableToTableDrop,
+    handToTableDrop: actionHandlers.handleHandToTableDrop,
     createBuildWithValue: actionHandlers.handleCreateBuildWithValue,
     addToTemporaryCaptureStack: actionHandlers.handleAddToTemporaryCaptureStack
   };

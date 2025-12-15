@@ -15,7 +15,7 @@ interface TempStackRendererProps {
   baseZIndex: number;
   dragZIndex: number;
   currentPlayer: number;
-  onDropStack: (draggedItem: any) => boolean;
+  onDropStack: (draggedItem: any) => boolean | any;
   onFinalizeStack?: (stackId: string) => void;
   onCancelStack?: (stackId: string) => void;
   onStagingAccept?: (stackId: string) => void;
