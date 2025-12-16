@@ -135,12 +135,17 @@ function handleTableToTableDrop(gameManager, playerIndex, action) {
     }))
   });
 
-  // ✅ NOW: Create temp stack with the removed cards
+  // ✅ Create temp stack with ordered cards: bigger at bottom
+  const { orderCardsBigToSmall } = require('../GameState');
   const stackId = `temp-${Date.now()}`;
+
+  // Order: bigger card at bottom, smaller card on top
+  const [bottomCard, topCard] = orderCardsBigToSmall(targetInfo.card, draggedItem.card);
+
   const tempStack = {
     type: 'temporary_stack',
     stackId: stackId,
-    cards: [targetInfo.card, draggedItem.card],
+    cards: [bottomCard, topCard],
     owner: playerIndex,
     value: (targetInfo.card.value || 0) + (draggedItem.card.value || 0)
   };

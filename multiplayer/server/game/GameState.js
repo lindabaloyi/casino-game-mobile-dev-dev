@@ -112,10 +112,6 @@ function validateGameState(gameState) {
   return { valid: errors.length === 0, errors };
 }
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
 /**
  * Get card rank value (A=1, 2-10=face value)
  */
@@ -127,6 +123,22 @@ function rankValue(rank) {
     return isNaN(parsed) ? 0 : parsed;
   }
   return 0;
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Order two cards for temp stack creation: bigger card at bottom
+ * Returns [bottomCard, topCard] where bottomCard has higher or equal value
+ */
+function orderCardsBigToSmall(card1, card2) {
+  // Bigger value card = bottom (index 0)
+  // Smaller value card = top (index 1)
+  return (card1.value || 0) >= (card2.value || 0)
+    ? [card1, card2]   // card1 bigger or equal = bottom
+    : [card2, card1];  // card2 bigger = bottom
 }
 
 /**
@@ -261,5 +273,6 @@ module.exports = {
   calculateCardSum,
   isCard,
   isBuild,
-  isTemporaryStack
+  isTemporaryStack,
+  orderCardsBigToSmall
 };
