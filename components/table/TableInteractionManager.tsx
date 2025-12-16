@@ -20,79 +20,68 @@ const safeHasProperty = (obj: any, prop: string): boolean => {
 export function useTableInteractionManager({ tableCards, onDropOnCard }: TableInteractionManagerProps) {
 
 const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
-  console.log('[CLIENT_DEBUG] ===== CLIENT DROP =====');
-  console.log('[CLIENT_DEBUG] draggedItem.source:', draggedItem?.source);
-  console.log('[CLIENT_DEBUG] stackId:', stackId);
-  console.log('[CLIENT_DEBUG] draggedCard:', draggedItem?.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'null');
+  console.log('[DEBUG] Processing drop with stackId:', stackId);
 
-  console.log('[SIMPLE DROP] Processing drop:', {
-    draggedCard: `${draggedItem?.card?.rank}${draggedItem?.card?.suit}`,
-    stackId,
-    source: draggedItem?.source
-  });
+  // Basic validation only
+  if (!draggedItem || !draggedItem.card) {
+    console.log('[SIMPLE DROP] No dragged item');
+    return false;
+  }
 
-    // Basic validation only
-    if (!draggedItem || !draggedItem.card) {
-      console.log('[SIMPLE DROP] No dragged item');
-      return false;
-    }
+  let targetItem;
+  let isTempStack = false;
 
-    // Parse stack ID
+  // Strategy 1: Try to find temp stack by stackId
+  if (stackId.startsWith('temp-') || stackId.startsWith('staging-')) {
+    targetItem = tableCards.find(item =>
+      item &&
+      safeHasProperty(item, 'type') &&
+      (item as any).type === 'temporary_stack' &&
+      (item as any).stackId === stackId
+    );
+    isTempStack = !!targetItem;
+  }
+
+  // Strategy 2: Try to parse as loose/build card index
+  if (!targetItem && (stackId.startsWith('card-') || stackId.startsWith('loose-') || stackId.startsWith('build-'))) {
     const parts = stackId.split('-');
-    const targetType = parts[0];
     const targetIndex = parseInt(parts[1]);
+    targetItem = tableCards[targetIndex];
+    isTempStack = false;
+  }
 
-    // Find the target item
-    const targetItem = tableCards[targetIndex];
-
-    if (!targetItem) {
-      console.log('[SIMPLE DROP] No target at index', targetIndex);
-      return false;
-    }
-
-    // Check if it's a temp stack
-    const isTempStack = safeHasProperty(targetItem, 'type') && (targetItem as any).type === 'temporary_stack';
+  if (!targetItem) {
+    console.log('[ERROR] No target found for stackId:', stackId);
+    return false;
+  }
 
   if (isTempStack) {
-    console.log('[SIMPLE DROP] 🎯 Dropping on temp stack - ADD CARD');
-
     const tempStack = targetItem as any;
 
-    // SIMPLE: Always allow adding to temp stack
-    if (onDropOnCard) {
-      const result = onDropOnCard(draggedItem, {
-        type: 'temporary_stack', // ✅ Consistent with server expectations
-        stackId: tempStack.stackId,
-        stack: tempStack,
-        index: targetIndex,
-        card: draggedItem.card, // ✅ Include dragged card for consistency
-        source: draggedItem.source
-      });
 
-      console.log('[SIMPLE DROP] Add to temp stack result:', result);
-      return result || true;
-    }
-  }
-  else {
+
+    console.log('[SIMPLE DROP] 🎯 Adding card to temp stack');
+    return onDropOnCard(draggedItem, {
+      type: 'temporary_stack',
+      stackId: tempStack.stackId,
+      stack: tempStack,
+      card: draggedItem.card,
+      source: draggedItem.source
+    });
+  } else {
     // Dropping on loose card - CREATE NEW TEMP STACK
-    console.log('[SIMPLE DROP] 🎯 Dropping on loose card - CREATE NEW TEMP STACK');
+    console.log('[SIMPLE DROP] 🎯 Creating new temp stack from loose card');
+    const targetIndex = tableCards.indexOf(targetItem);
 
-    if (onDropOnCard) {
-      const result = onDropOnCard(draggedItem, {
-        type: 'loose', // ✅ CRITICAL FIX: Server expects 'loose' for staging
-        card: targetItem, // ✅ FIXED: Changed from targetCard to card
-        index: targetIndex,
-        draggedCard: draggedItem.card,
-        source: draggedItem.source
-      });
-
-      console.log('[SIMPLE DROP] Create temp stack result:', result);
-      return result || true;
-    }
+    return onDropOnCard(draggedItem, {
+      type: 'loose',
+      card: targetItem,
+      index: targetIndex,
+      draggedCard: draggedItem.card,
+      source: draggedItem.source
+    });
   }
-
-    return true;
-  }, [tableCards, onDropOnCard]);
+}, [tableCards, onDropOnCard]);
 
   return {
     handleDropOnStack
