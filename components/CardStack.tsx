@@ -20,6 +20,7 @@ interface CardStackProps {
   onFinalizeStack?: (stackId: string) => void;
   onCancelStack?: (stackId: string) => void;
   captureValue?: number; // For temp stacks: shows the value to capture with
+  totalValue?: number; // For temp stacks: shows total sum of card values
   style?: any; // For custom styles like z-index
   dragZIndex?: number; // Z-index for dragged cards from this stack
 }
@@ -41,6 +42,7 @@ const CardStack = memo<CardStackProps>(({
   onFinalizeStack,
   onCancelStack,
   captureValue,
+  totalValue,
   style,
   dragZIndex
 }) => {
@@ -208,6 +210,13 @@ const CardStack = memo<CardStackProps>(({
         </View>
       )}
 
+      {/* Total value indicator for temporary stacks */}
+      {isTemporaryStack && totalValue !== undefined && (
+        <View style={styles.totalValueContainer}>
+          <Text style={styles.totalValueText}>{totalValue}</Text>
+        </View>
+      )}
+
 
     </View>
   );
@@ -275,6 +284,24 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
   },
   captureValueText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  totalValueContainer: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#9C27B0', // Purple
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  totalValueText: {
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: 'bold',

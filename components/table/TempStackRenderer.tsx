@@ -87,7 +87,7 @@ export function TempStackRenderer({
         currentPlayer={currentPlayer}
         isTemporaryStack={true}
         stackOwner={tempStackItem.owner}
-        captureValue={tempStackItem.captureValue}
+        totalValue={tempStackItem.value} // Shows total sum of card values
         onFinalizeStack={onFinalizeStack}
         onCancelStack={onCancelStack}
         style={{ zIndex: baseZIndex }}
