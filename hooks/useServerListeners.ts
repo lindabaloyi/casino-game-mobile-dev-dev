@@ -22,13 +22,37 @@ export function useServerListeners({
   setErrorModal: (modal: { visible: boolean; title: string; message: string } | null) => void;
   setCardToReset: (card: { rank: string; suit: string } | null) => void;
 }) {
-  // Handle server errors
+  // Handle server errors (Game-Appropriate Version)
   useEffect(() => {
     if (serverError) {
       console.log('[GameBoard] Received server error:', serverError.message);
 
-      // Trigger instant reset for the card that caused the error
-      // This is handled by the error modal timeout below
+      // 🎯 FIX 7: GRACEFUL ERROR HANDLING - Don't interrupt temp stack building
+      const isTempStackError = serverError.message?.includes('staging') ||
+                              serverError.message?.includes('temp') ||
+                              serverError.message?.includes('stack');
+
+      if (isTempStackError) {
+        console.log('[GRACEFUL_ERROR] Temp stack error - showing warning but continuing gameplay:', serverError.message);
+
+        // For temp stack errors, show brief warning but don't reset cards or interrupt flow
+        setErrorModal({
+          visible: true,
+          title: 'Stack Building Note',
+          message: serverError.message + ' (Continuing with flexible stacking)'
+        });
+
+        // Auto-hide after 2 seconds (don't wait for user interaction)
+        setTimeout(() => {
+          setErrorModal(null);
+        }, 2000);
+
+        // DON'T reset card position for temp stack operations
+        return;
+      }
+
+      // For critical errors (not temp stack related), use original behavior
+      console.log('[CRITICAL_ERROR] Non-temp-stack error - full interruption:', serverError.message);
 
       setErrorModal({
         visible: true,

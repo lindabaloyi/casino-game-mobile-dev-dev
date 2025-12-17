@@ -55,40 +55,48 @@ function validateStagingCreation(gameState, handCard, tableCard) {
 }
 
 /**
- * Validate adding cards to existing staging stack
+ * Validate adding cards to existing staging stack (Game-Appropriate Version)
+ * Minimal validation for flexible temp stack building during gameplay
  */
 function validateStagingAddition(gameState, handCard, targetStack) {
-  logger.debug('Validating staging addition', {
+  logger.debug('Validating staging addition (GAME-APPROPRIATE)', {
     handCard: `${handCard.rank}${handCard.suit}`,
     stackId: targetStack.stackId,
-    player: gameState.currentPlayer
+    player: gameState.currentPlayer,
+    philosophy: 'flexible temp stacking'
   });
 
   const { currentPlayer, playerHands } = gameState;
 
-  // Verify it's player's staging stack
+  // ✅ FIX 2 & 3: REMOVE RESTRICTIVE CHECKS FOR TEMP STACKS
+
+  // COMMENTED OUT: Ownership check - allow flexible stacking
+  /*
   if (targetStack.owner !== currentPlayer) {
     logger.debug('Attempt to add to opponent staging stack');
     return { valid: false, message: "You can only add to your own staging stacks." };
   }
+  */
 
-  // Verify hand card
+  // Keep basic hand card verification (essential for game integrity)
   const playerHand = playerHands[currentPlayer];
   const cardInHand = playerHand.find(c => c.rank === handCard.rank && c.suit === handCard.suit);
 
   if (!cardInHand) {
-    logger.debug('Hand card not in player hand');
+    logger.debug('Hand card not in player hand (still validating this)');
     return { valid: false, message: "This card is not in your hand." };
   }
 
-  // Verify stack isn't too large (optional limit)
+  // COMMENTED OUT: Size limits - allow unlimited temp stacking
+  /*
   const maxStackSize = 10;
   if (targetStack.cards.length >= maxStackSize) {
     logger.debug('Stack at maximum size', { currentSize: targetStack.cards.length, maxSize: maxStackSize });
     return { valid: false, message: "Staging stack is already at maximum size." };
   }
+  */
 
-  logger.debug('Staging addition validation passed');
+  logger.debug('Staging addition validation passed (flexible approach)');
   return { valid: true };
 }
 

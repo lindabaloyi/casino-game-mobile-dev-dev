@@ -1,9 +1,11 @@
 /**
  * Finalize Staging Stack Action Handler
  * Player finalizes temporary stack into permanent build
+ * Phase 4: STRICT VALIDATION - Full rules enforcement here only
  */
 
 const { createLogger } = require('../../utils/logger');
+const { validateStagingFinalization } = require('../logic/staging');
 const logger = createLogger('FinalizeStagingStack');
 
 function handleFinalizeStagingStack(gameManager, playerIndex, action) {
@@ -16,13 +18,45 @@ function handleFinalizeStagingStack(gameManager, playerIndex, action) {
 
   const { stack, buildValue } = action.payload;
 
-  logger.info('[STAGING_ACCEPT] Starting staging stack finalization', {
+  logger.info('[STAGING_FINALIZE] Starting staging stack finalization with STRICT validation', {
     playerIndex,
     stackId: stack.stackId,
     buildValue,
     gameId,
     currentPlayer: gameState.currentPlayer,
-    isPlayerTurn: playerIndex === gameState.currentPlayer
+    validationApproach: 'strict_finalize_only'
+  });
+
+  // 🎯 PHASE 4: STRICT VALIDATION - Full rules enforcement on finalize
+  logger.debug('[STAGING_FINALIZE] Running strict finalization validation...');
+  const validation = validateStagingFinalization(gameState, stack);
+
+  if (!validation.valid) {
+    logger.error('[STAGING_FINALIZE] Strict validation failed:', validation.message);
+    throw new Error(validation.message);
+  }
+
+  logger.debug('[STAGING_FINALIZE] ✅ Strict validation passed - proceeding with finalization');
+
+  // Additional validation: Build value must be reasonable
+  if (buildValue <= 0 || buildValue > 10) {
+    logger.error('[STAGING_FINALIZE] Invalid build value:', buildValue);
+    throw new Error('Invalid build value: ' + buildValue + '. Must be between 1-10.');
+  }
+
+  // Additional validation: Player must be current player (turn management)
+  if (playerIndex !== gameState.currentPlayer) {
+    logger.error('[STAGING_FINALIZE] Not player\'s turn:', { playerIndex, currentPlayer: gameState.currentPlayer });
+    throw new Error('You can only finalize stacks on your turn.');
+  }
+
+  logger.info('[STAGING_FINALIZE] All validations passed - finalizing stack', {
+    playerIndex,
+    stackId: stack.stackId,
+    buildValue,
+    gameId,
+    currentPlayer: gameState.currentPlayer,
+    validationComplete: true
   });
 
   logger.debug('[STAGING_ACCEPT] Stack details', {

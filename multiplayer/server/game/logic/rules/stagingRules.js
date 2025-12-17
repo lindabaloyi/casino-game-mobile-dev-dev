@@ -73,29 +73,31 @@ const stagingRules = [
   {
     id: 'temp-stack-addition',
     condition: (context) => {
-      console.log('[STAGING_RULE] Evaluating temp stack addition:', {
+      console.log('[STAGING_RULE] Evaluating temp stack addition (GAME-APPROPRIATE):', {
         targetType: context.targetInfo?.type,
-        draggedSource: context.draggedItem?.source
+        draggedSource: context.draggedItem?.source,
+        stackId: context.targetInfo?.stackId
       });
 
       const targetInfo = context.targetInfo;
+      const draggedItem = context.draggedItem;
 
-      // Allow any card to be added to existing temp stacks
-      // The handler will ensure proper removal from original location
-      const isValid = targetInfo?.type === 'temporary_stack';
+      // Game-appropriate validation: Check if target is temp stack and card exists
+      const isValid = targetInfo?.type === 'temporary_stack' && draggedItem?.card;
 
       console.log('[STAGING_RULE] Temp stack addition condition:', isValid, {
-        reason: isValid ? 'card can join existing temp stack' : 'target is not a temp stack'
+        reason: isValid ? 'valid temp stack addition' : 'invalid target or missing card',
+        validationApproach: 'game-appropriate'
       });
       return isValid;
     },
-    action: (context) => {  // ✅ OPTION B: Function returns complete object with payload
-      console.log('[STAGING_RULE] Creating temp stack addition action with payload');
+    action: (context) => {  // ✅ GAME-APPROPRIATE: Function returns complete object with payload
+      console.log('[STAGING_RULE] Creating temp stack addition action (game-appropriate)');
       const action = {
         type: 'addToStagingStack',
         payload: {
           gameId: context.gameId,
-          stackId: context.targetInfo?.card?.stackId || `temp-${Date.now()}`,
+          stackId: context.targetInfo?.stackId,
           card: context.draggedItem.card,
           source: context.draggedItem.source
         }
@@ -103,10 +105,10 @@ const stagingRules = [
       console.log('[STAGING_RULE] Temp stack addition action created:', JSON.stringify(action, null, 2));
       return action;
     },
-    requiresModal: false,
+    requiresModal: false,  // ✅ FIX: No modal interruptions during gameplay
     priority: 80,
     exclusive: true,
-    description: 'Add card to existing temporary stack'
+    description: 'Add card to existing temporary stack (game-appropriate, no modals)'
   }
 ];
 
