@@ -41,6 +41,50 @@ const TableCards: React.FC<TableCardsProps> = ({
   onStagingReject
 }) => {
   const tableRef = useRef<View>(null);
+  const tableBoundsRef = useRef<any>(null);  // 🎯 NEW: Store table bounds for overlap detection
+
+  // 🔬 ONE-TIME LOG ON COMPONENT MOUNT
+  React.useEffect(() => {
+    console.log('🔬 [INITIAL_DATA_STRUCTURE] TableCards mounted with:', {
+      tableCardsCount: tableCards.length,
+      tableCardsStructure: tableCards.map((card, idx) => ({
+        index: idx,
+        type: getCardType(card),
+        isObject: typeof card === 'object',
+        keys: typeof card === 'object' ? Object.keys(card) : [],
+        sample: card && typeof card === 'object' ?
+          JSON.parse(JSON.stringify(card)) : card
+      })),
+      propsStructure: {
+        hasOnDropOnCard: !!onDropOnCard,
+        hasCurrentPlayer: currentPlayer !== undefined,
+        allProps: Object.keys({tableCards, onDropOnCard, currentPlayer, onFinalizeStack, onCancelStack, onTableCardDragStart, onTableCardDragEnd, onStagingAccept, onStagingReject})
+      }
+    });
+  }, []); // Empty dependency - only run once
+
+  // 🎯 NEW: Track drag position for overlap detection
+  const [dragPosition, setDragPosition] = React.useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = React.useState(false);
+
+  // 🎯 NEW: Enhanced drag handlers to track position
+  const handleTableCardDragStartWithPosition = React.useCallback((card: any) => {
+    console.log(`[DRAG-TRACK] Table card drag started:`, card);
+    setIsDragging(true);
+    onTableCardDragStart?.(card);
+  }, [onTableCardDragStart]);
+
+  const handleTableCardDragEndWithPosition = React.useCallback((draggedItem: any, dropPosition: any) => {
+    console.log(`[DRAG-TRACK] Table card drag ended`);
+    setIsDragging(false);
+    setDragPosition({ x: 0, y: 0 }); // Reset
+    onTableCardDragEnd?.(draggedItem, dropPosition);
+  }, [onTableCardDragEnd]);
+
+  // 🎯 NEW: Update drag position during drag (assuming this comes from drag handlers)
+  const updateDragPosition = React.useCallback((x: number, y: number) => {
+    setDragPosition({ x, y });
+  }, []);
 
   // Use table interaction manager for drop handling
   const { handleDropOnStack } = useTableInteractionManager({
@@ -181,7 +225,16 @@ const TableCards: React.FC<TableCardsProps> = ({
   }, [tableCards, cancelledStacks]);
 
   return (
-    <View ref={tableRef} style={styles.tableContainer}>
+    <View
+      ref={tableRef}
+      style={styles.tableContainer}
+      onLayout={() => {  // 🎯 FIX 1: Use measureInWindow for proper coordinates
+        tableRef.current?.measureInWindow((x, y, width, height) => {
+          tableBoundsRef.current = { x, y, width, height };
+          console.log('[TABLE-BOUNDS] Captured via measureInWindow:', tableBoundsRef.current);
+        });
+      }}
+    >
       <View style={styles.tableArea}>
         {visibleTableCards.length === 0 ? (
           <View style={styles.emptyTable}>
@@ -209,26 +262,88 @@ const TableCards: React.FC<TableCardsProps> = ({
 
               const itemType = getCardType(tableItem);
 
+              // 🎯 NEW: Simple table overlap detection (no useMemo needed)
+              const isOverTable =
+                isDragging &&
+                tableBoundsRef.current &&
+                dragPosition.x >= tableBoundsRef.current.x &&
+                dragPosition.x <= tableBoundsRef.current.x + tableBoundsRef.current.width &&
+                dragPosition.y >= tableBoundsRef.current.y &&
+                dragPosition.y <= tableBoundsRef.current.y + tableBoundsRef.current.height;
+
+              // 🎯 NEW: Dynamic z-index based on table overlap
+              const dynamicZIndex = isOverTable ? 10000 : baseZIndex;
+              const dynamicElevation = isOverTable ? 10000 : baseZIndex;
+
+              console.log(`[Z-INDEX] Card ${originalPosition}: z=${dynamicZIndex}, overTable=${isOverTable}, pos=(${dragPosition?.x}, ${dragPosition?.y})`);
+
               if (itemType === 'loose') {
                 return (
                   <LooseCardRenderer
                     key={`loose-${originalPosition}-${(tableItem as Card).rank}-${(tableItem as Card).suit}`}
                     tableItem={tableItem}
                     index={originalPosition} // Use ORIGINAL position for drop handling
-                    baseZIndex={baseZIndex}
+                    baseZIndex={dynamicZIndex}  // 🎯 NEW: Use dynamic z-index
                     dragZIndex={dragZIndex}
                     currentPlayer={currentPlayer}
                     onDropStack={(draggedItem) => {
-                      console.log(`[TableCards] 🎯 DROP ON LOOSE CARD:`, {
-                        visibleIndex,
-                        originalPosition,
-                        card: `${(tableItem as Card).rank}${(tableItem as Card).suit}`,
-                        draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`
+                      // 🎯 COMPREHENSIVE DROP DATA LOGGING
+                      console.log('🎯 [DROP_DATA_ANALYSIS] ===== DROP ANALYSIS =====');
+
+                      // 1. Analyze the draggedItem
+                      console.log('🎯 [DROP_DATA_ANALYSIS] DraggedItem type:', typeof draggedItem);
+                      console.log('🎯 [DROP_DATA_ANALYSIS] DraggedItem keys:', Object.keys(draggedItem || {}));
+
+                      // Deep analysis of draggedItem
+                      if (draggedItem) {
+                        console.log('🎯 [DROP_DATA_ANALYSIS] DraggedItem structure:', {
+                          // Check for card data
+                          hasCard: !!draggedItem.card,
+                          cardType: typeof draggedItem.card,
+                          cardKeys: draggedItem.card ? Object.keys(draggedItem.card) : [],
+
+                          // Check for source
+                          hasSource: !!draggedItem.source,
+                          sourceValue: draggedItem.source,
+
+                          // Check for additional metadata
+                          hasMetadata: Object.keys(draggedItem).filter(k => !['card', 'source'].includes(k)),
+
+                          // Full object
+                          fullObject: JSON.parse(JSON.stringify(draggedItem)) // Deep clone for logging
+                        });
+                      }
+
+                      // 2. Analyze target info
+                      const targetCard = tableItem as Card;
+                      console.log('🎯 [DROP_DATA_ANALYSIS] Target analysis:', {
+                        targetCard,
+                        targetCardType: targetCard ? 'loose' : 'none',
+                        targetCardData: targetCard ? JSON.parse(JSON.stringify(targetCard)) : null,
+                        targetPosition: originalPosition
                       });
+
+                      // 3. Current game context
+                      console.log('🎯 [DROP_DATA_ANALYSIS] Game context:', {
+                        currentPlayer,
+                        tableCardsCount: tableCards.length,
+                        visibleCardsCount: visibleTableCards.length,
+
+                        // Sample of table cards structure
+                        tableCardsSample: tableCards.slice(0, 3).map((card: any, idx) => ({
+                          index: idx,
+                          type: getCardType(card),
+                          card: card?.rank && card?.suit ? `${card.rank}${card.suit}` : 'stack'
+                        }))
+                      });
+
+                      console.log('🎯 [DROP_DATA_ANALYSIS] ===== END =====\n');
+
+                      // Call original handler with ALL data
                       return handleDropOnStack(draggedItem, `loose-${originalPosition}`);
                     }}
-                    onTableCardDragStart={onTableCardDragStart}
-                    onTableCardDragEnd={onTableCardDragEnd}
+                    onTableCardDragStart={handleTableCardDragStartWithPosition}  // 🎯 NEW: Use enhanced handler
+                    onTableCardDragEnd={handleTableCardDragEndWithPosition}    // 🎯 NEW: Use enhanced handler
                   />
                 );
               } else if (itemType === 'build') {

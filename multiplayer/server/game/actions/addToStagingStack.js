@@ -130,17 +130,9 @@ function removeCardFromSource(gameState, card, source, playerIndex) {
     } else {
       throw new Error(`Card ${card.rank}${card.suit} not found in player's hand`);
     }
-  } else if (source === 'captured') {
-    const captureIndex = gameState.playerCaptures[playerIndex].findIndex(c =>
-      c.rank === card.rank && c.suit === card.suit
-    );
-    if (captureIndex >= 0) {
-      gameState.playerCaptures[playerIndex].splice(captureIndex, 1);
-      console.log('[SOURCE_REMOVAL] ✅ Removed from captures at index:', captureIndex);
-    } else {
-      throw new Error(`Card ${card.rank}${card.suit} not found in player's captures`);
-    }
-  } else if (source === 'table') {
+  } else if (source === 'table' || source === 'loose') {
+    // 🎯 FIX: Handle 'loose' source same as 'table' (loose cards are table cards)
+    console.log('[SOURCE_REMOVAL] Removing loose card from table');
     const cardIndex = gameState.tableCards.findIndex(tableCard =>
       tableCard.rank === card.rank &&
       tableCard.suit === card.suit &&
@@ -151,6 +143,16 @@ function removeCardFromSource(gameState, card, source, playerIndex) {
       console.log('[SOURCE_REMOVAL] ✅ Removed from table at index:', cardIndex);
     } else {
       throw new Error(`Card ${card.rank}${card.suit} not found on table`);
+    }
+  } else if (source === 'captured') {
+    const captureIndex = gameState.playerCaptures[playerIndex].findIndex(c =>
+      c.rank === card.rank && c.suit === card.suit
+    );
+    if (captureIndex >= 0) {
+      gameState.playerCaptures[playerIndex].splice(captureIndex, 1);
+      console.log('[SOURCE_REMOVAL] ✅ Removed from captures at index:', captureIndex);
+    } else {
+      throw new Error(`Card ${card.rank}${card.suit} not found in player's captures`);
     }
   } else {
     throw new Error(`Unknown source type: ${source}`);

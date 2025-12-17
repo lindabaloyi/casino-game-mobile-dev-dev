@@ -49,8 +49,8 @@ function handleTableToTableDrop(gameManager, playerIndex, action) {
     source: draggedItem.source
   });
 
-  // VALIDATION: Ensure this is table-to-table
-  if (draggedItem.source !== 'table') {
+  // VALIDATION: Ensure this is table-to-table (accepts both 'table' and 'loose' sources)
+  if (draggedItem.source !== 'table' && draggedItem.source !== 'loose') {
     console.error('[TABLE_TO_TABLE] ERROR: Expected table source, got:', draggedItem.source);
     throw new Error('TableToTableDrop handler requires table source');
   }

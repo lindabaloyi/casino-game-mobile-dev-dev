@@ -131,7 +131,53 @@ io.on('connection', (socket) => {
   // Service-based event handling
   socket.on('disconnect', () => handleDisconnect(socket));
   socket.on('game-action', (data) => gameCoordinator.handleGameAction(socket, data));
-  socket.on('card-drop', (data) => gameCoordinator.handleCardDrop(socket, data));
+  socket.on('card-drop', (data) => {
+    // 📡 COMPREHENSIVE SERVER DROP DATA LOGGING
+    console.log('📡 [SERVER_DROP_DATA] ===== SERVER RECEIVED CARD-DROP =====');
+    console.log('📡 [SERVER_DROP_DATA] Raw data:', data);
+
+    // Deep analysis
+    console.log('📡 [SERVER_DROP_DATA] Data type:', typeof data);
+    console.log('📡 [SERVER_DROP_DATA] Data keys:', Object.keys(data));
+
+    if (data.draggedItem) {
+      console.log('📡 [SERVER_DROP_DATA] DraggedItem analysis:', {
+        // Structure
+        isObject: typeof data.draggedItem === 'object',
+        isArray: Array.isArray(data.draggedItem),
+
+        // Content
+        hasCardProperty: !!data.draggedItem.card,
+        cardDataType: typeof data.draggedItem.card,
+        cardProperties: data.draggedItem.card ? Object.keys(data.draggedItem.card) : [],
+
+        // Source info
+        source: data.draggedItem.source,
+        hasSource: !!data.draggedItem.source,
+
+        // All other properties
+        allProperties: Object.keys(data.draggedItem).reduce((acc, key) => {
+          acc[key] = {
+            value: data.draggedItem[key],
+            type: typeof data.draggedItem[key]
+          };
+          return acc;
+        }, {})
+      });
+    }
+
+    if (data.targetInfo) {
+      console.log('📡 [SERVER_DROP_DATA] TargetInfo analysis:', {
+        ...data.targetInfo,
+        cardType: data.targetInfo.card ? typeof data.targetInfo.card : 'none'
+      });
+    }
+
+    console.log('📡 [SERVER_DROP_DATA] ===== END =====\n');
+
+    // Continue with normal processing
+    gameCoordinator.handleCardDrop(socket, data);
+  });
   socket.on('execute-action', (data) => gameCoordinator.handleExecuteAction(socket, data));
 });
 

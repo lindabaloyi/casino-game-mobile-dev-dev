@@ -6,6 +6,12 @@
 
 const { rankValue, isCard, isBuild, isTemporaryStack, calculateCardSum } = require('../GameState');
 const { createLogger } = require('../../utils/logger');
+
+// Helper function to get card type from union types (same as in TableCards.tsx)
+function getCardType(card) {
+  if ('type' in card) return card.type;
+  return 'loose';  // Card objects are implicitly loose cards without type property
+}
 const logger = createLogger('ActionDetermination');
 
 /**
@@ -67,6 +73,49 @@ class ActionDeterminationEngine {
    * Main action determination method
    */
   determineActions(draggedItem, targetInfo, gameState) {
+    // ⚙️ COMPREHENSIVE ACTION ENGINE INPUT LOGGING
+    console.log('⚙️ [ACTION_DATA] ===== ACTION ENGINE INPUT =====');
+
+    // Log EXACTLY what the engine receives
+    console.log('⚙️ [ACTION_DATA] Engine inputs:', {
+      draggedItem: {
+        // Structure
+        isDefined: !!draggedItem,
+        isObject: draggedItem && typeof draggedItem === 'object',
+        isArray: Array.isArray(draggedItem),
+
+        // Critical properties for validation
+        source: draggedItem?.source,
+        hasCard: !!draggedItem?.card,
+        card: draggedItem?.card ? {
+          rank: draggedItem.card.rank,
+          suit: draggedItem.card.suit,
+          full: `${draggedItem.card.rank}${draggedItem.card.suit}`
+        } : null,
+
+        // All properties
+        allKeys: draggedItem ? Object.keys(draggedItem) : [],
+        fullObject: draggedItem
+      },
+
+      targetInfo: {
+        ...targetInfo,
+        card: targetInfo?.card ? {
+          rank: targetInfo.card.rank,
+          suit: targetInfo.card.suit,
+          full: `${targetInfo.card.rank}${targetInfo.card.suit}`
+        } : null
+      },
+
+      gameStateContext: {
+        currentPlayer: gameState.currentPlayer,
+        tableCardsCount: gameState.tableCards?.length || 0,
+        tableCardsTypes: gameState.tableCards?.map(c => getCardType(c))
+      }
+    });
+
+    console.log('⚙️ [ACTION_DATA] ===== END =====\n');
+
     console.log('[ENGINE] ===== ACTION DETERMINATION START =====');
 
     // 🔍 DEBUG: Full game state context

@@ -7,16 +7,33 @@ const stagingRules = [
   {
     id: 'table-to-table-staging',
     condition: (context) => {
-      console.log('[STAGING_RULE] Evaluating table-to-table staging:', {
-        draggedSource: context.draggedItem?.source,
-        targetType: context.targetInfo?.type
+      console.log('[TABLE_TO_TABLE_RULE] 🔍 Evaluating table-to-table staging:', {
+        contextKeys: Object.keys(context || {}),
+        draggedItem: context?.draggedItem,
+        targetInfo: context?.targetInfo,
+        draggedSource: context?.draggedItem?.source,
+        targetType: context?.targetInfo?.type,
+        acceptedSources: ['table', 'loose'],
+        acceptedTargets: ['loose']
       });
 
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
-      const isValid = draggedItem?.source === 'table' && targetInfo?.type === 'loose';
-      console.log('[STAGING_RULE] Table-to-table staging condition:', isValid);
+      // Accept both 'table' and 'loose' as valid table card sources
+      const isTableCard = ['table', 'loose'].includes(draggedItem?.source);
+      const isTableTarget = ['loose'].includes(targetInfo?.type);
+      const isValid = isTableCard && isTableTarget;
+
+      console.log('[TABLE_TO_TABLE_RULE] 📊 Enhanced condition analysis:', {
+        draggedSource: draggedItem?.source,
+        targetType: targetInfo?.type,
+        isTableCard,
+        isTableTarget,
+        overallResult: isValid,
+        ruleName: 'table-to-table-staging (accepts loose + table sources)'
+      });
+
       return isValid;
     },
     action: (context) => {  // ✅ OPTION B: Function returns complete object with payload
