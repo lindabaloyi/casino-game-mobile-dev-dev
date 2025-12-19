@@ -90,7 +90,8 @@ export function TempStackRenderer({
         totalValue={tempStackItem.value} // Shows total sum of card values
         onFinalizeStack={onFinalizeStack}
         onCancelStack={onCancelStack}
-        style={{ zIndex: baseZIndex }}
+        baseZIndex={baseZIndex}
+        baseElevation={1}
         dragZIndex={dragZIndex}
       />
       {/* Show staging overlay only for player's own temporary stacks */}

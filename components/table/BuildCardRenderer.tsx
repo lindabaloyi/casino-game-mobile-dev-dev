@@ -41,7 +41,8 @@ export function BuildCardRenderer({
       buildValue={buildItem.value}
       isBuild={true}
       currentPlayer={currentPlayer}
-      style={{ zIndex: baseZIndex }}
+      baseZIndex={baseZIndex}
+      baseElevation={1}
     />
   );
 }

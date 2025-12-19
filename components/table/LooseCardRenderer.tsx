@@ -131,7 +131,8 @@ export function LooseCardRenderer({
       onDragStart={handleDragStartWithLogging}  // 🎯 USE LOGGING HANDLER
       onDragEnd={onTableCardDragEnd}
       dragSource="loose"  // 🎯 FIX: Change from 'table' to 'loose' to match staging rule
-      style={{ zIndex: baseZIndex }}
+      baseZIndex={baseZIndex}
+      baseElevation={1}
       dragZIndex={dragZIndex}
     />
   );

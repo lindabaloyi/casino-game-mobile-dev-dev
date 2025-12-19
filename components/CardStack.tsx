@@ -23,6 +23,8 @@ interface CardStackProps {
   totalValue?: number; // For temp stacks: shows total sum of card values
   style?: any; // For custom styles like z-index
   dragZIndex?: number; // Z-index for dragged cards from this stack
+  baseZIndex?: number; // Base z-index for stacking context management
+  baseElevation?: number; // Base elevation for Android stacking context management
 }
 
 const CardStack = memo<CardStackProps>(({
@@ -44,11 +46,14 @@ const CardStack = memo<CardStackProps>(({
   captureValue,
   totalValue,
   style,
-  dragZIndex
+  dragZIndex,
+  baseZIndex = 1,
+  baseElevation = 1
 }) => {
   const stackRef = useRef<View>(null);
   const [isLayoutMeasured, setIsLayoutMeasured] = useState(false);
   const [dropZoneBounds, setDropZoneBounds] = useState<any>(null);
+  const [isDragging, setIsDragging] = useState(false); // Stacking context drag state
 
   // Register drop zone only after layout is measured with valid bounds
   useEffect(() => {
@@ -149,6 +154,17 @@ const CardStack = memo<CardStackProps>(({
   const topCard = cards[cards.length - 1];
   const cardCount = cards.length;
 
+  // Stacking context drag event handlers
+  const handleCardDragStart = () => {
+    console.log(`[CardStack] 🎯 DRAG START: ${stackId} setting z-index to 99999, elevation to 999`);
+    setIsDragging(true);
+  };
+
+  const handleCardDragEnd = () => {
+    console.log(`[CardStack] 🛑 DRAG END: ${stackId} resetting z-index to ${baseZIndex}, elevation to ${baseElevation}`);
+    setIsDragging(false);
+  };
+
   console.log(`[CardStack:DEBUG] 🧱 Rendering ${stackId}:`, {
     isTemporaryStack,
     owner: stackOwner,
@@ -156,17 +172,31 @@ const CardStack = memo<CardStackProps>(({
     cardCount,
     hasDraggableCards: cardCount === 1 && draggable,
     topCard: topCard ? `${topCard.rank}${topCard.suit}` : 'none',
-    containerStyle: 'position:relative, no z-index (avoids stacking context barriers)'  // Debug note
+    isDragging,
+    dynamicZIndex: isDragging ? 99999 : baseZIndex,
+    dynamicElevation: isDragging ? 999 : baseElevation
   });
 
+  // Dynamic style for stacking context management
+  const dynamicStyle = {
+    zIndex: isDragging ? 99999 : baseZIndex,
+    elevation: isDragging ? 999 : baseElevation, // Android shadow depth
+  };
+
   return (
-    <View ref={stackRef} style={[styles.stackContainer, style]} onLayout={handleLayout}>
+    <View ref={stackRef} style={[styles.stackContainer, style, dynamicStyle]} onLayout={handleLayout}>
       {topCard && (
         draggable && cardCount === 1 ? (
           <DraggableCard
             card={topCard}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
+            onDragStart={(card) => {
+              handleCardDragStart(); // Update CardStack z-index first
+              onDragStart?.(card);    // Then call parent's handler
+            }}
+            onDragEnd={(draggedItem, dropPosition) => {
+              handleCardDragEnd();   // Reset CardStack z-index first
+              onDragEnd?.(draggedItem, dropPosition); // Then call parent's handler
+            }}
             onDragMove={onDragMove}
             currentPlayer={currentPlayer}
             source={dragSource}
@@ -225,7 +255,7 @@ const CardStack = memo<CardStackProps>(({
 const styles = StyleSheet.create({
   stackContainer: {
     position: 'relative',
-    // No z-index to avoid stacking conflicts with high-z drag overlays
+    // Dynamic z-index for stacking context management (set via dynamicStyle)
     alignItems: 'center',
     justifyContent: 'center',
     padding: 4,

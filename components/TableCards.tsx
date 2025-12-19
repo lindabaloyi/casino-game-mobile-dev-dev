@@ -249,8 +249,8 @@ const TableCards: React.FC<TableCardsProps> = ({
                 : visibleIndex; // Fallback for non-expanded cards
 
               // Calculate z-index hierarchy: later cards stack higher
-              const baseZIndex = tableCards.length - visibleIndex;
-              const dragZIndex = 99999;
+              const baseZIndex = visibleIndex + 1;
+              const dragZIndex = 100000;
 
               console.log(`[TableCards] 📍 POSITION MAPPING:`, {
                 visibleIndex,
@@ -271,9 +271,8 @@ const TableCards: React.FC<TableCardsProps> = ({
                 dragPosition.y >= tableBoundsRef.current.y &&
                 dragPosition.y <= tableBoundsRef.current.y + tableBoundsRef.current.height;
 
-              // 🎯 NEW: Dynamic z-index based on table overlap
-              const dynamicZIndex = isOverTable ? 10000 : baseZIndex;
-              const dynamicElevation = isOverTable ? 10000 : baseZIndex;
+              // Simplified z-index: drag z-index guarantees layering priority
+              const dynamicZIndex = baseZIndex;
 
               console.log(`[Z-INDEX] Card ${originalPosition}: z=${dynamicZIndex}, overTable=${isOverTable}, pos=(${dragPosition?.x}, ${dragPosition?.y})`);
 
@@ -417,6 +416,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap', // Allows cards to wrap to new row
     gap: 30, // Smaller gap to fit 5 cards naturally on mobile screens
     alignSelf: 'center', // Center the container itself
+    overflow: 'visible', // Allow dragged cards to visually escape container bounds
   },
   looseCardContainer: {
     margin: 4, // 4px margin on all sides for loose cards
