@@ -5,7 +5,7 @@ import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 interface StagingOverlayProps {
   isVisible: boolean;
   stackId?: string;
-  onAccept: () => void;
+  onAccept: (stackId: string) => void;  // ✅ Now passes stackId to trigger validation
   onReject: () => void;
   disabled?: boolean;
 }
@@ -62,7 +62,7 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
               action: 'finalizeStagingStack'
             });
             if (onAccept) {
-              onAccept();
+              onAccept(stackId || 'unknown');
             } else {
               console.error(`[STAGING_OVERLAY] No onAccept callback provided for stack ${stackId}`);
             }

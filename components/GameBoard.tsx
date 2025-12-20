@@ -8,6 +8,7 @@ import { useServerListeners } from '../hooks/useServerListeners';
 import { useStagingStacks } from '../hooks/useStagingStacks';
 import { useTableDropZone } from '../hooks/useTableDropZone';
 import { GameState } from '../multiplayer/server/game-logic/game-state';
+import { AcceptValidationModal } from './AcceptValidationModal';
 import ActionModal from './ActionModal';
 import BurgerMenu from './BurgerMenu';
 import CapturedCards from './CapturedCards';
@@ -31,6 +32,8 @@ interface GameBoardProps {
 
 export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBackToMenu, buildOptions, actionChoices, serverError, onServerErrorClose }: GameBoardProps) {
   const [cardToReset, setCardToReset] = useState<{ rank: string; suit: string } | null>(null);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [selectedTempStack, setSelectedTempStack] = useState<any>(null);
 
   // Extracted modal management
   const modalManager = useModalManager({
@@ -67,6 +70,24 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
   // Extracted table drop zone registration
   const tableSectionRef = useTableDropZone(dragHandlers.handleDropOnCard);
 
+  // 🎯 NEW: Handle Accept button press - open validation modal
+  const handleAcceptClick = (stackId: string) => {
+    console.log('🎯 [GameBoard] Accept button clicked for stack:', stackId);
+
+    // Find the temp stack by stackId
+    const tempStack = gameState.tableCards.find((card: any) =>
+      card.type === 'temporary_stack' && card.stackId === stackId
+    );
+
+    if (tempStack) {
+      console.log('🎯 [GameBoard] Found temp stack, opening validation modal:', tempStack);
+      setSelectedTempStack(tempStack);
+      setShowValidationModal(true);
+    } else {
+      console.error('🎯 [GameBoard] Temp stack not found:', stackId);
+    }
+  };
+
   const isMyTurn = gameState.currentPlayer === playerNumber;
 
   return (
@@ -95,7 +116,7 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
             onCancelStack={stagingStacks.handleCancelStack}
             onTableCardDragStart={dragHandlers.handleTableCardDragStart}
             onTableCardDragEnd={dragHandlers.handleTableCardDragEnd}
-            onStagingAccept={stagingStacks.handleStagingAccept}
+            onStagingAccept={handleAcceptClick}  // ✅ NEW: Open validation modal
             onStagingReject={stagingStacks.handleStagingReject}
           />
         </View>
@@ -154,6 +175,28 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
         title={modalManager.errorModal?.title || ''}
         message={modalManager.errorModal?.message || ''}
         onClose={modalManager.handleErrorModalClose}
+      />
+
+      {/* Accept Validation Modal */}
+      <AcceptValidationModal
+        visible={showValidationModal}
+        onClose={() => {
+          setShowValidationModal(false);
+          setSelectedTempStack(null);
+        }}
+        tempStack={selectedTempStack}
+        playerHand={gameState.playerHands?.[playerNumber] || []}
+        onCapture={(validation) => {
+          console.log('🎯 [GameBoard] Capture initiated:', validation);
+          // TODO: Uncomment when server action is ready
+          // sendAction({
+          //   type: 'captureTempStack',
+          //   payload: {
+          //     stack: selectedTempStack,
+          //     validation: validation
+          //   }
+          // });
+        }}
       />
     </SafeAreaView>
   );

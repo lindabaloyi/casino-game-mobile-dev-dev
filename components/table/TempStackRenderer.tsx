@@ -18,7 +18,7 @@ interface TempStackRendererProps {
   onDropStack: (draggedItem: any) => boolean | any;
   onFinalizeStack?: (stackId: string) => void;
   onCancelStack?: (stackId: string) => void;
-  onStagingAccept?: (stackId: string) => void;
+  onStagingAccept?: (stackId: string) => void;  // ✅ Now triggers validation modal
   onStagingReject?: (stackId: string) => void;
 }
 
