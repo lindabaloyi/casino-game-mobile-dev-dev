@@ -7,37 +7,60 @@ const { createLogger } = require('../../utils/logger');
 const logger = createLogger('CreateStagingStack');
 
 function handleCreateStagingStack(gameManager, playerIndex, action) {
-  const { gameId } = action.payload;
+  const { gameId, source, card: draggedCard, targetIndex, isTableToTable } = action.payload;
   const gameState = gameManager.getGameState(gameId);
-  const { handCard, tableCard } = action.payload;
 
-  logger.info('Creating staging stack', {
+  logger.info('Creating unified staging stack', {
     playerIndex,
-    handCard: `${handCard.rank}${handCard.suit}`,
-    tableCard: `${tableCard.rank}${tableCard.suit}`,
+    source,
+    isTableToTable,
+    draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+    targetIndex,
     gameId
   });
 
-  // Validate hand card exists in player's hand
-  const playerHand = gameState.playerHands[playerIndex];
-  const handExists = playerHand.some(card =>
-    card.rank === handCard.rank && card.suit === handCard.suit
-  );
-
-  if (!handExists) {
-    const error = new Error("Hand card not found.");
-    logger.error('Staging stack creation failed - hand card not in hand', { playerIndex, handCard });
+  // Find the target table card at the specified index
+  if (!gameState.tableCards || targetIndex >= gameState.tableCards.length) {
+    const error = new Error("Target table card not found at specified index.");
+    logger.error('Staging stack creation failed - invalid target index', { targetIndex, tableCardsCount: gameState.tableCards?.length });
     throw error;
   }
 
-  // Validate table card exists on table
-  const tableCardExists = gameState.tableCards.some(card =>
-    (!card.type || card.type === 'loose') && card.rank === tableCard.rank && card.suit === tableCard.suit
-  );
+  const targetCard = gameState.tableCards[targetIndex];
+  if (!targetCard || targetCard.type === 'temporary_stack') {
+    const error = new Error("Target card is not a valid loose card.");
+    logger.error('Staging stack creation failed - invalid target card', { targetCard, targetIndex });
+    throw error;
+  }
 
-  if (!tableCardExists) {
-    const error = new Error("Target table card not found.");
-    logger.error('Staging stack creation failed - table card not found', { tableCard });
+  // Validate dragged card based on source
+  if (source === 'hand') {
+    // Hand-to-table: validate card exists in player's hand
+    const playerHand = gameState.playerHands[playerIndex];
+    const handExists = playerHand.some(card =>
+      card.rank === draggedCard.rank && card.suit === draggedCard.suit
+    );
+
+    if (!handExists) {
+      const error = new Error("Hand card not found.");
+      logger.error('Staging stack creation failed - hand card not in hand', { playerIndex, draggedCard });
+      throw error;
+    }
+  } else if (source === 'table') {
+    // Table-to-table: validate card exists on table (different from target)
+    const draggedExistsOnTable = gameState.tableCards.some((card, index) =>
+      index !== targetIndex && // Not the target card
+      card.rank === draggedCard.rank && card.suit === draggedCard.suit
+    );
+
+    if (!draggedExistsOnTable) {
+      const error = new Error("Dragged table card not found.");
+      logger.error('Staging stack creation failed - dragged table card not found', { draggedCard, targetIndex });
+      throw error;
+    }
+  } else {
+    const error = new Error("Invalid source for staging.");
+    logger.error('Staging stack creation failed - invalid source', { source });
     throw error;
   }
 
@@ -57,35 +80,72 @@ function handleCreateStagingStack(gameManager, playerIndex, action) {
     type: 'temporary_stack',
     stackId: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     cards: [
-      { ...handCard, source: 'hand' },
-      { ...tableCard, source: 'table' }
+      { ...targetCard, source: 'table' }, // ✅ Bottom card first (target)
+      { ...draggedCard, source }          // ✅ Top card second (dragged)
     ],
     owner: playerIndex,
-    value: handCard.value + tableCard.value,
-    possibleBuilds: [handCard.value + tableCard.value]
+    value: draggedCard.value + targetCard.value,
+    combinedValue: draggedCard.value + targetCard.value,
+    possibleBuilds: [draggedCard.value + targetCard.value],
+    isTableToTable: isTableToTable || false
   };
 
   const newGameState = { ...gameState };
 
-  // Remove hand card from player's hand
-  newGameState.playerHands = gameState.playerHands.map((hand, idx) =>
-    idx === playerIndex ? hand.filter(card =>
-      !(card.rank === handCard.rank && card.suit === handCard.suit)
-    ) : hand
-  );
+  // Remove dragged card from appropriate location
+  if (source === 'hand') {
+    // Remove from player's hand
+    newGameState.playerHands = gameState.playerHands.map((hand, idx) =>
+      idx === playerIndex ? hand.filter(card =>
+        !(card.rank === draggedCard.rank && card.suit === draggedCard.suit)
+      ) : hand
+    );
+  } else if (source === 'table') {
+    // Create mutable variable for target index adjustment
+    let adjustedTargetIndex = targetIndex;
 
-  // Replace table card with staging stack
-  const tableCardIndex = gameState.tableCards.findIndex(card =>
-    (!card.type || card.type === 'loose') && card.rank === tableCard.rank && card.suit === tableCard.suit
-  );
+    // Remove from table (find the dragged card, excluding the target)
+    const draggedIndex = gameState.tableCards.findIndex((card, index) =>
+      index !== targetIndex && // Not the target card
+      card.rank === draggedCard.rank && card.suit === draggedCard.suit
+    );
 
-  newGameState.tableCards = [...gameState.tableCards];
-  newGameState.tableCards.splice(tableCardIndex, 1, stagingStack);
+    if (draggedIndex !== -1) {
+      newGameState.tableCards = [...gameState.tableCards];
+      newGameState.tableCards.splice(draggedIndex, 1);
+      // ✅ FIX: Use adjustedTargetIndex instead of targetIndex
+      // Adjust if we removed a card before the target
+      if (draggedIndex < adjustedTargetIndex) {
+        adjustedTargetIndex--; // ✅ CORRECT: Modifying mutable variable
+      }
 
-  logger.info('Staging stack created successfully', {
+      // Replace target card with staging stack using adjusted index
+      newGameState.tableCards.splice(adjustedTargetIndex, 1, stagingStack);
+    } else {
+      // If dragged card not found (shouldn't happen due to earlier validation)
+      newGameState.tableCards = [...(newGameState.tableCards || gameState.tableCards)];
+      newGameState.tableCards.splice(targetIndex, 1, stagingStack);
+    }
+  } else {
+    // For other sources (shouldn't happen due to earlier validation)
+    newGameState.tableCards = [...(newGameState.tableCards || gameState.tableCards)];
+    newGameState.tableCards.splice(targetIndex, 1, stagingStack);
+  }
+
+  // Only need to handle hand source separately for table replacement
+  if (source === 'hand') {
+    newGameState.tableCards = [...(newGameState.tableCards || gameState.tableCards)];
+    newGameState.tableCards.splice(targetIndex, 1, stagingStack);
+  }
+
+  logger.info('Unified staging stack created successfully', {
     stackId: stagingStack.stackId,
+    source,
+    isTableToTable,
     value: stagingStack.value,
-    tableCardsCount: newGameState.tableCards.length
+    tableCardsCount: newGameState.tableCards.length,
+    draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+    targetCard: `${targetCard.rank}${targetCard.suit}`
   });
 
   return newGameState;

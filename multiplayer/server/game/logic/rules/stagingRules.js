@@ -5,87 +5,54 @@
 
 const stagingRules = [
   {
-    id: 'table-to-table-staging',
+    id: 'universal-staging',
+    priority: 95, // High priority for all staging actions
+    exclusive: false,
+    requiresModal: false,
     condition: (context) => {
-      console.log('[TABLE_TO_TABLE_RULE] 🔍 Evaluating table-to-table staging:', {
-        contextKeys: Object.keys(context || {}),
-        draggedItem: context?.draggedItem,
-        targetInfo: context?.targetInfo,
-        draggedSource: context?.draggedItem?.source,
-        targetType: context?.targetInfo?.type,
-        acceptedSources: ['table', 'loose'],
-        acceptedTargets: ['loose']
-      });
-
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
-      // Accept both 'table' and 'loose' as valid table card sources
-      const isTableCard = ['table', 'loose'].includes(draggedItem?.source);
-      const isTableTarget = ['loose'].includes(targetInfo?.type);
-      const isValid = isTableCard && isTableTarget;
+      // Handle both hand-to-table and table-to-table staging
+      const isValidSource = draggedItem?.source === 'hand' || draggedItem?.source === 'table';
+      const isValidTarget = targetInfo?.type === 'loose';
+      const isValid = isValidSource && isValidTarget;
 
-      console.log('[TABLE_TO_TABLE_RULE] 📊 Enhanced condition analysis:', {
-        draggedSource: draggedItem?.source,
+      console.log('[STAGING] Staging candidate detected:', {
+        source: draggedItem?.source,
         targetType: targetInfo?.type,
-        isTableCard,
-        isTableTarget,
-        overallResult: isValid,
-        ruleName: 'table-to-table-staging (accepts loose + table sources)'
+        draggedCard: draggedItem?.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
+        targetCard: targetInfo?.card ? `${targetInfo.card.rank}${targetInfo.card.suit}` : 'none',
+        isHandToTable: draggedItem?.source === 'hand' && targetInfo?.type === 'loose',
+        isTableToTable: draggedItem?.source === 'table' && targetInfo?.type === 'loose',
+        overallResult: isValid
       });
 
       return isValid;
     },
-    action: (context) => {  // ✅ OPTION B: Function returns complete object with payload
-      console.log('[STAGING_RULE] Creating table-to-table action with payload');
-      const action = {
-        type: 'tableToTableDrop',
-        payload: {
-          gameId: context.gameId,
-          draggedItem: context.draggedItem,
-          targetInfo: context.targetInfo
-        }
-      };
-      console.log('[STAGING_RULE] Table-to-table action created:', JSON.stringify(action, null, 2));
-      return action;
-    },
-    requiresModal: false,
-    priority: 100,
-    exclusive: true,
-    description: 'Create temp stack from two table cards'
-  },
-  {
-    id: 'hand-to-table-staging',
-    condition: (context) => {
-      console.log('[STAGING_RULE] Evaluating hand-to-table staging:', {
-        draggedSource: context.draggedItem?.source,
-        targetType: context.targetInfo?.type
-      });
-
+    action: (context) => {
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
-      const isValid = draggedItem?.source === 'hand' && targetInfo?.type === 'loose';
-      console.log('[STAGING_RULE] Hand-to-table staging condition:', isValid);
-      return isValid;
-    },
-    action: (context) => {  // ✅ OPTION B: Function returns complete object with payload
-      console.log('[STAGING_RULE] Creating hand-to-table action with payload');
-      const action = {
-        type: 'handToTableDrop',
+      console.log('[STAGING] Creating unified staging action:', {
+        source: draggedItem.source,
+        draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+        targetCard: `${targetInfo.card.rank}${targetInfo.card.suit}`,
+        targetIndex: targetInfo.index,
+        isTableToTable: draggedItem.source === 'table'
+      });
+
+      return {
+        type: 'createStagingStack',
         payload: {
-          gameId: context.gameId,
-          draggedItem: context.draggedItem,
-          targetInfo: context.targetInfo
+          source: draggedItem.source,
+          card: draggedItem.card,
+          targetIndex: targetInfo.index,
+          player: draggedItem.player,
+          isTableToTable: draggedItem.source === 'table'
         }
       };
-      console.log('[STAGING_RULE] Hand-to-table action created:', JSON.stringify(action, null, 2));
-      return action;
-    },
-    requiresModal: false,
-    priority: 90,
-    exclusive: true,
-    description: 'Create temp stack from hand card and table card'
+    }
   },
   {
     id: 'temp-stack-addition',

@@ -100,10 +100,10 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
       console.log(`[DraggableCard:DEBUG] 🎯 Drop position: ${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)}`);
       console.log(`[DraggableCard:DEBUG] 🔍 Available drop zones:`, (global as any).dropZones?.length || 0);
 
-      // Check global drop zones
+      // Check global drop zones - PRIORITY-BASED SELECTION
       if ((global as any).dropZones && (global as any).dropZones.length > 0) {
         let bestZone = null;
-        let closestDistance = Infinity;
+        let highestPriority = -1;
 
         for (const zone of (global as any).dropZones) {
           const { x, y, width, height } = zone.bounds;
@@ -121,23 +121,23 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
               dropPosition.y >= expandedBounds.y &&
               dropPosition.y <= expandedBounds.y + expandedBounds.height) {
 
-            const zoneCenter = {
-              x: zone.bounds.x + zone.bounds.width / 2,
-              y: zone.bounds.y + zone.bounds.height / 2
-            };
-            const distance = Math.sqrt(
-              Math.pow(dropPosition.x - zoneCenter.x, 2) +
-              Math.pow(dropPosition.y - zoneCenter.y, 2)
-            );
-
-            if (distance < closestDistance) {
-              closestDistance = distance;
+            // PRIORITY-BASED: Higher priority wins (not distance!)
+            const zonePriority = zone.priority || 0;
+            if (zonePriority > highestPriority) {
+              highestPriority = zonePriority;
               bestZone = zone;
+              console.log(`[DraggableCard:DEBUG] 🎯 New best zone: ${zone.stackId} (priority: ${zonePriority})`);
+            } else {
+              console.log(`[DraggableCard:DEBUG] ❌ Lower priority zone rejected: ${zone.stackId} (priority: ${zonePriority} < ${highestPriority})`);
             }
           }
         }
 
-        console.log(`[DraggableCard:DEBUG] 🏆 Best drop zone:`, bestZone?.stackId || 'none');
+        console.log(`[DraggableCard:DEBUG] 🏆 Best drop zone by PRIORITY:`, {
+          zone: bestZone?.stackId || 'none',
+          priority: highestPriority,
+          totalZones: (global as any).dropZones.length
+        });
 
         if (bestZone) {
           dropPosition.attempted = true;
@@ -151,16 +151,18 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
           const dropResult = bestZone.onDrop(draggedItem);
 
           if (dropResult) {
-            // SPECIAL CASE: Table cards need contact validation
+            // SPECIAL CASE: Table cards need different validation logic
             if (source === 'table') {
-              // Table cards: check for contact validation or proximity-based validation
               console.log(`[DraggableCard:DEBUG] Table card drop - checking validation`);
               if (typeof dropResult === 'object') {
-                if (dropResult.contactValidated === true) {
+                // For table-to-table drops (dropping on another table card)
+                if (dropResult.type === 'loose' && dropResult.card) {
                   dropPosition.handled = true;
-                  dropPosition.targetType = dropResult.targetType;
-                  dropPosition.targetCard = dropResult.targetCard;
-                  console.log(`[DraggableCard:DEBUG] Table card contact validated - handling drop`);
+                  dropPosition.targetType = 'loose';
+                  dropPosition.targetCard = dropResult.card;
+                  dropPosition.targetIndex = dropResult.index;
+                  dropPosition.needsServerValidation = true; // Table-to-table needs server validation
+                  console.log(`[DraggableCard:DEBUG] Table-to-table drop validated - handling drop`);
                 } else if (dropResult.tableZoneDetected === true) {
                   // Table zone detected but no contact - still handle but mark for validation
                   dropPosition.handled = true;

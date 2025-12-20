@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { DROP_ZONE_PRIORITIES } from '../constants/dropZonePriorities';
 import Card, { CardType } from './card';
 import DraggableCard from './DraggableCard';
 
@@ -64,8 +65,16 @@ const CardStack = memo<CardStackProps>(({
       (global as any).dropZones = [];
     }
 
+    // Determine priority based on stack type
+    const priority = isBuild
+      ? DROP_ZONE_PRIORITIES.BUILD
+      : isTemporaryStack
+      ? DROP_ZONE_PRIORITIES.TEMP_STACK
+      : DROP_ZONE_PRIORITIES.LOOSE_CARD;
+
     const dropZone = {
       stackId,
+      priority,
       bounds: dropZoneBounds,
       onDrop: (draggedItem: any) => {
         console.log('[DROP ZONE HIT]', {
@@ -104,12 +113,12 @@ const CardStack = memo<CardStackProps>(({
         );
       }
     };
-  }, [stackId, onDropStack, isLayoutMeasured, dropZoneBounds]);
+  }, [stackId, onDropStack, isLayoutMeasured, dropZoneBounds, isBuild, isTemporaryStack]);
 
   const handleLayout = (event: any) => {
     if (!onDropStack || !stackRef.current) return;
 
-    const { width, height } = event.nativeEvent.layout;
+    const { width, height } = event.nativeEvent.layout; // eslint-disable-line @typescript-eslint/no-unused-vars
 
     // Measure position on screen with retry logic for invalid measurements
     stackRef.current.measureInWindow((pageX, pageY, measuredWidth, measuredHeight) => {
@@ -251,6 +260,9 @@ const CardStack = memo<CardStackProps>(({
     </View>
   );
 });
+
+// Add display name for React DevTools and linting
+CardStack.displayName = 'CardStack';
 
 const styles = StyleSheet.create({
   stackContainer: {

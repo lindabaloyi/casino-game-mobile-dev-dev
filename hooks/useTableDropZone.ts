@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
+import { DROP_ZONE_PRIORITIES } from '../constants/dropZonePriorities';
 
 /**
  * Custom hook to manage table drop zone registration and positioning
@@ -15,6 +16,7 @@ export function useTableDropZone(onDrop: (draggedItem: any, targetInfo: any) => 
         tableSectionRef.current.measureInWindow((pageX, pageY, width, height) => {
           const dropZone = {
             stackId: 'table-section',
+            priority: DROP_ZONE_PRIORITIES.TABLE_AREA,
             bounds: {
               x: pageX,
               y: pageY,
@@ -22,7 +24,12 @@ export function useTableDropZone(onDrop: (draggedItem: any, targetInfo: any) => 
               height: height
             },
             onDrop: (draggedItem: any) => {
-              console.log('[GameBoard] Card dropped on table section:', draggedItem);
+              console.log(`[DROP ZONE HIT] Table zone received drop:`, {
+                draggedCard: `${draggedItem.card?.rank}${draggedItem.card?.suit}`,
+                draggedSource: draggedItem.source,
+                priority: DROP_ZONE_PRIORITIES.TABLE_AREA,
+                willReturn: { type: 'table', area: 'empty' }
+              });
               // Handle trail action
               return onDrop(draggedItem, {
                 type: 'table',
@@ -41,8 +48,6 @@ export function useTableDropZone(onDrop: (draggedItem: any, targetInfo: any) => 
             (zone: any) => zone.stackId !== 'table-section'
           );
           (global as any).dropZones.push(dropZone);
-
-          console.log('[GameBoard] Registered table section drop zone:', dropZone);
         });
       }
     };

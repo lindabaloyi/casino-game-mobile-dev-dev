@@ -59,6 +59,9 @@ const PlayerHand = memo<PlayerHandProps>(({
   );
 });
 
+// Add display name for React DevTools and linting
+PlayerHand.displayName = 'PlayerHand';
+
 const styles = StyleSheet.create({
   playerHand: {
     flexDirection: 'row',

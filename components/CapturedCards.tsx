@@ -87,6 +87,9 @@ const CapturedCards = memo<CapturedCardsProps>(({
   );
 });
 
+// Add display name for React DevTools and linting
+CapturedCards.displayName = 'CapturedCards';
+
 const styles = StyleSheet.create({
   captures: {
     alignItems: 'center',

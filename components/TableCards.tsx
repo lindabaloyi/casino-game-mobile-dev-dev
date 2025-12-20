@@ -1,12 +1,12 @@
 import React, { useRef } from 'react';
-import { Dimensions, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Card, TableCard } from '../multiplayer/server/game-logic/game-state';
 import { BuildCardRenderer } from './table/BuildCardRenderer';
-import { LooseCardRenderer } from './table/LooseCardRenderer';
+import TableDraggableCard from './table/TableDraggableCard';
 import { useTableInteractionManager } from './table/TableInteractionManager';
 import { TempStackRenderer } from './table/TempStackRenderer';
 
-const { width: screenWidth } = Dimensions.get('window');
+// Removed unused screenWidth variable
 
 interface TableCardsProps {
   tableCards?: TableCard[];
@@ -26,8 +26,7 @@ function getCardType(card: TableCard): 'loose' | 'temporary_stack' | 'build' {
   return 'loose';  // Card objects are implicitly loose cards without type property
 }
 
-// Store last drop position for contact validation
-let lastDropPosition = null;
+// Removed unused lastDropPosition variable
 
 const TableCards: React.FC<TableCardsProps> = ({
   tableCards = [],
@@ -61,6 +60,7 @@ const TableCards: React.FC<TableCardsProps> = ({
         allProps: Object.keys({tableCards, onDropOnCard, currentPlayer, onFinalizeStack, onCancelStack, onTableCardDragStart, onTableCardDragEnd, onStagingAccept, onStagingReject})
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency - only run once
 
   // 🎯 NEW: Track drag position for overlap detection
@@ -81,10 +81,7 @@ const TableCards: React.FC<TableCardsProps> = ({
     onTableCardDragEnd?.(draggedItem, dropPosition);
   }, [onTableCardDragEnd]);
 
-  // 🎯 NEW: Update drag position during drag (assuming this comes from drag handlers)
-  const updateDragPosition = React.useCallback((x: number, y: number) => {
-    setDragPosition({ x, y });
-  }, []);
+  // Removed unused updateDragPosition function
 
   // Use table interaction manager for drop handling
   const { handleDropOnStack } = useTableInteractionManager({
@@ -278,71 +275,15 @@ const TableCards: React.FC<TableCardsProps> = ({
 
               if (itemType === 'loose') {
                 return (
-                  <LooseCardRenderer
+                  <TableDraggableCard
                     key={`loose-${originalPosition}-${(tableItem as Card).rank}-${(tableItem as Card).suit}`}
-                    tableItem={tableItem}
-                    index={originalPosition} // Use ORIGINAL position for drop handling
-                    baseZIndex={dynamicZIndex}  // 🎯 NEW: Use dynamic z-index
+                    card={tableItem as Card}
+                    stackId={`loose-${originalPosition}`}
+                    index={originalPosition}
                     dragZIndex={dragZIndex}
+                    onDragStart={handleTableCardDragStartWithPosition}
+                    onDragEnd={handleTableCardDragEndWithPosition}
                     currentPlayer={currentPlayer}
-                    onDropStack={(draggedItem) => {
-                      // 🎯 COMPREHENSIVE DROP DATA LOGGING
-                      console.log('🎯 [DROP_DATA_ANALYSIS] ===== DROP ANALYSIS =====');
-
-                      // 1. Analyze the draggedItem
-                      console.log('🎯 [DROP_DATA_ANALYSIS] DraggedItem type:', typeof draggedItem);
-                      console.log('🎯 [DROP_DATA_ANALYSIS] DraggedItem keys:', Object.keys(draggedItem || {}));
-
-                      // Deep analysis of draggedItem
-                      if (draggedItem) {
-                        console.log('🎯 [DROP_DATA_ANALYSIS] DraggedItem structure:', {
-                          // Check for card data
-                          hasCard: !!draggedItem.card,
-                          cardType: typeof draggedItem.card,
-                          cardKeys: draggedItem.card ? Object.keys(draggedItem.card) : [],
-
-                          // Check for source
-                          hasSource: !!draggedItem.source,
-                          sourceValue: draggedItem.source,
-
-                          // Check for additional metadata
-                          hasMetadata: Object.keys(draggedItem).filter(k => !['card', 'source'].includes(k)),
-
-                          // Full object
-                          fullObject: JSON.parse(JSON.stringify(draggedItem)) // Deep clone for logging
-                        });
-                      }
-
-                      // 2. Analyze target info
-                      const targetCard = tableItem as Card;
-                      console.log('🎯 [DROP_DATA_ANALYSIS] Target analysis:', {
-                        targetCard,
-                        targetCardType: targetCard ? 'loose' : 'none',
-                        targetCardData: targetCard ? JSON.parse(JSON.stringify(targetCard)) : null,
-                        targetPosition: originalPosition
-                      });
-
-                      // 3. Current game context
-                      console.log('🎯 [DROP_DATA_ANALYSIS] Game context:', {
-                        currentPlayer,
-                        tableCardsCount: tableCards.length,
-                        visibleCardsCount: visibleTableCards.length,
-
-                        // Sample of table cards structure
-                        tableCardsSample: tableCards.slice(0, 3).map((card: any, idx) => ({
-                          index: idx,
-                          type: getCardType(card),
-                          card: card?.rank && card?.suit ? `${card.rank}${card.suit}` : 'stack'
-                        }))
-                      });
-
-                      console.log('🎯 [DROP_DATA_ANALYSIS] ===== END =====\n');
-
-                      // Call original handler with ALL data
-                      return handleDropOnStack(draggedItem, `loose-${originalPosition}`);
-                    }}
-                    onTableCardDragStart={handleTableCardDragStartWithPosition}  // 🎯 NEW: Use enhanced handler
-                    onTableCardDragEnd={handleTableCardDragEndWithPosition}    // 🎯 NEW: Use enhanced handler
                   />
                 );
               } else if (itemType === 'build') {

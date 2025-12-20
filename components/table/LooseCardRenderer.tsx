@@ -4,6 +4,7 @@
  * Extracted from TableCards.tsx to focus on loose card logic
  */
 
+import { useCallback, useEffect } from 'react';
 import { Card, TableCard } from '../../multiplayer/server/game-logic/game-state';
 import { CardType } from '../card';
 import CardStack from '../CardStack';
@@ -29,6 +30,44 @@ export function LooseCardRenderer({
   onTableCardDragStart,
   onTableCardDragEnd
 }: LooseCardRendererProps) {
+  // Essential zone monitoring for production debugging
+  useEffect(() => {
+    // Cleanup any stale zones for this index
+    if ((global as any).dropZones) {
+      (global as any).dropZones = (global as any).dropZones.filter(
+        (zone: any) => zone.stackId !== `loose-${index}` || zone.stackId?.startsWith('loose-')
+      );
+    }
+
+    return () => {
+      // Cleanup zones on unmount
+      if ((global as any).dropZones) {
+        (global as any).dropZones = (global as any).dropZones.filter(
+          (zone: any) => zone.stackId !== `loose-${index}`
+        );
+      }
+    };
+  }, [index]);
+
+  // Clean drop handler with essential logging
+  const handleCardDrop = useCallback((draggedItem: any) => {
+    console.log(`[DROP ZONE HIT] Loose card loose-${index} received drop:`, {
+      draggedCard: `${draggedItem.card?.rank}${draggedItem.card?.suit}`,
+      draggedSource: draggedItem.source,
+      priority: 100 // Loose card priority
+    });
+
+    // Call the drop handler with correct target info
+    return onDropStack?.({
+      ...draggedItem,
+      targetInfo: {
+        type: 'loose',
+        card: tableItem,
+        index: index
+      }
+    });
+  }, [tableItem, index, onDropStack]);
+
   // Type assertion for loose card - it's a table item without a 'type' property
   const looseCard = tableItem as Card;
   const stackId = `loose-${index}`;
@@ -124,7 +163,7 @@ export function LooseCardRenderer({
       key={`table-card-${index}-${looseCard.rank}-${looseCard.suit}`}
       stackId={stackId}
       cards={[looseCard as CardType]}
-      onDropStack={onDropStack}
+      onDropStack={handleCardDrop}  // ✅ USE CLEAN DROP HANDLER
       isBuild={false}
       currentPlayer={currentPlayer}
       draggable={true}

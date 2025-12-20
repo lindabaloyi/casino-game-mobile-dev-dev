@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, GestureResponderEvent } from 'react-native';
+import { GestureResponderEvent, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 export type CardType = {
   rank: string;
