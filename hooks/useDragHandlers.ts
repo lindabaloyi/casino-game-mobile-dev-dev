@@ -145,9 +145,14 @@ export function useDragHandlers({
       suit: draggedItem.card.suit
     });
 
+    // ⭐️⭐️⭐️ QUICK FIX: Send correct action type for staging operations
+    const actionType = (draggedItem.source === 'hand' && targetInfo.type === 'loose')
+      ? 'createStagingStack'  // ✅ For hand-to-table staging
+      : 'card-drop';          // Keep for other cases
+
     // Send raw drop event to server
     const actionPayload = {
-      type: 'card-drop',
+      type: actionType,
       payload: {
         draggedItem,
         targetInfo: {
@@ -174,8 +179,9 @@ export function useDragHandlers({
       targetCardId: targetInfo.card?.id
     });
 
-    console.log(`[DRAG_HANDLERS] 🔍 DEBUG: Sending card-drop action to server`, {
-      actionType: 'card-drop',
+    console.log(`[QUICK FIX] Sending ${actionType} for ${draggedItem.source}->${targetInfo.type}`);
+    console.log(`[DRAG_HANDLERS] 🔍 DEBUG: Sending ${actionType} action to server`, {
+      actionType,
       draggedItem: {
         card: `${draggedItem.card.rank}${draggedItem.card.suit}`,
         source: draggedItem.source,
@@ -205,6 +211,84 @@ export function useDragHandlers({
     setIsDragging(true);
   }, [isMyTurn]);
 
+  const handleHandCardDragEnd = useCallback((draggedItem: { card: any; source?: string }, dropPosition: any) => {
+    console.log(`🃏 [HandDrag] Hand card drag end:`, draggedItem, dropPosition);
+    console.log(`🃏 [HandDrag] Dragged card: ${draggedItem.card.rank}${draggedItem.card.suit}`);
+    console.log(`🃏 [HandDrag] Drop position handled: ${dropPosition.handled}`);
+
+    setDraggedCard(null);
+    setIsDragging(false);
+
+    // ✅ CRITICAL: Add null checks to prevent crashes
+    if (!gameState || !gameState.tableCards) {
+      console.error(`🃏 [HandDrag] ❌ Game state not available for staging - gameState:`, !!gameState, 'tableCards:', gameState?.tableCards?.length);
+      return;
+    }
+
+    // Handle hand-to-table drops through staging system
+    if (dropPosition.handled) {
+      console.log(`🃏 [HandDrag] Hand card drop was handled by a zone`, {
+        handled: dropPosition.handled,
+        zoneHandledBy: 'unknown'
+      });
+
+      // Check if this is a staging drop (hand-to-loose)
+      if (dropPosition.targetType === 'loose' && dropPosition.targetCard) {
+        console.log(`🃏 [HandDrag] 🎯 HAND-TO-LOOSE STAGING DETECTED - sending createStagingStack action`, {
+          draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+          targetCard: dropPosition.targetCard ? `${dropPosition.targetCard.rank}${dropPosition.targetCard.suit}` : 'none'
+        });
+
+        // For hand-to-loose drops, send createStagingStack action
+        const targetIndex = gameState.tableCards.findIndex((card: any) => {
+          if (!card || typeof card !== 'object') return false;
+          const isLooseCard = 'rank' in card && 'suit' in card && (!('type' in card) || (card as any).type === 'loose');
+          if (!isLooseCard) return false;
+          return card.rank === dropPosition.targetCard.rank &&
+                 card.suit === dropPosition.targetCard.suit;
+        });
+
+        console.log(`🃏 [HandDrag] Target card lookup:`, {
+          targetCard: dropPosition.targetCard,
+          foundAtIndex: targetIndex,
+          totalTableCards: gameState.tableCards.length
+        });
+
+        if (targetIndex === -1) {
+          console.error(`🃏 [HandDrag] ❌ Could not find target card in table state`, {
+            targetCard: dropPosition.targetCard,
+            tableCards: gameState.tableCards.map((c: any) => c ? `${c.rank}${c.suit}` : 'null')
+          });
+          return;
+        }
+
+        const actionPayload = {
+          type: 'createStagingStack', // ✅ Send createStagingStack for hand-to-table staging
+          payload: {
+            source: 'hand',           // ✅ Direct source property
+            card: draggedItem.card,   // ✅ Direct card property
+            targetIndex: targetIndex, // ✅ Direct targetIndex property
+            isTableToTable: false     // ✅ Hand-to-table flag
+          }
+        };
+
+        console.log(`🃏 [HandDrag] 🚀 SENDING HAND-TO-LOOSE STAGING ACTION TO SERVER:`, {
+          actionType: 'createStagingStack',
+          draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+          player: playerNumber
+        });
+
+        sendAction(actionPayload);
+
+        console.log(`🃏 [HandDrag] ✅ Hand-to-loose staging action sent - expecting temp stack creation`);
+        return;
+      }
+    }
+
+    // If not handled by any zone, it's an invalid drop - snap back
+    console.log(`[GameBoard] Hand card drop not handled - snapping back`);
+  }, [sendAction, gameState.tableCards, playerNumber]);
+
   const handleTableCardDragEnd = useCallback((draggedItem: { card: any; source?: string }, dropPosition: any) => {
     console.log(`🌟 [TableDrag] Table card drag end:`, draggedItem, dropPosition);
     console.log(`🌟 [TableDrag] Dragged card: ${draggedItem.card.rank}${draggedItem.card.suit}`);
@@ -212,6 +296,12 @@ export function useDragHandlers({
 
     setDraggedCard(null);
     setIsDragging(false);
+
+    // ✅ CRITICAL: Add null checks to prevent crashes
+    if (!gameState || !gameState.tableCards) {
+      console.error(`🌟 [TableDrag] ❌ Game state not available for staging - gameState:`, !!gameState, 'tableCards:', gameState?.tableCards?.length);
+      return;
+    }
 
     // Handle table-to-table drops through Phase 2 system
     if (dropPosition.handled) {
@@ -266,29 +356,21 @@ export function useDragHandlers({
           return;
         }
 
+        // ⭐️⭐️⭐️ QUICK FIX FOR TABLE-TO-TABLE ⭐️⭐️⭐️
         const actionPayload = {
-          type: 'card-drop',
+          type: 'createStagingStack',  // ✅ Changed from 'card-drop'
           payload: {
-            draggedItem: {
-              card: draggedItem.card,
-              source: 'table',
-              player: playerNumber
-            },
-            targetInfo: {
-              type: 'loose',
-              card: dropPosition.targetCard, // Use actual target card
-              index: targetIndex, // Use actual target index
-              draggedSource: 'table'
-            },
-            requestId: Date.now()
+            source: 'table',           // ✅ Direct source property
+            card: draggedItem.card,    // ✅ Direct card property
+            targetIndex: targetIndex,  // ✅ Direct targetIndex property
+            isTableToTable: true       // ✅ Table-to-table flag
           }
         };
 
         console.log(`🌟 [TableDrag] 🚀 SENDING TABLE-TO-LOOSE STAGING ACTION TO SERVER:`, {
-          actionType: 'card-drop',
+          actionType: 'createStagingStack',  // ✅ Updated log message
           draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
-          player: playerNumber,
-          requestId: actionPayload.payload.requestId
+          player: playerNumber
         });
 
         sendAction(actionPayload);
@@ -348,6 +430,7 @@ export function useDragHandlers({
     handleDropOnCard,
     handleTableCardDragStart,
     handleTableCardDragEnd,
+    handleHandCardDragEnd,
     handleCapturedCardDragStart,
     handleCapturedCardDragEnd
   };

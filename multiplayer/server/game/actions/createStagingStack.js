@@ -6,9 +6,13 @@
 const { createLogger } = require('../../utils/logger');
 const logger = createLogger('CreateStagingStack');
 
-function handleCreateStagingStack(gameManager, playerIndex, action) {
-  const { gameId, source, card: draggedCard, targetIndex, isTableToTable } = action.payload;
+function handleCreateStagingStack(gameManager, playerIndex, action, gameId) {
+  const { source, card: draggedCard, targetIndex, isTableToTable } = action.payload;
   const gameState = gameManager.getGameState(gameId);
+
+  if (!gameState) {
+    throw new Error(`Game ${gameId} not found`);
+  }
 
   logger.info('Creating unified staging stack', {
     playerIndex,
@@ -19,10 +23,23 @@ function handleCreateStagingStack(gameManager, playerIndex, action) {
     gameId
   });
 
+  // ✅ CRITICAL: Add null checks to prevent server crashes
+  if (!gameState) {
+    const error = new Error(`Game ${gameId} not found`);
+    logger.error('Staging stack creation failed - game not found', { gameId, playerIndex });
+    throw error;
+  }
+
+  if (!gameState.tableCards) {
+    const error = new Error(`Game ${gameId} has no table cards`);
+    logger.error('Staging stack creation failed - no table cards', { gameId, playerIndex });
+    throw error;
+  }
+
   // Find the target table card at the specified index
-  if (!gameState.tableCards || targetIndex >= gameState.tableCards.length) {
+  if (targetIndex >= gameState.tableCards.length) {
     const error = new Error("Target table card not found at specified index.");
-    logger.error('Staging stack creation failed - invalid target index', { targetIndex, tableCardsCount: gameState.tableCards?.length });
+    logger.error('Staging stack creation failed - invalid target index', { targetIndex, tableCardsCount: gameState.tableCards.length });
     throw error;
   }
 

@@ -70,7 +70,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
       if (hasStartedDrag) {
         // Update animated position
         Animated.event([null, { dx: pan.x, dy: pan.y }], {
-          useNativeDriver: false,
+          useNativeDriver: true, // ✅ Enable native driver for smooth animation
         })(event, gestureState);
 
         // Debug log position every few frames (reduce spam)
@@ -176,10 +176,19 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
               // Regular hand card drops - mark as handled normally
               dropPosition.handled = true;
 
-              // Check if dropResult is an object with additional info
-              if (typeof dropResult === 'object' && dropResult.targetType) {
-                dropPosition.targetType = dropResult.targetType;
-                dropPosition.targetCard = dropResult.targetCard;
+              // ✅ CRITICAL FIX: Always set target info for staging operations
+              if (typeof dropResult === 'object') {
+                dropPosition.targetType = dropResult.type || dropResult.targetType;      // 'loose'
+                dropPosition.targetCard = dropResult.card || dropResult.targetCard;     // The table card
+                dropPosition.targetIndex = dropResult.index;                            // Card index
+                dropPosition.draggedSource = dropResult.draggedSource;                  // 'hand'
+                dropPosition.area = dropResult.area || 'table';                         // Drop area
+
+                console.log(`[DraggableCard:DEBUG] ✅ Set dropPosition for hand card:`, {
+                  targetType: dropPosition.targetType,
+                  targetCard: dropPosition.targetCard ? `${dropPosition.targetCard.rank}${dropPosition.targetCard.suit}` : 'none',
+                  handled: dropPosition.handled
+                });
               }
             }
           }
@@ -194,7 +203,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
           console.log(`[DraggableCard:DEBUG] 🏠 Table card ${card.rank}${card.suit} snapping back to aligned position`);
           Animated.spring(pan, {
             toValue: { x: 0, y: 0 },
-            useNativeDriver: false,
+            useNativeDriver: true, // ✅ Use native driver for smooth snap-back
           }).start();
         } else {
           // Hand cards snap back only if drop was attempted but failed
@@ -203,7 +212,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
             console.log(`[DraggableCard:DEBUG] 🏠 Hand card ${card.rank}${card.suit} attempted drop failed, snapping back`);
             Animated.spring(pan, {
               toValue: { x: 0, y: 0 },
-              useNativeDriver: false,
+              useNativeDriver: true, // ✅ Use native driver for smooth snap-back
             }).start();
           }
         }
@@ -238,7 +247,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
       // Reset on termination
       Animated.spring(pan, {
         toValue: { x: 0, y: 0 },
-        useNativeDriver: false,
+        useNativeDriver: true, // ✅ Use native driver for smooth termination
       }).start();
       pan.flattenOffset();
       setHasStartedDrag(false);

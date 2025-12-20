@@ -57,7 +57,7 @@ class ActionRouter {
         throw new Error(`Game ${gameId} not found`);
       }
 
-      const newGameState = this.actionHandlers[actionType](this.gameManager, playerIndex, action);
+      const newGameState = this.actionHandlers[actionType](this.gameManager, playerIndex, action, gameId);
 
       // ✅ TURN MANAGEMENT
       let finalGameState = { ...newGameState };

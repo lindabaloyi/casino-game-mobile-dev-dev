@@ -122,7 +122,7 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
             cards={gameState.playerHands?.[playerNumber] || []}
             isCurrent={isMyTurn}
             onDragStart={dragHandlers.handleDragStart}
-            onDragEnd={dragHandlers.handleDragEnd}
+            onDragEnd={dragHandlers.handleHandCardDragEnd}
             currentPlayer={playerNumber}
             tableCards={gameState.tableCards || []}
             cardToReset={cardToReset}
