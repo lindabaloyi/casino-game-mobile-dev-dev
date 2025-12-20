@@ -188,14 +188,22 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
         playerHand={gameState.playerHands?.[playerNumber] || []}
         onCapture={(validation) => {
           console.log('🎯 [GameBoard] Capture initiated:', validation);
-          // TODO: Uncomment when server action is ready
-          // sendAction({
-          //   type: 'captureTempStack',
-          //   payload: {
-          //     stack: selectedTempStack,
-          //     validation: validation
-          //   }
-          // });
+
+          if (!selectedTempStack) {
+            console.error('❌ [GameBoard] No temp stack selected');
+            return;
+          }
+
+          // Send capture action to server
+          sendAction({
+            type: 'captureTempStack',
+            payload: {
+              tempStackId: selectedTempStack.stackId,
+              captureValue: validation.target
+            }
+          });
+
+          console.log('📤 [GameBoard] Capture action sent to server');
         }}
       />
     </SafeAreaView>
