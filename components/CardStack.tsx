@@ -146,17 +146,24 @@ const CardStack = memo<CardStackProps>(({
   };
 
   const updateDropZoneBounds = (pageX: number, pageY: number, width: number, height: number) => {
-    // Expand bounds by 15% on each side for easier dropping
+    // 🎯 TEMP STACK FIX: Much larger bounds for temp stacks to make them easy to hit
+    const expansionFactor = isTemporaryStack ? 0.5 : 0.15; // 50% for temp stacks, 15% for others
+
     const newBounds = {
-      x: pageX - (width * 0.15),
-      y: pageY - (height * 0.15),
-      width: width * 1.3,  // 30% total expansion
-      height: height * 1.3
+      x: pageX - (width * expansionFactor),
+      y: pageY - (height * expansionFactor),
+      width: width * (1 + 2 * expansionFactor),  // Double expansion for total area
+      height: height * (1 + 2 * expansionFactor)
     };
 
     setDropZoneBounds(newBounds);
     setIsLayoutMeasured(true);
-    console.log(`[CardStack] Measured bounds for ${stackId}:`, newBounds);
+
+    console.log(`[CardStack] 📏 Measured bounds for ${stackId} (${isTemporaryStack ? 'TEMP STACK' : 'REGULAR'}):`, {
+      bounds: newBounds,
+      expansionFactor: `${(expansionFactor * 100).toFixed(0)}%`,
+      totalExpansion: `${((expansionFactor * 2) * 100).toFixed(0)}% wider/taller`
+    });
   };
 
   // Show only the top card for visual simplicity on mobile
