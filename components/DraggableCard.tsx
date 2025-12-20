@@ -107,19 +107,14 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
 
         for (const zone of (global as any).dropZones) {
           const { x, y, width, height } = zone.bounds;
-          const tolerance = 50; // Increased tolerance for easier dropping
-          const expandedBounds = {
-            x: x - tolerance,
-            y: y - tolerance,
-            width: width + (tolerance * 2),
-            height: height + (tolerance * 2)
-          };
 
-          // Check if drop position is inside expanded bounds
-          if (dropPosition.x >= expandedBounds.x &&
-              dropPosition.x <= expandedBounds.x + expandedBounds.width &&
-              dropPosition.y >= expandedBounds.y &&
-              dropPosition.y <= expandedBounds.y + expandedBounds.height) {
+          // 🔥 CRITICAL FIX: Direct bounds check - NO tolerance expansion
+          // Hand cards need precise hit detection for proper trail logic
+          // Table cards already have expanded bounds in TableDraggableCard.tsx
+          if (dropPosition.x >= x &&
+              dropPosition.x <= x + width &&
+              dropPosition.y >= y &&
+              dropPosition.y <= y + height) {
 
             // PRIORITY-BASED: Higher priority wins (not distance!)
             const zonePriority = zone.priority || 0;
