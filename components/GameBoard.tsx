@@ -181,18 +181,28 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
       <AcceptValidationModal
         visible={showValidationModal}
         onClose={() => {
+          console.log('🎯 [GameBoard] Modal closed');
           setShowValidationModal(false);
           setSelectedTempStack(null);
         }}
         tempStack={selectedTempStack}
         playerHand={gameState.playerHands?.[playerNumber] || []}
         onCapture={(validation) => {
-          console.log('🎯 [GameBoard] Capture initiated:', validation);
+          console.log('🎯 [GameBoard] onCapture callback called:', validation);
+          console.log('🎯 [GameBoard] selectedTempStack:', selectedTempStack);
 
           if (!selectedTempStack) {
             console.error('❌ [GameBoard] No temp stack selected');
             return;
           }
+
+          console.log('📤 [GameBoard] Sending capture action:', {
+            type: 'captureTempStack',
+            payload: {
+              tempStackId: selectedTempStack.stackId,
+              captureValue: validation.target
+            }
+          });
 
           // Send capture action to server
           sendAction({

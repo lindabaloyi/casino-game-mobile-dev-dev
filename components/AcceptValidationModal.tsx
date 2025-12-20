@@ -109,8 +109,13 @@ export function AcceptValidationModal({
   };
 
   const handleCapture = () => {
-    if (!validationResult?.valid) return;
+    console.log('🎯 [MODAL] handleCapture called', { validationResult });
+    if (!validationResult?.valid) {
+      console.log('❌ [MODAL] Validation not valid, returning');
+      return;
+    }
 
+    console.log('✅ [MODAL] Showing confirmation alert');
     // Show confirmation alert
     Alert.alert(
       'Confirm Capture',
@@ -120,7 +125,7 @@ export function AcceptValidationModal({
         {
           text: 'Capture',
           onPress: () => {
-            console.log('✅ [MODAL] User confirmed capture');
+            console.log('✅ [MODAL] User confirmed capture, calling onCapture');
             onCapture(validationResult);
             onClose();
 
