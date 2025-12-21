@@ -40,32 +40,31 @@ export function AcceptValidationModal({
     }
   }, [visible, tempStack, playerHand]);
 
-  // 🎯 VALIDATION LOGIC
+  // 🎯 VALIDATION LOGIC - FIXED FOR SEQUENTIAL GROUPING
   const validateTempStack = (stack: any, hand: Card[]) => {
-    console.log('🔍 [VALIDATION] Starting...', {
-      stackCards: stack.cards,
-      handCards: hand
+    console.log('🚀 [VALIDATION START]', {
+      stackCards: stack.cards?.map((c: Card) => c.value),
+      handCards: hand.map((c: Card) => c.value),
+      stackSize: stack.cards?.length
     });
 
-    // RULE 1: Minimum 2 cards required
+    // RULE 1: Minimum cards
     if (!stack.cards || stack.cards.length < 2) {
-      return {
-        valid: false,
-        error: 'Need at least 2 cards to capture'
-      };
+      console.log('❌ [VALIDATION] Failed: Need at least 2 cards');
+      return {valid: false, error: 'Need at least 2 cards to capture'};
     }
 
     const cards = stack.cards;
-    const totalValue = cards.reduce((sum: number, card: Card) => sum + card.value, 0);
 
-    // RULE 2: Check if all cards same value
+    // RULE 2: Same value check
     const allSameValue = cards.every((card: Card) => card.value === cards[0].value);
-
     if (allSameValue) {
+      console.log('🔍 [VALIDATION] Checking SAME VALUE rule');
       const targetValue = cards[0].value;
       const hasMatchingCard = hand.some(card => card.value === targetValue);
 
       if (hasMatchingCard) {
+        console.log(`✅ [VALIDATION] Same value PASS: Capture ${cards.length} ${targetValue}s`);
         return {
           valid: true,
           type: 'SAME_VALUE',
@@ -74,6 +73,7 @@ export function AcceptValidationModal({
           message: `Capture ${cards.length} ${targetValue}s`
         };
       } else {
+        console.log(`❌ [VALIDATION] Same value FAIL: Need ${targetValue} in hand`);
         return {
           valid: false,
           error: `Need ${targetValue} in hand to capture same values`
@@ -81,31 +81,140 @@ export function AcceptValidationModal({
       }
     }
 
-    // RULE 3: Check sum ≤ 10
+    // RULE 3: Check sequential builds
+    console.log('🔍 [VALIDATION] Checking SEQUENTIAL BUILD rule');
+    console.log(`   Cards in stack order: ${cards.map((c: Card) => c.value).join(' → ')}`);
+
+    // Find all valid sequential builds
+    const validSequentialBuilds = [];
+
+    // Try each possible build value (1-10)
+    for (let buildValue = 1; buildValue <= 10; buildValue++) {
+      // Skip if player doesn't have this card
+      if (!hand.some(card => card.value === buildValue)) {
+        continue;
+      }
+
+      console.log(`   ↳ Testing build value ${buildValue}...`);
+
+      // Try to group all cards sequentially into this build value
+      const result = trySequentialGrouping(cards, buildValue);
+
+      if (result.valid) {
+        validSequentialBuilds.push({
+          buildValue,
+          groups: result.groups,
+          totalCards: cards.length
+        });
+        console.log(`     ✓ Valid: ${result.groups.map(g => `(${g.cards.map(c => c.value).join('+')})`).join(', ')}`);
+      }
+    }
+
+    console.log(`🔍 [VALIDATION] Found ${validSequentialBuilds.length} valid sequential builds`);
+
+    if (validSequentialBuilds.length > 0) {
+      // Pick the first valid build (all should be equivalent)
+      const bestBuild = validSequentialBuilds[0];
+      console.log(`✅ [VALIDATION] Sequential build PASS: Build value ${bestBuild.buildValue}`);
+      console.log(`   Groups: ${bestBuild.groups.map(g => `(${g.cards.map(c => c.value).join('+')}=${g.sum})`).join(', ')}`);
+
+      return {
+        valid: true,
+        type: 'SEQUENTIAL_BUILD',
+        target: bestBuild.buildValue,
+        cards: cards,
+        groups: bestBuild.groups,
+        message: `Capture ${bestBuild.totalCards} cards building to ${bestBuild.buildValue}`
+      };
+    }
+
+    // RULE 4: Check total sum
+    console.log('🔍 [VALIDATION] Checking TOTAL SUM rule');
+    const totalValue = cards.reduce((sum: number, card: Card) => sum + card.value, 0);
+    console.log(`   ↳ Total sum: ${totalValue} (cards: ${cards.map((c: Card) => c.value).join('+')})`);
+
     if (totalValue <= 10) {
       const hasSumCard = hand.some(card => card.value === totalValue);
 
       if (hasSumCard) {
+        console.log(`✅ [VALIDATION] Total sum PASS: Capture all ${cards.length} cards`);
         return {
           valid: true,
-          type: 'SUM',
+          type: 'TOTAL_SUM',
           target: totalValue,
           cards: cards,
-          message: `Capture sum ${totalValue}`
+          message: `Capture all ${cards.length} cards (total ${totalValue})`
         };
       } else {
+        console.log(`❌ [VALIDATION] Total sum FAIL: Need ${totalValue} in hand`);
         return {
           valid: false,
           error: `Need ${totalValue} in hand to capture this sum`
         };
       }
+    } else {
+      console.log(`❌ [VALIDATION] Total sum FAIL: ${totalValue} > 10`);
     }
 
-    // RULE 4: Total > 10 (invalid)
+    // RULE 5: No valid builds
+    console.log('❌ [VALIDATION] FAIL: No valid sequential build found');
     return {
       valid: false,
-      error: `Total ${totalValue} > 10 (cannot capture)`
+      error: 'No valid sequential build found'
     };
+  };
+
+  // Helper: Try to group cards sequentially into groups that sum to targetValue
+  const trySequentialGrouping = (cards: Card[], targetValue: number) => {
+    const groups = [];
+    const n = cards.length;
+    let i = 0;
+
+    while (i < n) {
+      // Try groups of 3 cards first (largest group)
+      if (i + 2 < n) {
+        const tripleSum = cards[i].value + cards[i + 1].value + cards[i + 2].value;
+        if (tripleSum === targetValue) {
+          groups.push({
+            cards: [cards[i], cards[i + 1], cards[i + 2]],
+            sum: tripleSum,
+            size: 3
+          });
+          i += 3;
+          continue;
+        }
+      }
+
+      // Try groups of 2 cards
+      if (i + 1 < n) {
+        const pairSum = cards[i].value + cards[i + 1].value;
+        if (pairSum === targetValue) {
+          groups.push({
+            cards: [cards[i], cards[i + 1]],
+            sum: pairSum,
+            size: 2
+          });
+          i += 2;
+          continue;
+        }
+      }
+
+      // Try single card
+      if (cards[i].value === targetValue) {
+        groups.push({
+          cards: [cards[i]],
+          sum: cards[i].value,
+          size: 1
+        });
+        i += 1;
+        continue;
+      }
+
+      // Can't group this card
+      return { valid: false, groups: [] };
+    }
+
+    return { valid: true, groups };
   };
 
   const handleCapture = () => {
@@ -116,10 +225,10 @@ export function AcceptValidationModal({
     }
 
     console.log('✅ [MODAL] Showing confirmation alert');
-    // Show confirmation alert
+    // Show confirmation alert - clean message showing build value only
     Alert.alert(
       'Confirm Capture',
-      `Capture ${validationResult.cards.length} cards for ${validationResult.target} points?`,
+      `Capture ${validationResult.target}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -166,12 +275,12 @@ export function AcceptValidationModal({
       );
     }
 
-    // Valid capture state - simplified to match ActionModal
+    // Valid capture state - clean message showing build value only
     return (
       <>
         <Text style={styles.title}>Capture Cards</Text>
         <Text style={styles.message}>
-          Capture {validationResult.cards.length} cards for {validationResult.target} points?
+          Capture {validationResult.target}?
         </Text>
 
         <View style={styles.buttonContainer}>
