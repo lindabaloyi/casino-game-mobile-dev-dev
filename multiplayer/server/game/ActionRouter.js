@@ -39,14 +39,19 @@ class ActionRouter {
   /**
    * Execute action through router
    */
-  executeAction(gameId, playerIndex, action) {
-    const { type: actionType } = action;
+  async executeAction(gameId, playerIndex, action) {
+    const { type: actionType, payload } = action;
 
-    logger.info(`Action: ${actionType} by P${playerIndex + 1} in game ${gameId}`);
+    // 🔍 ACTION ENTRY LOG
+    logger.action(`START ${actionType}`, gameId, playerIndex, {
+      payload: payload,
+      timestamp: new Date().toISOString()
+    });
 
     // Check if action type exists
     if (!this.actionHandlers[actionType]) {
       const available = Object.keys(this.actionHandlers).join(', ');
+      logger.error(`No handler for action type: ${actionType}`, { availableHandlers: available });
       throw new Error(`Unknown action: ${actionType}. Available: ${available}`);
     }
 
@@ -54,10 +59,26 @@ class ActionRouter {
       // Get game state and execute action
       const gameState = this.gameManager.getGameState(gameId);
       if (!gameState) {
+        logger.error(`Game ${gameId} not found for action ${actionType}`, { playerIndex });
         throw new Error(`Game ${gameId} not found`);
       }
 
-      const newGameState = this.actionHandlers[actionType](this.gameManager, playerIndex, action, gameId);
+      // 🎯 BEFORE STATE - only if gameState exists
+      logger.gameState(gameId, gameState, null, `BEFORE_${actionType}`);
+
+      logger.info(`Executing ${actionType} for Player ${playerIndex} in Game ${gameId}`);
+
+      const newGameState = await this.actionHandlers[actionType](this.gameManager, playerIndex, action, gameId);
+
+      // Get updated state (in case action modified it)
+      const updatedGameState = this.gameManager.getGameState(gameId);
+
+      // 🎯 AFTER STATE - only if updatedGameState exists
+      if (updatedGameState) {
+        logger.gameState(gameId, gameState, updatedGameState, `AFTER_${actionType}`);
+      } else {
+        logger.warn(`No game state after ${actionType} execution for game ${gameId}`);
+      }
 
       // ✅ TURN MANAGEMENT
       let finalGameState = { ...newGameState };
@@ -65,7 +86,11 @@ class ActionRouter {
       const forceTurnSwitch = (actionType === 'trail' || actionType === 'confirmTrail');
 
       const phase = (currentPlayerCanMove && !forceTurnSwitch) ? 'continue' : 'switch';
-      console.log(`TURN: P${finalGameState.currentPlayer + 1} -> ${phase} (${actionType})`);
+      logger.info(`Turn management: P${finalGameState.currentPlayer + 1} -> ${phase}`, {
+        actionType,
+        currentPlayerCanMove,
+        forceTurnSwitch
+      });
 
       if (!currentPlayerCanMove || forceTurnSwitch) {
         // Switch to next player
@@ -73,36 +98,47 @@ class ActionRouter {
         finalGameState.currentPlayer = nextPlayer;
 
         const fromPlayer = newGameState.currentPlayer;
-        console.log(`TURN SWITCH: P${fromPlayer + 1} -> P${nextPlayer + 1} (${actionType})`);
-
-        // Keep TRAIL_FIX log for debugging trail turn management
-        if (forceTurnSwitch) {
-          console.log(`TRAIL_FIX: ${actionType} forced turn end - P${fromPlayer + 1} -> P${nextPlayer + 1}`);
-        }
+        logger.info(`Turn switched: P${fromPlayer + 1} -> P${nextPlayer + 1}`, {
+          actionType,
+          reason: forceTurnSwitch ? 'forced' : 'no_moves'
+        });
 
         // Check if next player can move
         const nextPlayerCanMove = canPlayerMove(finalGameState);
         if (!nextPlayerCanMove) {
-          console.log(`GAME END: Neither player can move (game ${gameId})`);
+          logger.warn('Game end condition: Neither player can move', { gameId });
         }
       }
-
-      // Keep essential action completion info
-      const turnChanged = newGameState.currentPlayer !== finalGameState.currentPlayer;
-      console.log(`ACTION: ${actionType} completed - turn changed: ${turnChanged}`);
 
       // Update GameManager's state with final game state (after turn logic)
       this.gameManager.activeGames.set(gameId, finalGameState);
 
+      // 🔍 ACTION EXIT LOG
+      const turnChanged = newGameState.currentPlayer !== finalGameState.currentPlayer;
+      logger.action(`END ${actionType}`, gameId, playerIndex, {
+        success: true,
+        turnChanged,
+        newCurrentPlayer: finalGameState.currentPlayer,
+        tableCardsChange: finalGameState.tableCards.length - gameState.tableCards.length,
+        timestamp: new Date().toISOString()
+      });
+
       return finalGameState;
 
     } catch (error) {
-      logger.error('Handler execution failed', {
+      // 🚨 ERROR LOGGING
+      logger.error(`Action ${actionType} failed`, {
         gameId,
         playerIndex,
-        actionType,
+        payload,
         error: error.message,
         stack: error.stack
+      });
+
+      // 🔍 ACTION ERROR LOG
+      logger.action(`ERROR ${actionType}`, gameId, playerIndex, {
+        error: error.message,
+        timestamp: new Date().toISOString()
       });
 
       // Re-throw with structured format

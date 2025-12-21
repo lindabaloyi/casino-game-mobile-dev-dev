@@ -276,8 +276,29 @@ function determineActions(draggedItem, targetInfo, gameState) {
  * Check if current player can make any valid moves
  */
 function canPlayerMove(gameState) {
+  if (!gameState) {
+    console.log('🎯 [DEBUG] CAN MOVE: false - gameState is null/undefined');
+    return false;
+  }
+
   const { playerHands, currentPlayer, tableCards, round } = gameState;
+
+  if (!playerHands || !Array.isArray(playerHands) || currentPlayer === undefined) {
+    console.log('🎯 [DEBUG] CAN MOVE: false - invalid playerHands or currentPlayer');
+    return false;
+  }
+
   const playerHand = playerHands[currentPlayer];
+
+  if (!playerHand || !Array.isArray(playerHand)) {
+    console.log('🎯 [DEBUG] CAN MOVE: false - invalid playerHand');
+    return false;
+  }
+
+  if (!tableCards || !Array.isArray(tableCards)) {
+    console.log('🎯 [DEBUG] CAN MOVE: false - invalid tableCards');
+    return false;
+  }
 
   // 🎯 [DEBUG] Movement analysis start
   console.log('🎯 [DEBUG] CAN PLAYER MOVE? - Analysis Start:', {
@@ -301,6 +322,11 @@ function canPlayerMove(gameState) {
   let checkedTrails = 0;
 
   for (const card of playerHand) {
+    if (!card || typeof card !== 'object') {
+      console.log('🎯 [DEBUG] Skipping invalid card:', card);
+      continue;
+    }
+
     console.log('🎯 [DEBUG] Checking card:', {
       card: `${card.rank}${card.suit}`,
       value: rankValue(card.rank)
@@ -311,6 +337,10 @@ function canPlayerMove(gameState) {
 
     // Check table targets (loose cards, builds, temp stacks)
     for (const tableCard of tableCards) {
+      if (!tableCard || typeof tableCard !== 'object') {
+        console.log('🎯 [DEBUG] Skipping invalid tableCard:', tableCard);
+        continue;
+      }
       if (isCard(tableCard)) {
         // Check capture possibility
         if (rankValue(tableCard.rank) === rankValue(card.rank)) {

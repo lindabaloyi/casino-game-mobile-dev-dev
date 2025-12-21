@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -19,7 +19,8 @@ interface AcceptValidationModalProps {
   onClose: () => void;
   tempStack: any;
   playerHand: Card[];
-  onCapture: (validation: any) => void;
+  onCapture?: (validation: any) => void; // Make optional
+  sendAction: (action: any) => void; // Add required sendAction
 }
 
 export function AcceptValidationModal({
@@ -27,9 +28,11 @@ export function AcceptValidationModal({
   onClose,
   tempStack,
   playerHand,
-  onCapture
+  onCapture,
+  sendAction
 }: AcceptValidationModalProps) {
   const [validationResult, setValidationResult] = useState<any>(null);
+  const isProcessing = useRef(false);
 
   // Run validation when modal opens
   useEffect(() => {
@@ -40,17 +43,17 @@ export function AcceptValidationModal({
     }
   }, [visible, tempStack, playerHand]);
 
+  // Reset processing flag when modal closes
+  useEffect(() => {
+    if (!visible) {
+      isProcessing.current = false;
+    }
+  }, [visible]);
+
   // 🎯 VALIDATION LOGIC - FIXED FOR SEQUENTIAL GROUPING
   const validateTempStack = (stack: any, hand: Card[]) => {
-    console.log('🚀 [VALIDATION START]', {
-      stackCards: stack.cards?.map((c: Card) => c.value),
-      handCards: hand.map((c: Card) => c.value),
-      stackSize: stack.cards?.length
-    });
-
     // RULE 1: Minimum cards
     if (!stack.cards || stack.cards.length < 2) {
-      console.log('❌ [VALIDATION] Failed: Need at least 2 cards');
       return {valid: false, error: 'Need at least 2 cards to capture'};
     }
 
@@ -59,12 +62,10 @@ export function AcceptValidationModal({
     // RULE 2: Same value check
     const allSameValue = cards.every((card: Card) => card.value === cards[0].value);
     if (allSameValue) {
-      console.log('🔍 [VALIDATION] Checking SAME VALUE rule');
       const targetValue = cards[0].value;
       const hasMatchingCard = hand.some(card => card.value === targetValue);
 
       if (hasMatchingCard) {
-        console.log(`✅ [VALIDATION] Same value PASS: Capture ${cards.length} ${targetValue}s`);
         return {
           valid: true,
           type: 'SAME_VALUE',
@@ -73,7 +74,6 @@ export function AcceptValidationModal({
           message: `Capture ${cards.length} ${targetValue}s`
         };
       } else {
-        console.log(`❌ [VALIDATION] Same value FAIL: Need ${targetValue} in hand`);
         return {
           valid: false,
           error: `Need ${targetValue} in hand to capture same values`
@@ -82,10 +82,6 @@ export function AcceptValidationModal({
     }
 
     // RULE 3: Check sequential builds
-    console.log('🔍 [VALIDATION] Checking SEQUENTIAL BUILD rule');
-    console.log(`   Cards in stack order: ${cards.map((c: Card) => c.value).join(' → ')}`);
-
-    // Find all valid sequential builds
     const validSequentialBuilds = [];
 
     // Try each possible build value (1-10)
@@ -94,8 +90,6 @@ export function AcceptValidationModal({
       if (!hand.some(card => card.value === buildValue)) {
         continue;
       }
-
-      console.log(`   ↳ Testing build value ${buildValue}...`);
 
       // Try to group all cards sequentially into this build value
       const result = trySequentialGrouping(cards, buildValue);
@@ -106,18 +100,12 @@ export function AcceptValidationModal({
           groups: result.groups,
           totalCards: cards.length
         });
-        console.log(`     ✓ Valid: ${result.groups.map(g => `(${g.cards.map(c => c.value).join('+')})`).join(', ')}`);
       }
     }
-
-    console.log(`🔍 [VALIDATION] Found ${validSequentialBuilds.length} valid sequential builds`);
 
     if (validSequentialBuilds.length > 0) {
       // Pick the first valid build (all should be equivalent)
       const bestBuild = validSequentialBuilds[0];
-      console.log(`✅ [VALIDATION] Sequential build PASS: Build value ${bestBuild.buildValue}`);
-      console.log(`   Groups: ${bestBuild.groups.map(g => `(${g.cards.map(c => c.value).join('+')}=${g.sum})`).join(', ')}`);
-
       return {
         valid: true,
         type: 'SEQUENTIAL_BUILD',
@@ -129,15 +117,12 @@ export function AcceptValidationModal({
     }
 
     // RULE 4: Check total sum
-    console.log('🔍 [VALIDATION] Checking TOTAL SUM rule');
     const totalValue = cards.reduce((sum: number, card: Card) => sum + card.value, 0);
-    console.log(`   ↳ Total sum: ${totalValue} (cards: ${cards.map((c: Card) => c.value).join('+')})`);
 
     if (totalValue <= 10) {
       const hasSumCard = hand.some(card => card.value === totalValue);
 
       if (hasSumCard) {
-        console.log(`✅ [VALIDATION] Total sum PASS: Capture all ${cards.length} cards`);
         return {
           valid: true,
           type: 'TOTAL_SUM',
@@ -146,18 +131,14 @@ export function AcceptValidationModal({
           message: `Capture all ${cards.length} cards (total ${totalValue})`
         };
       } else {
-        console.log(`❌ [VALIDATION] Total sum FAIL: Need ${totalValue} in hand`);
         return {
           valid: false,
           error: `Need ${totalValue} in hand to capture this sum`
         };
       }
-    } else {
-      console.log(`❌ [VALIDATION] Total sum FAIL: ${totalValue} > 10`);
     }
 
     // RULE 5: No valid builds
-    console.log('❌ [VALIDATION] FAIL: No valid sequential build found');
     return {
       valid: false,
       error: 'No valid sequential build found'
@@ -218,36 +199,80 @@ export function AcceptValidationModal({
   };
 
   const handleCapture = () => {
-    console.log('🎯 [MODAL] handleCapture called', { validationResult });
-    if (!validationResult?.valid) {
-      console.log('❌ [MODAL] Validation not valid, returning');
+    // Prevent double-clicks
+    if (isProcessing.current) {
+      console.log('⚠️ [MODAL] Already processing, ignoring duplicate click');
       return;
     }
 
-    console.log('✅ [MODAL] Showing confirmation alert');
-    // Show confirmation alert - clean message showing build value only
-    Alert.alert(
-      'Confirm Capture',
-      `Capture ${validationResult.target}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Capture',
-          onPress: () => {
-            console.log('✅ [MODAL] User confirmed capture, calling onCapture');
-            onCapture(validationResult);
-            onClose();
+    console.log('🎯 [MODAL] Auto-capture triggered', {
+      validationResult,
+      tempStack,
+      sendActionType: typeof sendAction,
+      isProcessing: isProcessing.current
+    });
 
-            // Show success alert
-            Alert.alert(
-              'Capture Successful!',
-              `You captured ${validationResult.cards.length} cards`,
-              [{ text: 'OK' }]
-            );
-          }
+    // Add debug line for sendAction
+    console.log('🔍 [DEBUG] sendAction is function?', typeof sendAction === 'function' ? 'YES' : 'NO');
+
+    if (!validationResult?.valid || !tempStack?.stackId) {
+      console.log('❌ [MODAL] Invalid state, cannot capture');
+      Alert.alert('Error', 'Cannot capture: Invalid state');
+      return;
+    }
+
+    // Check sendAction exists
+    if (!sendAction || typeof sendAction !== 'function') {
+      console.error('❌ [MODAL] sendAction is not available!', { sendAction, type: typeof sendAction });
+      Alert.alert('Error', 'Cannot send action: Connection issue');
+      return;
+    }
+
+    isProcessing.current = true;
+
+    console.log('✅ [MODAL] Calling server action:', {
+      type: 'captureTempStack',
+      tempStackId: tempStack.stackId,
+      captureValue: validationResult.target
+    });
+
+    try {
+      // Direct server call - no confirmation needed for auto-capture
+      sendAction({
+        type: 'captureTempStack',
+        payload: {
+          tempStackId: tempStack.stackId,
+          captureValue: validationResult.target
         }
-      ]
-    );
+      });
+
+      console.log('✅ [MODAL] sendAction called successfully');
+
+      // Keep backward compatibility
+      if (onCapture) {
+        onCapture(validationResult);
+      }
+
+      // Close modal immediately
+      onClose();
+
+      // Show success alert
+      Alert.alert(
+        'Cards Captured!',
+        `Successfully captured ${validationResult.target}`,
+        [{ text: 'OK' }]
+      );
+
+    } catch (error) {
+      console.error('❌ [MODAL] Auto-capture failed:', error);
+      Alert.alert('Capture Failed', 'Please try again');
+      // Don't close modal on error
+    } finally {
+      // Reset processing flag after a delay
+      setTimeout(() => {
+        isProcessing.current = false;
+      }, 1000);
+    }
   };
 
   const renderContent = () => {

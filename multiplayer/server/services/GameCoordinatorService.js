@@ -18,7 +18,7 @@ class GameCoordinatorService {
   /**
    * Handle game action submission
    */
-  handleGameAction(socket, data) {
+  async handleGameAction(socket, data) {
     const gameId = this.matchmaking.getGameId(socket.id);
     if (!gameId) {
       this.broadcaster.sendError(socket, 'Not in an active game');
@@ -36,7 +36,7 @@ class GameCoordinatorService {
       this.logger.info(`Routing action ${data.type} from Player ${playerIndex} in game ${gameId}`);
 
       // Route through ActionRouter
-      const newGameState = this.actionRouter.executeAction(gameId, playerIndex, data);
+      const newGameState = await this.actionRouter.executeAction(gameId, playerIndex, data);
 
       // Broadcast updated game state to all players in game
       this.broadcaster.broadcastGameUpdate(gameId, newGameState);
@@ -50,7 +50,7 @@ class GameCoordinatorService {
   /**
    * Handle card drop action coordination
    */
-  handleCardDrop(socket, data) {
+  async handleCardDrop(socket, data) {
     console.log('[SERVER] card-drop received', {
       playerId: data.draggedItem.player,
       draggedSource: data.draggedItem.source,
@@ -194,7 +194,7 @@ class GameCoordinatorService {
           timestamp: new Date().toISOString()
         });
 
-        const newGameState = this.actionRouter.executeAction(gameId, playerIndex, finalActionToExecute);
+        const newGameState = await this.actionRouter.executeAction(gameId, playerIndex, finalActionToExecute);
 
         this.logger.info('[STAGING_DEBUG] ✅ ACTION EXECUTED SUCCESSFULLY:', {
           gameId,
@@ -262,7 +262,7 @@ class GameCoordinatorService {
   /**
    * Handle action choice from client modal
    */
-  handleExecuteAction(socket, data) {
+  async handleExecuteAction(socket, data) {
     const gameId = this.matchmaking.getGameId(socket.id);
     if (!gameId) {
       this.broadcaster.sendError(socket, 'Not in an active game');
@@ -312,7 +312,7 @@ class GameCoordinatorService {
         cardInfo: actionToExecute.payload?.card ? `${actionToExecute.payload.card.rank}${actionToExecute.payload.card.suit}` : 'no card'
       });
 
-      const newGameState = this.actionRouter.executeAction(gameId, playerIndex, actionToExecute);
+      const newGameState = await this.actionRouter.executeAction(gameId, playerIndex, actionToExecute);
 
       this.logger.info('EXECUTE-ACTION COMPLETED SUCCESSFULLY:', {
         gameId: gameId,
