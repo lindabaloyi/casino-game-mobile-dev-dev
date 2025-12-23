@@ -8,11 +8,11 @@ const { createLogger } = require('../../utils/logger');
 const { validateStagingAddition } = require('../logic/staging');
 const logger = createLogger('AddToStagingStack');
 
-function handleAddToStagingStack(gameManager, playerIndex, action) {
+function handleAddToStagingStack(gameManager, playerIndex, action, gameId) {
   console.log('[TEMP_STACK] 🏃 ADD_TO_STAGING_STACK executing (GAME-APPROPRIATE)');
   console.log('[TEMP_STACK] Input action payload:', JSON.stringify(action.payload, null, 2));
 
-  const { gameId, stackId, card, source } = action.payload;
+  const { stackId, card, source } = action.payload;
   const gameState = gameManager.getGameState(gameId);
 
   console.log('[TEMP_STACK] Operation details:', {
@@ -75,11 +75,43 @@ function handleAddToStagingStack(gameManager, playerIndex, action) {
     flexibleStacking: true
   });
 
+  // Initialize cardPositions array if it doesn't exist (for backward compatibility)
+  if (!tempStack.cardPositions) {
+    tempStack.cardPositions = [];
+    // Populate with existing cards' positions (best effort)
+    tempStack.cards.forEach((existingCard, index) => {
+      tempStack.cardPositions.push({
+        cardId: `${existingCard.rank}${existingCard.suit}`,
+        originalIndex: null, // Unknown for existing cards
+        source: existingCard.source || 'unknown'
+      });
+    });
+  }
+
   tempStack.cards.push({
     ...card,
     source: source || 'unknown',
     addedAt: Date.now(),
     addedBy: playerIndex
+  });
+
+  // Track the position of the newly added card
+  let originalIndex = null;
+  if (source === 'table' || source === 'loose') {
+    // For table cards, find their original position
+    // Note: This is approximate since we don't have perfect tracking
+    // In a real implementation, this would need better state management
+    originalIndex = gameState.tableCards.findIndex(tableCard =>
+      tableCard.rank === card.rank &&
+      tableCard.suit === card.suit &&
+      (!tableCard.type || tableCard.type === 'loose')
+    );
+  }
+
+  tempStack.cardPositions.push({
+    cardId: `${card.rank}${card.suit}`,
+    originalIndex: originalIndex,
+    source: source || 'unknown'
   });
 
   // Update stack value (simple sum)

@@ -92,45 +92,24 @@ const TableCards: React.FC<TableCardsProps> = ({
   // Track locally cancelled staging stacks for immediate UI updates
   const [cancelledStacks, setCancelledStacks] = React.useState<Set<string>>(new Set());
 
-  // Enhanced staging reject handler that marks stacks as cancelled locally
+  // Simplified staging reject handler - just call server-side cancel
   const handleStagingRejectWithLocalState = React.useCallback((stackId: string) => {
-    console.log(`[TableCards] ❌ CANCEL STAGING - STARTING LOCAL CANCEL PROCESS:`, {
+    console.log(`[TableCards] ❌ CANCEL STAGING - CALLING SERVER-SIDE CANCEL:`, {
       stackId,
-      action: 'immediate-ui-hide',
-      currentCancelledCount: cancelledStacks.size,
-      willAddToCancelled: true,
-      timestamp: Date.now()
+      action: 'server-side-cancelStagingStack',
+      timestamp: Date.now(),
+      expectedOutcome: 'server-will-restore-cards-to-original-positions'
     });
 
-    // Mark this stack as cancelled locally for immediate UI update
-    setCancelledStacks(prev => {
-      const newSet = new Set([...prev, stackId]);
-      console.log(`[TableCards] ✅ CANCEL STAGING - LOCAL STATE UPDATED:`, {
-        stackId,
-        previousCount: prev.size,
-        newCount: newSet.size,
-        cancelledStacksArray: Array.from(newSet),
-        willTriggerReRender: true,
-        visualEffect: 'temp-stack-will-disappear'
-      });
-      return newSet;
-    });
-
-    // Call the original handler (which is purely client-side)
-    console.log(`[TableCards] 🎯 CANCEL STAGING - CALLING ORIGINAL HANDLER:`, {
-      stackId,
-      hasOriginalHandler: !!onStagingReject,
-      handlerType: 'onStagingReject'
-    });
+    // Call the server-side cancel handler - let server handle all restoration
     onStagingReject?.(stackId);
 
-    console.log(`[TableCards] ✅ CANCEL STAGING - PROCESS COMPLETE:`, {
+    console.log(`[TableCards] ✅ CANCEL REQUEST SENT TO SERVER:`, {
       stackId,
-      expectedOutcome: 'temp-stack-disappears-immediately',
-      playerCanRetry: true,
-      serverWillEventuallySync: true
+      serverWillHandle: 'position-aware-card-restoration',
+      clientWillReceive: 'updated-game-state-with-restored-cards'
     });
-  }, [cancelledStacks, onStagingReject]);
+  }, [onStagingReject]);
 
   // FIXED: Preserve original positions when expanding cancelled stacks
   const visibleTableCards = React.useMemo(() => {

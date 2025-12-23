@@ -300,45 +300,24 @@ export function useStagingStacks({
   }, [findStackById, gameState.playerHands, gameState.currentPlayer, validateBasicCapture, showCaptureConfirmation, showBuildConfirmation, showValidationError]);
 
   const handleStagingReject = useCallback((stackId: string) => {
-    console.log(`[STAGING_STACKS] ❌ CANCELING staging stack (PURELY CLIENT-SIDE):`, {
+    console.log(`[STAGING_STACKS] ❌ CANCELING staging stack (SERVER-SIDE):`, {
       stackId,
-      actionType: 'immediate-client-cancel',
+      actionType: 'cancelStagingStack',
       timestamp: Date.now(),
-      noServerCall: true
+      serverCall: true
     });
 
-    const stackToCancel = findStackById(stackId);
-    if (stackToCancel && 'stackId' in stackToCancel) {
-      console.log(`[STAGING_STACKS] 🏠 IMMEDIATE CLIENT CANCEL - clearing staging state:`, {
-        stackId,
-        stackOwner: stackToCancel.owner,
-        stackCards: stackToCancel.cards?.length || 0,
-        cardsBeingCleared: stackToCancel.cards?.map((c: any) => `${c.rank}${c.suit}(${c.source})`) || []
-      });
+    // Use the existing handleCancelStack function that sends to server
+    // This will trigger the server-side cancelStagingStack action
+    // which properly restores cards to their original sources
+    handleCancelStack(stackId);
 
-      // Pure client-side cancel: Just remove the temp stack from UI
-      // The server will eventually clean up, but player can retry immediately
-      console.log(`[STAGING_STACKS] ✅ Client cancel complete - staging cleared, player can retry:`, {
-        stackId,
-        stagingOverlayHidden: true,
-        tempStackRemoved: true,
-        playerCanDragAgain: true
-      });
-
-      // Note: We're NOT sending any action to server for cancel
-      // The temp stack will disappear from UI, and server state will eventually sync
-      // This prevents the "Cannot read properties of undefined" error
-
-    } else {
-      console.warn(`[STAGING_STACKS] ⚠️ Cannot cancel staging - stack not found (might already be cleared):`, {
-        requestedStackId: stackId,
-        availableStacks: gameState.tableCards.filter((c: any) => 'stackId' in c).map((c: any) => ({
-          id: c.stackId,
-          owner: c.owner
-        }))
-      });
-    }
-  }, [findStackById, gameState.tableCards]);
+    console.log(`[STAGING_STACKS] 📤 Server cancel initiated - expecting proper card restoration:`, {
+      stackId,
+      serverAction: 'cancelStagingStack',
+      expectedOutcome: 'hand-cards-return-to-hand'
+    });
+  }, [handleCancelStack]);
 
   // 🎯 DEBUG LOGGING
   useEffect(() => {

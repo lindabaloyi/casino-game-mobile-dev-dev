@@ -92,13 +92,28 @@ function handleCreateStagingStack(gameManager, playerIndex, action, gameId) {
     throw error;
   }
 
-  // Create staging stack
+  // Create staging stack with position tracking
   const stagingStack = {
     type: 'temporary_stack',
     stackId: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     cards: [
       { ...targetCard, source: 'table' }, // ✅ Bottom card first (target)
       { ...draggedCard, source }          // ✅ Top card second (dragged)
+    ],
+    // NEW: Track original positions for proper restoration
+    cardPositions: [
+      {
+        cardId: `${targetCard.rank}${targetCard.suit}`,
+        originalIndex: targetIndex,  // Table position for target card
+        source: 'table'
+      },
+      {
+        cardId: `${draggedCard.rank}${draggedCard.suit}`,
+        originalIndex: source === 'hand' ? null : (gameState.tableCards.findIndex((card, index) =>
+          index !== targetIndex && card.rank === draggedCard.rank && card.suit === draggedCard.suit
+        )), // Find dragged card's original position for table-to-table
+        source: source
+      }
     ],
     owner: playerIndex,
     value: draggedCard.value + targetCard.value,

@@ -146,21 +146,37 @@ export function useDragHandlers({
     });
 
     // ⭐️⭐️⭐️ QUICK FIX: Send correct action type for staging operations
-    const actionType = (draggedItem.source === 'hand' && targetInfo.type === 'loose')
-      ? 'createStagingStack'  // ✅ For hand-to-table staging
-      : 'card-drop';          // Keep for other cases
+    const actionType =
+      (draggedItem.source === 'hand' && targetInfo.type === 'loose')
+        ? 'createStagingStack'  // ✅ For hand-to-loose staging (new stack)
+      : (draggedItem.source === 'hand' && targetInfo.type === 'temporary_stack')
+        ? 'addToStagingStack'   // ✅ For hand-to-temp-stack (add to existing)
+      : 'card-drop';            // Keep for other cases
 
     // Send raw drop event to server
-    const actionPayload = {
-      type: actionType,
-      payload: {
+    let payload;
+    if (actionType === 'addToStagingStack') {
+      // Special payload for adding to existing temp stack
+      payload = {
+        stackId: targetInfo.stackId,
+        card: draggedItem.card,
+        source: draggedItem.source  // This should be 'hand'
+      };
+    } else {
+      // Standard payload for other actions
+      payload = {
         draggedItem,
         targetInfo: {
           ...targetInfo,
           draggedSource: draggedItem.source // Add draggedSource for staging logic
         },
         requestId: Date.now() // For matching responses
-      }
+      };
+    }
+
+    const actionPayload = {
+      type: actionType,
+      payload
     };
 
     console.log(`[DRAG_HANDLERS] 📤 SENDING TO SERVER - Potential Staging Action:`, {
@@ -169,7 +185,9 @@ export function useDragHandlers({
       targetType: targetInfo.type,
       targetCard: targetInfo.card ? `${targetInfo.card.rank}${targetInfo.card.suit}` : 'null',
       hasStagingPotential: (draggedItem.source === 'hand' && targetInfo.type === 'loose'),
-      payloadDraggedSource: actionPayload.payload.targetInfo.draggedSource
+      payloadDraggedSource: actionType === 'addToStagingStack'
+        ? draggedItem.source
+        : actionPayload.payload.targetInfo?.draggedSource
     });
 
     console.log('[STAGING DROP SENT TO SERVER]', {
