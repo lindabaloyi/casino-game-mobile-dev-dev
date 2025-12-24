@@ -242,6 +242,13 @@ const CardStack = memo<CardStackProps>(({
         </View>
       )}
 
+      {/* Owner tag for builds */}
+      {isBuild && stackOwner !== undefined && (
+        <View style={styles.ownerTagContainer}>
+          <Text style={styles.ownerTagText}>P{stackOwner + 1}</Text>
+        </View>
+      )}
+
       {/* Card count indicator for stacks with multiple cards */}
       {cardCount > 1 && !isTemporaryStack && (
         <View style={styles.cardCountContainer}>
@@ -299,6 +306,24 @@ const styles = StyleSheet.create({
   buildValueText: {
     color: '#000',
     fontSize: 10,
+    fontWeight: 'bold',
+  },
+  ownerTagContainer: {
+    position: 'absolute',
+    top: -8,
+    left: -8,
+    backgroundColor: '#4CAF50', // Green for player ownership
+    borderRadius: 10,
+    minWidth: 24,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  ownerTagText: {
+    color: '#FFFFFF',
+    fontSize: 9,
     fontWeight: 'bold',
   },
   cardCountContainer: {

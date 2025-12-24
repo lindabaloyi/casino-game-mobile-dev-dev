@@ -14,6 +14,13 @@ interface Card {
   value: number;
 }
 
+interface ActionOption {
+  type: 'capture' | 'build';
+  label: string;
+  card: Card | null;  // The hand card used for this action (null for builds)
+  value: number; // The value this action targets
+}
+
 interface AcceptValidationModalProps {
   visible: boolean;
   onClose: () => void;
@@ -50,98 +57,65 @@ export function AcceptValidationModal({
     }
   }, [visible]);
 
-  // 🎯 VALIDATION LOGIC - FIXED FOR SEQUENTIAL GROUPING
-  const validateTempStack = (stack: any, hand: Card[]) => {
-    // RULE 1: Minimum cards
+  // 🎯 NEW: Get all available capture and build options
+  const getAvailableOptions = (stack: any, hand: Card[]): ActionOption[] => {
+    const options: ActionOption[] = [];
+
+    // RULE 1: Minimum cards check
     if (!stack.cards || stack.cards.length < 2) {
-      return {valid: false, error: 'Need at least 2 cards to capture'};
+      return options; // No options available
     }
 
     const cards = stack.cards;
+    const stackValue = cards.reduce((sum: number, card: { value: number }) => sum + card.value, 0);
 
-    // RULE 2: Same value check
-    const allSameValue = cards.every((card: Card) => card.value === cards[0].value);
-    if (allSameValue) {
-      const targetValue = cards[0].value;
-      const hasMatchingCard = hand.some(card => card.value === targetValue);
+    // CRITICAL RULE: Check if temp stack contains hand cards
+    const hasHandCards = cards.some((card: { source?: string }) => card.source === 'hand');
 
-      if (hasMatchingCard) {
-        return {
-          valid: true,
-          type: 'SAME_VALUE',
-          target: targetValue,
-          cards: cards,
-          message: `Capture ${cards.length} ${targetValue}s`
-        };
-      } else {
-        return {
-          valid: false,
-          error: `Need ${targetValue} in hand to capture same values`
-        };
-      }
-    }
-
-    // RULE 3: Check sequential builds
-    const validSequentialBuilds = [];
-
-    // Try each possible build value (1-10)
-    for (let buildValue = 1; buildValue <= 10; buildValue++) {
-      // Skip if player doesn't have this card
-      if (!hand.some(card => card.value === buildValue)) {
-        continue;
-      }
-
-      // Try to group all cards sequentially into this build value
-      const result = trySequentialGrouping(cards, buildValue);
-
-      if (result.valid) {
-        validSequentialBuilds.push({
-          buildValue,
-          groups: result.groups,
-          totalCards: cards.length
+    if (hasHandCards) {
+      // 🏗️ TEMP STACK WITH HAND CARDS → BUILD OPTION
+      // The temp stack value IS the build value
+      if (stackValue >= 1 && stackValue <= 10) {
+        options.push({
+          type: 'build',
+          label: `Build ${stackValue}`,
+          card: null, // No additional card needed
+          value: stackValue
         });
       }
+    } else {
+      // 🎯 TEMP STACK WITH TABLE CARDS ONLY → ONLY CAPTURE OPTIONS
+      // Can capture immediately since no hand cards involved
+      const captureCards = hand.filter(card => card.value === stackValue);
+      captureCards.forEach(card => {
+        options.push({
+          type: 'capture',
+          label: `Capture ${stackValue}`,
+          card: card,
+          value: stackValue
+        });
+      });
     }
 
-    if (validSequentialBuilds.length > 0) {
-      // Pick the first valid build (all should be equivalent)
-      const bestBuild = validSequentialBuilds[0];
-      return {
-        valid: true,
-        type: 'SEQUENTIAL_BUILD',
-        target: bestBuild.buildValue,
-        cards: cards,
-        groups: bestBuild.groups,
-        message: `Capture ${bestBuild.totalCards} cards building to ${bestBuild.buildValue}`
-      };
+    return options;
+  };
+
+  // 🎯 LEGACY: Keep for backward compatibility - returns single validation result
+  const validateTempStack = (stack: any, hand: Card[]) => {
+    const options = getAvailableOptions(stack, hand);
+
+    if (options.length === 0) {
+      return { valid: false, error: 'No valid capture or build options available' };
     }
 
-    // RULE 4: Check total sum
-    const totalValue = cards.reduce((sum: number, card: Card) => sum + card.value, 0);
-
-    if (totalValue <= 10) {
-      const hasSumCard = hand.some(card => card.value === totalValue);
-
-      if (hasSumCard) {
-        return {
-          valid: true,
-          type: 'TOTAL_SUM',
-          target: totalValue,
-          cards: cards,
-          message: `Capture all ${cards.length} cards (total ${totalValue})`
-        };
-      } else {
-        return {
-          valid: false,
-          error: `Need ${totalValue} in hand to capture this sum`
-        };
-      }
-    }
-
-    // RULE 5: No valid builds
+    // For backward compatibility, return the first option as the "primary" validation
+    const primaryOption = options[0];
     return {
-      valid: false,
-      error: 'No valid sequential build found'
+      valid: true,
+      options: options, // NEW: Include all options
+      target: primaryOption.value,
+      selectedCard: primaryOption.card,
+      message: `Choose your action for this stack`
     };
   };
 
@@ -198,26 +172,26 @@ export function AcceptValidationModal({
     return { valid: true, groups };
   };
 
-  const handleCapture = () => {
+  // 🎯 NEW: Handle selection of capture or build options
+  const handleOptionSelect = (option: ActionOption) => {
     // Prevent double-clicks
     if (isProcessing.current) {
       console.log('⚠️ [MODAL] Already processing, ignoring duplicate click');
       return;
     }
 
-    console.log('🎯 [MODAL] Auto-capture triggered', {
-      validationResult,
+    console.log('🎯 [MODAL] Option selected:', {
+      type: option.type,
+      label: option.label,
+      card: option.card,
+      value: option.value,
       tempStack,
-      sendActionType: typeof sendAction,
       isProcessing: isProcessing.current
     });
 
-    // Add debug line for sendAction
-    console.log('🔍 [DEBUG] sendAction is function?', typeof sendAction === 'function' ? 'YES' : 'NO');
-
-    if (!validationResult?.valid || !tempStack?.stackId) {
-      console.log('❌ [MODAL] Invalid state, cannot capture');
-      Alert.alert('Error', 'Cannot capture: Invalid state');
+    if (!tempStack?.stackId) {
+      console.log('❌ [MODAL] Invalid state, cannot proceed');
+      Alert.alert('Error', 'Cannot proceed: Invalid state');
       return;
     }
 
@@ -230,48 +204,83 @@ export function AcceptValidationModal({
 
     isProcessing.current = true;
 
-    console.log('✅ [MODAL] Calling server action:', {
-      type: 'captureTempStack',
-      tempStackId: tempStack.stackId,
-      captureValue: validationResult.target
-    });
-
     try {
-      // Direct server call - no confirmation needed for auto-capture
-      sendAction({
-        type: 'captureTempStack',
-        payload: {
+      if (option.type === 'capture') {
+        // CAPTURE: Use existing captureTempStack action
+        console.log('✅ [MODAL] Executing CAPTURE action:', {
           tempStackId: tempStack.stackId,
-          captureValue: validationResult.target
-        }
-      });
+          captureValue: option.value
+        });
 
-      console.log('✅ [MODAL] sendAction called successfully');
+        sendAction({
+          type: 'captureTempStack',
+          payload: {
+            tempStackId: tempStack.stackId,
+            captureValue: option.value
+          }
+        });
+
+        // Show success alert
+        Alert.alert(
+          'Cards Captured!',
+          `Successfully captured ${option.value}`,
+          [{ text: 'OK' }]
+        );
+
+      } else if (option.type === 'build') {
+        // BUILD: Use new createBuildFromTempStack action
+        console.log('✅ [MODAL] Executing BUILD action:', {
+          tempStackId: tempStack.stackId,
+          buildValue: option.value,
+          buildCard: option.card
+        });
+
+        sendAction({
+          type: 'createBuildFromTempStack',
+          payload: {
+            tempStackId: tempStack.stackId,
+            buildValue: option.value,
+            buildCard: option.card
+          }
+        });
+
+        // Show success alert
+        Alert.alert(
+          'Build Created!',
+          `Successfully created build of ${option.value}`,
+          [{ text: 'OK' }]
+        );
+      }
 
       // Keep backward compatibility
       if (onCapture) {
-        onCapture(validationResult);
+        onCapture({ ...option, tempStack });
       }
 
       // Close modal immediately
       onClose();
 
-      // Show success alert
-      Alert.alert(
-        'Cards Captured!',
-        `Successfully captured ${validationResult.target}`,
-        [{ text: 'OK' }]
-      );
-
     } catch (error) {
-      console.error('❌ [MODAL] Auto-capture failed:', error);
-      Alert.alert('Capture Failed', 'Please try again');
+      console.error('❌ [MODAL] Action failed:', error);
+      Alert.alert('Action Failed', 'Please try again');
       // Don't close modal on error
     } finally {
       // Reset processing flag after a delay
       setTimeout(() => {
         isProcessing.current = false;
       }, 1000);
+    }
+  };
+
+  // LEGACY: Keep for backward compatibility
+  const handleCapture = () => {
+    // Use the first available capture option
+    const options = validationResult?.options || [];
+    const captureOption = options.find((opt: ActionOption) => opt.type === 'capture');
+    if (captureOption) {
+      handleOptionSelect(captureOption);
+    } else {
+      Alert.alert('Error', 'No capture option available');
     }
   };
 
@@ -300,21 +309,31 @@ export function AcceptValidationModal({
       );
     }
 
-    // Valid capture state - clean message showing build value only
+    // Valid state - show all available options
+    const options = validationResult.options || [];
+
     return (
       <>
-        <Text style={styles.title}>Capture Cards</Text>
+        <Text style={styles.title}>Choose Action</Text>
         <Text style={styles.message}>
-          Capture {validationResult.target}?
+          What would you like to do with this stack?
         </Text>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleCapture}
-          >
-            <Text style={styles.actionButtonText}>CAPTURE {validationResult.target}</Text>
-          </TouchableOpacity>
+          {options.map((option: ActionOption, index: number) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.actionButton,
+                option.type === 'build' && styles.buildButton
+              ]}
+              onPress={() => handleOptionSelect(option)}
+            >
+              <Text style={styles.actionButtonText}>
+                {option.label.toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
 
           <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -380,6 +399,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 15,
     alignItems: 'center',
+  },
+  buildButton: {
+    backgroundColor: '#FF9800', // Orange for build actions
   },
   actionButtonText: {
     color: '#FFFFFF',

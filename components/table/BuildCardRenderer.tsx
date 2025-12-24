@@ -41,6 +41,7 @@ export function BuildCardRenderer({
       buildValue={buildItem.value}
       isBuild={true}
       currentPlayer={currentPlayer}
+      stackOwner={buildItem.owner}  // Add owner information for display
       baseZIndex={baseZIndex}
       baseElevation={1}
     />

@@ -93,13 +93,15 @@ function handleCreateStagingStack(gameManager, playerIndex, action, gameId) {
   }
 
   // Create staging stack with position tracking
+  // Sort cards by value: highest value at bottom, lowest at top
+  const sortedCards = [targetCard, draggedCard].sort((a, b) => b.value - a.value);
   const stagingStack = {
     type: 'temporary_stack',
     stackId: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    cards: [
-      { ...targetCard, source: 'table' }, // ✅ Bottom card first (target)
-      { ...draggedCard, source }          // ✅ Top card second (dragged)
-    ],
+    cards: sortedCards.map(card => ({
+      ...card,
+      source: card === targetCard ? 'table' : source
+    })),
     // NEW: Track original positions for proper restoration
     cardPositions: [
       {

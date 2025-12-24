@@ -83,7 +83,7 @@ class ActionRouter {
       // ✅ TURN MANAGEMENT
       let finalGameState = { ...newGameState };
       const currentPlayerCanMove = canPlayerMove(finalGameState);
-      const forceTurnSwitch = (actionType === 'trail' || actionType === 'confirmTrail');
+      const forceTurnSwitch = (actionType === 'trail' || actionType === 'confirmTrail' || actionType === 'createBuildFromTempStack');
 
       const phase = (currentPlayerCanMove && !forceTurnSwitch) ? 'continue' : 'switch';
       logger.info(`Turn management: P${finalGameState.currentPlayer + 1} -> ${phase}`, {

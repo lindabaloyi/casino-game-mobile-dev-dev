@@ -18,6 +18,7 @@ const handleTableToTableDrop = require('./tableToTableDrop');
 const handleHandToTableDrop = require('./handToTableDrop');
 const handleCreateBuildWithValue = require('./createBuildWithValue');
 const handleCaptureTempStack = require('./captureTempStack');
+const handleCreateBuildFromTempStack = require('./createBuildFromTempStack');
 const handleAddToTemporaryCaptureStack = require('./addToTemporaryCaptureStack');
 
 module.exports = {
@@ -36,5 +37,6 @@ module.exports = {
   handleHandToTableDrop,
   handleCreateBuildWithValue,
   handleCaptureTempStack,
+  handleCreateBuildFromTempStack,
   handleAddToTemporaryCaptureStack
 };
