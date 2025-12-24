@@ -6,6 +6,7 @@
 
 const { createLogger } = require('../../utils/logger');
 const { validateStagingAddition } = require('../logic/staging');
+const handleCaptureTempStack = require('./captureTempStack');
 const logger = createLogger('AddToStagingStack');
 
 function handleAddToStagingStack(gameManager, playerIndex, action, gameId) {
@@ -24,6 +25,31 @@ function handleAddToStagingStack(gameManager, playerIndex, action, gameId) {
     playerIndex,
     philosophy: 'ALWAYS FIND OR CREATE'
   });
+
+  // 🎯 DIRECT CAPTURE CHECK: FIRST CHECK - If dragging hand card that equals temp stack value
+  if (source === 'hand') {
+    // Find the temp stack to check its value
+    const tempStack = gameState.tableCards.find(item =>
+      item.type === 'temporary_stack' && item.stackId === stackId
+    );
+
+    if (tempStack && card.value === tempStack.value) {
+      console.log('[DIRECT_CAPTURE] 🎯 Hand card matches temp stack value - executing direct capture:', {
+        cardValue: card.value,
+        stackValue: tempStack.value,
+        stackId: tempStack.stackId
+      });
+
+      // Execute capture instead of adding to stack
+      return handleCaptureTempStack(gameManager, playerIndex, {
+        type: 'captureTempStack',
+        payload: {
+          tempStackId: tempStack.stackId,
+          captureValue: card.value
+        }
+      }, gameId);
+    }
+  }
 
   // 🎯 FIX 4: AUTO-CREATE STACKS - Always find or create (race condition fix)
   let tempStack = gameState.tableCards.find(item =>
