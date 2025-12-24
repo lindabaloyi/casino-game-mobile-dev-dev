@@ -18,6 +18,7 @@ interface TableCardsProps {
   onTableCardDragEnd?: (draggedItem: any, dropPosition: any) => void;
   onStagingAccept?: (stackId: string) => void;
   onStagingReject?: (stackId: string) => void;
+  sendAction?: (action: any) => void; // For build augmentation
 }
 
 // Helper function to get card type from union types
@@ -37,7 +38,8 @@ const TableCards: React.FC<TableCardsProps> = ({
   onTableCardDragStart,
   onTableCardDragEnd,
   onStagingAccept,
-  onStagingReject
+  onStagingReject,
+  sendAction
 }) => {
   const tableRef = useRef<View>(null);
   const tableBoundsRef = useRef<any>(null);  // 🎯 NEW: Store table bounds for overlap detection
@@ -274,7 +276,7 @@ const TableCards: React.FC<TableCardsProps> = ({
                     baseZIndex={baseZIndex}
                     dragZIndex={dragZIndex}
                     currentPlayer={currentPlayer}
-                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, `build-${originalPosition}`)}
+                    sendAction={sendAction}
                   />
                 );
               } else if (itemType === 'temporary_stack') {

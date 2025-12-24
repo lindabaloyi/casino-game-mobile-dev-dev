@@ -102,6 +102,8 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
 
       // Check global drop zones - PRIORITY-BASED SELECTION
       if ((global as any).dropZones && (global as any).dropZones.length > 0) {
+        console.log(`[DROP_ZONE_RESOLUTION] 🔍 Checking ${card.rank}${card.suit} drop against ${(global as any).dropZones.length} zones at (${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)})`);
+
         let bestZone = null;
         let highestPriority = -1;
 
@@ -111,27 +113,39 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
           // 🔥 CRITICAL FIX: Direct bounds check - NO tolerance expansion
           // Hand cards need precise hit detection for proper trail logic
           // Table cards already have expanded bounds in TableDraggableCard.tsx
-          if (dropPosition.x >= x &&
+          const inBounds = dropPosition.x >= x &&
               dropPosition.x <= x + width &&
               dropPosition.y >= y &&
-              dropPosition.y <= y + height) {
+              dropPosition.y <= y + height;
 
+          console.log(`[DROP_ZONE_RESOLUTION] Zone ${zone.stackId}:`, {
+            zoneType: zone.zoneType,
+            priority: zone.priority,
+            bounds: { x: x.toFixed(1), y: y.toFixed(1), width: width.toFixed(1), height: height.toFixed(1) },
+            inBounds,
+            dropPos: { x: dropPosition.x.toFixed(1), y: dropPosition.y.toFixed(1) },
+            boundsCheck: `${dropPosition.x.toFixed(1)} >= ${x.toFixed(1)} && ${dropPosition.x.toFixed(1)} <= ${(x + width).toFixed(1)} && ${dropPosition.y.toFixed(1)} >= ${y.toFixed(1)} && ${dropPosition.y.toFixed(1)} <= ${(y + height).toFixed(1)}`
+          });
+
+          if (inBounds) {
             // PRIORITY-BASED: Higher priority wins (not distance!)
             const zonePriority = zone.priority || 0;
             if (zonePriority > highestPriority) {
               highestPriority = zonePriority;
               bestZone = zone;
-              console.log(`[DraggableCard:DEBUG] 🎯 New best zone: ${zone.stackId} (priority: ${zonePriority})`);
+              console.log(`[DROP_ZONE_RESOLUTION] 🎯 NEW BEST ZONE: ${zone.stackId} (${zone.zoneType}, priority: ${zonePriority})`);
             } else {
-              console.log(`[DraggableCard:DEBUG] ❌ Lower priority zone rejected: ${zone.stackId} (priority: ${zonePriority} < ${highestPriority})`);
+              console.log(`[DROP_ZONE_RESOLUTION] ❌ Lower priority zone rejected: ${zone.stackId} (${zone.zoneType}, priority: ${zonePriority} < ${highestPriority})`);
             }
           }
         }
 
-        console.log(`[DraggableCard:DEBUG] 🏆 Best drop zone by PRIORITY:`, {
-          zone: bestZone?.stackId || 'none',
+        console.log(`[DROP_ZONE_RESOLUTION] 🏆 FINAL RESULT for ${card.rank}${card.suit}:`, {
+          bestZone: bestZone?.stackId || 'NONE',
+          bestZoneType: bestZone?.zoneType || 'NONE',
           priority: highestPriority,
-          totalZones: (global as any).dropZones.length
+          totalZones: (global as any).dropZones.length,
+          dropPosition: { x: dropPosition.x, y: dropPosition.y }
         });
 
         if (bestZone) {
@@ -143,7 +157,9 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
             stackId: stackId || undefined
           };
 
+          console.log(`[DROP_ZONE_DISPATCH] 🎯 CALLING onDrop for zone: ${bestZone.stackId} (${bestZone.zoneType}, priority: ${bestZone.priority})`);
           const dropResult = bestZone.onDrop(draggedItem);
+          console.log(`[DROP_ZONE_DISPATCH] 📤 onDrop returned:`, dropResult);
 
           if (dropResult) {
             // SPECIAL CASE: Table cards need different validation logic

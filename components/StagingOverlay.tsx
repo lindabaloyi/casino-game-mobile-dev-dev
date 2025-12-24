@@ -32,23 +32,29 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
     return null;
   }
 
-  console.log(`[STAGING_OVERLAY] 🎬 Rendering staging overlay for stack ${stackId}, disabled: ${disabled}`, {
+  // Detect build augmentation stacks vs regular staging
+  const isBuildAugmentation = stackId && stackId.includes('build-augment');
+  const overlayTitle = isBuildAugmentation ? 'BUILD AUGMENTATION' : 'STAGING';
+
+  console.log(`[STAGING_OVERLAY] 🎬 Rendering ${overlayTitle} overlay for stack ${stackId}, disabled: ${disabled}`, {
     isVisible,
     stackId,
     disabled,
+    isBuildAugmentation,
+    overlayTitle,
     hasOnAccept: typeof onAccept === 'function',
     hasOnReject: typeof onReject === 'function'
   });
-  console.log(`🎯 [STAGING_DEBUG] STAGING OVERLAY RENDERED: Accept/Cancel buttons should be visible for stack ${stackId}`);
+  console.log(`🎯 [STAGING_DEBUG] ${overlayTitle} OVERLAY RENDERED: Accept/Cancel buttons should be visible for stack ${stackId}`);
 
   return (
     <Animated.View
       style={[styles.overlayContainer, { opacity: fadeAnim }]}
       pointerEvents={disabled ? 'none' : 'auto'}
     >
-      {/* Staging indicator */}
+      {/* Dynamic indicator */}
       <View style={styles.stagingIndicator}>
-        <Text style={styles.indicatorText}>STAGING</Text>
+        <Text style={styles.indicatorText}>{overlayTitle}</Text>
       </View>
 
       <View style={styles.buttonContainer}>

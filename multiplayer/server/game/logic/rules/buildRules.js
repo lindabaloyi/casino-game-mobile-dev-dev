@@ -165,6 +165,72 @@ const buildRules = [
     requiresModal: true,
     priority: 25,
     description: 'Extend opponent build by adding card'
+  },
+  {
+    id: 'augment-own-build',
+    condition: (context) => {
+      console.log('[BUILD_AUGMENT_RULE] 🔍 Evaluating augment own build:', {
+        draggedSource: context.draggedItem?.source,
+        draggedCard: context.draggedItem?.card ? `${context.draggedItem.card.rank}${context.draggedItem.card.suit}` : 'none',
+        targetType: context.targetInfo?.type,
+        targetCard: context.targetInfo?.card ? `${context.targetInfo.card.rank}${context.targetInfo.card.suit}` : 'none',
+        isBuild: isBuild(context.targetInfo?.card),
+        buildOwner: context.targetInfo?.card?.owner,
+        buildValue: context.targetInfo?.card?.value,
+        buildId: context.targetInfo?.card?.buildId,
+        currentPlayer: context.currentPlayer
+      });
+
+      const draggedItem = context.draggedItem;
+      const targetInfo = context.targetInfo;
+      const currentPlayer = context.currentPlayer;
+
+      // Only allow hand or table cards for augmentation
+      if (!draggedItem?.source || !['hand', 'table'].includes(draggedItem.source)) {
+        console.log('[BUILD_AUGMENT_RULE] ❌ Invalid source for build augmentation:', {
+          source: draggedItem?.source,
+          allowedSources: ['hand', 'table']
+        });
+        return false;
+      }
+
+      // Target must be player's own build
+      if (!isBuild(targetInfo?.card)) {
+        console.log('[BUILD_AUGMENT_RULE] ❌ Target is not a build');
+        return false;
+      }
+
+      if (targetInfo.card.owner !== currentPlayer) {
+        console.log('[BUILD_AUGMENT_RULE] ❌ Not own build:', {
+          buildOwner: targetInfo.card.owner,
+          currentPlayer: currentPlayer
+        });
+        return false;
+      }
+
+      console.log('[BUILD_AUGMENT_RULE] ✅ Build augmentation conditions met:', {
+        buildId: targetInfo.card.buildId,
+        buildValue: targetInfo.card.value,
+        draggedCardValue: rankValue(draggedItem.card.rank)
+      });
+      return true;
+    },
+    action: (context) => {  // ✅ OPTION B: Function returns complete object
+      console.log('[BUILD_RULE] Creating augment own build action');
+      const action = {
+        type: 'addToBuilding',
+        payload: {
+          buildId: context.targetInfo.card.buildId,
+          card: context.draggedItem.card,
+          source: context.draggedItem.source
+        }
+      };
+      console.log('[BUILD_RULE] Augment own build action created:', JSON.stringify(action, null, 2));
+      return action;
+    },
+    requiresModal: false, // Direct action, no modal needed
+    priority: 40, // High priority - more specific than general build rules
+    description: 'Augment own build by adding cards that sum to build value'
   }
 ];
 

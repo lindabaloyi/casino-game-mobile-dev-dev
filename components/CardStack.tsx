@@ -76,20 +76,26 @@ const CardStack = memo<CardStackProps>(({
       stackId,
       priority,
       bounds: dropZoneBounds,
+      zoneType: isBuild ? 'BUILD' : isTemporaryStack ? 'TEMP_STACK' : 'OTHER',
       onDrop: (draggedItem: any) => {
         console.log('[DROP ZONE HIT]', {
           stackId,
+          zoneType: isBuild ? 'BUILD' : isTemporaryStack ? 'TEMP_STACK' : 'OTHER',
+          priority,
           bounds: dropZoneBounds,
-          draggedCardId: draggedItem?.card?.id,
-          source: draggedItem?.source
+          draggedCard: draggedItem?.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
+          draggedSource: draggedItem?.source,
+          timestamp: Date.now()
         });
 
         console.log(`[CardStack] ${stackId} received drop:`, draggedItem);
         // Staging fix: track last active drop zone
         (global as any).lastDropZoneId = stackId;
         if (onDropStack) {
-          console.log(`[CardStack] ${stackId} calling onDropStack`);
-          return onDropStack(draggedItem);
+          console.log(`[CardStack] ${stackId} calling onDropStack handler`);
+          const result = onDropStack(draggedItem);
+          console.log(`[CardStack] ${stackId} onDropStack returned:`, result);
+          return result;
         } else {
           console.log(`[CardStack] ${stackId} ERROR: onDropStack is undefined/falsy`);
           return false;

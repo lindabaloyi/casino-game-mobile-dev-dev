@@ -5,9 +5,9 @@
  */
 
 export const DROP_ZONE_PRIORITIES = {
-  TEMP_STACK: 100,      // ✅ HIGHEST - Easy to add cards to temp stacks!
-  LOOSE_CARD: 80,       // Individual loose cards on table
-  BUILD: 60,            // Build card stacks
+  BUILD: 1000,          // ✅ HIGHEST - Builds get priority for augmentation!
+  TEMP_STACK: 500,      // Medium-high - Temp stacks for staging
+  LOOSE_CARD: 100,      // Medium-low - Individual loose cards
   TABLE_AREA: 0         // Empty table area (fallback only)
 } as const;
 

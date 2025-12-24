@@ -118,6 +118,7 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
             onTableCardDragEnd={dragHandlers.handleTableCardDragEnd}
             onStagingAccept={handleAcceptClick}  // ✅ NEW: Open validation modal
             onStagingReject={stagingStacks.handleStagingReject}
+            sendAction={sendAction}  // For build augmentation
           />
         </View>
 
