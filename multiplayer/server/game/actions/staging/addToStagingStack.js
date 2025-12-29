@@ -4,7 +4,6 @@
  * Implements Rule-Based Validation approach from specification
  */
 
-const { createLogger } = require('../../../utils/logger');
 const handleCaptureTempStack = require('../captureTempStack');
 
 function handleAddToStagingStack(gameManager, playerIndex, action, gameId) {

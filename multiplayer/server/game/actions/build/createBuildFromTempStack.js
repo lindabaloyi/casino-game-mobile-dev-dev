@@ -3,7 +3,7 @@
  * Player creates a permanent build from temp stack (ends turn)
  */
 
-const { createLogger } = require('../../utils/logger');
+const { createLogger } = require('../../../utils/logger');
 const logger = createLogger('CreateBuildFromTempStack');
 
 function handleCreateBuildFromTempStack(gameManager, playerIndex, action, gameId) {

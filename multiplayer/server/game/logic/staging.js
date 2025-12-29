@@ -4,7 +4,7 @@
  * No direct state mutation - returns transformed data for handlers to use
  */
 
-const { rankValue, calculateCardSum, isCard, isBuild, isTemporaryStack } = require('../GameState');
+const { calculateCardSum } = require('../GameState');
 const { createLogger } = require('../../utils/logger');
 const logger = createLogger('StagingLogic');
 

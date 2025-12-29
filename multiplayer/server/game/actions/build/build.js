@@ -3,7 +3,7 @@
  * Player creates a build with a hand card and table card
  */
 
-const { createLogger } = require('../../utils/logger');
+const { createLogger } = require('../../../utils/logger');
 const logger = createLogger('BuildAction');
 
 function handleBuild(gameManager, playerIndex, action) {
@@ -32,7 +32,7 @@ function handleBuild(gameManager, playerIndex, action) {
   const newGameState = { ...gameState };
 
   // Remove card from hand
-  const buildCard = playerHand.splice(cardIndex, 1)[0];
+  playerHand.splice(cardIndex, 1);
   newGameState.playerHands = gameState.playerHands.map((hand, idx) =>
     idx === playerIndex ? playerHand : hand
   );

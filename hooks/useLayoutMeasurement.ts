@@ -8,9 +8,7 @@ interface LayoutBounds {
   height: number;
 }
 
-interface ExpandedBounds extends LayoutBounds {
-  // Bounds expanded for easier drop zone hitting
-}
+type ExpandedBounds = LayoutBounds;
 
 /**
  * Hook for measuring component layout and calculating drop zone bounds

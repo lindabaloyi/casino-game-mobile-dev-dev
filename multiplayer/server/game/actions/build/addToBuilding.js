@@ -4,10 +4,6 @@
  * Mimics addToStagingStack but for owned builds
  */
 
-const { createLogger } = require('../../utils/logger');
-const { validateStagingAddition } = require('../logic/staging');
-const logger = createLogger('AddToBuilding');
-
 function handleAddToBuilding(gameManager, playerIndex, action, gameId) {
   console.log('[BUILD_AUGMENT] 🏗️ ADD_TO_BUILDING executing');
   console.log('[BUILD_AUGMENT] Input action payload:', JSON.stringify(action.payload, null, 2));

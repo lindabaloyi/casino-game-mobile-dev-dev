@@ -3,7 +3,7 @@
  * Creates a permanent build from a staging stack with specific value
  */
 
-const { createLogger } = require('../../utils/logger');
+const { createLogger } = require('../../../utils/logger');
 const logger = createLogger('CreateBuildWithValue');
 
 function handleCreateBuildWithValue(gameManager, playerIndex, action) {

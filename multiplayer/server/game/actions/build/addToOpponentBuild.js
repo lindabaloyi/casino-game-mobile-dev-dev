@@ -1,17 +1,17 @@
 /**
- * Add To Own Build Action Handler
- * Player adds to their own build
+ * Add To Opponent Build Action Handler
+ * Player adds to opponent's build
  */
 
-const { createLogger } = require('../../utils/logger');
-const logger = createLogger('AddToOwnBuild');
+const { createLogger } = require('../../../utils/logger');
+const logger = createLogger('AddToOpponentBuild');
 
-function handleAddToOwnBuild(gameManager, playerIndex, action) {
+function handleAddToOpponentBuild(gameManager, playerIndex, action) {
   const { gameId } = action.payload;
   const gameState = gameManager.getGameState(gameId);
   const { draggedItem, buildToAddTo } = action.payload;
 
-  logger.info('Adding to own build', {
+  logger.info('Extending opponent build', {
     playerIndex,
     draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
     buildId: buildToAddTo.buildId,
@@ -19,13 +19,13 @@ function handleAddToOwnBuild(gameManager, playerIndex, action) {
     gameId
   });
 
-  // Find build and verify it's player's
+  // Find build and verify it's opponent's
   const buildIndex = gameState.tableCards.findIndex(card =>
-    card.type === 'build' && card.buildId === buildToAddTo.buildId && card.owner === playerIndex
+    card.type === 'build' && card.buildId === buildToAddTo.buildId && card.owner !== playerIndex
   );
 
   if (buildIndex === -1) {
-    throw new Error("Own build not found");
+    throw new Error("Opponent build not found");
   }
 
   // Remove card from hand
@@ -40,6 +40,10 @@ function handleAddToOwnBuild(gameManager, playerIndex, action) {
 
   const addedCard = playerHand.splice(handIndex, 1)[0];
   const newBuildValue = buildToAddTo.value + addedCard.value;
+
+  if (newBuildValue > 10) {
+    throw new Error("Build value would exceed 10");
+  }
 
   // Extend build
   const extendedBuild = {
@@ -58,7 +62,7 @@ function handleAddToOwnBuild(gameManager, playerIndex, action) {
     )
   };
 
-  logger.info('Own build extended successfully', {
+  logger.info('Opponent build extended successfully', {
     buildId: extendedBuild.buildId,
     newValue: newBuildValue,
     addedCard: `${addedCard.rank}${addedCard.suit}`
@@ -67,4 +71,4 @@ function handleAddToOwnBuild(gameManager, playerIndex, action) {
   return newGameState;
 }
 
-module.exports = handleAddToOwnBuild;
+module.exports = handleAddToOpponentBuild;
