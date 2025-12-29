@@ -1,12 +1,12 @@
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTrailDropHandlers } from '../hooks/dropHandlers/useTrailDropHandlers';
 import { useDragHandlers } from '../hooks/useDragHandlers';
 import { useModalManager } from '../hooks/useModalManager';
 import { useServerListeners } from '../hooks/useServerListeners';
 import { useStagingStacks } from '../hooks/useStagingStacks';
-import { useTableDropZone } from '../hooks/useTableDropZone';
 import { GameState } from '../multiplayer/server/game-logic/game-state';
 import { AcceptValidationModal } from './AcceptValidationModal';
 import ActionModal from './ActionModal';
@@ -67,8 +67,20 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     sendAction
   });
 
-  // Extracted table drop zone registration
-  const tableSectionRef = useTableDropZone(dragHandlers.handleDropOnCard);
+  // Extracted trail drop handlers
+  const trailHandlers = useTrailDropHandlers({
+    gameState,
+    playerNumber,
+    sendAction,
+    setTrailCard: modalManager.setTrailCard,
+    setErrorModal: modalManager.setErrorModal
+  });
+
+  // Table section ref for trail drop zone
+  const tableSectionRef = useRef(null);
+
+  // Register trail drop zone
+  trailHandlers.registerTrailDropZone(tableSectionRef);
 
   // 🎯 NEW: Handle Accept button press - open validation modal
   const handleAcceptClick = (stackId: string) => {
@@ -168,8 +180,8 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
       />
       <TrailConfirmationModal
         trailCard={modalManager.trailCard}
-        onConfirm={modalManager.handleTrailConfirm}
-        onCancel={modalManager.handleTrailCancel}
+        onConfirm={() => modalManager.trailCard && trailHandlers.handleTrailConfirm(modalManager.trailCard)}
+        onCancel={() => modalManager.trailCard && trailHandlers.handleTrailCancel(modalManager.trailCard)}
       />
       <ErrorModal
         visible={modalManager.errorModal !== null}
