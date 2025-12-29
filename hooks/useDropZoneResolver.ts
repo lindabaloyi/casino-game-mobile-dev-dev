@@ -54,6 +54,48 @@ export const useDropZoneResolver = () => {
           dropPosition.y >= y &&
           dropPosition.y <= y + height;
 
+      // Calculate detailed boundary distances for debugging
+      const distanceToLeft = dropPosition.x - x;
+      const distanceToRight = (x + width) - dropPosition.x;
+      const distanceToTop = dropPosition.y - y;
+      const distanceToBottom = (y + height) - dropPosition.y;
+
+      // Enhanced logging for build zones
+      if (zone.zoneType === 'BUILD') {
+        console.log('[DROP_POSITION] 🔍 BUILD ZONE ANALYSIS:', {
+          zoneId: zone.stackId,
+          dropPosition: { x: dropPosition.x.toFixed(1), y: dropPosition.y.toFixed(1) },
+          zoneBounds: {
+            x: x.toFixed(1), y: y.toFixed(1),
+            width: width.toFixed(1), height: height.toFixed(1)
+          },
+          boundaryDistances: {
+            left: distanceToLeft.toFixed(1),
+            right: distanceToRight.toFixed(1),
+            top: distanceToTop.toFixed(1),
+            bottom: distanceToBottom.toFixed(1)
+          },
+          inBounds,
+          zoneCorners: {
+            topLeft: { x: x.toFixed(1), y: y.toFixed(1) },
+            topRight: { x: (x + width).toFixed(1), y: y.toFixed(1) },
+            bottomLeft: { x: x.toFixed(1), y: (y + height).toFixed(1) },
+            bottomRight: { x: (x + width).toFixed(1), y: (y + height).toFixed(1) }
+          }
+        });
+
+        // Log which boundary is violated if out of bounds
+        if (!inBounds) {
+          const violations = [];
+          if (distanceToLeft < 0) violations.push(`LEFT (${Math.abs(distanceToLeft).toFixed(1)}px)`);
+          if (distanceToRight < 0) violations.push(`RIGHT (${Math.abs(distanceToRight).toFixed(1)}px)`);
+          if (distanceToTop < 0) violations.push(`TOP (${Math.abs(distanceToTop).toFixed(1)}px)`);
+          if (distanceToBottom < 0) violations.push(`BOTTOM (${Math.abs(distanceToBottom).toFixed(1)}px)`);
+
+          console.log('[DROP_POSITION] ❌ OUT OF BOUNDS - Violations:', violations);
+        }
+      }
+
       console.log(`[useDropZoneResolver] Zone ${zone.stackId}:`, {
         zoneType: zone.zoneType,
         priority: zone.priority,

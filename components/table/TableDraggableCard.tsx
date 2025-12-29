@@ -10,7 +10,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, PanResponder, StyleSheet, View } from 'react-native';
-import { DROP_ZONE_PRIORITIES } from '../../constants/dropZonePriorities';
+import { removePosition, reportPosition } from '../../src/utils/contactDetection';
 import Card, { CardType } from '../card';
 
 interface TableDraggableCardProps {
@@ -44,70 +44,53 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
   const [hasStartedDrag, setHasStartedDrag] = useState(false);
   const cardRef = useRef<View>(null);
 
-  // ✅ KEY FEATURE: REGISTER AS DROP ZONE
+  // ✅ CONTACT-BASED: Report position to contact system
   useEffect(() => {
     if (!cardRef.current) return;
 
-    const measureAndRegister = () => {
-      // Small delay to ensure component is rendered
-      setTimeout(() => {
-        cardRef.current?.measure((x, y, width, height, pageX, pageY) => {
-          if (pageX === 0 && pageY === 0) return;
+    const cardId = `${card.rank}${card.suit}_${index}`;
 
-          const zoneId = stackId;
+    const measureAndReport = () => {
+      cardRef.current?.measureInWindow((x, y, width, height) => {
+        // Skip invalid measurements
+        if (x === 0 && y === 0 && width === 0 && height === 0) {
+          console.log('[TABLE-CARD] Invalid measurement for card:', cardId);
+          return;
+        }
 
-          // Moderately expanded bounds for reasonable dropping (avoids interfering with hand cards)
-          const expandedBounds = {
-            x: pageX - 30,  // 30px expansion (reasonable increase from 25)
-            y: pageY - 30,
-            width: (width || 71) + 60,  // +60 total (reasonable increase from +50)
-            height: (height || 96) + 60
-          };
-
-          const dropZone = {
-            stackId: zoneId,
-            priority: DROP_ZONE_PRIORITIES.LOOSE_CARD, // ✅ Use constant: 100
-            bounds: expandedBounds,
-            onDrop: (draggedItem: any) => {
-              console.log(`[TableDraggableCard] 🎯 Drop detected on ${card.rank}${card.suit}`);
-              return {
-                type: 'loose',
-                card,
-                index: index,
-                draggedSource: draggedItem.source,
-                targetType: 'table',
-                targetArea: 'loose'
-              };
-            }
-          };
-
-          // Register with global zones
-          if (!(global as any).dropZones) (global as any).dropZones = [];
-
-          // Remove existing zone first (cleanup)
-          (global as any).dropZones = (global as any).dropZones.filter((z: any) => z.stackId !== zoneId);
-          (global as any).dropZones.push(dropZone);
-
-          console.log(`[TableDraggableCard] 📍 Registered drop zone: ${zoneId}`, {
-            card: `${card.rank}${card.suit}`,
-            priority: 100,
-            bounds: expandedBounds,
-            totalZones: (global as any).dropZones.length
-          });
+        console.log('[TABLE-CARD] 📍 Reporting position for card:', {
+          id: cardId,
+          x: Math.round(x),
+          y: Math.round(y),
+          width: Math.round(width),
+          height: Math.round(height)
         });
-      }, 50);
+
+        reportPosition(cardId, {
+          id: cardId,
+          x,
+          y,
+          width,
+          height,
+          type: 'card',
+          data: { ...card, index }
+        });
+      });
     };
 
-    measureAndRegister();
+    // Initial report
+    const initialTimeout = setTimeout(measureAndReport, 50);
 
-    // Cleanup on unmount - NO MORE CONSTANT RE-REGISTRATION
+    // Re-measure periodically
+    const intervalId = setInterval(measureAndReport, 1000);
+
     return () => {
-      if ((global as any).dropZones && stackId) {
-        (global as any).dropZones = (global as any).dropZones.filter((z: any) => z.stackId !== stackId);
-        console.log(`[TableDraggableCard] 🧹 Cleaned up drop zone: ${stackId}`);
-      }
+      clearTimeout(initialTimeout);
+      clearInterval(intervalId);
+      removePosition(cardId);
+      console.log('[TABLE-CARD] 🧹 Cleaned up position for card:', cardId);
     };
-  }, [stackId, index, card]);
+  }, [card, index]);
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => !disabled,

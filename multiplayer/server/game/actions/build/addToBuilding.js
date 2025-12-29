@@ -5,6 +5,12 @@
  */
 
 function handleAddToBuilding(gameManager, playerIndex, action, gameId) {
+  console.log('[FUNCTION] 🚀 ENTERING handleAddToBuilding', {
+    gameId,
+    playerIndex,
+    actionType: action.type,
+    timestamp: Date.now()
+  });
   console.log('[BUILD_AUGMENT] 🏗️ ADD_TO_BUILDING executing');
   console.log('[BUILD_AUGMENT] Input action payload:', JSON.stringify(action.payload, null, 2));
 
@@ -95,18 +101,9 @@ function handleAddToBuilding(gameManager, playerIndex, action, gameId) {
     gameState.tableCards.push(augmentationStack);
   }
 
-  // 🎯 DIRECT CAPTURE CHECK: If single card equals build value
-  if (source === 'hand' && card.value === targetBuild.value && augmentationStack.cards.length === 0) {
-    console.log('[BUILD_AUGMENT] 🎯 Single card matches build value - direct augmentation');
-
-    // Directly add to build instead of creating augmentation stack
-    targetBuild.cards.push(card);
-    // Remove from hand
-    removeCardFromSource(gameState, card, source, playerIndex);
-
-    console.log('[BUILD_AUGMENT] ✅ Direct build augmentation completed');
-    return gameState;
-  }
+  // ✅ PHASE 1: NO EARLY VALIDATION - Just add cards freely
+  // Validation happens in Phase 2 when player clicks "Accept"
+  console.log('[BUILD_AUGMENT] ✅ PHASE 1: Adding card without validation');
 
   // 🎯 VALIDATION: Sum must equal build value when finalized
   // Allow any combination during building phase, validate on finalize

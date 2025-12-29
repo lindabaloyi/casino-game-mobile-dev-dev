@@ -20,6 +20,7 @@ const handleCreateBuildWithValue = require('./build/createBuildWithValue');
 const handleCaptureTempStack = require('./captureTempStack');
 const handleCreateBuildFromTempStack = require('./build/createBuildFromTempStack');
 const handleAddToBuilding = require('./build/addToBuilding');
+const handleValidateBuildAugmentation = require('./build/validateBuildAugmentation');
 const handleAddToTemporaryCaptureStack = require('./addToTemporaryCaptureStack');
 
 module.exports = {
@@ -40,5 +41,6 @@ module.exports = {
   handleCaptureTempStack,
   handleCreateBuildFromTempStack,
   handleAddToBuilding,
+  handleValidateBuildAugmentation,
   handleAddToTemporaryCaptureStack
 };

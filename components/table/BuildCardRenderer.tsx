@@ -31,15 +31,32 @@ export function BuildCardRenderer({
 }: BuildCardRendererProps) {
   // Type assertion for build item
   const buildItem = tableItem as any; // Build has type: 'build' with additional properties
-  const stackId = `build-${index}`;
+  const stackId = buildItem.buildId; // ✅ Use actual build ID instead of render index
   const stackRef = useRef<View>(null);
   const [dropZoneBounds, setDropZoneBounds] = useState<any>(null);
+
+  // 🎯 [BUILD_RENDER] DEBUG: Log when build is being rendered
+  console.log('[BUILD_RENDER] 🎯 Rendering build:', {
+    buildId: buildItem.buildId,
+    type: buildItem.type,  // Should be 'build'
+    owner: buildItem.owner,
+    value: buildItem.value,
+    cardCount: (buildItem.cards || []).length,
+    index,
+    fullItem: buildItem,  // Check the actual object
+    timestamp: Date.now()
+  });
 
   // Build items can have multiple cards, or a single card representation
   const buildCards = buildItem.cards || [tableItem as CardType];
 
   // Handle drops on builds - ONLY for build augmentation from hand/table
-  const handleBuildDrop = (draggedItem: any) => {
+  const handleBuildDrop = React.useCallback((draggedItem: any) => {
+    console.log('[FUNCTION] 🚀 ENTERING handleBuildDrop', {
+      buildId: buildItem.buildId,
+      draggedCard: draggedItem.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
+      timestamp: Date.now()
+    });
     console.log('[BUILD_DROP] 🎯 BUILD DROP HANDLER CALLED:', {
       buildId: buildItem.buildId,
       buildOwner: buildItem.owner,
@@ -105,7 +122,7 @@ export function BuildCardRenderer({
     });
 
     return true;
-  };
+  }, [buildItem.buildId, buildItem.owner, buildItem.value, currentPlayer, sendAction]);
 
   // Register build drop zone independently of CardStack
   React.useEffect(() => {
@@ -137,6 +154,17 @@ export function BuildCardRenderer({
       zoneType: 'BUILD'
     });
 
+    // 🎯 [BUILD_ZONE] DEBUG: Specific zone registration details
+    console.log('[BUILD_ZONE] 📍 Registering build drop zone:', {
+      stackId,
+      zoneType: 'BUILD',  // Should log 'BUILD'
+      priority: 1000,
+      hasBounds: !!dropZoneBounds,
+      bounds: dropZoneBounds,
+      buildId: buildItem.buildId,
+      timestamp: Date.now()
+    });
+
     return () => {
       // Cleanup drop zone on unmount
       if ((global as any).dropZones) {
@@ -145,26 +173,85 @@ export function BuildCardRenderer({
         );
       }
     };
-  }, [stackId, dropZoneBounds, handleBuildDrop]);
+  }, [stackId, dropZoneBounds, handleBuildDrop, buildItem.buildId]);
 
   // Measure drop zone bounds
   React.useEffect(() => {
     if (!stackRef.current) return;
 
     const measureBounds = () => {
-      stackRef.current?.measureInWindow((x, y, width, height) => {
-        // Skip invalid measurements
-        if (x === 0 && y === 0) return;
+      if (!stackRef.current) {
+        console.log('[BUILD_ZONE-DEBUG] ❌ No stackRef for', stackId);
+        return;
+      }
 
-        const newBounds = {
-          x: x - 10, // Small expansion for easier hitting
-          y: y - 10,
-          width: width + 20,
-          height: height + 20
+      console.log('[BUILD_ZONE-DEBUG] 📏 Starting measurement for', stackId);
+
+      stackRef.current?.measureInWindow((x, y, width, height) => {
+        console.log('[BUILD_ZONE-DEBUG] 📐 Raw measurement:', {
+          stackId,
+          x,
+          y,
+          width,
+          height,
+          isValid: x !== 0 && y !== 0 && width > 0 && height > 0
+        });
+
+        // Skip invalid measurements
+        if (x === 0 && y === 0) {
+          console.log(`[BUILD_ZONE-DEBUG] ⚠️ Invalid measurement for ${stackId}: x=0, y=0 - skipping`);
+          return;
+        }
+
+        // Track the original bounds
+        const originalBounds = { x, y, width, height };
+
+        // Calculate expansion - using larger expansion for debugging
+        const expansionFactor = 0.5; // 50% expansion for easier hitting
+        const expandedWidth = width * (1 + expansionFactor);
+        const expandedHeight = height * (1 + expansionFactor);
+        const expandedX = x - (expandedWidth - width) / 2;
+        const expandedY = y - (expandedHeight - height) / 2;
+
+        const expandedBounds = {
+          x: expandedX,
+          y: expandedY,
+          width: expandedWidth,
+          height: expandedHeight
         };
 
-        setDropZoneBounds(newBounds);
-        console.log(`[BUILD_DROP_ZONE] 📏 Measured bounds for ${stackId}:`, newBounds);
+        // Log expansion calculations
+        console.log('[BUILD_ZONE-DEBUG] 📏 Expanded bounds calculation:', {
+          stackId,
+          originalBounds,
+          expansionFactor,
+          expandedBounds,
+          expansionX: (expandedWidth - width) / 2,
+          expansionY: (expandedHeight - height) / 2
+        });
+
+        // Calculate and log bounds corners for visual debugging
+        const topLeft = { x: expandedBounds.x, y: expandedBounds.y };
+        const topRight = { x: expandedBounds.x + expandedBounds.width, y: expandedBounds.y };
+        const bottomLeft = { x: expandedBounds.x, y: expandedBounds.y + expandedBounds.height };
+        const bottomRight = { x: expandedBounds.x + expandedBounds.width, y: expandedBounds.y + expandedBounds.height };
+        const center = {
+          x: expandedBounds.x + expandedBounds.width / 2,
+          y: expandedBounds.y + expandedBounds.height / 2
+        };
+
+        console.log('[BUILD_ZONE-DEBUG] 🎯 Bounds corners for visual debugging:', {
+          stackId,
+          topLeft,
+          topRight,
+          bottomLeft,
+          bottomRight,
+          center,
+          area: expandedBounds.width * expandedBounds.height
+        });
+
+        setDropZoneBounds(expandedBounds);
+        console.log(`[BUILD_ZONE-DEBUG] ✅ Final bounds set for ${stackId}:`, expandedBounds);
       });
     };
 

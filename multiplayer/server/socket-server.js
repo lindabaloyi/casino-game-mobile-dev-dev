@@ -78,6 +78,7 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
     captureTempStack: actionHandlers.handleCaptureTempStack,
     createBuildFromTempStack: actionHandlers.handleCreateBuildFromTempStack,
     addToBuilding: actionHandlers.handleAddToBuilding,
+    validateBuildAugmentation: actionHandlers.handleValidateBuildAugmentation,
     addToTemporaryCaptureStack: actionHandlers.handleAddToTemporaryCaptureStack
   };
 

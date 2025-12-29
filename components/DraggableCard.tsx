@@ -1,8 +1,6 @@
 import React, { useEffect } from 'react';
 import { Animated, StyleSheet } from 'react-native';
-import { useCardDropHandler } from '../hooks/useCardDropHandler';
 import { useDragGesture } from '../hooks/useDragGesture';
-import { useDropZoneResolver } from '../hooks/useDropZoneResolver';
 import Card, { CardType } from './card';
 
 interface DraggableCardProps {
@@ -38,7 +36,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
   dragZIndex = 9999,
   triggerReset = false
 }) => {
-  // Use separated hooks for different concerns
+  // Use drag gesture hook - simplified for contact-based system
   const { pan, panResponder, isDragging, resetPosition } = useDragGesture({
     draggable,
     disabled,
@@ -48,36 +46,11 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
     card
   });
 
-  const { resolveDropZone } = useDropZoneResolver();
-  const { handleDrop } = useCardDropHandler({
-    card,
-    source,
-    currentPlayer,
-    stackId
-  });
-
-  // Handle drag end with drop zone resolution
-  const handleDragEnd = async (card: CardType, dropPosition: { x: number; y: number }) => {
+  // Simplified drag end handler - just pass data to parent
+  const handleDragEnd = (card: CardType, dropPosition: { x: number; y: number }) => {
     console.log(`[DraggableCard] 🎯 Processing drop for ${card.rank}${card.suit} at (${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)})`);
 
-    // Resolve which drop zone was hit
-    const zoneResult = resolveDropZone(dropPosition, source);
-
-    // Handle the drop with business logic
-    const finalDropPosition = await handleDrop(dropPosition, zoneResult.bestZone);
-
-    // Handle snap-back animation if not handled
-    if (!finalDropPosition.handled) {
-      if (source !== 'hand') {
-        // Table cards always snap back
-        resetPosition();
-      } else if (finalDropPosition.attempted) {
-        // Hand cards snap back only if drop was attempted but failed
-        resetPosition();
-      }
-    }
-
-    // Notify parent
+    // Notify parent - contact detection will happen in useDragHandlers
     if (onDragEnd) {
       const draggedItem = {
         card,
@@ -85,8 +58,11 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
         player: currentPlayer,
         stackId: stackId || undefined
       };
-      onDragEnd(draggedItem, finalDropPosition);
+      onDragEnd(draggedItem, dropPosition);
     }
+
+    // For now, always snap back - contact system will handle actual actions
+    resetPosition();
   };
 
   // Handle external reset trigger

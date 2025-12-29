@@ -82,8 +82,12 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
   // Register trail drop zone
   trailHandlers.registerTrailDropZone(tableSectionRef);
 
-  // 🎯 NEW: Handle Accept button press - open validation modal
+  // 🎯 NEW: Handle Accept button press - detect stack type and route appropriately
   const handleAcceptClick = (stackId: string) => {
+    console.log('[FUNCTION] 🚀 ENTERING handleAcceptClick', {
+      stackId,
+      timestamp: Date.now()
+    });
     console.log('🎯 [GameBoard] Accept button clicked for stack:', stackId);
 
     // Find the temp stack by stackId
@@ -91,12 +95,35 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
       card.type === 'temporary_stack' && card.stackId === stackId
     );
 
-    if (tempStack) {
-      console.log('🎯 [GameBoard] Found temp stack, opening validation modal:', tempStack);
+    if (!tempStack) {
+      console.error('🎯 [GameBoard] Temp stack not found:', stackId);
+      return;
+    }
+
+    // 🎯 DETECT BUILD AUGMENTATION STACKS
+    if ((tempStack as any).isBuildAugmentation) {
+      // ✅ BUILD AUGMENTATION: Use new two-phase validation
+      console.log('🏗️ [GameBoard] Detected BUILD AUGMENTATION stack - calling validateBuildAugmentation');
+
+      // Extract build ID from augmentation stack
+      const buildId = (tempStack as any).targetBuildId;
+      if (!buildId) {
+        console.error('❌ [GameBoard] Build augmentation stack missing targetBuildId:', tempStack);
+        return;
+      }
+
+      // Call the new validation action directly (no modal needed)
+      sendAction({
+        type: 'validateBuildAugmentation',
+        payload: { buildId }
+      });
+
+      console.log('✅ [GameBoard] Build augmentation validation action sent');
+    } else {
+      // 🎯 REGULAR STAGING: Use existing modal system
+      console.log('🎯 [GameBoard] Regular staging stack - opening validation modal:', tempStack);
       setSelectedTempStack(tempStack);
       setShowValidationModal(true);
-    } else {
-      console.error('🎯 [GameBoard] Temp stack not found:', stackId);
     }
   };
 
@@ -122,7 +149,6 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
         <View ref={tableSectionRef} style={styles.tableCardsSection}>
           <TableCards
             tableCards={gameState.tableCards}
-            onDropOnCard={dragHandlers.handleDropOnCard}
             currentPlayer={playerNumber}
             onFinalizeStack={stagingStacks.handleFinalizeStack}
             onCancelStack={stagingStacks.handleCancelStack}
