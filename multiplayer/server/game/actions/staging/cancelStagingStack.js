@@ -3,7 +3,7 @@
  * Player cancels temporary stack, returning cards to original positions
  */
 
-const { createLogger } = require('../../utils/logger');
+const { createLogger } = require('../../../utils/logger');
 const logger = createLogger('CancelStagingStack');
 
 function handleCancelStagingStack(gameManager, playerIndex, action, gameId) {

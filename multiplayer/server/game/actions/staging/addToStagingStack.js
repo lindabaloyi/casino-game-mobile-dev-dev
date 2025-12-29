@@ -4,10 +4,8 @@
  * Implements Rule-Based Validation approach from specification
  */
 
-const { createLogger } = require('../../utils/logger');
-const { validateStagingAddition } = require('../logic/staging');
-const handleCaptureTempStack = require('./captureTempStack');
-const logger = createLogger('AddToStagingStack');
+const { createLogger } = require('../../../utils/logger');
+const handleCaptureTempStack = require('../captureTempStack');
 
 function handleAddToStagingStack(gameManager, playerIndex, action, gameId) {
   console.log('[TEMP_STACK] 🏃 ADD_TO_STAGING_STACK executing (GAME-APPROPRIATE)');

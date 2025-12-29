@@ -3,7 +3,7 @@
  * Player creates staging stack by dropping hand card on loose table card
  */
 
-const { createLogger } = require('../../utils/logger');
+const { createLogger } = require('../../../utils/logger');
 const logger = createLogger('CreateStagingStack');
 
 function handleCreateStagingStack(gameManager, playerIndex, action, gameId) {

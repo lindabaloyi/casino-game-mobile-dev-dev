@@ -4,8 +4,8 @@
  * Phase 4: STRICT VALIDATION - Full rules enforcement here only
  */
 
-const { createLogger } = require('../../utils/logger');
-const { validateStagingFinalization } = require('../logic/staging');
+const { createLogger } = require('../../../utils/logger');
+const { validateStagingFinalization } = require('../../logic/staging');
 const logger = createLogger('FinalizeStagingStack');
 
 function handleFinalizeStagingStack(gameManager, playerIndex, action) {

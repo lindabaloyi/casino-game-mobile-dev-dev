@@ -3,8 +3,6 @@
  * Confirms and executes a trail action that was approved by the player
  */
 
-const { createLogger } = require('../../../utils/logger');
-
 /**
  * Execute trail action (same as regular trail but confirmed by player)
  */

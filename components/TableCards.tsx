@@ -92,7 +92,7 @@ const TableCards: React.FC<TableCardsProps> = ({
   });
 
   // Track locally cancelled staging stacks for immediate UI updates
-  const [cancelledStacks, setCancelledStacks] = React.useState<Set<string>>(new Set());
+  const [cancelledStacks] = React.useState<Set<string>>(new Set());
 
   // Simplified staging reject handler - just call server-side cancel
   const handleStagingRejectWithLocalState = React.useCallback((stackId: string) => {
