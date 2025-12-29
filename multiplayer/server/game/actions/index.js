@@ -3,9 +3,9 @@
  * Exports all action handlers for registration with ActionRouter
  */
 
-const handleConfirmTrail = require('./confirm-trail');
-const handleCancelTrail = require('./cancel-trail');
-const handleTrail = require('./trail');
+const handleConfirmTrail = require('./trail/confirm-trail');
+const handleCancelTrail = require('./trail/cancel-trail');
+const handleTrail = require('./trail/index');
 const handleCapture = require('./capture');
 const handleBuild = require('./build');
 const handleCreateStagingStack = require('./createStagingStack');

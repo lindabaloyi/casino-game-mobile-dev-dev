@@ -4,7 +4,7 @@
  * Provides context-rich logging for debugging
  */
 
-const { ActionLogger } = require('../../../../utils/actionLogger');
+const { ActionLogger } = require('../../../../../utils/actionLogger');
 
 function handleTrail(gameManager, playerIndex, action, gameId) {
   const gameState = gameManager.getGameState(gameId);

@@ -3,14 +3,13 @@
  * Confirms and executes a trail action that was approved by the player
  */
 
-const { createLogger } = require('../../utils/logger');
-const logger = createLogger('ConfirmTrailAction');
+const { createLogger } = require('../../../utils/logger');
 
 /**
  * Execute trail action (same as regular trail but confirmed by player)
  */
 function handleConfirmTrail(gameManager, playerIndex, action) {
-  const trailHandler = require('./trail');
+  const trailHandler = require('./index');
 
   const cardInfo = action.payload?.card ? `${action.payload.card.rank}${action.payload.card.suit}` : 'unknown';
   console.log(`CONFIRM_TRAIL: P${playerIndex + 1} confirms ${cardInfo} (game ${action.payload?.gameId})`);

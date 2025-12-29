@@ -4,7 +4,7 @@
  * Returns the game state unchanged (no-op)
  */
 
-const { createLogger } = require('../../utils/logger');
+const { createLogger } = require('../../../utils/logger');
 const logger = createLogger('CancelTrailAction');
 
 /**

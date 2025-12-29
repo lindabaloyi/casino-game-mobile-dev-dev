@@ -281,7 +281,7 @@ function canPlayerMove(gameState) {
     return false;
   }
 
-  const { playerHands, currentPlayer, tableCards, round } = gameState;
+  const { playerHands, currentPlayer, tableCards } = gameState;
 
   if (!playerHands || !Array.isArray(playerHands) || currentPlayer === undefined) {
     return false;
@@ -309,7 +309,7 @@ function canPlayerMove(gameState) {
     }
 
     // Try each card against each possible target
-    const draggedItem = { card, source: 'hand' };
+    // const draggedItem = { card, source: 'hand' }; // Not used in canPlayerMove
 
     // Check table targets (loose cards, builds, temp stacks)
     for (const tableCard of tableCards) {
