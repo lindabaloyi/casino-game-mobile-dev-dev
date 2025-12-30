@@ -83,7 +83,18 @@ export function determineActionFromContact(
   });
 
   // Handle different contact types
-  if (touchedContact.type === 'build') {
+  if (touchedContact.type === 'temporary_stack') {
+    // Handle dragging temporary stacks (build augmentation)
+    const draggedStack = gameState.tableCards.find(tc =>
+      (tc as any).type === 'temporary_stack' && (tc as any).stackId === touchedContact.id
+    ) as any;
+
+    if (draggedStack && draggedStack.canAugmentBuilds) {
+      console.log('[CONTACT-ACTIONS] 🏗️ Draggable staging stack being dragged (can augment builds)');
+      // This will be handled by the build contact logic below
+      return null; // Let build contact logic handle it
+    }
+  } else if (touchedContact.type === 'build') {
     const build = findBuildById(touchedContact.id, gameState);
 
     if (!build) {
@@ -98,7 +109,28 @@ export function determineActionFromContact(
       cards: build.cards.length
     });
 
-    if (build.owner === currentPlayer) {
+    // Check if this is a draggable staging stack being dropped on a build
+    const draggedStack = gameState.tableCards.find(tc =>
+      (tc as any).type === 'temporary_stack' &&
+      (tc as any).stackId === touchedContact.id &&
+      (tc as any).canAugmentBuilds
+    ) as any;
+
+    if (draggedStack && build.owner === currentPlayer) {
+      console.log('[CONTACT-ACTIONS] 🏗️ Draggable staging stack dropped on build for augmentation:', {
+        stagingStackId: draggedStack.stackId,
+        targetBuildId: touchedContact.id,
+        stagingValue: draggedStack.value,
+        buildValue: build.value
+      });
+      return {
+        type: 'finalizeBuildAugmentation',
+        payload: {
+          stagingStackId: draggedStack.stackId,
+          targetBuildId: touchedContact.id
+        }
+      };
+    } else if (build.owner === currentPlayer) {
       // Add to own build
       console.log('[CONTACT-ACTIONS] ✅ Player adding to own build');
       return {
@@ -121,6 +153,36 @@ export function determineActionFromContact(
         }
       };
     }
+
+  } else if (touchedContact.type === 'temporary_stack') {
+    // Touched a temp stack - add card to existing stack (table-to-table)
+    const tempStack = gameState.tableCards.find(tc =>
+      (tc as any).type === 'temporary_stack' && (tc as any).stackId === touchedContact.id
+    ) as any;
+
+    if (!tempStack) {
+      console.log('[CONTACT-ACTIONS] ❌ Temp stack not found in game state:', touchedContact.id);
+      return null;
+    }
+
+    console.log('[CONTACT-ACTIONS] 🔍 Found temp stack:', {
+      stackId: tempStack.stackId,
+      currentCards: tempStack.cards.length,
+      currentValue: tempStack.value,
+      owner: tempStack.owner
+    });
+
+    // Add card to existing temp stack (unlimited, freedom-first approach)
+    console.log('[CONTACT-ACTIONS] ✅ Adding card to existing temp stack');
+    return {
+      type: 'addToStagingStack',
+      payload: {
+        gameId: 1, // TODO: Get actual game ID
+        stackId: tempStack.stackId,
+        card: draggedCard,
+        source: 'table' // Table-to-table drop
+      }
+    };
 
   } else if (touchedContact.type === 'card') {
     // Touched a loose card
@@ -148,24 +210,48 @@ export function determineActionFromContact(
         }
       };
     } else {
-      // Different values - potential build creation (via staging)
+      // Universal staging: Always allow staging for all players
       const totalValue = draggedCard.value + touchedCard.value;
       if (totalValue <= 10) {
-        console.log('[CONTACT-ACTIONS] ✅ Different values - BUILD CREATION (via staging)');
+        // Check if player has active builds for contextual logging
+        const playerHasBuilds = gameState.tableCards.some(tc =>
+          (tc as any).type === 'build' && (tc as any).owner === currentPlayer
+        );
+
+        console.log('[CONTACT-ACTIONS] 🎯 UNIVERSAL STAGING TRIGGERED:', {
+          player: currentPlayer,
+          draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+          touchedCard: `${touchedCard.rank}${touchedCard.suit}`,
+          totalValue,
+          playerHasBuilds,
+          stagingType: playerHasBuilds ? 'enhanced (with augmentation)' : 'basic (capture only)',
+          reason: 'Universal staging available to all players'
+        });
 
         // Find the index of the touched card in tableCards
         const touchedIndex = findCardIndex(touchedCard, gameState);
 
-        return {
+        // Use single staging action for all players
+        const action = {
           type: 'createStagingStack',
           payload: {
             source: 'hand',
             isTableToTable: false,
             card: draggedCard,
             targetIndex: touchedIndex,
-            gameId: 1 // TODO: Get actual game ID
+            gameId: 1, // TODO: Get actual game ID
+            // Include build augmentation capability flag
+            canAugmentBuilds: playerHasBuilds
           }
         };
+
+        console.log('[CONTACT-ACTIONS] 🚀 Sending universal staging action:', {
+          actionType: action.type,
+          canAugmentBuilds: action.payload.canAugmentBuilds,
+          stagingValue: totalValue
+        });
+
+        return action;
       }
     }
   }

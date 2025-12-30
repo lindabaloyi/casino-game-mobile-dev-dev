@@ -20,6 +20,9 @@ interface TempStackRendererProps {
   onCancelStack?: (stackId: string) => void;
   onStagingAccept?: (stackId: string) => void;  // ✅ Now triggers validation modal
   onStagingReject?: (stackId: string) => void;
+  isDragging?: boolean; // Add drag state to hide overlay during drag
+  onDragStart?: (card: any) => void; // For updating table drag state
+  onDragEnd?: (draggedItem: any, dropPosition: any) => void; // For updating table drag state
 }
 
 export function TempStackRenderer({
@@ -32,7 +35,10 @@ export function TempStackRenderer({
   onFinalizeStack,
   onCancelStack,
   onStagingAccept,
-  onStagingReject
+  onStagingReject,
+  isDragging = false,
+  onDragStart,
+  onDragEnd
 }: TempStackRendererProps) {
   // Type assertion for temporary stack item
   const tempStackItem = tableItem as any; // Temporary stack has type: 'temporary_stack'
@@ -40,6 +46,8 @@ export function TempStackRenderer({
   const stackId = tempStackItem.stackId || `temp-${index}`;
   const tempStackCards = tempStackItem.cards || [];
   const isCurrentPlayerOwner = tempStackItem.owner === currentPlayer;
+  // Check if this player has any builds they can augment (contextual capability)
+  const canAugmentBuilds = tempStackItem.canAugmentBuilds || false;
 
   console.log(`[TEMP_STACK_RENDERER] 🎴 Rendering TEMPORARY STACKING STACK:`, {
     stackId: tempStackItem.stackId || stackId,
@@ -55,8 +63,36 @@ export function TempStackRenderer({
     baseZIndex,
     hasStagingCallbacks: !!(onStagingAccept && onStagingReject),
     hasLegacyCallbacks: !!(onFinalizeStack && onCancelStack),
-    unlimitedStagingEnabled: true
+    unlimitedStagingEnabled: true,
+    canAugmentBuilds
   });
+
+  // Contextual logging based on player's build augmentation capability
+  if (canAugmentBuilds && isCurrentPlayerOwner) {
+    console.log(`[UNIVERSAL_STAGING_UI] 🏗️ RENDERING ENHANCED STAGING STACK (with augmentation):`, {
+      stackId: tempStackItem.stackId || stackId,
+      player: currentPlayer,
+      owner: tempStackItem.owner,
+      value: tempStackItem.value,
+      cards: tempStackCards.map((c: any) => `${c.rank}${c.suit}(${c.value})`),
+      isDraggable: true,
+      showsAcceptCancel: true,
+      stagingType: 'enhanced',
+      dragInstruction: 'Accept to capture, or drag onto your build to augment'
+    });
+  } else if (isCurrentPlayerOwner) {
+    console.log(`[UNIVERSAL_STAGING_UI] 📦 RENDERING BASIC STAGING STACK (capture only):`, {
+      stackId: tempStackItem.stackId || stackId,
+      player: currentPlayer,
+      owner: tempStackItem.owner,
+      value: tempStackItem.value,
+      cards: tempStackCards.map((c: any) => `${c.rank}${c.suit}(${c.value})`),
+      isDraggable: false,
+      showsAcceptCancel: true,
+      stagingType: 'basic',
+      instruction: 'Accept to capture combination'
+    });
+  }
   console.log(`🎯 [STAGING_DEBUG] TEMP STACK ${index} READY: Can accept unlimited loose card drops`);
 
   if (isCurrentPlayerOwner) {
@@ -80,9 +116,11 @@ export function TempStackRenderer({
   return (
     <View key={`staging-container-${index}`} style={styles.stagingStackContainer}>
       <CardStack
-        stackId={`temp-${index}`} // Force simple temp-{index} format for drop zones
+        stackId={stackId} // Use actual stack ID instead of drop zone ID
         cards={tempStackCards}
         onDropStack={onDropStack}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
         isBuild={false}
         currentPlayer={currentPlayer}
         isTemporaryStack={true}
@@ -93,28 +131,39 @@ export function TempStackRenderer({
         baseZIndex={baseZIndex}
         baseElevation={1}
         dragZIndex={dragZIndex}
+        // Pass build augmentation capability for contextual dragging
+        canAugmentBuilds={canAugmentBuilds}
       />
-      {/* Show staging overlay only for player's own temporary stacks */}
+      {/* Show staging overlay only for player's own temporary stacks, hidden during drag */}
       {isCurrentPlayerOwner && (
         <StagingOverlay
-          isVisible={true}
+          isVisible={!isDragging}
           stackId={tempStackItem.stackId || stackId}
           onAccept={() => {
-            console.log(`[TEMP_STACK_RENDERER] 📨 ACCEPT callback triggered for stack ${stackId}`, {
+            console.log(`[UNIVERSAL_STAGING_UI] 📨 ACCEPT callback triggered for stack ${stackId}`, {
               stackId,
               callingOnStagingAccept: !!onStagingAccept,
               callbackType: 'onStagingAccept',
+              canAugmentBuilds,
+              stagingType: canAugmentBuilds ? 'enhanced' : 'basic',
+              action: 'capture_combination',
               timestamp: Date.now()
             });
+
             onStagingAccept?.(stackId);
           }}
           onReject={() => {
-            console.log(`[TEMP_STACK_RENDERER] 📨 CANCEL callback triggered for stack ${stackId}`, {
+            console.log(`[UNIVERSAL_STAGING_UI] 📨 CANCEL callback triggered for stack ${stackId}`, {
               stackId,
               callingOnStagingReject: !!onStagingReject,
               callbackType: 'onStagingReject',
+              canAugmentBuilds,
+              stagingType: canAugmentBuilds ? 'enhanced' : 'basic',
+              action: 'cancel_staging',
+              cardsReturned: tempStackCards.length,
               timestamp: Date.now()
             });
+
             onStagingReject?.(stackId);
           }}
         />

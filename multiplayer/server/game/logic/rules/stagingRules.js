@@ -5,41 +5,79 @@
 
 const stagingRules = [
   {
-    id: 'universal-staging',
-    priority: 95, // High priority for all staging actions
-    exclusive: false,
+    id: 'temp-stack-addition',
+    priority: 100, // ✅ HIGHEST PRIORITY: Adding to existing temp stacks
+    exclusive: true, // ✅ EXCLUSIVE: Prevents other rules from matching
+    requiresModal: false,
+    condition: (context) => {
+      const targetInfo = context.targetInfo;
+      const draggedItem = context.draggedItem;
+
+      // ✅ PRIMARY CONDITION: Target must be an existing temp stack
+      const isTempStackTarget = targetInfo?.type === 'temporary_stack';
+      const hasValidCard = draggedItem?.card;
+
+      console.log('[STAGING_RULE] Temp stack addition check:', {
+        targetType: targetInfo?.type,
+        stackId: targetInfo?.stackId,
+        draggedSource: draggedItem?.source,
+        hasValidCard,
+        isTempStackTarget,
+        result: isTempStackTarget && hasValidCard
+      });
+
+      return isTempStackTarget && hasValidCard;
+    },
+    action: (context) => {
+      console.log('[STAGING_RULE] ✅ Creating temp stack addition action');
+      return {
+        type: 'addToStagingStack',
+        payload: {
+          gameId: context.gameId,
+          stackId: context.targetInfo?.stackId,
+          card: context.draggedItem.card,
+          source: context.draggedItem.source
+        }
+      };
+    },
+    description: 'Add card to existing temporary stack (highest priority, exclusive)'
+  },
+  {
+    id: 'table-to-table-staging',
+    priority: 90, // Lower priority for new temp stack creation
+    exclusive: true,
     requiresModal: false,
     condition: (context) => {
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
-      // Handle both hand-to-table and table-to-table staging
-      const isValidSource = draggedItem?.source === 'hand' || draggedItem?.source === 'table';
-      const isValidTarget = targetInfo?.type === 'loose';
-      const isValid = isValidSource && isValidTarget;
+      // ✅ SPECIFIC CONDITION: Table source + loose target = new temp stack
+      const isTableSource = draggedItem?.source === 'table';
+      const isLooseTarget = targetInfo?.type === 'loose';
+      const hasValidCards = draggedItem?.card && targetInfo?.card;
 
-      console.log('[STAGING] Staging candidate detected:', {
+      console.log('[STAGING_RULE] Table-to-table staging check:', {
         source: draggedItem?.source,
         targetType: targetInfo?.type,
-        draggedCard: draggedItem?.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
-        targetCard: targetInfo?.card ? `${targetInfo.card.rank}${targetInfo.card.suit}` : 'none',
-        isHandToTable: draggedItem?.source === 'hand' && targetInfo?.type === 'loose',
-        isTableToTable: draggedItem?.source === 'table' && targetInfo?.type === 'loose',
-        overallResult: isValid
+        isTableSource,
+        isLooseTarget,
+        hasValidCards,
+        result: isTableSource && isLooseTarget && hasValidCards
       });
 
-      return isValid;
+      return isTableSource && isLooseTarget && hasValidCards;
     },
     action: (context) => {
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
-      console.log('[STAGING] Creating unified staging action:', {
-        source: draggedItem.source,
-        draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
-        targetCard: `${targetInfo.card.rank}${targetInfo.card.suit}`,
-        targetIndex: targetInfo.index,
-        isTableToTable: draggedItem.source === 'table'
+      // Check if player has active builds for augmentation capability
+      const playerHasBuilds = context.tableCards.some(tc =>
+        tc.type === 'build' && tc.owner === draggedItem.player
+      );
+
+      console.log('[STAGING_RULE] ✅ Creating table-to-table staging action:', {
+        canAugmentBuilds: playerHasBuilds
       });
 
       return {
@@ -49,50 +87,64 @@ const stagingRules = [
           card: draggedItem.card,
           targetIndex: targetInfo.index,
           player: draggedItem.player,
-          isTableToTable: draggedItem.source === 'table'
+          isTableToTable: true,
+          canAugmentBuilds: playerHasBuilds
         }
       };
-    }
+    },
+    description: 'Create new temp stack from two table cards'
   },
   {
-    id: 'temp-stack-addition',
+    id: 'hand-to-table-staging',
+    priority: 85, // Lower priority for hand-to-table
+    exclusive: false,
+    requiresModal: false,
     condition: (context) => {
-      console.log('[STAGING_RULE] Evaluating temp stack addition (GAME-APPROPRIATE):', {
-        targetType: context.targetInfo?.type,
-        draggedSource: context.draggedItem?.source,
-        stackId: context.targetInfo?.stackId
-      });
-
-      const targetInfo = context.targetInfo;
       const draggedItem = context.draggedItem;
+      const targetInfo = context.targetInfo;
 
-      // Game-appropriate validation: Check if target is temp stack and card exists
-      const isValid = targetInfo?.type === 'temporary_stack' && draggedItem?.card;
+      // Hand source + loose target
+      const isHandSource = draggedItem?.source === 'hand';
+      const isLooseTarget = targetInfo?.type === 'loose';
+      const hasValidCards = draggedItem?.card && targetInfo?.card;
 
-      console.log('[STAGING_RULE] Temp stack addition condition:', isValid, {
-        reason: isValid ? 'valid temp stack addition' : 'invalid target or missing card',
-        validationApproach: 'game-appropriate'
+      console.log('[STAGING_RULE] Hand-to-table staging check:', {
+        source: draggedItem?.source,
+        targetType: targetInfo?.type,
+        isHandSource,
+        isLooseTarget,
+        hasValidCards,
+        result: isHandSource && isLooseTarget && hasValidCards
       });
-      return isValid;
+
+      return isHandSource && isLooseTarget && hasValidCards;
     },
-    action: (context) => {  // ✅ GAME-APPROPRIATE: Function returns complete object with payload
-      console.log('[STAGING_RULE] Creating temp stack addition action (game-appropriate)');
-      const action = {
-        type: 'addToStagingStack',
+    action: (context) => {
+      const draggedItem = context.draggedItem;
+      const targetInfo = context.targetInfo;
+
+      // Check if player has active builds for augmentation capability
+      const playerHasBuilds = context.tableCards.some(tc =>
+        tc.type === 'build' && tc.owner === draggedItem.player
+      );
+
+      console.log('[STAGING_RULE] ✅ Creating hand-to-table staging action:', {
+        canAugmentBuilds: playerHasBuilds
+      });
+
+      return {
+        type: 'createStagingStack',
         payload: {
-          gameId: context.gameId,
-          stackId: context.targetInfo?.stackId,
-          card: context.draggedItem.card,
-          source: context.draggedItem.source
+          source: draggedItem.source,
+          card: draggedItem.card,
+          targetIndex: targetInfo.index,
+          player: draggedItem.player,
+          isTableToTable: false,
+          canAugmentBuilds: playerHasBuilds
         }
       };
-      console.log('[STAGING_RULE] Temp stack addition action created:', JSON.stringify(action, null, 2));
-      return action;
     },
-    requiresModal: false,  // ✅ FIX: No modal interruptions during gameplay
-    priority: 80,
-    exclusive: true,
-    description: 'Add card to existing temporary stack (game-appropriate, no modals)'
+    description: 'Create new temp stack from hand card to table card'
   }
 ];
 

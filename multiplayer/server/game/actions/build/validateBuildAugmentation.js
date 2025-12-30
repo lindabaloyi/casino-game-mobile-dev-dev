@@ -14,12 +14,13 @@ function handleValidateBuildAugmentation(gameManager, playerIndex, action, gameI
   console.log('[BUILD_VALIDATE] ✅ PHASE 2: VALIDATE_BUILD_AUGMENTATION executing');
   console.log('[BUILD_VALIDATE] Input action payload:', JSON.stringify(action.payload, null, 2));
 
-  const { buildId } = action.payload;
+  const { buildId, tempStackId } = action.payload;
   const gameState = gameManager.getGameState(gameId);
 
   console.log('[BUILD_VALIDATE] 📊 Validation details:', {
     gameId,
     buildId,
+    tempStackId,
     playerIndex
   });
 
@@ -57,14 +58,18 @@ function handleValidateBuildAugmentation(gameManager, playerIndex, action, gameI
     throw new Error('You can only validate your own build augmentations');
   }
 
-  // 🎯 FIND AUGMENTATION STACK
-  const augmentationStackId = `build-augment-${buildId}`;
+  // 🎯 FIND AUGMENTATION STACK (using the provided tempStackId)
+  if (!tempStackId) {
+    console.error('[BUILD_VALIDATE] ❌ No tempStackId provided in payload');
+    throw new Error('Temp stack ID is required');
+  }
+
   const augmentationStack = gameState.tableCards.find(item =>
-    item.type === 'temporary_stack' && item.stackId === augmentationStackId
+    item.type === 'temporary_stack' && item.stackId === tempStackId
   );
 
   if (!augmentationStack) {
-    console.log('[BUILD_VALIDATE] ❌ No augmentation stack found:', { augmentationStackId });
+    console.log('[BUILD_VALIDATE] ❌ No augmentation stack found:', { tempStackId });
     throw new Error('No cards added to build for validation');
   }
 

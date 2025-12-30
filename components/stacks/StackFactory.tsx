@@ -26,6 +26,7 @@ interface StackFactoryProps {
   dragZIndex?: number;
   baseZIndex?: number;
   baseElevation?: number;
+  canAugmentBuilds?: boolean;
 }
 
 /**
@@ -92,11 +93,14 @@ export const StackFactory: React.FC<StackFactoryProps> = (props) => {
         onDropStack={props.onDropStack}
         onFinalizeStack={props.onFinalizeStack}
         onCancelStack={props.onCancelStack}
+        onDragStart={props.onDragStart}
+        onDragEnd={props.onDragEnd}
         currentPlayer={props.currentPlayer}
         dragSource={props.dragSource}
         dragZIndex={props.dragZIndex}
         baseZIndex={props.baseZIndex}
         baseElevation={props.baseElevation}
+        canAugmentBuilds={props.canAugmentBuilds}
       />
     ),
 

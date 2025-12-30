@@ -24,6 +24,7 @@ interface CardStackProps {
   dragZIndex?: number; // Z-index for dragged cards from this stack
   baseZIndex?: number; // Base z-index for stacking context management
   baseElevation?: number; // Base elevation for Android stacking context management
+  canAugmentBuilds?: boolean; // For temp stacks: whether player can augment builds
 }
 
 const CardStack = memo<CardStackProps>((props) => {

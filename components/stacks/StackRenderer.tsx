@@ -7,6 +7,7 @@ import DraggableCard from '../DraggableCard';
 interface StackRendererProps {
   cards: CardType[];
   draggable?: boolean;
+  allowMultiCardDrag?: boolean; // Allow multi-card stacks to be draggable (for temp stacks)
   onDragStart?: (card: CardType) => void;
   onDragEnd?: (draggedItem: any, dropPosition: any) => void;
   onDragMove?: (card: CardType, position: { x: number; y: number }) => void;
@@ -26,6 +27,7 @@ interface StackRendererProps {
 export const StackRenderer: React.FC<StackRendererProps> = ({
   cards,
   draggable = false,
+  allowMultiCardDrag = false,
   onDragStart,
   onDragEnd,
   onDragMove,
@@ -53,9 +55,14 @@ export const StackRenderer: React.FC<StackRendererProps> = ({
     setIsDragging(false);
   };
 
+  // Determine if this stack should be draggable
+  const isDraggable = draggable && (cardCount === 1 || allowMultiCardDrag);
+
   console.log(`[StackRenderer:DEBUG] 🧱 Rendering ${stackId}:`, {
     cardCount,
-    hasDraggableCards: cardCount === 1 && draggable,
+    draggable,
+    allowMultiCardDrag,
+    isDraggable,
     topCard: topCard ? `${topCard.rank}${topCard.suit}` : 'none',
     isDragging,
     dynamicZIndex: isDragging ? 99999 : baseZIndex,
@@ -74,7 +81,7 @@ export const StackRenderer: React.FC<StackRendererProps> = ({
 
   return (
     <View style={[{ position: 'relative' }, dynamicStyle]}>
-      {draggable && cardCount === 1 ? (
+      {isDraggable ? (
         <DraggableCard
           card={topCard}
           onDragStart={(card) => {
@@ -97,14 +104,13 @@ export const StackRenderer: React.FC<StackRendererProps> = ({
             alignItems: 'center',
             justifyContent: 'center'
           }}
-          activeOpacity={draggable ? 1.0 : 0.7}
-          disabled={draggable}
+          activeOpacity={0.7}
         >
           <Card
             card={topCard}
             size="normal"
             disabled={false}
-            draggable={draggable}
+            draggable={false}
           />
         </TouchableOpacity>
       )}

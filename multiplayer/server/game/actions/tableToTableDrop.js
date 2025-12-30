@@ -4,8 +4,7 @@
  * NO hand logic - assumes both cards are from table
  */
 
-const { createLogger } = require('../../utils/logger');
-const logger = createLogger('TableToTableDrop');
+
 
 function handleTableToTableDrop(gameManager, playerIndex, action) {
   console.log('[SERVER_CRASH_DEBUG] ===== HANDLER CALLED =====');
@@ -142,12 +141,18 @@ function handleTableToTableDrop(gameManager, playerIndex, action) {
   // Order: bigger card at bottom, smaller card on top
   const [bottomCard, topCard] = orderCardsBigToSmall(targetInfo.card, draggedItem.card);
 
+  // Check if player has active builds for augmentation capability
+  const playerHasBuilds = gameState.tableCards.some(tc =>
+    tc.type === 'build' && tc.owner === playerIndex
+  );
+
   const tempStack = {
     type: 'temporary_stack',
     stackId: stackId,
     cards: [bottomCard, topCard],
     owner: playerIndex,
-    value: (targetInfo.card.value || 0) + (draggedItem.card.value || 0)
+    value: (targetInfo.card.value || 0) + (draggedItem.card.value || 0),
+    canAugmentBuilds: playerHasBuilds
   };
 
   console.log('[TEMP_STACK] Created temp stack:', {

@@ -5,87 +5,52 @@
  */
 
 function handleAddToBuilding(gameManager, playerIndex, action, gameId) {
-  console.log('[FUNCTION] 🚀 ENTERING handleAddToBuilding', {
+  console.log('[BUILD_AUGMENT] 🏗️ FLEXIBLE BUILD AUGMENTATION', {
     gameId,
     playerIndex,
     actionType: action.type,
     timestamp: Date.now()
   });
-  console.log('[BUILD_AUGMENT] 🏗️ ADD_TO_BUILDING executing');
-  console.log('[BUILD_AUGMENT] Input action payload:', JSON.stringify(action.payload, null, 2));
 
   const { buildId, card, source } = action.payload;
   const gameState = gameManager.getGameState(gameId);
 
-  console.log('[BUILD_AUGMENT] 📊 Operation details:', {
-    gameId,
+  console.log('[BUILD_AUGMENT] 📊 Flexible augmentation request:', {
     buildId,
-    card: card ? `${card.rank}${card.suit}` : 'INVALID CARD',
-    cardValue: card?.value,
+    card: card ? `${card.rank}${card.suit}` : 'NO CARD',
     source,
-    playerIndex,
-    tableCardsCount: gameState.tableCards?.length || 0,
-    buildsInTable: gameState.tableCards?.filter(c => c.type === 'build').length || 0
+    playerIndex
   });
 
-  // 🎯 VALIDATE INPUT
-  if (!card) {
-    console.error('[BUILD_AUGMENT] ❌ No card provided in payload');
-    throw new Error('Card data is required');
-  }
-
-  if (!buildId) {
-    console.error('[BUILD_AUGMENT] ❌ No buildId provided in payload');
-    throw new Error('Build ID is required');
-  }
-
-  // 🎯 FIRST: Find the target build
-  console.log('[BUILD_AUGMENT] 🔍 Searching for build:', { buildId });
+  // 🎯 ONLY VALIDATION: Find build and check ownership
   const targetBuild = gameState.tableCards.find(item =>
     item.type === 'build' && item.buildId === buildId
   );
 
   if (!targetBuild) {
-    console.log('[BUILD_AUGMENT] ❌ Build not found:', {
-      buildId,
-      availableBuilds: gameState.tableCards
-        .filter(c => c.type === 'build')
-        .map(b => ({ id: b.buildId, owner: b.owner, value: b.value }))
-    });
+    console.log('[BUILD_AUGMENT] ❌ Build not found:', buildId);
     throw new Error('Build not found');
   }
 
-  console.log('[BUILD_AUGMENT] ✅ Found target build:', {
-    buildId: targetBuild.buildId,
-    buildOwner: targetBuild.owner,
-    buildValue: targetBuild.value,
-    buildCardsCount: targetBuild.cards?.length || 0
-  });
-
-  // 🎯 OWNERSHIP CHECK: Only build owner can augment
+  // ✅ CRITICAL: Only check ownership - allow anything else!
   if (targetBuild.owner !== playerIndex) {
     console.log('[BUILD_AUGMENT] ❌ Not build owner:', {
       buildOwner: targetBuild.owner,
-      playerIndex,
-      buildId: targetBuild.buildId
+      playerIndex
     });
     throw new Error('You can only augment your own builds');
   }
 
-  // 🎯 FIND OR CREATE BUILD AUGMENTATION STACK
-  // Use different ID format to distinguish from temp stacks
+  console.log('[BUILD_AUGMENT] ✅ Ownership validated - accepting any card');
+
+  // 🎯 CREATE/FIND AUGMENTATION STACK
   const augmentationStackId = `build-augment-${buildId}`;
   let augmentationStack = gameState.tableCards.find(item =>
     item.type === 'temporary_stack' && item.stackId === augmentationStackId
   );
 
   if (!augmentationStack) {
-    console.log('[BUILD_AUGMENT] Creating new build augmentation stack:', {
-      augmentationStackId,
-      buildId,
-      playerIndex
-    });
-
+    console.log('[BUILD_AUGMENT] Creating augmentation stack for flexible building');
     augmentationStack = {
       type: 'temporary_stack',
       stackId: augmentationStackId,
@@ -93,31 +58,11 @@ function handleAddToBuilding(gameManager, playerIndex, action, gameId) {
       owner: playerIndex,
       value: 0,
       createdAt: Date.now(),
-      // Special markers for build augmentation
       isBuildAugmentation: true,
       targetBuildId: buildId,
       targetBuildValue: targetBuild.value
     };
     gameState.tableCards.push(augmentationStack);
-  }
-
-  // ✅ PHASE 1: NO EARLY VALIDATION - Just add cards freely
-  // Validation happens in Phase 2 when player clicks "Accept"
-  console.log('[BUILD_AUGMENT] ✅ PHASE 1: Adding card without validation');
-
-  // 🎯 VALIDATION: Sum must equal build value when finalized
-  // Allow any combination during building phase, validate on finalize
-  console.log('[BUILD_AUGMENT] 🎯 Skipping validation during building phase');
-
-  // Basic sanity checks
-  if (!card || !card.rank || !card.suit) {
-    console.error('[BUILD_AUGMENT] ❌ Invalid card data');
-    throw new Error('Invalid card data');
-  }
-
-  if (!source) {
-    console.error('[BUILD_AUGMENT] ❌ Card source not specified');
-    throw new Error('Card source not specified');
   }
 
   // 🎯 ADD CARD TO AUGMENTATION STACK

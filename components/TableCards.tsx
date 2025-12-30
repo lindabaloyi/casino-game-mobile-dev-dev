@@ -293,6 +293,9 @@ const TableCards: React.FC<TableCardsProps> = ({
                     onCancelStack={onCancelStack}
                     onStagingAccept={onStagingAccept}
                     onStagingReject={handleStagingRejectWithLocalState}
+                    isDragging={isDragging}
+                    onDragStart={handleTableCardDragStartWithPosition}
+                    onDragEnd={handleTableCardDragEndWithPosition}
                   />
                 );
               }

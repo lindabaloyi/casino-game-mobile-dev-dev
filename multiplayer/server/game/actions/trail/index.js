@@ -51,7 +51,7 @@ function handleTrail(gameManager, playerIndex, action, gameId) {
       playerTurn: gameState.currentPlayer === playerIndex,
       round: gameState.round,
       hasActiveBuild,
-      round1Restriction: gameState.round === 1 && hasActiveBuild
+      // Removed round 1 restriction - contact system handles build augmentation
     });
 
     // Validate trail conditions
@@ -64,14 +64,8 @@ function handleTrail(gameManager, playerIndex, action, gameId) {
       throw new Error('Not your turn to trail');
     }
 
-    if (gameState.round === 1 && hasActiveBuild) {
-      logger.logDecision('VALIDATION', 'TRAIL_REJECTED', {
-        reason: 'round_1_active_build',
-        round: gameState.round,
-        hasActiveBuild: true
-      });
-      throw new Error('Cannot trail in round 1 when you have an active build');
-    }
+    // Removed: Round 1 active build restriction
+    // Contact system now handles build augmentation priority
 
     if (hasDuplicateOnTable) {
       logger.logDecision('VALIDATION', 'TRAIL_REJECTED', {

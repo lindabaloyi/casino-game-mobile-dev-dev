@@ -92,28 +92,28 @@ function handleCreateStagingStack(gameManager, playerIndex, action, gameId) {
     throw error;
   }
 
-  // Create staging stack with position tracking
+  // Create universal staging stack with position tracking
   // Sort cards by value: highest value at bottom, lowest at top
   const sortedCards = [targetCard, draggedCard].sort((a, b) => b.value - a.value);
   const stagingStack = {
     type: 'temporary_stack',
-    stackId: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    stackId: `universal-staging-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     cards: sortedCards.map(card => ({
       ...card,
       source: card === targetCard ? 'table' : source
     })),
-    // NEW: Track original positions for proper restoration
+    // Track original positions for proper restoration
     cardPositions: [
       {
         cardId: `${targetCard.rank}${targetCard.suit}`,
-        originalIndex: targetIndex,  // Table position for target card
+        originalIndex: targetIndex,
         source: 'table'
       },
       {
         cardId: `${draggedCard.rank}${draggedCard.suit}`,
         originalIndex: source === 'hand' ? null : (gameState.tableCards.findIndex((card, index) =>
           index !== targetIndex && card.rank === draggedCard.rank && card.suit === draggedCard.suit
-        )), // Find dragged card's original position for table-to-table
+        )),
         source: source
       }
     ],
@@ -121,7 +121,9 @@ function handleCreateStagingStack(gameManager, playerIndex, action, gameId) {
     value: draggedCard.value + targetCard.value,
     combinedValue: draggedCard.value + targetCard.value,
     possibleBuilds: [draggedCard.value + targetCard.value],
-    isTableToTable: isTableToTable || false
+    isTableToTable: isTableToTable || false,
+    // Universal staging: include build augmentation capability
+    canAugmentBuilds: action.payload.canAugmentBuilds || false
   };
 
   const newGameState = { ...gameState };

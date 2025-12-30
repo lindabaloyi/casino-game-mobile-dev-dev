@@ -9,8 +9,10 @@ const handleTrail = require('./trail/index');
 const handleCapture = require('./capture');
 const handleBuild = require('./build/build');
 const handleCreateStagingStack = require('./staging/createStagingStack');
+const handleCreateBuildAugmentationStagingStack = require('./staging/createBuildAugmentationStagingStack');
 const handleAddToStagingStack = require('./staging/addToStagingStack');
 const handleFinalizeStagingStack = require('./staging/finalizeStagingStack');
+const handleFinalizeBuildAugmentation = require('./staging/finalizeBuildAugmentation');
 const handleCancelStagingStack = require('./staging/cancelStagingStack');
 const handleAddToOpponentBuild = require('./build/addToOpponentBuild');
 const handleAddToOwnBuild = require('./build/addToOwnBuild');
@@ -30,8 +32,10 @@ module.exports = {
   handleCapture,
   handleBuild,
   handleCreateStagingStack,
+  handleCreateBuildAugmentationStagingStack,
   handleAddToStagingStack,
   handleFinalizeStagingStack,
+  handleFinalizeBuildAugmentation,
   handleCancelStagingStack,
   handleAddToOpponentBuild,
   handleAddToOwnBuild,
