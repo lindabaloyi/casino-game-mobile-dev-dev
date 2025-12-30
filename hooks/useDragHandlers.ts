@@ -139,13 +139,73 @@ export function useDragHandlers({
   }, [isMyTurn]);
 
   /**
-   * Table card drag end (simplified - can add contact logic later)
+   * CONTACT-BASED: Handle table card drag end with contact detection
    */
-  const handleTableCardDragEnd = useCallback((draggedItem: any, dropPosition: any) => {
-    console.log(`[CONTACT-DRAG] Table card drag end - not yet implemented with contact`);
+  const handleTableCardDragEnd = useCallback((draggedItem: any, dropPosition: { x: number; y: number; handled?: boolean; contactDetected?: boolean; contact?: any }) => {
+    console.log(`[CONTACT-DRAG] 🎯 Table card drag end:`, {
+      card: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+      dropPosition: `(${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)})`,
+      source: draggedItem.source,
+      handled: dropPosition.handled,
+      contactDetected: dropPosition.contactDetected
+    });
+
+    if (!isMyTurn) {
+      console.log(`[CONTACT-DRAG] ❌ Not your turn for table drag`);
+      return;
+    }
+
+    // Use contact from TableDraggableCard if already detected, otherwise find it
+    let contact = dropPosition.contact;
+    if (!contact) {
+      contact = findContactAtPoint(dropPosition.x, dropPosition.y, 80);
+    }
+
+    if (contact) {
+      console.log(`[CONTACT-DRAG] ✅ Found contact for table drop:`, {
+        id: contact.id,
+        type: contact.type,
+        distance: Math.round(contact.distance)
+      });
+
+      // For table-to-table drops, create a temp stack
+      if (contact.type === 'card') {
+        console.log(`[CONTACT-DRAG] 🏗️ Table-to-table drop detected`);
+
+        // Get the touched card from contact data
+        const targetCard = contact.data;
+        if (targetCard) {
+          console.log(`[CONTACT-DRAG] 📦 Creating temp stack from:`, {
+            dragged: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+            target: `${targetCard.rank}${targetCard.suit}`
+          });
+
+          const action = {
+            type: 'tableToTableDrop',
+            payload: {
+              gameId: 1, // TODO: Get actual game ID
+              draggedItem: draggedItem,
+              targetInfo: {
+                card: targetCard,
+                type: 'loose',
+                index: contact.data.index // Use the index from contact data
+              }
+            }
+          };
+
+          console.log(`[CONTACT-DRAG] 🚀 Sending table-to-table action:`, action.type);
+          sendAction(action);
+          return;
+        }
+      }
+    } else {
+      console.log(`[CONTACT-DRAG] ❌ No contact found for table drop - snapping back`);
+    }
+
+    // If no valid contact, just clean up
     setDraggedCard(null);
     setIsDragging(false);
-  }, []);
+  }, [sendAction, isMyTurn]);
 
   /**
    * Captured card drag start

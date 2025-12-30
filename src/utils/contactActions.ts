@@ -24,12 +24,15 @@ function isBuild(item: any): item is Build {
 }
 
 /**
- * Find a loose card in the table state by ID (format: "5♦")
+ * Find a loose card in the table state by ID (format: "5♦" or "5♦_0")
  */
 function findLooseCardById(cardId: string, gameState: GameState): Card | null {
+  // Extract card part from ID (remove index suffix if present)
+  const cardPart = cardId.split('_')[0];
+
   for (const tableItem of gameState.tableCards) {
     // Loose cards have no 'type' property and are Card objects
-    if (isCard(tableItem) && `${tableItem.rank}${tableItem.suit}` === cardId) {
+    if (isCard(tableItem) && `${tableItem.rank}${tableItem.suit}` === cardPart) {
       return tableItem;
     }
   }
@@ -158,7 +161,7 @@ export function determineActionFromContact(
           payload: {
             source: 'hand',
             isTableToTable: false,
-            draggedCard: draggedCard,
+            card: draggedCard,
             targetIndex: touchedIndex,
             gameId: 1 // TODO: Get actual game ID
           }

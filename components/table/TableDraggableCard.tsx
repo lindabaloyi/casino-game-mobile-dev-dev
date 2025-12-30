@@ -10,7 +10,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, PanResponder, StyleSheet, View } from 'react-native';
-import { removePosition, reportPosition } from '../../src/utils/contactDetection';
+import { findContactAtPoint, removePosition, reportPosition } from '../../src/utils/contactDetection';
 import Card, { CardType } from '../card';
 
 interface TableDraggableCardProps {
@@ -146,72 +146,94 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
       console.log(`[TableDraggableCard] 🎯 Drop position: ${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)}`);
       console.log(`[TableDraggableCard] 🔍 Available drop zones:`, ((global as any).dropZones || []).length);
 
-      // Check for drop zones (PRIORITY-BASED SELECTION)
-      if ((global as any).dropZones && (global as any).dropZones.length > 0) {
-        let bestZone: any = null;
-        let highestPriority = -1;
-        const hitZones: any[] = [];
-
-        // Find ALL zones that contain the drop point
-        for (const zone of (global as any).dropZones as any[]) {
-          const { x, y, width, height } = zone.bounds;
-
-          if (dropPosition.x >= x &&
-              dropPosition.x <= x + width &&
-              dropPosition.y >= y &&
-              dropPosition.y <= y + height) {
-
-            hitZones.push({
-              zone,
-              priority: zone.priority || 0
-            });
+      // For table cards, prioritize contact detection over drop zones
+      // Check if this is a table-to-table drop by looking for contact first
+      const contactDetected = (() => {
+        try {
+          const contact = findContactAtPoint(dropPosition.x, dropPosition.y, 80);
+          if (contact && contact.type === 'card') {
+            console.log(`[TableDraggableCard] 🎯 Contact detected: ${contact.id} (${contact.type})`);
+            return contact;
           }
+        } catch {
+          console.log('[TableDraggableCard] Contact detection not available');
         }
+        return null;
+      })();
 
-        console.log(`[TableDraggableCard] 📍 Zones hit: ${hitZones.length}`);
+      if (contactDetected) {
+        // Table-to-table drop detected - let contact system handle it
+        console.log(`[TableDraggableCard] 📦 Table-to-table drop detected, delegating to contact system`);
+        dropPosition.contactDetected = true;
+        dropPosition.contact = contactDetected;
+      } else {
+        // No contact detected - check drop zones (for builds, etc.)
+        if ((global as any).dropZones && (global as any).dropZones.length > 0) {
+          let bestZone: any = null;
+          let highestPriority = -1;
+          const hitZones: any[] = [];
 
-        // Select zone with HIGHEST priority
-        hitZones.forEach(({ zone, priority }: any) => {
-          // Don't drop on ourselves
-          if (zone.stackId === stackId) {
-            console.log(`[TableDraggableCard] ⚠️ Ignoring self-zone: ${zone.stackId}`);
-            return;
+          // Find ALL zones that contain the drop point
+          for (const zone of (global as any).dropZones as any[]) {
+            const { x, y, width, height } = zone.bounds;
+
+            if (dropPosition.x >= x &&
+                dropPosition.x <= x + width &&
+                dropPosition.y >= y &&
+                dropPosition.y <= y + height) {
+
+              hitZones.push({
+                zone,
+                priority: zone.priority || 0
+              });
+            }
           }
 
-          if (priority > highestPriority) {
-            highestPriority = priority;
-            bestZone = zone;
-            console.log(`[TableDraggableCard] 🎯 New best zone: ${zone.stackId} (priority: ${priority})`);
-          }
-        });
+          console.log(`[TableDraggableCard] 📍 Zones hit: ${hitZones.length}`);
 
-        if (bestZone) {
-          console.log(`[TableDraggableCard] 🏆 Best drop zone: ${bestZone.stackId} (priority: ${highestPriority})`);
-          dropPosition.attempted = true;
+          // Select zone with HIGHEST priority
+          hitZones.forEach(({ zone, priority }: any) => {
+            // Don't drop on ourselves
+            if (zone.stackId === stackId) {
+              console.log(`[TableDraggableCard] ⚠️ Ignoring self-zone: ${zone.stackId}`);
+              return;
+            }
 
-          const draggedItem = {
-            card,
-            source: 'table',
-            player: currentPlayer,
-            stackId,
-            originalIndex: index
-          };
+            if (priority > highestPriority) {
+              highestPriority = priority;
+              bestZone = zone;
+              console.log(`[TableDraggableCard] 🎯 New best zone: ${zone.stackId} (priority: ${priority})`);
+            }
+          });
 
-          const dropResult = bestZone.onDrop(draggedItem);
+          if (bestZone) {
+            console.log(`[TableDraggableCard] 🏆 Best drop zone: ${bestZone.stackId} (priority: ${highestPriority})`);
+            dropPosition.attempted = true;
 
-          if (dropResult && typeof dropResult === 'object') {
-            dropPosition.handled = true;
-            dropPosition.targetType = dropResult.targetType || 'loose';
-            dropPosition.targetCard = dropResult.card;
-            dropPosition.targetIndex = dropResult.index;
-            dropPosition.needsServerValidation = true;
-            dropPosition.tableZoneDetected = true; // ✅ CRITICAL FIX: Enable server communication!
-            console.log(`[TableDraggableCard] ✅ Drop accepted by ${bestZone.stackId}`);
+            const draggedItem = {
+              card,
+              source: 'table',
+              player: currentPlayer,
+              stackId,
+              originalIndex: index
+            };
+
+            const dropResult = bestZone.onDrop(draggedItem);
+
+            if (dropResult && typeof dropResult === 'object') {
+              dropPosition.handled = true;
+              dropPosition.targetType = dropResult.targetType || 'loose';
+              dropPosition.targetCard = dropResult.card;
+              dropPosition.targetIndex = dropResult.index;
+              dropPosition.needsServerValidation = true;
+              dropPosition.tableZoneDetected = true; // ✅ CRITICAL FIX: Enable server communication!
+              console.log(`[TableDraggableCard] ✅ Drop accepted by ${bestZone.stackId}`);
+            } else {
+              console.log(`[TableDraggableCard] ❌ Drop rejected by ${bestZone.stackId}`);
+            }
           } else {
-            console.log(`[TableDraggableCard] ❌ Drop rejected by ${bestZone.stackId}`);
+            console.log(`[TableDraggableCard] ❌ No valid drop zone found`);
           }
-        } else {
-          console.log(`[TableDraggableCard] ❌ No valid drop zone found`);
         }
       }
 
@@ -236,7 +258,7 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
           stackId,
           originalIndex: index
         };
-        console.log(`[TableDraggableCard] 📤 Calling onDragEnd, handled: ${dropPosition.handled}`);
+        console.log(`[TableDraggableCard] 📤 Calling onDragEnd, handled: ${dropPosition.handled}, position: (${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)})`);
         onDragEnd(draggedItem, dropPosition);
       }
 
