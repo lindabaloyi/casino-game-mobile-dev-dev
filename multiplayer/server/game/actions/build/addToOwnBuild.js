@@ -40,6 +40,7 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
 
   console.log('[DEBUG-SERVER] Processing addToOwnBuild:', {
     draggedCard: draggedItem?.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'no card',
+    source: draggedItem?.source,
     draggedItemKeys: Object.keys(draggedItem || {}),
     buildId: buildToAddTo?.buildId,
     buildValue: buildToAddTo?.value,
@@ -49,6 +50,7 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
   logger.info('Adding to own build', {
     playerIndex,
     draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+    source: draggedItem.source,
     buildId: buildToAddTo.buildId,
     fromValue: buildToAddTo.value,
     gameId
@@ -63,17 +65,38 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
     throw new Error("Own build not found");
   }
 
-  // Remove card from hand
-  const playerHand = gameState.playerHands[playerIndex];
-  const handIndex = playerHand.findIndex(c =>
-    c.rank === draggedItem.card.rank && c.suit === draggedItem.card.suit
-  );
+  // Remove card from source (hand or table)
+  let addedCard;
+  if (draggedItem.source === 'hand') {
+    // Remove from hand
+    const playerHand = gameState.playerHands[playerIndex];
+    const handIndex = playerHand.findIndex(c =>
+      c.rank === draggedItem.card.rank && c.suit === draggedItem.card.suit
+    );
 
-  if (handIndex === -1) {
-    throw new Error("Card not found in hand");
+    if (handIndex === -1) {
+      throw new Error("Card not found in hand");
+    }
+
+    addedCard = playerHand.splice(handIndex, 1)[0];
+    console.log('[DEBUG-SERVER] Removed card from hand at index:', handIndex);
+  } else if (draggedItem.source === 'table') {
+    // Remove from table
+    const tableIndex = gameState.tableCards.findIndex(c =>
+      (!c.type || c.type === 'loose') &&
+      c.rank === draggedItem.card.rank &&
+      c.suit === draggedItem.card.suit
+    );
+
+    if (tableIndex === -1) {
+      throw new Error("Card not found on table");
+    }
+
+    addedCard = gameState.tableCards.splice(tableIndex, 1)[0];
+    console.log('[DEBUG-SERVER] Removed card from table at index:', tableIndex);
+  } else {
+    throw new Error(`Unsupported source: ${draggedItem.source}`);
   }
-
-  const addedCard = playerHand.splice(handIndex, 1)[0];
   const newBuildValue = buildToAddTo.value + addedCard.value;
 
   // Extend build
@@ -83,15 +106,23 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
     cards: [...buildToAddTo.cards, addedCard]
   };
 
-  const newGameState = {
-    ...gameState,
-    playerHands: gameState.playerHands.map((hand, idx) =>
-      idx === playerIndex ? playerHand : hand
-    ),
-    tableCards: gameState.tableCards.map((card, idx) =>
-      idx === buildIndex ? extendedBuild : card
-    )
-  };
+  // Create new game state with proper updates
+  const newGameState = { ...gameState };
+
+  if (draggedItem.source === 'hand') {
+    // Update player hands
+    newGameState.playerHands = gameState.playerHands.map((hand, idx) =>
+      idx === playerIndex ? gameState.playerHands[playerIndex].filter(c =>
+        !(c.rank === draggedItem.card.rank && c.suit === draggedItem.card.suit)
+      ) : hand
+    );
+  }
+  // For table cards, the card was already removed above
+
+  // Update build
+  newGameState.tableCards = gameState.tableCards.map((card, idx) =>
+    idx === buildIndex ? extendedBuild : card
+  );
 
   logger.info('Own build extended successfully', {
     buildId: extendedBuild.buildId,

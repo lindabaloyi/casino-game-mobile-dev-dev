@@ -143,21 +143,20 @@ export function useTableCardDragHandler({
 
       if (contact.type === 'build') {
         if (isLooseCard) {
-          console.log(`[TABLE-DRAG] 🏗️ Loose card dropped on build for augmentation.`);
+          console.log(`[TABLE-DRAG] 🏗️ Loose card dropped on build - direct addition (no staging).`);
           const build = contact.data;
           if (build && build.owner !== playerNumber) {
             console.log(`[TABLE-DRAG] ❌ Cannot augment opponent's build.`);
             return;
           }
           const action = {
-            type: 'addToBuilding',
+            type: 'addToOwnBuild',  // Direct addition like hand cards
             payload: {
-              buildId: contact.id,
-              card: draggedItem.card,
-              source: 'table'
+              draggedItem: { card: draggedItem.card, source: 'table' },
+              buildToAddTo: build
             }
           };
-          console.log(`[TABLE-DRAG] 🚀 Sending addToBuilding action.`);
+          console.log(`[TABLE-DRAG] 🚀 Sending addToOwnBuild action for table card.`);
           sendAction(action);
           return;
         } else if (isTempStack) {
