@@ -36,7 +36,24 @@ class GameCoordinatorService {
       this.logger.info(`Routing action ${data.type} from Player ${playerIndex} in game ${gameId}`);
 
       // Route through ActionRouter
+      console.log('[DEBUG-SERVER] Executing action via ActionRouter:', {
+        gameId,
+        playerIndex,
+        actionType: data.type,
+        payloadKeys: Object.keys(data.payload || {}),
+        timestamp: new Date().toISOString()
+      });
+
       const newGameState = await this.actionRouter.executeAction(gameId, playerIndex, data);
+
+      console.log('[DEBUG-SERVER] Action executed successfully:', {
+        gameId,
+        actionType: data.type,
+        tableCardsBefore: this.gameManager.getGameState(gameId)?.tableCards?.length || 0,
+        tableCardsAfter: newGameState.tableCards?.length || 0,
+        broadcastingToClients: true,
+        timestamp: new Date().toISOString()
+      });
 
       // Broadcast updated game state to all players in game
       this.broadcaster.broadcastGameUpdate(gameId, newGameState);

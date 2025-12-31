@@ -52,14 +52,23 @@ function handleFinalizeBuildAugmentation(gameManager, playerIndex, action, gameI
     throw error;
   }
 
+  // Use targetBuildId from payload, or fall back to the one stored in staging stack
+  const finalTargetBuildId = targetBuildId || stagingStack.targetBuildId;
+
+  if (!finalTargetBuildId) {
+    const error = new Error('No target build specified for build augmentation');
+    logger.error('No target build ID available', { stagingStackId, targetBuildId, stagingTargetBuildId: stagingStack.targetBuildId });
+    throw error;
+  }
+
   // Find the target build
   const targetBuild = gameState.tableCards.find(card =>
-    card.type === 'build' && card.buildId === targetBuildId
+    card.type === 'build' && card.buildId === finalTargetBuildId
   );
 
   if (!targetBuild) {
     const error = new Error('Target build not found');
-    logger.error('Target build not found', { targetBuildId });
+    logger.error('Target build not found', { targetBuildId: finalTargetBuildId });
     throw error;
   }
 

@@ -106,13 +106,24 @@ export function useTableCardDragHandler({
       stackId: draggedItem.stackId
     });
 
-    if (!isMyTurn) {
-      console.log(`[TABLE-DRAG] ❌ Not your turn for table drag`);
-      return;
-    }
-
     // Use contact from TableDraggableCard if already detected, otherwise find it
     let contact = dropPosition.contact;
+
+    // Special case: Allow build owners to augment their builds even when it's not their turn
+    let allowAction = isMyTurn; // Default: only allow on your turn
+
+    if (contact?.type === 'build') {
+      const build = contact.data;
+      if (build && build.owner === playerNumber) {
+        console.log(`[TABLE-DRAG] 🏗️ Build owner (${playerNumber}) can augment their build anytime`);
+        allowAction = true; // Build owners can always augment their builds
+      }
+    }
+
+    if (!allowAction) {
+      console.log(`[TABLE-DRAG] ❌ Not your turn and not augmenting your own build`);
+      return;
+    }
     if (!contact && dropPosition.contactDetected) {
       // If contact was detected but not provided, we need to find it
       // This should be handled by the component, but fallback here

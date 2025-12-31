@@ -34,17 +34,18 @@ export function useHandCardDragHandler({
 
   /**
    * Handle hand card drag end with contact detection
+   * Returns whether a valid contact was made (for UI positioning)
    */
   const handleDragEnd = useCallback((
     draggedItem: { card: Card; source?: string },
     dropPosition: { x: number; y: number }
-  ) => {
+  ): { validContact: boolean } => {
     logger.info(`Hand card drag end: ${draggedItem.card.rank}${draggedItem.card.suit}`);
 
     if (!isMyTurn) {
       logger.warn('Not your turn - blocking drag');
       setErrorModal({ visible: true, title: 'Not Your Turn', message: 'Please wait for your turn.' });
-      return;
+      return { validContact: false };
     }
 
     // Track card for reset
@@ -71,7 +72,7 @@ export function useHandCardDragHandler({
       if (action) {
         logger.info(`📤 Sending action: ${action.type}`, action.payload);
         sendAction(action);
-        return;
+        return { validContact: true }; // ✅ Valid contact - card should stay
       } else {
         logger.warn('❌ No valid action determined from contact - this should not happen for builds!');
         logger.warn('Contact details:', contact);
@@ -82,7 +83,7 @@ export function useHandCardDragHandler({
       logger.warn('This is the BUG - build contact should have been detected!');
     }
 
-    // No contact or invalid action = trail
+    // No contact or invalid action = trail (card should reset)
     sendAction({
       type: 'trail',
       payload: {
@@ -90,6 +91,8 @@ export function useHandCardDragHandler({
         requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       }
     });
+
+    return { validContact: false }; // ❌ No valid contact - card should reset
 
   }, [sendAction, gameState, playerNumber, isMyTurn, setCardToReset, setErrorModal]);
 

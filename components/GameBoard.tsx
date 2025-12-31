@@ -102,13 +102,19 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
         return;
       }
 
-      // Call the new validation action directly (no modal needed)
+      // Call the new validation action with both buildId and tempStackId
       sendAction({
         type: 'validateBuildAugmentation',
-        payload: { buildId }
+        payload: {
+          buildId,
+          tempStackId: stackId
+        }
       });
 
-      console.log('✅ [GameBoard] Build augmentation validation action sent');
+      console.log('✅ [GameBoard] Build augmentation validation action sent', {
+        buildId,
+        tempStackId: stackId
+      });
     } else {
       // 🎯 REGULAR STAGING: Use existing modal system
       console.log('🎯 [GameBoard] Regular staging stack - opening validation modal:', tempStack);

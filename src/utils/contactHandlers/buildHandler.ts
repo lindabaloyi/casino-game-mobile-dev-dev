@@ -26,13 +26,21 @@ export function handleBuildContact(
   console.log('[BUILD_HANDLER] 🎯 Handling build contact:', {
     draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
     contactId: contact.id,
-    currentPlayer
+    currentPlayer,
+    timestamp: new Date().toISOString()
   });
 
   const build = findBuildById(contact.id, gameState);
 
   if (!build) {
-    console.log('[BUILD_HANDLER] ❌ Build not found in game state:', contact.id);
+    console.log('[BUILD_HANDLER] ❌ Build not found in game state:', {
+      contactId: contact.id,
+      availableBuilds: gameState.tableCards.filter(c => (c as any).type === 'build').map(b => (b as any).buildId),
+      allTableCards: gameState.tableCards.map(c => {
+        const card = c as any;
+        return `${card.type || 'card'}:${card.buildId || `${card.rank || '?'}${card.suit || '?'}`}`;
+      })
+    });
     return null;
   }
 
@@ -40,7 +48,9 @@ export function handleBuildContact(
     buildId: build.buildId,
     owner: build.owner,
     value: build.value,
-    cards: build.cards.length
+    cardsCount: build.cards?.length || 0,
+    cards: build.cards?.map(c => `${c.rank}${c.suit}`) || [],
+    isMyBuild: build.owner === currentPlayer
   });
 
   // Check if this is a draggable staging stack being dropped on a build
@@ -65,14 +75,13 @@ export function handleBuildContact(
       }
     };
   } else if (build.owner === currentPlayer) {
-    // Add to own build
-    console.log('[BUILD_HANDLER] ✅ Player adding to own build');
+    // Add to own build - DIRECT ADDITION (no staging/validation)
+    console.log('[BUILD_HANDLER] ✅ Player adding directly to own build (no rules)');
     return {
-      type: 'addToBuilding',
+      type: 'addToOwnBuild',
       payload: {
-        buildId: contact.id,
-        card: draggedCard,
-        source: 'hand'
+        draggedItem: { card: draggedCard, source: 'hand' },
+        buildToAddTo: build
       }
     };
   } else {

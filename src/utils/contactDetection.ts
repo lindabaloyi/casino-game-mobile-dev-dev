@@ -38,7 +38,7 @@ export function removePosition(id: string): void {
 }
 
 /**
- * Find the closest contact at a given point, with a priority system.
+ * Find the closest contact at a given point - pure distance-based detection
  */
 export function findContactAtPoint(
   x: number,
@@ -74,8 +74,10 @@ export function findContactAtPoint(
     const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
 
     console.log(`[CONTACT] Distance to ${id} (${pos.type}): ${distance.toFixed(1)}px ${distance < threshold ? '✅ HIT' : '❌ MISS'}`);
+    console.log(`[CONTACT]   Position: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}) Size: ${pos.width.toFixed(1)}x${pos.height.toFixed(1)} Center: (${centerX.toFixed(1)}, ${centerY.toFixed(1)})`);
 
     if (distance < threshold) {
+      console.log(`[CONTACT]   ✅ Adding to hits: ${id}`);
       hits.push({ id, type: pos.type, distance, data: pos.data });
     }
   }
@@ -87,38 +89,15 @@ export function findContactAtPoint(
     return null;
   }
 
-  // If we have hits, apply priority logic
-  const priorityOrder = ['build', 'card', 'tempStack'];
-
-  let bestHit = null;
-
-  for (const priority of priorityOrder) {
-    const priorityHits = hits.filter(hit => hit.type === priority);
-    if (priorityHits.length > 0) {
-      // If we find any hits at the current priority level, find the closest one among them
-      let closestInPriority = priorityHits[0];
-      for (let i = 1; i < priorityHits.length; i++) {
-        if (priorityHits[i].distance < closestInPriority.distance) {
-          closestInPriority = priorityHits[i];
-        }
-      }
-      bestHit = closestInPriority;
-      break; // Stop searching once we've found a contact at the highest priority level
-    }
-  }
-
-  // Fallback to closest if no priority match (shouldn't happen if hits > 0)
-  if (!bestHit && hits.length > 0) {
-    bestHit = hits.reduce((closest, current) => current.distance < closest.distance ? current : closest, hits[0]);
-  }
+  // PURE DISTANCE-BASED: Find the closest hit regardless of type
+  const closestHit = hits.reduce((closest, current) =>
+    current.distance < closest.distance ? current : closest, hits[0]);
 
   if (DEBUG_CONFIG.CONTACT_SYSTEM) {
-    if (bestHit) {
-      console.log(`[CONTACT] ✅ Found contact: ${bestHit.id} (${bestHit.type}) at ${bestHit.distance.toFixed(1)}px`);
-    }
+    console.log(`[CONTACT] ✅ Found closest contact: ${closestHit.id} (${closestHit.type}) at ${closestHit.distance.toFixed(1)}px`);
   }
 
-  return bestHit;
+  return closestHit;
 }
 
 

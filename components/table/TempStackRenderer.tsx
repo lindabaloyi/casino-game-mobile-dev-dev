@@ -51,7 +51,6 @@ export function TempStackRenderer({
 
   console.log(`[TEMP_STACK_RENDERER] 🎴 Rendering TEMPORARY STACKING STACK:`, {
     stackId: tempStackItem.stackId || stackId,
-    dropZoneId: `temp-${index}`, // This is what drop zones use
     owner: tempStackItem.owner,
     currentPlayer,
     isCurrentPlayerOwner,

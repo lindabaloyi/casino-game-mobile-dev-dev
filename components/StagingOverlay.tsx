@@ -19,6 +19,9 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
 }) => {
   const [fadeAnim] = React.useState(new Animated.Value(0));
 
+  // Detect build augmentation stacks vs regular staging
+  const isBuildAugmentation = stackId && stackId.includes('build-augment');
+
   React.useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: isVisible ? 1 : 0,
@@ -27,13 +30,13 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
     }).start();
   }, [isVisible, fadeAnim]);
 
+  // � REMOVED: Auto-accept logic for build augmentations - now manual control only
+
   if (!isVisible) {
     console.log(`[STAGING_OVERLAY] Overlay hidden for stack ${stackId || 'unknown'}`);
     return null;
   }
 
-  // Detect build augmentation stacks vs regular staging
-  const isBuildAugmentation = stackId && stackId.includes('build-augment');
   const overlayTitle = isBuildAugmentation ? 'BUILD AUGMENTATION' : 'STAGING';
 
   console.log(`[STAGING_OVERLAY] 🎬 Rendering ${overlayTitle} overlay for stack ${stackId}, disabled: ${disabled}`, {
@@ -45,6 +48,8 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
     hasOnAccept: typeof onAccept === 'function',
     hasOnReject: typeof onReject === 'function'
   });
+
+  // All staging stacks now show Accept/Cancel buttons (including build augmentations)
   console.log(`🎯 [STAGING_DEBUG] ${overlayTitle} OVERLAY RENDERED: Accept/Cancel buttons should be visible for stack ${stackId}`);
 
   return (

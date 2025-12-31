@@ -10,6 +10,7 @@ const handleCapture = require('./capture');
 const handleBuild = require('./build/build');
 const handleCreateStagingStack = require('./staging/createStagingStack');
 const handleCreateBuildAugmentationStagingStack = require('./staging/createBuildAugmentationStagingStack');
+const handleCreateTableToBuildAugmentationStagingStack = require('./staging/createTableToBuildAugmentationStagingStack');
 const handleAddToStagingStack = require('./staging/addToStagingStack');
 const handleFinalizeStagingStack = require('./staging/finalizeStagingStack');
 const handleFinalizeBuildAugmentation = require('./staging/finalizeBuildAugmentation');
@@ -33,6 +34,7 @@ module.exports = {
   handleBuild,
   handleCreateStagingStack,
   handleCreateBuildAugmentationStagingStack,
+  handleCreateTableToBuildAugmentationStagingStack,
   handleAddToStagingStack,
   handleFinalizeStagingStack,
   handleFinalizeBuildAugmentation,

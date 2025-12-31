@@ -6,7 +6,7 @@ import Card, { CardType } from './card';
 interface DraggableCardProps {
   card: CardType;
   onDragStart?: (card: CardType) => void;
-  onDragEnd?: (draggedItem: any, dropPosition: any) => void;
+  onDragEnd?: (draggedItem: any, dropPosition: any) => { validContact: boolean } | void;
   onDragMove?: (card: CardType, position: { x: number; y: number }) => void;
   disabled?: boolean;
   draggable?: boolean;
@@ -46,7 +46,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
     card
   });
 
-  // Simplified drag end handler - just pass data to parent
+  // Drag end handler - conditionally reset based on contact validity
   const handleDragEnd = (card: CardType, dropPosition: { x: number; y: number }) => {
     console.log(`[DraggableCard] 🎯 Processing drop for ${card.rank}${card.suit} at (${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)})`);
 
@@ -58,11 +58,21 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
         player: currentPlayer,
         stackId: stackId || undefined
       };
-      onDragEnd(draggedItem, dropPosition);
-    }
+      const result = onDragEnd(draggedItem, dropPosition);
 
-    // For now, always snap back - contact system will handle actual actions
-    resetPosition();
+      // Only reset if NO valid contact was made
+      if (!result?.validContact) {
+        console.log(`[DraggableCard] ❌ No valid contact - resetting position`);
+        resetPosition();
+      } else {
+        console.log(`[DraggableCard] ✅ Valid contact - keeping card at drop position`);
+        // Card stays where it was dropped - don't reset
+      }
+    } else {
+      // No onDragEnd handler - always reset
+      console.log(`[DraggableCard] ⚠️ No onDragEnd handler - resetting position`);
+      resetPosition();
+    }
   };
 
   // Handle external reset trigger

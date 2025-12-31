@@ -85,9 +85,25 @@ export function useDragHandlers({
   }, []);
 
   /**
-   * Hand card drag end - delegate to separated handler
+   * Hand card drag end - delegate to separated handler with debug logging
    */
-  const handleHandCardDragEnd = handHandler.handleDragEnd;
+  const handleHandCardDragEnd = useCallback((draggedItem: any, dropPosition: any) => {
+    console.log('[DEBUG-DRAG] 🎯 handleHandCardDragEnd called:', {
+      card: draggedItem.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'no card',
+      source: draggedItem.source,
+      dropPosition: `${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)}`,
+      timestamp: new Date().toISOString()
+    });
+
+    const result = handHandler.handleDragEnd(draggedItem, dropPosition);
+
+    console.log('[DEBUG-DRAG] 🎯 handleHandCardDragEnd result:', {
+      validContact: result?.validContact,
+      timestamp: new Date().toISOString()
+    });
+
+    return result;
+  }, [handHandler]);
 
   /**
    * Table card drag start
