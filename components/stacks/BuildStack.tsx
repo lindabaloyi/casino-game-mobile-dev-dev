@@ -1,7 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
-import { DROP_ZONE_PRIORITIES } from '../../constants/dropZonePriorities';
-import { useDropZoneRegistration } from '../../hooks/useDropZoneRegistration';
+/**
+ * DEPRECATED: Drop zone system removed - builds now use contact detection only
+ */
 import { useLayoutMeasurement } from '../../hooks/useLayoutMeasurement';
 import { CardType } from '../card';
 import { BuildIndicator } from '../indicators/BuildIndicator';
@@ -37,17 +38,9 @@ export const BuildStack: React.FC<BuildStackProps> = ({
   baseZIndex = 1,
   baseElevation = 1
 }) => {
-  // Use layout measurement hook with standard expansion
-  const { ref, bounds, measure } = useLayoutMeasurement(stackId, 0.15);
-
-  // Register drop zone for build stacks
-  useDropZoneRegistration({
-    stackId,
-    bounds,
-    priority: DROP_ZONE_PRIORITIES.BUILD,
-    onDrop: onDropStack,
-    zoneType: 'BUILD'
-  });
+  // DEPRECATED: Drop zone registration removed - builds now use contact detection only
+  // Layout measurement still needed for contact detection positioning
+  const { ref, measure } = useLayoutMeasurement(stackId, 0.15);
 
   return (
     <View ref={ref} onLayout={measure} style={{

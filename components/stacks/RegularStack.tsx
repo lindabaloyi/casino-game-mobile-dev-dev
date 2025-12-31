@@ -1,7 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
-import { DROP_ZONE_PRIORITIES } from '../../constants/dropZonePriorities';
-import { useDropZoneRegistration } from '../../hooks/useDropZoneRegistration';
+/**
+ * DEPRECATED: Drop zone system removed - regular stacks now use contact detection only
+ */
 import { useLayoutMeasurement } from '../../hooks/useLayoutMeasurement';
 import { CardType } from '../card';
 import { CardCountIndicator } from '../indicators/CardCountIndicator';
@@ -41,17 +42,9 @@ export const RegularStack: React.FC<RegularStackProps> = ({
   baseZIndex = 1,
   baseElevation = 1
 }) => {
-  // Use layout measurement hook with standard expansion
-  const { ref, bounds, measure } = useLayoutMeasurement(stackId, 0.15);
-
-  // Register drop zone for loose cards
-  useDropZoneRegistration({
-    stackId,
-    bounds,
-    priority: DROP_ZONE_PRIORITIES.LOOSE_CARD,
-    onDrop: onDropStack,
-    zoneType: 'LOOSE_CARD'
-  });
+  // DEPRECATED: Drop zone registration removed - loose cards now use contact detection only
+  // Layout measurement still needed for contact detection positioning
+  const { ref, measure } = useLayoutMeasurement(stackId, 0.15);
 
   return (
     <View ref={ref} onLayout={measure} style={{

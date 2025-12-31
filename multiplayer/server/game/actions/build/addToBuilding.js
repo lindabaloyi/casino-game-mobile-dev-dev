@@ -5,22 +5,14 @@
  */
 
 function handleAddToBuilding(gameManager, playerIndex, action, gameId) {
-  console.log('[BUILD_AUGMENT] 🏗️ FLEXIBLE BUILD AUGMENTATION', {
-    gameId,
-    playerIndex,
-    actionType: action.type,
-    timestamp: Date.now()
-  });
+  const { createLogger } = require('../../../utils/logger');
+  const logger = createLogger('addToBuilding');
+  logger.action('START addToBuilding', gameId, playerIndex, action.payload);
 
   const { buildId, card, source } = action.payload;
   const gameState = gameManager.getGameState(gameId);
 
-  console.log('[BUILD_AUGMENT] 📊 Flexible augmentation request:', {
-    buildId,
-    card: card ? `${card.rank}${card.suit}` : 'NO CARD',
-    source,
-    playerIndex
-  });
+  logger.info(`[addToBuilding] Received action with payload: ${JSON.stringify(action.payload)}`);
 
   // 🎯 ONLY VALIDATION: Find build and check ownership
   const targetBuild = gameState.tableCards.find(item =>
@@ -28,20 +20,19 @@ function handleAddToBuilding(gameManager, playerIndex, action, gameId) {
   );
 
   if (!targetBuild) {
-    console.log('[BUILD_AUGMENT] ❌ Build not found:', buildId);
+    logger.error(`[addToBuilding] Build not found: ${buildId}`);
     throw new Error('Build not found');
   }
+  logger.info(`[addToBuilding] Found target build: ${targetBuild.buildId}`);
+
 
   // ✅ CRITICAL: Only check ownership - allow anything else!
   if (targetBuild.owner !== playerIndex) {
-    console.log('[BUILD_AUGMENT] ❌ Not build owner:', {
-      buildOwner: targetBuild.owner,
-      playerIndex
-    });
+    logger.error(`[addToBuilding] Not build owner. Owner: ${targetBuild.owner}, Player: ${playerIndex}`);
     throw new Error('You can only augment your own builds');
   }
+  logger.info(`[addToBuilding] Ownership validated for player ${playerIndex}`);
 
-  console.log('[BUILD_AUGMENT] ✅ Ownership validated - accepting any card');
 
   // 🎯 CREATE/FIND AUGMENTATION STACK
   const augmentationStackId = `build-augment-${buildId}`;
@@ -50,7 +41,7 @@ function handleAddToBuilding(gameManager, playerIndex, action, gameId) {
   );
 
   if (!augmentationStack) {
-    console.log('[BUILD_AUGMENT] Creating augmentation stack for flexible building');
+    logger.info(`[addToBuilding] No existing augmentation stack found. Creating new one with id: ${augmentationStackId}`);
     augmentationStack = {
       type: 'temporary_stack',
       stackId: augmentationStackId,
@@ -63,15 +54,12 @@ function handleAddToBuilding(gameManager, playerIndex, action, gameId) {
       targetBuildValue: targetBuild.value
     };
     gameState.tableCards.push(augmentationStack);
+  } else {
+    logger.info(`[addToBuilding] Found existing augmentation stack with id: ${augmentationStackId}`);
   }
 
   // 🎯 ADD CARD TO AUGMENTATION STACK
-  console.log('[BUILD_AUGMENT] Adding card to augmentation stack:', {
-    stackId: augmentationStack.stackId,
-    beforeCount: augmentationStack.cards.length,
-    card: `${card.rank}${card.suit}`,
-    source
-  });
+  logger.info(`[addToBuilding] Adding card ${card.rank}${card.suit} to augmentation stack.`);
 
   // Initialize cardPositions if needed
   if (!augmentationStack.cardPositions) {
@@ -113,22 +101,17 @@ function handleAddToBuilding(gameManager, playerIndex, action, gameId) {
   augmentationStack.lastUpdated = Date.now();
 
   // 🎯 REMOVE CARD FROM SOURCE
-  console.log('[BUILD_AUGMENT] Removing card from source:', { source, card: `${card.rank}${card.suit}` });
+  logger.info(`[addToBuilding] Removing card ${card.rank}${card.suit} from source: ${source}`);
 
   try {
-    removeCardFromSource(gameState, card, source, playerIndex);
-    console.log('[BUILD_AUGMENT] ✅ Card successfully removed from source');
+    removeCardFromSource(gameState, card, source, playerIndex, logger);
+    logger.info('[addToBuilding] Card successfully removed from source');
   } catch (error) {
-    console.error('[BUILD_AUGMENT] ❌ Failed to remove card from source:', error.message);
+    logger.error(`[addToBuilding] Failed to remove card from source: ${error.message}`);
     throw error;
   }
 
-  console.log('[BUILD_AUGMENT] ✅ Card added to build augmentation stack:', {
-    augmentationStackId: augmentationStack.stackId,
-    newCardCount: augmentationStack.cards.length,
-    newValue: augmentationStack.value,
-    targetBuildValue: targetBuild.value
-  });
+  logger.action('END addToBuilding', gameId, playerIndex, { success: true });
 
   return gameState;
 }
@@ -137,47 +120,49 @@ function handleAddToBuilding(gameManager, playerIndex, action, gameId) {
  * Remove card from its source location
  * Handles hand, captures, and table sources
  */
-function removeCardFromSource(gameState, card, source, playerIndex) {
-  console.log('[BUILD_AUGMENT] Removing card from source:', {
-    card: `${card.rank}${card.suit}`,
-    source,
-    playerIndex
-  });
+function removeCardFromSource(gameState, card, source, playerIndex, logger) {
+  logger.info(`[removeCardFromSource] Attempting to remove ${card.rank}${card.suit} from ${source}`);
 
   if (source === 'hand') {
-    const handIndex = gameState.playerHands[playerIndex].findIndex(c =>
+    const hand = gameState.playerHands[playerIndex];
+    const handIndex = hand.findIndex(c =>
       c.rank === card.rank && c.suit === card.suit
     );
     if (handIndex >= 0) {
-      gameState.playerHands[playerIndex].splice(handIndex, 1);
-      console.log('[BUILD_AUGMENT] ✅ Removed from hand at index:', handIndex);
+      hand.splice(handIndex, 1);
+      logger.info(`[removeCardFromSource] Removed from hand at index: ${handIndex}`);
     } else {
+      logger.error(`[removeCardFromSource] Card not found in player's hand. Hand: ${JSON.stringify(hand)}`);
       throw new Error(`Card ${card.rank}${card.suit} not found in player's hand`);
     }
   } else if (source === 'table' || source === 'loose') {
-    console.log('[BUILD_AUGMENT] Removing loose card from table');
-    const cardIndex = gameState.tableCards.findIndex(tableCard =>
+    const tableCards = gameState.tableCards;
+    const cardIndex = tableCards.findIndex(tableCard =>
       tableCard.rank === card.rank &&
       tableCard.suit === card.suit &&
       (!tableCard.type || tableCard.type === 'loose')
     );
     if (cardIndex >= 0) {
-      gameState.tableCards.splice(cardIndex, 1);
-      console.log('[BUILD_AUGMENT] ✅ Removed from table at index:', cardIndex);
+        tableCards.splice(cardIndex, 1);
+        logger.info(`[removeCardFromSource] Removed from table at index: ${cardIndex}`);
     } else {
+      logger.error(`[removeCardFromSource] Loose card not found on table. Table: ${JSON.stringify(tableCards)}`);
       throw new Error(`Card ${card.rank}${card.suit} not found on table`);
     }
   } else if (source === 'captured') {
-    const captureIndex = gameState.playerCaptures[playerIndex].findIndex(c =>
+    const captures = gameState.playerCaptures[playerIndex];
+    const captureIndex = captures.findIndex(c =>
       c.rank === card.rank && c.suit === card.suit
     );
     if (captureIndex >= 0) {
-      gameState.playerCaptures[playerIndex].splice(captureIndex, 1);
-      console.log('[BUILD_AUGMENT] ✅ Removed from captures at index:', captureIndex);
+      captures.splice(captureIndex, 1);
+      logger.info(`[removeCardFromSource] Removed from captures at index: ${captureIndex}`);
     } else {
+      logger.error(`[removeCardFromSource] Card not found in player's captures. Captures: ${JSON.stringify(captures)}`);
       throw new Error(`Card ${card.rank}${card.suit} not found in player's captures`);
     }
   } else {
+    logger.error(`[removeCardFromSource] Unknown source type: ${source}`);
     throw new Error(`Unknown source type: ${source}`);
   }
 }

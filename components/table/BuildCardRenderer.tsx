@@ -51,12 +51,15 @@ export function BuildCardRenderer({
 
   // Handle drops on builds - with validation for temp stack augmentation
   const handleBuildDrop = React.useCallback((draggedItem: any) => {
-    console.log('[FUNCTION] 🚀 ENTERING handleBuildDrop', {
+    console.log('[BUILD_DROP] 🚀 ENTERING handleBuildDrop', {
       buildId: buildItem.buildId,
       draggedItem: draggedItem,
       draggedCard: draggedItem.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
       draggedType: draggedItem.type || 'unknown',
-      timestamp: Date.now()
+      draggedSource: draggedItem.source,
+      buildOwner: buildItem.owner,
+      currentPlayer,
+      timestamp: new Date().toISOString()
     });
 
     // ✅ VALIDATION: Ownership check

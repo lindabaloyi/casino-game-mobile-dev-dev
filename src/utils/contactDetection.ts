@@ -3,6 +3,8 @@
  * Replaces the complex drop zone system
  */
 
+import { DEBUG_CONFIG } from './debugConfig';
+
 export interface ContactPosition {
   id: string;              // Unique identifier: "5♦" for cards, buildId for builds
   x: number;               // Screen X coordinate
@@ -22,11 +24,9 @@ const contactPositions = new Map<string, ContactPosition>();
 export function reportPosition(id: string, position: ContactPosition): void {
   contactPositions.set(id, position);
 
-  console.log('[CONTACT] 📍 Position reported:', {
-    id,
-    type: position.type,
-    bounds: { x: position.x, y: position.y, width: position.width, height: position.height }
-  });
+  if (DEBUG_CONFIG.CONTACT_DETECTION) {
+    console.log(`[CONTACT] 📍 Position reported: ${id} (${position.type})`);
+  }
 }
 
 /**
@@ -38,7 +38,7 @@ export function removePosition(id: string): void {
 }
 
 /**
- * Find the closest contact at a given point
+ * Find the closest contact at a given point, with a priority system.
  */
 export function findContactAtPoint(
   x: number,
@@ -52,40 +52,75 @@ export function findContactAtPoint(
 } | null {
 
   if (contactPositions.size === 0) {
-    console.log('[CONTACT] 🔍 No positions registered');
+    if (DEBUG_CONFIG.CONTACT_SYSTEM) {
+      console.log('[CONTACT] 🔍 No positions registered');
+    }
     return null;
   }
 
-  let closest = null;
-  let minDistance = Infinity;
+  const hits = [];
 
-  console.log(`[CONTACT] 🔍 Checking contact at (${x.toFixed(1)}, ${y.toFixed(1)}) against ${contactPositions.size} positions`);
+  console.log(`[CONTACT] 🔍 Checking contact at (${x.toFixed(1)}, ${y.toFixed(1)}) against ${contactPositions.size} positions (threshold: ${threshold}px)`);
+
+  // Log all registered positions for debugging
+  console.log('[CONTACT] 📍 Registered positions:');
+  for (const [id, pos] of contactPositions) {
+    console.log(`  - ${id} (${pos.type}): (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}) ${pos.width.toFixed(1)}x${pos.height.toFixed(1)}`);
+  }
 
   for (const [id, pos] of contactPositions) {
-    // Calculate center of the element
     const centerX = pos.x + pos.width / 2;
     const centerY = pos.y + pos.height / 2;
-
-    // Simple Euclidean distance
     const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
 
-    console.log(`[CONTACT] 📏 Check ${id} (${pos.type}): distance=${distance.toFixed(1)}`);
+    console.log(`[CONTACT] Distance to ${id} (${pos.type}): ${distance.toFixed(1)}px ${distance < threshold ? '✅ HIT' : '❌ MISS'}`);
 
-    if (distance < threshold && distance < minDistance) {
-      minDistance = distance;
-      closest = { id, type: pos.type, distance, data: pos.data };
-      console.log(`[CONTACT] 🎯 New closest: ${id} (${pos.type}) at ${distance.toFixed(1)}px`);
+    if (distance < threshold) {
+      hits.push({ id, type: pos.type, distance, data: pos.data });
     }
   }
 
-  if (closest) {
-    console.log(`[CONTACT] ✅ Found contact: ${closest.id} (${closest.type}) at ${closest.distance.toFixed(1)}px`);
-  } else {
-    console.log(`[CONTACT] ❌ No contact within ${threshold}px threshold`);
+  if (hits.length === 0) {
+    if (DEBUG_CONFIG.CONTACT_SYSTEM) {
+      console.log(`[CONTACT] ❌ No contact within ${threshold}px threshold`);
+    }
+    return null;
   }
 
-  return closest;
+  // If we have hits, apply priority logic
+  const priorityOrder = ['build', 'card', 'tempStack'];
+
+  let bestHit = null;
+
+  for (const priority of priorityOrder) {
+    const priorityHits = hits.filter(hit => hit.type === priority);
+    if (priorityHits.length > 0) {
+      // If we find any hits at the current priority level, find the closest one among them
+      let closestInPriority = priorityHits[0];
+      for (let i = 1; i < priorityHits.length; i++) {
+        if (priorityHits[i].distance < closestInPriority.distance) {
+          closestInPriority = priorityHits[i];
+        }
+      }
+      bestHit = closestInPriority;
+      break; // Stop searching once we've found a contact at the highest priority level
+    }
+  }
+
+  // Fallback to closest if no priority match (shouldn't happen if hits > 0)
+  if (!bestHit && hits.length > 0) {
+    bestHit = hits.reduce((closest, current) => current.distance < closest.distance ? current : closest, hits[0]);
+  }
+
+  if (DEBUG_CONFIG.CONTACT_SYSTEM) {
+    if (bestHit) {
+      console.log(`[CONTACT] ✅ Found contact: ${bestHit.id} (${bestHit.type}) at ${bestHit.distance.toFixed(1)}px`);
+    }
+  }
+
+  return bestHit;
 }
+
 
 /**
  * Clear all positions (useful for cleanup)

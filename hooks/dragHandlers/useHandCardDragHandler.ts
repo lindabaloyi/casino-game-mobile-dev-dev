@@ -7,6 +7,9 @@ import { useCallback } from 'react';
 import { Card, GameState } from '../../multiplayer/server/game-logic/game-state';
 import { determineActionFromContact } from '../../src/utils/contactActions';
 import { findContactAtPoint } from '../../src/utils/contactDetection';
+import { createLogger } from '../../src/utils/debugConfig';
+
+const logger = createLogger('[HAND-DRAG]');
 
 interface HandCardDragHandlerProps {
   gameState: GameState;
@@ -36,13 +39,10 @@ export function useHandCardDragHandler({
     draggedItem: { card: Card; source?: string },
     dropPosition: { x: number; y: number }
   ) => {
-    console.log(`[HAND-DRAG] 🎯 Hand card drag end:`, {
-      card: `${draggedItem.card.rank}${draggedItem.card.suit}`,
-      dropPosition,
-      source: draggedItem.source || 'hand'
-    });
+    logger.info(`Hand card drag end: ${draggedItem.card.rank}${draggedItem.card.suit}`);
 
     if (!isMyTurn) {
+      logger.warn('Not your turn - blocking drag');
       setErrorModal({ visible: true, title: 'Not Your Turn', message: 'Please wait for your turn.' });
       return;
     }
@@ -54,14 +54,11 @@ export function useHandCardDragHandler({
     });
 
     // Find contact at drop position (80px threshold)
+    logger.info(`Checking contact at position: (${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)})`);
     const contact = findContactAtPoint(dropPosition.x, dropPosition.y, 80);
 
     if (contact) {
-      console.log(`[HAND-DRAG] ✅ Found contact:`, {
-        id: contact.id,
-        type: contact.type,
-        distance: Math.round(contact.distance)
-      });
+      logger.info(`✅ Found contact: ${contact.id} (${contact.type}) at ${contact.distance.toFixed(1)}px`);
 
       // Determine action from contact
       const action = determineActionFromContact(
@@ -72,18 +69,20 @@ export function useHandCardDragHandler({
       );
 
       if (action) {
-        console.log(`[HAND-DRAG] 🚀 Sending action: ${action.type}`);
+        logger.info(`📤 Sending action: ${action.type}`, action.payload);
         sendAction(action);
         return;
       } else {
-        console.log(`[HAND-DRAG] ❌ No valid action determined from contact`);
+        logger.warn('❌ No valid action determined from contact - this should not happen for builds!');
+        logger.warn('Contact details:', contact);
       }
     } else {
-      console.log(`[HAND-DRAG] ❌ No contact found - must be a trail`);
+      logger.warn('❌ No contact found at drop position - falling back to trail');
+      logger.warn('Drop position:', dropPosition);
+      logger.warn('This is the BUG - build contact should have been detected!');
     }
 
     // No contact or invalid action = trail
-    console.log(`[HAND-DRAG] 🛤️ Falling back to trail`);
     sendAction({
       type: 'trail',
       payload: {

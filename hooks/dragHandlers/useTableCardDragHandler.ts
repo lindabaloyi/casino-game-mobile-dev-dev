@@ -13,6 +13,7 @@ interface TableCardDragHandlerProps {
   playerNumber: number;
   isMyTurn: boolean;
   sendAction: (action: any) => void;
+  gameId?: number; // Add gameId prop
 }
 
 /**
@@ -126,30 +127,47 @@ export function useTableCardDragHandler({
         distance: Math.round(contact.distance)
       });
 
-      // Check if this is a temp stack being dragged to a build (build augmentation)
-      if (contact.type === 'build' && draggedItem.stackId) {
-        const success = handleBuildAugmentationDragEnd(draggedItem, contact);
-        if (success) {
-          console.log(`[TABLE-DRAG] ✅ Build augmentation successful`);
+      const isLooseCard = draggedItem.stackId && typeof draggedItem.stackId === 'string' && draggedItem.stackId.startsWith('loose-');
+      const isTempStack = draggedItem.stackId && typeof draggedItem.stackId === 'string' && !draggedItem.stackId.startsWith('loose-');
+
+      if (contact.type === 'build') {
+        if (isLooseCard) {
+          console.log(`[TABLE-DRAG] 🏗️ Loose card dropped on build for augmentation.`);
+          const build = contact.data;
+          if (build && build.owner !== playerNumber) {
+            console.log(`[TABLE-DRAG] ❌ Cannot augment opponent's build.`);
+            return;
+          }
+          const action = {
+            type: 'addToBuilding',
+            payload: {
+              buildId: contact.id,
+              card: draggedItem.card,
+              source: 'table'
+            }
+          };
+          console.log(`[TABLE-DRAG] 🚀 Sending addToBuilding action.`);
+          sendAction(action);
           return;
-        } else {
-          console.log(`[TABLE-DRAG] ❌ Build augmentation failed - cleaning up`);
+        } else if (isTempStack) {
+          const success = handleBuildAugmentationDragEnd(draggedItem, contact);
+          if (success) {
+            console.log(`[TABLE-DRAG] ✅ Build augmentation successful`);
+          } else {
+            console.log(`[TABLE-DRAG] ❌ Build augmentation failed - cleaning up`);
+          }
           return;
         }
       }
 
-      // For table-to-table drops, create a temp stack
       if (contact.type === 'card') {
         console.log(`[TABLE-DRAG] 🏗️ Table-to-table drop detected`);
-
-        // Get the touched card from contact data
         const targetCard = contact.data;
         if (targetCard) {
           console.log(`[TABLE-DRAG] 📦 Creating temp stack from:`, {
             dragged: `${draggedItem.card.rank}${draggedItem.card.suit}`,
             target: `${targetCard.rank}${targetCard.suit}`
           });
-
           const action = {
             type: 'tableToTableDrop',
             payload: {
@@ -157,11 +175,10 @@ export function useTableCardDragHandler({
               targetInfo: {
                 card: targetCard,
                 type: 'loose',
-                index: contact.data.index // Use the index from contact data
+                index: contact.data.index
               }
             }
           };
-
           console.log(`[TABLE-DRAG] 🚀 Sending table-to-table action:`, action.type);
           sendAction(action);
           return;
@@ -172,7 +189,7 @@ export function useTableCardDragHandler({
     }
 
     // If no valid contact, just clean up (handled by parent component)
-  }, [sendAction, isMyTurn, handleBuildAugmentationDragEnd]);
+  }, [sendAction, isMyTurn, handleBuildAugmentationDragEnd, playerNumber]);
 
   return {
     handleTableCardDragEnd

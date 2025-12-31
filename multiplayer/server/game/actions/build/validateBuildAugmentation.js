@@ -61,7 +61,11 @@ function handleValidateBuildAugmentation(gameManager, playerIndex, action, gameI
   // 🎯 FIND AUGMENTATION STACK (using the provided tempStackId)
   if (!tempStackId) {
     console.error('[BUILD_VALIDATE] ❌ No tempStackId provided in payload');
-    throw new Error('Temp stack ID is required');
+    console.error('[BUILD_VALIDATE] 📊 Full payload received:', JSON.stringify(action.payload, null, 2));
+    console.error('[BUILD_VALIDATE] 💡 This suggests the client is calling validateBuildAugmentation incorrectly.');
+    console.error('[BUILD_VALIDATE] 💡 For temp stack augmentation, use finalizeBuildAugmentation instead.');
+    console.error('[BUILD_VALIDATE] 💡 For direct card addition, use addToBuilding instead.');
+    throw new Error('Temp stack ID is required for validateBuildAugmentation. Check client code - this action expects a temp stack to validate.');
   }
 
   const augmentationStack = gameState.tableCards.find(item =>

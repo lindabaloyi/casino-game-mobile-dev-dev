@@ -1,14 +1,21 @@
-import { useEffect } from 'react';
-import { DROP_ZONE_PRIORITIES } from '../constants/dropZonePriorities';
+/**
+ * DEPRECATED: Drop zone system completely removed
+ *
+ * All drag/drop functionality now uses the contact detection system exclusively.
+ * This file is kept for backwards compatibility but does nothing.
+ *
+ * Migration completed: Contact detection system is now the single source of truth
+ * for all drag and drop interactions in the casino game.
+ */
 
-interface DropZoneBounds {
+export interface DropZoneBounds {
   x: number;
   y: number;
   width: number;
   height: number;
 }
 
-interface DropZoneConfig {
+export interface DropZoneConfig {
   stackId: string;
   bounds: DropZoneBounds | null;
   priority?: number;
@@ -17,70 +24,16 @@ interface DropZoneConfig {
 }
 
 /**
- * Hook for managing drop zone registration with global registry
- * Handles registration, updates, and cleanup automatically
+ * DEPRECATED: This hook no longer does anything
+ * All drop detection is now handled by src/utils/contactDetection.ts
  */
-export const useDropZoneRegistration = ({
-  stackId,
-  bounds,
-  priority = DROP_ZONE_PRIORITIES.LOOSE_CARD,
-  onDrop,
-  zoneType = 'OTHER'
-}: DropZoneConfig) => {
+export const useDropZoneRegistration = (config: DropZoneConfig) => {
+  // NO-OP: Drop zone system completely removed
+  console.warn('[DEPRECATED] useDropZoneRegistration called but drop zones are no longer used. All drop detection now uses contact detection.');
 
-  useEffect(() => {
-    // Only register if we have valid bounds and drop handler
-    if (!bounds || !onDrop) {
-      console.log(`[useDropZoneRegistration] Skipping registration for ${stackId} - missing bounds or onDrop`);
-      return;
-    }
-
-    // Initialize global registry if needed
-    if (!(global as any).dropZones) {
-      (global as any).dropZones = [];
-    }
-
-    const dropZone = {
-      stackId,
-      priority,
-      bounds,
-      zoneType,
-      onDrop: (draggedItem: any) => {
-        console.log('[DROP ZONE HIT]', {
-          stackId,
-          zoneType,
-          priority,
-          bounds,
-          draggedCard: draggedItem?.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
-          draggedSource: draggedItem?.source,
-          timestamp: Date.now()
-        });
-
-        // Staging fix: track last active drop zone
-        (global as any).lastDropZoneId = stackId;
-
-        const result = onDrop(draggedItem);
-        console.log(`[useDropZoneRegistration] ${stackId} drop result:`, result);
-        return result;
-      }
-    };
-
-    // Remove existing zone and add new one
-    (global as any).dropZones = (global as any).dropZones.filter(
-      (zone: any) => zone.stackId !== stackId
-    );
-    (global as any).dropZones.push(dropZone);
-
-    console.log(`[useDropZoneRegistration] 📍 Drop zone registered for ${stackId}:`, bounds);
-
-    // Cleanup function
-    return () => {
-      if ((global as any).dropZones) {
-        (global as any).dropZones = (global as any).dropZones.filter(
-          (zone: any) => zone.stackId !== stackId
-        );
-        console.log(`[useDropZoneRegistration] 🧹 Drop zone unregistered for ${stackId}`);
-      }
-    };
-  }, [stackId, bounds, priority, onDrop, zoneType]);
+  return {
+    register: () => {},
+    unregister: () => {},
+    isRegistered: false
+  };
 };

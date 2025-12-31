@@ -1,8 +1,8 @@
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTrailDropHandlers } from '../hooks/dropHandlers/useTrailDropHandlers';
+
 import { useDragHandlers } from '../hooks/useDragHandlers';
 import { useModalManager } from '../hooks/useModalManager';
 import { useServerListeners } from '../hooks/useServerListeners';
@@ -67,20 +67,10 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     sendAction
   });
 
-  // Extracted trail drop handlers
-  const trailHandlers = useTrailDropHandlers({
-    gameState,
-    playerNumber,
-    sendAction,
-    setTrailCard: modalManager.setTrailCard,
-    setErrorModal: modalManager.setErrorModal
-  });
+  // DEPRECATED: Trail drop handlers removed - trails now use contact detection
 
-  // Table section ref for trail drop zone
-  const tableSectionRef = useRef(null);
-
-  // Register trail drop zone
-  trailHandlers.registerTrailDropZone(tableSectionRef);
+  // DEPRECATED: Trail drop zone registration removed - trails now use contact detection
+  // Table section ref removed - no longer needed for drop zones
 
   // 🎯 NEW: Handle Accept button press - detect stack type and route appropriately
   const handleAcceptClick = (stackId: string) => {
@@ -146,7 +136,7 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
       {/* Main Game Area */}
       <View style={styles.mainGameArea}>
         {/* Table Cards Section */}
-        <View ref={tableSectionRef} style={styles.tableCardsSection}>
+        <View style={styles.tableCardsSection}>
           <TableCards
             tableCards={gameState.tableCards}
             currentPlayer={playerNumber}
@@ -206,8 +196,23 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
       />
       <TrailConfirmationModal
         trailCard={modalManager.trailCard}
-        onConfirm={() => modalManager.trailCard && trailHandlers.handleTrailConfirm(modalManager.trailCard)}
-        onCancel={() => modalManager.trailCard && trailHandlers.handleTrailCancel(modalManager.trailCard)}
+        onConfirm={() => {
+          if (modalManager.trailCard) {
+            console.log('[GameBoard] Trail confirmed - sending trail action');
+            sendAction({
+              type: 'trail',
+              payload: {
+                card: modalManager.trailCard,
+                requestId: `trail_confirm_${Date.now()}`
+              }
+            });
+            modalManager.setTrailCard(null); // Clear the trail card
+          }
+        }}
+        onCancel={() => {
+          console.log('[GameBoard] Trail cancelled');
+          modalManager.setTrailCard(null); // Clear the trail card
+        }}
       />
       <ErrorModal
         visible={modalManager.errorModal !== null}

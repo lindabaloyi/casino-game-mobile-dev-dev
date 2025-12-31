@@ -110,31 +110,73 @@ export function determineActions(
     }
   }
 
-  // Check for build extensions (reduced logging)
+  // Check for build extensions (detailed logging)
   if (targetInfo.type === 'build') {
+    console.log('[SHARED_LOGIC] 🎯 BUILD EXTENSION CHECK:', {
+      targetBuildId: targetInfo.buildId,
+      draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+      draggedValue,
+      currentPlayer
+    });
+
     const targetBuild = tableCards.find(c =>
       isBuild(c) && c.buildId === targetInfo.buildId
     ) as Build | undefined;
 
     if (targetBuild) {
+      console.log('[SHARED_LOGIC] ✅ Found target build:', {
+        buildId: targetBuild.buildId,
+        buildValue: targetBuild.value,
+        buildOwner: targetBuild.owner,
+        isExtendable: targetBuild.isExtendable,
+        currentPlayer
+      });
+
       if (targetBuild.owner === currentPlayer) {
+        console.log('[SHARED_LOGIC] 🏗️ Adding action: addToBuilding (own build)', {
+          buildId: targetBuild.buildId,
+          card: `${draggedCard.rank}${draggedCard.suit}`,
+          source: 'hand'
+        });
+
         actions.push({
-          type: 'addToOwnBuild',
+          type: 'addToBuilding',
           label: `Add to Build (${targetBuild.value})`,
-          payload: { draggedItem, buildToAddTo: targetBuild }
+          payload: {
+            buildId: targetBuild.buildId,
+            card: draggedCard,
+            source: 'hand'
+          }
         });
       } else if (targetBuild.isExtendable) {
         const newValue = targetBuild.value + draggedValue;
         if (newValue <= 10) {
-          // DEBUG: Log opponent build extension
-          console.log(`[SHARED_LOGIC] Opponent build extension: ${targetBuild.value}→${newValue}`);
+          console.log('[SHARED_LOGIC] 🏗️ Adding action: addToOpponentBuild', {
+            buildId: targetBuild.buildId,
+            oldValue: targetBuild.value,
+            newValue,
+            card: `${draggedCard.rank}${draggedCard.suit}`
+          });
+
           actions.push({
             type: 'addToOpponentBuild',
             label: `Extend to ${newValue}`,
             payload: { draggedItem, buildToAddTo: targetBuild }
           });
+        } else {
+          console.log('[SHARED_LOGIC] ❌ Opponent build extension blocked - value too high:', {
+            newValue,
+            maxAllowed: 10
+          });
         }
+      } else {
+        console.log('[SHARED_LOGIC] ❌ Build not extendable by opponent:', {
+          buildId: targetBuild.buildId,
+          isExtendable: targetBuild.isExtendable
+        });
       }
+    } else {
+      console.log('[SHARED_LOGIC] ❌ Target build not found:', targetInfo.buildId);
     }
   }
 

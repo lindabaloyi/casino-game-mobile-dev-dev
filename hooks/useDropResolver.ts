@@ -1,30 +1,25 @@
-import { useCallback } from 'react';
+/**
+ * DEPRECATED: Drop resolver is no longer used
+ *
+ * All drop resolution now happens through contact detection system:
+ * - Contact detection finds touched elements
+ * - determineActionFromContact routes to appropriate handlers
+ * - Handlers return server actions directly
+ *
+ * This file is kept for backwards compatibility but does nothing.
+ */
 
 /**
- * useDropResolver - Stage 1: Priority System Foundation
- *
- * Centralizes drop zone resolution logic with priority-based sorting.
- * Currently logs priority information but doesn't change behavior.
- *
- * Stage 1: Foundation - Add priority fields and logging
- * Stage 2: Individual zones - Register card-specific zones
- * Stage 3: Priority resolution - Use priority for drop decisions
- * Stage 4: Cleanup - Remove legacy code
+ * DEPRECATED: Use contact detection system instead
  */
 export function useDropResolver() {
-  const resolveDrop = useCallback((draggedItem: any, event: any) => {
-    const zones = (global as any).dropZones || [];
+  console.warn('[DEPRECATED] useDropResolver called - all drop resolution now uses contact detection');
 
-    // Stage 1: Just log what we have - don't change behavior yet
-    console.log('[STAGE1] Drop Resolver - Available zones:', zones.length);
-    zones.forEach((zone: any, index: number) => {
-      console.log(`[STAGE1] Zone ${index}: ${zone.stackId}, Priority: ${zone.priority || 'none'}`);
-    });
-
-    // Stage 1: Return null to maintain existing behavior
-    // In Stage 3, this will return the winning zone's result
+  const resolveDrop = () => {
+    // NO-OP: Contact detection handles all drop resolution now
+    console.warn('[DEPRECATED] useDropResolver.resolveDrop called - this should not happen');
     return null;
-  }, []);
+  };
 
   return { resolveDrop };
 }
