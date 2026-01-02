@@ -69,7 +69,7 @@ function handleTableToTableDrop(gameManager, playerIndex, action, gameId) {
   });
 
   // ✅ Create temp stack with ordered cards: bigger at bottom
-  const { orderCardsBigToSmall } = require('../GameState');
+  const { orderCardsBigToSmall } = require('../../GameState');
   const stackId = `temp-${Date.now()}`;
 
   // Order: bigger card at bottom, smaller card on top
@@ -93,7 +93,7 @@ function handleTableToTableDrop(gameManager, playerIndex, action, gameId) {
   gameState.tableCards.push(tempStack);
 
   // Final validation: ensure no duplicates after operation
-  const { validateNoDuplicates } = require('../GameState');
+  const { validateNoDuplicates } = require('../../GameState');
   const isValid = validateNoDuplicates(gameState);
   if (!isValid) {
     logger.error('Duplicates detected after temp stack creation');

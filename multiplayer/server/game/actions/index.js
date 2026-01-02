@@ -42,11 +42,11 @@ const handleTrail = require('./trail/index');
 const handleCreateStagingStack = require('./staging/createStagingStack');
 const handleAddToStagingStack = require('./staging/addToStagingStack');
 const handleCancelStagingStack = require('./staging/cancelStagingStack');
-const handleCaptureTempStack = require('./captureTempStack');
+const handleCaptureTempStack = require('./capture/captureTempStack');
 const handleCreateBuildFromTempStack = require('./build/createBuildFromTempStack');
 const handleAddToOwnBuild = require('./build/addToOwnBuild');
-const handleTableToTableDrop = require('./tableToTableDrop');
-const handleHandToTableDrop = require('./handToTableDrop');
+const handleTableToTableDrop = require('./card-drop/tableToTableDrop');
+const handleHandToTableDrop = require('./card-drop/handToTableDrop');
 
 module.exports = {
   // 🎯 CORE 9 ACTIONS - Only actually used in gameplay

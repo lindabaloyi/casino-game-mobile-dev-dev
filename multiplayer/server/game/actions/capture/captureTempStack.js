@@ -2,7 +2,7 @@
  * KISS: Just move temp stack + capture card to captures
  * No validation, no points, no checks - client already validated rules
  */
-const { createLogger } = require('../../utils/logger');
+const { createLogger } = require('../../../utils/logger');
 const logger = createLogger('CaptureTempStack');
 
 async function handleCaptureTempStack(gameManager, playerIndex, action, gameId) {

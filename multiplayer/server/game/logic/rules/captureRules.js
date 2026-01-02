@@ -38,12 +38,14 @@ const captureRules = [
       return matches;
     },
     action: (context) => {  // ✅ OPTION B: Function returns complete object
-      console.log('[CAPTURE_RULE] Creating single card capture action');
+      console.log('[CAPTURE_RULE] Creating single card capture via temp stack');
       const action = {
-        type: 'capture',
-        targetCards: [context.targetInfo.card],
-        captureValue: rankValue(context.draggedItem.card.rank),
-        captureType: 'single'
+        type: 'captureTempStack',
+        payload: {
+          tempStackId: null, // Single card capture - create temp stack on the fly
+          captureValue: rankValue(context.draggedItem.card.rank),
+          targetCards: [context.targetInfo.card]
+        }
       };
       console.log('[CAPTURE_RULE] Single capture action created:', JSON.stringify(action, null, 2));
       return action;
@@ -84,12 +86,14 @@ const captureRules = [
       return matches;
     },
     action: (context) => {  // ✅ OPTION B: Function returns complete object
-      console.log('[CAPTURE_RULE] Creating build capture action');
+      console.log('[CAPTURE_RULE] Creating build capture via temp stack');
       const action = {
-        type: 'capture',
-        targetCards: context.targetInfo.card.cards || [],
-        captureValue: context.targetInfo.card.value,
-        captureType: 'build'
+        type: 'captureTempStack',
+        payload: {
+          tempStackId: null, // Build capture - create temp stack on the fly
+          captureValue: context.targetInfo.card.value,
+          targetCards: context.targetInfo.card.cards || []
+        }
       };
       console.log('[CAPTURE_RULE] Build capture action created:', JSON.stringify(action, null, 2));
       return action;
@@ -133,11 +137,12 @@ const captureRules = [
     action: (context) => {  // ✅ OPTION B: Function returns complete object
       console.log('[CAPTURE_RULE] Creating temp stack capture action');
       const action = {
-        type: 'capture',
-        targetCards: context.targetInfo.card.cards || [],
-        captureValue: context.targetInfo.card.captureValue ||
-                     calculateCardSum(context.targetInfo.card.cards || []),
-        captureType: 'temp-stack'
+        type: 'captureTempStack',
+        payload: {
+          tempStackId: context.targetInfo.card.stackId,
+          captureValue: context.targetInfo.card.captureValue ||
+                       calculateCardSum(context.targetInfo.card.cards || [])
+        }
       };
       console.log('[CAPTURE_RULE] Temp stack capture action created:', JSON.stringify(action, null, 2));
       return action;

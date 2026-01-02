@@ -44,15 +44,16 @@ const buildRules = [
       return canCreate;
     },
     action: (context) => {  // ✅ OPTION B: Function returns complete object
-      console.log('[BUILD_RULE] Creating own build action');
+      console.log('[BUILD_RULE] Creating staging stack for build creation');
       const action = {
-        type: 'build',
-        operation: 'create',
-        owner: context.currentPlayer,
-        cards: [context.targetInfo.card, context.draggedItem.card],
-        value: rankValue(context.targetInfo.card.rank) + rankValue(context.draggedItem.card.rank)
+        type: 'createStagingStack',
+        payload: {
+          draggedCard: context.draggedItem.card,
+          targetCard: context.targetInfo.card,
+          canAugmentBuilds: true // Allow build augmentation since player can create builds
+        }
       };
-      console.log('[BUILD_RULE] Own build action created:', JSON.stringify(action, null, 2));
+      console.log('[BUILD_RULE] Staging stack action created:', JSON.stringify(action, null, 2));
       return action;
     },
     requiresModal: true,
@@ -110,16 +111,16 @@ const buildRules = [
       return true;
     },
     action: (context) => {  // ✅ OPTION B: Function returns complete object
-      console.log('[BUILD_RULE] Creating augment own build action');
+      console.log('[BUILD_RULE] Creating add to own build action');
       const action = {
-        type: 'addToBuilding',
+        type: 'addToOwnBuild',
         payload: {
           buildId: context.targetInfo.card.buildId,
           card: context.draggedItem.card,
           source: context.draggedItem.source
         }
       };
-      console.log('[BUILD_RULE] Augment own build action created:', JSON.stringify(action, null, 2));
+      console.log('[BUILD_RULE] Add to own build action created:', JSON.stringify(action, null, 2));
       return action;
     },
     requiresModal: false, // Direct action, no modal needed

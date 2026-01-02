@@ -28,7 +28,7 @@ function handleHandToTableDrop(gameManager, playerIndex, action) {
         index,
         type: card?.type || 'loose',
         card: card ? `${card.rank || 'no-rank'}${card.suit || 'no-suit'}` : 'null',
-        value: card?.value || (card?.rank ? require('../GameState').rankValue(card.rank) : 'n/a'),
+        value: card?.value || (card?.rank ? require('../../GameState').rankValue(card.rank) : 'n/a'),
         owner: card?.owner
       })) || []
     });
@@ -81,7 +81,7 @@ function handleHandToTableDrop(gameManager, playerIndex, action) {
   });
 
   // ✅ Create temp stack with ordered cards: bigger at bottom
-  const { orderCardsBigToSmall } = require('../GameState');
+  const { orderCardsBigToSmall } = require('../../GameState');
   const stackId = `temp-${Date.now()}`;
 
   // Order: bigger card at bottom, smaller card on top
@@ -135,7 +135,7 @@ function handleHandToTableDrop(gameManager, playerIndex, action) {
   });
 
   // Final validation: ensure no duplicates after operation
-  const { validateNoDuplicates } = require('../GameState');
+  const { validateNoDuplicates } = require('../../GameState');
   const isValid = validateNoDuplicates(gameState);
   if (!isValid) {
     console.error('[HAND_TO_TABLE] ❌ CRITICAL: Duplicates detected after temp stack creation!');

@@ -4,7 +4,7 @@
  * Implements Rule-Based Validation approach from specification
  */
 
-const handleCaptureTempStack = require('../captureTempStack');
+const handleCaptureTempStack = require('../capture/captureTempStack');
 
 function handleAddToStagingStack(gameManager, playerIndex, action, gameId) {
   console.log('[TEMP_STACK] 🏃 ADD_TO_STAGING_STACK executing (GAME-APPROPRIATE)');
