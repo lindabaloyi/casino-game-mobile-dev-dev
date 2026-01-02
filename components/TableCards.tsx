@@ -238,13 +238,7 @@ const TableCards: React.FC<TableCardsProps> = ({
               const baseZIndex = visibleIndex + 1;
               const dragZIndex = 100000;
 
-              console.log(`[TableCards] 📍 POSITION MAPPING:`, {
-                visibleIndex,
-                originalPosition,
-                card: getCardType(tableItem) === 'loose' ?
-                  `${(tableItem as any).rank}${(tableItem as any).suit}` : 'stack',
-                fromCancelledStack: !!(tableItem as any)._cancelledStackId
-              });
+
 
               const itemType = getCardType(tableItem);
 
@@ -260,7 +254,7 @@ const TableCards: React.FC<TableCardsProps> = ({
               // Simplified z-index: drag z-index guarantees layering priority
               const dynamicZIndex = baseZIndex;
 
-              console.log(`[Z-INDEX] Card ${originalPosition}: z=${dynamicZIndex}, overTable=${isOverTable}, pos=(${dragPosition?.x}, ${dragPosition?.y})`);
+
 
               if (itemType === 'loose') {
                 return (

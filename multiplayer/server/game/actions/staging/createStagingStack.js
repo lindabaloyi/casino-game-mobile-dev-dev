@@ -94,7 +94,9 @@ function handleCreateStagingStack(gameManager, playerIndex, action, gameId) {
 
   // Create universal staging stack with position tracking
   // Sort cards by value: highest value at bottom, lowest at top
-  const sortedCards = [targetCard, draggedCard].sort((a, b) => b.value - a.value);
+  const sortedCards = global.buildSortDetector ?
+    global.buildSortDetector([targetCard, draggedCard], (a, b) => b.value - a.value) :
+    [targetCard, draggedCard].sort((a, b) => b.value - a.value);
   const stagingStack = {
     type: 'temporary_stack',
     stackId: `universal-staging-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,

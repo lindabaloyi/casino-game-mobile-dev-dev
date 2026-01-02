@@ -86,6 +86,15 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
     addedAt: Date.now()
   });
 
+  // Add verification logging (matches temp stack behavior)
+  console.log('[BUILD_TEMP_COMPARISON]', {
+    buildCards: build.cards.map((c, i) => `${c.rank}${c.suit}=${i}`),
+    method: 'push',
+    newestAt: 'end',
+    shouldShow: build.cards[build.cards.length - 1]?.rank +
+               build.cards[build.cards.length - 1]?.suit + ' (newest on top like temp stacks)'
+  });
+
   // Update build value
   build.value = build.cards.reduce((sum, c) => sum + (c.value || 0), 0);
   build.lastUpdated = Date.now();

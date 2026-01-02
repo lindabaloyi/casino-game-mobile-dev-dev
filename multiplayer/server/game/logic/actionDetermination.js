@@ -14,6 +14,10 @@ function getCardType(card) {
 }
 const logger = createLogger('ActionDetermination');
 
+// 🎯 RULE USAGE TRACKING - Minimal but comprehensive
+const ruleUsageTracker = new Map();
+let totalGameActions = 0;
+
 /**
  * Action Types Enum
  */
@@ -73,95 +77,9 @@ class ActionDeterminationEngine {
    * Main action determination method
    */
   determineActions(draggedItem, targetInfo, gameState) {
-    // ⚙️ COMPREHENSIVE ACTION ENGINE INPUT LOGGING
-    console.log('⚙️ [ACTION_DATA] ===== ACTION ENGINE INPUT =====');
-
-    // Log EXACTLY what the engine receives
-    console.log('⚙️ [ACTION_DATA] Engine inputs:', {
-      draggedItem: {
-        // Structure
-        isDefined: !!draggedItem,
-        isObject: draggedItem && typeof draggedItem === 'object',
-        isArray: Array.isArray(draggedItem),
-
-        // Critical properties for validation
-        source: draggedItem?.source,
-        hasCard: !!draggedItem?.card,
-        card: draggedItem?.card ? {
-          rank: draggedItem.card.rank,
-          suit: draggedItem.card.suit,
-          full: `${draggedItem.card.rank}${draggedItem.card.suit}`
-        } : null,
-
-        // All properties
-        allKeys: draggedItem ? Object.keys(draggedItem) : [],
-        fullObject: draggedItem
-      },
-
-      targetInfo: {
-        ...targetInfo,
-        card: targetInfo?.card ? {
-          rank: targetInfo.card.rank,
-          suit: targetInfo.card.suit,
-          full: `${targetInfo.card.rank}${targetInfo.card.suit}`
-        } : null
-      },
-
-      gameStateContext: {
-        currentPlayer: gameState.currentPlayer,
-        tableCardsCount: gameState.tableCards?.length || 0,
-        tableCardsTypes: gameState.tableCards?.map(c => getCardType(c))
-      }
-    });
-
-    console.log('⚙️ [ACTION_DATA] ===== END =====\n');
-
-    console.log('[ENGINE] ===== ACTION DETERMINATION START =====');
-
-    // 🔍 DEBUG: Full game state context
-    console.log('[ENGINE] Full context:', {
-      draggedSource: draggedItem?.source,
-      draggedCard: draggedItem?.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
-      targetType: targetInfo?.type,
-      targetArea: targetInfo?.area,
-      gameId: gameState?.gameId,
-      currentPlayer: gameState?.currentPlayer,
-      tableCardsCount: gameState?.tableCards?.length || 0,
-      playerHands: gameState?.playerHands?.map((h, i) => ({
-        player: i,
-        handSize: h?.length || 0
-      })) || []
-    });
-
-    logger.debug('ActionDeterminationEngine: Starting evaluation', {
-      draggedSource: draggedItem?.source,
-      targetType: targetInfo?.type,
-      gameId: gameState?.gameId
-    });
-
     const context = this.createContext(draggedItem, targetInfo, gameState);
     const matchingRules = this.evaluateRules(context);
-
-    console.log('[ENGINE] Matching rules found:', matchingRules.length);
-    matchingRules.forEach((rule, i) => {
-      console.log(`[ENGINE] Rule ${i}: ${rule.id} (priority: ${rule.priority})`);
-    });
-
-    logger.debug('ActionDeterminationEngine: Evaluation complete', {
-      totalRules: this.rules.length,
-      matchingRules: matchingRules.length,
-      actionsFound: matchingRules.map(r => r.action?.type || r.action)
-    });
-
     const result = this.formatResult(matchingRules, context);
-
-    console.log('[ENGINE] Final result:', {
-      actionsCount: result.actions?.length,
-      requiresModal: result.requiresModal,
-      actionTypes: result.actions?.map(a => a.type)
-    });
-    console.log('[ENGINE] ===== ACTION DETERMINATION END =====');
-
     return result;
   }
 
@@ -213,10 +131,7 @@ class ActionDeterminationEngine {
    * OPTION B: All actions are functions that return complete objects
    */
   formatResult(matchingRules, context) {
-    console.log('[STATE_MACHINE] Formatting result for', matchingRules.length, 'matching rules');
-
     if (matchingRules.length === 0) {
-      logger.debug('No matching rules found');
       return {
         actions: [],
         requiresModal: false,
@@ -227,16 +142,10 @@ class ActionDeterminationEngine {
     // ✅ OPTION B: All actions are functions that return complete objects
     const actions = matchingRules.map(rule => {
       try {
-        console.log('[STATE_MACHINE] Executing action function for rule:', rule.id);
         const action = rule.action(context); // All actions are functions
-        console.log('[STATE_MACHINE] Action result:', {
-          type: action.type,
-          hasCard: !!action.card,
-          cardRank: action.card?.rank
-        });
         return action;
       } catch (error) {
-        console.error(`[STATE_MACHINE] Error executing action for rule ${rule.id}:`, error);
+        logger.error(`Error executing action for rule ${rule.id}:`, error);
         throw error;
       }
     });
@@ -247,12 +156,6 @@ class ActionDeterminationEngine {
       actions.some(action => action.type === 'trail') ||  // Trail always requires modal
       actions.length > 1                                   // Multiple actions require modal
     );
-
-    console.log('[STATE_MACHINE] Final result:', {
-      actionCount: actions.length,
-      requiresModal,
-      actionTypes: actions.map(a => a.type)
-    });
 
     return {
       actions,
@@ -268,8 +171,40 @@ const engine = new ActionDeterminationEngine();
 /**
  * Public API - Maintains same interface as determineActions.js
  */
+const originalDetermineActions = determineActions;
 function determineActions(draggedItem, targetInfo, gameState) {
-  return engine.determineActions(draggedItem, targetInfo, gameState);
+  totalGameActions++;
+  const ruleHits = [];
+
+  // Track which rules fire (minimal logging)
+  const originalRules = [...engine.rules];
+
+  // Patch rules to track hits
+  engine.rules.forEach(rule => {
+    const originalCondition = rule.condition;
+    rule.condition = function(context) {
+      const result = originalCondition.call(this, context);
+      if (result) {
+        ruleHits.push(rule.id);
+        ruleUsageTracker.set(rule.id, (ruleUsageTracker.get(rule.id) || 0) + 1);
+      }
+      return result;
+    };
+  });
+
+  try {
+    const result = originalDetermineActions(draggedItem, targetInfo, gameState);
+
+    // Minimal summary logging
+    if (ruleHits.length > 0) {
+      console.log(`[RULES] Action #${totalGameActions}: ${ruleHits.join(',')} → ${result.actions.map(a => a.type).join(',')}`);
+    }
+
+    return result;
+  } finally {
+    // Restore original rules
+    engine.rules = originalRules;
+  }
 }
 
 /**

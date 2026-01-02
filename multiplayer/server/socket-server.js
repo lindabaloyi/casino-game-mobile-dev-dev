@@ -61,29 +61,16 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
   // Register all action handlers - map action types to handlers
   const actionHandlers = require('./game/actions');
   const actionTypeMapping = {
+    // 🎯 CORE 9 ACTIONS - Only actually used in gameplay
     trail: actionHandlers.handleTrail,
-    confirmTrail: actionHandlers.handleConfirmTrail,
-    cancelTrail: actionHandlers.handleCancelTrail,
-    capture: actionHandlers.handleCapture,
-    build: actionHandlers.handleBuild,
     createStagingStack: actionHandlers.handleCreateStagingStack,
-    createBuildAugmentationStagingStack: actionHandlers.handleCreateBuildAugmentationStagingStack,
     addToStagingStack: actionHandlers.handleAddToStagingStack,
-    finalizeStagingStack: actionHandlers.handleFinalizeStagingStack,
-    finalizeBuildAugmentation: actionHandlers.handleFinalizeBuildAugmentation,
     cancelStagingStack: actionHandlers.handleCancelStagingStack,
-    addToOpponentBuild: actionHandlers.handleAddToOpponentBuild,
-    addToOwnBuild: actionHandlers.handleAddToOwnBuild,
-    tableToTableDrop: actionHandlers.handleTableToTableDrop,
-    handToTableDrop: actionHandlers.handleHandToTableDrop,
-    createBuildWithValue: actionHandlers.handleCreateBuildWithValue,
     captureTempStack: actionHandlers.handleCaptureTempStack,
     createBuildFromTempStack: actionHandlers.handleCreateBuildFromTempStack,
-    addToBuilding: actionHandlers.handleAddToBuilding,
-    validateBuildAugmentation: actionHandlers.handleValidateBuildAugmentation,
-    addToTemporaryCaptureStack: actionHandlers.handleAddToTemporaryCaptureStack,
-    acceptBuildAddition: actionHandlers.handleAcceptBuildAddition,
-    rejectBuildAddition: actionHandlers.handleRejectBuildAddition
+    addToOwnBuild: actionHandlers.handleAddToOwnBuild,
+    tableToTableDrop: actionHandlers.handleTableToTableDrop,
+    handToTableDrop: actionHandlers.handleHandToTableDrop
   };
 
   Object.keys(actionTypeMapping).forEach(actionType => {

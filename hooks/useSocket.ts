@@ -57,13 +57,6 @@ export const useSocket = () => {
     });
 
     socketInstance.on('game-update', (updatedGameState: GameState) => {
-      console.log('[CLIENT] Game state updated:', {
-        currentPlayer: updatedGameState.currentPlayer,
-        tableCardsCount: updatedGameState.tableCards?.length || 0,
-        tableCards: updatedGameState.tableCards?.map(c => c.type ? `${c.type}(${c.owner || 'none'})` : `${c.rank}${c.suit}`) || [],
-        playerHands: updatedGameState.playerHands?.map(h => h.length) || []
-      });
-      console.log('[CLIENT] Raw received gameState:', JSON.stringify(updatedGameState, null, 2));
       setGameState(updatedGameState);
     });
 
