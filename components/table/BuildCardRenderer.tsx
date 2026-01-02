@@ -9,7 +9,7 @@ import { View } from 'react-native';
 import { useBuildContactRegistration, useBuildDropHandler } from '../../hooks';
 import { TableCard } from '../../multiplayer/server/game-logic/game-state';
 import { CardType } from '../card';
-import CardStack from '../CardStack';
+import { BuildStack } from '../stacks/BuildStack';
 
 interface BuildCardRendererProps {
   tableItem: TableCard;
@@ -19,6 +19,10 @@ interface BuildCardRendererProps {
   currentPlayer: number;
   onDropStack?: (draggedItem: any) => boolean | any; // Made optional since we'll handle it internally
   sendAction?: (action: any) => void; // Add sendAction for direct server communication
+  // Overlay support for build augmentation
+  showOverlay?: boolean;
+  onAcceptBuildAddition?: (buildId: string) => void;
+  onRejectBuildAddition?: () => void;
 }
 
 export function BuildCardRenderer({
@@ -28,7 +32,11 @@ export function BuildCardRenderer({
   dragZIndex,
   currentPlayer,
   onDropStack,
-  sendAction
+  sendAction,
+  // Overlay props
+  showOverlay = false,
+  onAcceptBuildAddition,
+  onRejectBuildAddition
 }: BuildCardRendererProps) {
   // Type assertion for build item
   const buildItem = tableItem as any; // Build has type: 'build' with additional properties
@@ -51,7 +59,7 @@ export function BuildCardRenderer({
   const buildCards = buildItem.cards || [tableItem as CardType];
 
   // Extracted hooks for cleaner separation of concerns
-  const { handleBuildDrop } = useBuildDropHandler({
+  useBuildDropHandler({
     buildItem,
     currentPlayer,
     sendAction: sendAction || (() => {}) // Provide fallback to avoid undefined
@@ -67,15 +75,18 @@ export function BuildCardRenderer({
 
   return (
     <View ref={stackRef}>
-      <CardStack
+      <BuildStack
         key={`table-build-${index}`}
         stackId={stackId}
         cards={buildCards}
-        onDropStack={onDropStack || handleBuildDrop} // Use our handler if none provided
         buildValue={buildItem.value}
-        isBuild={true}
+        stackOwner={buildItem.owner}
         currentPlayer={currentPlayer}
-        stackOwner={buildItem.owner}  // Add owner information for display
+        // Overlay props
+        showOverlay={showOverlay}
+        overlayText="BUILD"
+        onAccept={onAcceptBuildAddition}
+        onReject={onRejectBuildAddition}
         baseZIndex={baseZIndex}
         baseElevation={1}
       />

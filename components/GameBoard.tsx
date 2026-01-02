@@ -67,6 +67,27 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     sendAction
   });
 
+  // Build overlay handlers
+  const handleAcceptBuildAddition = (buildId: string) => {
+    console.log('[GameBoard] Accepting build addition for build:', buildId);
+    sendAction({
+      type: 'acceptBuildAddition',
+      payload: { buildId }
+    });
+  };
+
+  const handleRejectBuildAddition = () => {
+    console.log('[GameBoard] Rejecting build addition');
+    // Find the first pending build addition and reject it
+    const pendingBuildId = Object.keys(gameState.pendingBuildAdditions || {})[0];
+    if (pendingBuildId) {
+      sendAction({
+        type: 'rejectBuildAddition',
+        payload: { buildId: pendingBuildId }
+      });
+    }
+  };
+
   // DEPRECATED: Trail drop handlers removed - trails now use contact detection
 
   // DEPRECATED: Trail drop zone registration removed - trails now use contact detection
@@ -153,6 +174,9 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
             onStagingAccept={handleAcceptClick}  // ✅ NEW: Open validation modal
             onStagingReject={stagingStacks.handleStagingReject}
             sendAction={sendAction}  // For build augmentation
+            gameState={gameState}  // For build overlay detection
+            onAcceptBuildAddition={handleAcceptBuildAddition}  // ✅ NEW: Build overlay handlers
+            onRejectBuildAddition={handleRejectBuildAddition}  // ✅ NEW: Build overlay handlers
           />
         </View>
 

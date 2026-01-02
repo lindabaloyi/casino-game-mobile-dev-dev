@@ -25,6 +25,8 @@ const handleCreateBuildFromTempStack = require('./build/createBuildFromTempStack
 const handleAddToBuilding = require('./build/addToBuilding');
 const handleValidateBuildAugmentation = require('./build/validateBuildAugmentation');
 const handleAddToTemporaryCaptureStack = require('./addToTemporaryCaptureStack');
+const handleAcceptBuildAddition = require('./build/acceptBuildAddition');
+const handleRejectBuildAddition = require('./build/rejectBuildAddition');
 
 module.exports = {
   handleConfirmTrail,
@@ -48,5 +50,7 @@ module.exports = {
   handleCreateBuildFromTempStack,
   handleAddToBuilding,
   handleValidateBuildAugmentation,
-  handleAddToTemporaryCaptureStack
+  handleAddToTemporaryCaptureStack,
+  handleAcceptBuildAddition,
+  handleRejectBuildAddition
 };

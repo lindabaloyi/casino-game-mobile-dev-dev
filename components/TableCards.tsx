@@ -19,6 +19,10 @@ interface TableCardsProps {
   onStagingAccept?: (stackId: string) => void;
   onStagingReject?: (stackId: string) => void;
   sendAction?: (action: any) => void; // For build augmentation
+  // Build overlay support
+  gameState?: any; // To check pending build additions
+  onAcceptBuildAddition?: (buildId: string) => void;
+  onRejectBuildAddition?: () => void;
 }
 
 // Helper function to get card type from union types
@@ -39,7 +43,11 @@ const TableCards: React.FC<TableCardsProps> = ({
   onTableCardDragEnd,
   onStagingAccept,
   onStagingReject,
-  sendAction
+  sendAction,
+  // Build overlay props
+  gameState,
+  onAcceptBuildAddition,
+  onRejectBuildAddition
 }) => {
   const tableRef = useRef<View>(null);
   const tableBoundsRef = useRef<any>(null);  // 🎯 NEW: Store table bounds for overlap detection
@@ -268,6 +276,10 @@ const TableCards: React.FC<TableCardsProps> = ({
                   />
                 );
               } else if (itemType === 'build') {
+                // Check if this build has pending addition
+                const buildId = (tableItem as any).buildId;
+                const hasPendingAddition = gameState?.pendingBuildAdditions?.[buildId];
+
                 return (
                   <BuildCardRenderer
                     key={`table-build-${originalPosition}`}
@@ -277,6 +289,10 @@ const TableCards: React.FC<TableCardsProps> = ({
                     dragZIndex={dragZIndex}
                     currentPlayer={currentPlayer}
                     sendAction={sendAction}
+                    // Overlay props
+                    showOverlay={!!hasPendingAddition}
+                    onAcceptBuildAddition={onAcceptBuildAddition}
+                    onRejectBuildAddition={onRejectBuildAddition}
                   />
                 );
               } else if (itemType === 'temporary_stack') {

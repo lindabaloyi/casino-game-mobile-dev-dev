@@ -81,7 +81,9 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
     createBuildFromTempStack: actionHandlers.handleCreateBuildFromTempStack,
     addToBuilding: actionHandlers.handleAddToBuilding,
     validateBuildAugmentation: actionHandlers.handleValidateBuildAugmentation,
-    addToTemporaryCaptureStack: actionHandlers.handleAddToTemporaryCaptureStack
+    addToTemporaryCaptureStack: actionHandlers.handleAddToTemporaryCaptureStack,
+    acceptBuildAddition: actionHandlers.handleAcceptBuildAddition,
+    rejectBuildAddition: actionHandlers.handleRejectBuildAddition
   };
 
   Object.keys(actionTypeMapping).forEach(actionType => {

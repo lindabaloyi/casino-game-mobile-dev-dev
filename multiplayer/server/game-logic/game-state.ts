@@ -36,4 +36,13 @@ export interface GameState {
   winner: number | null;
   lastCapturer: number | null;
   scoreDetails: any;
+  // Build augmentation pending state
+  pendingBuildAdditions?: {
+    [buildId: string]: {
+      card: Card;
+      playerId: number;
+      source: string;
+      timestamp: number;
+    };
+  };
 }

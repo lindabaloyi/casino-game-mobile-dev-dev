@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import { useLayoutMeasurement } from '../../hooks/useLayoutMeasurement';
 import { CardType } from '../card';
 import { BuildIndicator } from '../indicators/BuildIndicator';
+import StagingOverlay from '../StagingOverlay';
 import { StackRenderer } from './StackRenderer';
 
 interface BuildStackProps {
@@ -19,6 +20,11 @@ interface BuildStackProps {
   dragZIndex?: number;
   baseZIndex?: number;
   baseElevation?: number;
+  // NEW: Overlay support
+  showOverlay?: boolean;
+  overlayText?: string;
+  onAccept?: (buildId: string) => void;
+  onReject?: () => void;
 }
 
 /**
@@ -36,7 +42,12 @@ export const BuildStack: React.FC<BuildStackProps> = ({
   dragSource = 'table',
   dragZIndex,
   baseZIndex = 1,
-  baseElevation = 1
+  baseElevation = 1,
+  // NEW: Overlay props
+  showOverlay = false,
+  overlayText = 'BUILD',
+  onAccept,
+  onReject
 }) => {
   // DEPRECATED: Drop zone registration removed - builds now use contact detection only
   // Layout measurement still needed for contact detection positioning
@@ -64,6 +75,15 @@ export const BuildStack: React.FC<BuildStackProps> = ({
       <BuildIndicator
         value={buildValue}
         owner={stackOwner}
+      />
+
+      {/* Build augmentation overlay */}
+      <StagingOverlay
+        isVisible={showOverlay}
+        stackId={stackId}
+        overlayText={overlayText}
+        onAccept={(id) => onAccept?.(id)}
+        onReject={onReject || (() => {})}
       />
     </View>
   );

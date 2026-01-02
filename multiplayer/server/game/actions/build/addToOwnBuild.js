@@ -9,10 +9,8 @@ const logger = createLogger('AddToOwnBuild');
 function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter) {
   // Handle both payload gameId (from card-drop) and parameter gameId (from game-action)
   const gameId = gameIdFromRouter || action.payload.gameId;
-  console.log('[DEBUG-SERVER] addToOwnBuild called:', {
+  console.log('[BUILD_PENDING] addToOwnBuild called - creating pending state:', {
     gameId,
-    gameIdFromRouter,
-    payloadGameId: action.payload.gameId,
     playerIndex,
     actionType: action.type,
     payloadKeys: Object.keys(action.payload),
@@ -22,115 +20,136 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
   const gameState = gameManager.getGameState(gameId);
 
   if (!gameState) {
-    console.error('[DEBUG-SERVER] ❌ Game state not found:', {
-      gameId,
-      availableGames: gameManager ? Array.from(gameManager.activeGames.keys()) : 'no gameManager'
-    });
     throw new Error(`Game ${gameId} not found`);
   }
 
-  console.log('[DEBUG-SERVER] ✅ Game state found:', {
-    gameId,
-    currentPlayer: gameState.currentPlayer,
-    tableCardsCount: gameState.tableCards?.length || 0,
-    playerHandsCount: gameState.playerHands?.map(h => h.length) || []
-  });
+  // Handle both payload structures:
+  // 1. From build drop handlers: { buildId, card, source }
+  // 2. From contact handler: { draggedItem: { card, source }, buildToAddTo: build }
+  let buildId, card, source, build;
 
-  const { draggedItem, buildToAddTo } = action.payload;
+  if (action.payload.buildId) {
+    // Structure from build drop handlers
+    ({ buildId, card, source } = action.payload);
+    // Find build
+    build = gameState.tableCards.find(item =>
+      item.type === 'build' && item.buildId === buildId && item.owner === playerIndex
+    );
+  } else {
+    // Structure from contact handler
+    ({ draggedItem: { card, source }, buildToAddTo: build } = action.payload);
+    buildId = build.buildId;
+  }
 
-  console.log('[DEBUG-SERVER] Processing addToOwnBuild:', {
-    draggedCard: draggedItem?.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'no card',
-    source: draggedItem?.source,
-    draggedItemKeys: Object.keys(draggedItem || {}),
-    buildId: buildToAddTo?.buildId,
-    buildValue: buildToAddTo?.value,
-    playerIndex
-  });
-
-  logger.info('Adding to own build', {
+  console.log('[BUILD_PENDING] Creating pending build addition:', {
+    buildId,
+    card: card ? `${card.rank}${card.suit}` : 'undefined',
+    source,
     playerIndex,
-    draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
-    source: draggedItem.source,
-    buildId: buildToAddTo.buildId,
-    fromValue: buildToAddTo.value,
+    payloadStructure: action.payload.buildId ? 'drop-handler' : 'contact-handler'
+  });
+
+  if (!card) {
+    throw new Error('Card is undefined in addToOwnBuild payload');
+  }
+
+  logger.info('Creating pending build addition', {
+    playerIndex,
+    card: `${card.rank}${card.suit}`,
+    source,
+    buildId,
     gameId
   });
 
-  // Find build and verify it's player's
-  const buildIndex = gameState.tableCards.findIndex(card =>
-    card.type === 'build' && card.buildId === buildToAddTo.buildId && card.owner === playerIndex
-  );
+  // Verify build ownership (for contact handler structure, we already have the build)
+  if (!build) {
+    build = gameState.tableCards.find(item =>
+      item.type === 'build' && item.buildId === buildId && item.owner === playerIndex
+    );
+  }
 
-  if (buildIndex === -1) {
+  if (!build) {
     throw new Error("Own build not found");
   }
 
-  // Remove card from source (hand or table)
-  let addedCard;
-  if (draggedItem.source === 'hand') {
-    // Remove from hand
-    const playerHand = gameState.playerHands[playerIndex];
-    const handIndex = playerHand.findIndex(c =>
-      c.rank === draggedItem.card.rank && c.suit === draggedItem.card.suit
-    );
+  // IMMEDIATE ADDITION: Add card to build right away (fits like a glove)
+  console.log('[BUILD_IMMEDIATE] Immediately adding card to build:', {
+    buildId,
+    card: `${card.rank}${card.suit}`,
+    buildCardCount: build.cards.length,
+    newValue: build.value + (card.value || 0)
+  });
 
-    if (handIndex === -1) {
-      throw new Error("Card not found in hand");
+  build.cards.push({
+    ...card,
+    source,
+    addedAt: Date.now()
+  });
+
+  // Update build value
+  build.value = build.cards.reduce((sum, c) => sum + (c.value || 0), 0);
+  build.lastUpdated = Date.now();
+
+  // Remove card from source
+  removeCardFromSource(gameState, card, source, playerIndex);
+
+  // Create pending state for cancel option
+  const newGameState = { ...gameState };
+  newGameState.pendingBuildAdditions = {
+    ...gameState.pendingBuildAdditions,
+    [buildId]: {
+      card,
+      source,
+      playerId: playerIndex,
+      added: true, // Mark as already added to build
+      timestamp: Date.now()
     }
-
-    addedCard = playerHand.splice(handIndex, 1)[0];
-    console.log('[DEBUG-SERVER] Removed card from hand at index:', handIndex);
-  } else if (draggedItem.source === 'table') {
-    // Remove from table
-    const tableIndex = gameState.tableCards.findIndex(c =>
-      (!c.type || c.type === 'loose') &&
-      c.rank === draggedItem.card.rank &&
-      c.suit === draggedItem.card.suit
-    );
-
-    if (tableIndex === -1) {
-      throw new Error("Card not found on table");
-    }
-
-    addedCard = gameState.tableCards.splice(tableIndex, 1)[0];
-    console.log('[DEBUG-SERVER] Removed card from table at index:', tableIndex);
-  } else {
-    throw new Error(`Unsupported source: ${draggedItem.source}`);
-  }
-  const newBuildValue = buildToAddTo.value + addedCard.value;
-
-  // Extend build
-  const extendedBuild = {
-    ...buildToAddTo,
-    value: newBuildValue,
-    cards: [...buildToAddTo.cards, addedCard]
   };
 
-  // Create new game state with proper updates
-  const newGameState = { ...gameState };
-
-  if (draggedItem.source === 'hand') {
-    // Update player hands
-    newGameState.playerHands = gameState.playerHands.map((hand, idx) =>
-      idx === playerIndex ? gameState.playerHands[playerIndex].filter(c =>
-        !(c.rank === draggedItem.card.rank && c.suit === draggedItem.card.suit)
-      ) : hand
-    );
-  }
-  // For table cards, the card was already removed above
-
-  // Update build
-  newGameState.tableCards = gameState.tableCards.map((card, idx) =>
-    idx === buildIndex ? extendedBuild : card
-  );
-
-  logger.info('Own build extended successfully', {
-    buildId: extendedBuild.buildId,
-    newValue: newBuildValue,
-    addedCard: `${addedCard.rank}${addedCard.suit}`
+  logger.info('Pending build addition created', {
+    buildId,
+    card: `${card.rank}${card.suit}`,
+    pendingAdditions: Object.keys(newGameState.pendingBuildAdditions || {})
   });
 
   return newGameState;
+}
+
+/**
+ * Remove card from its source location
+ */
+function removeCardFromSource(gameState, card, source, playerIndex) {
+  console.log('[BUILD_SOURCE_REMOVAL] Removing card from source:', {
+    card: `${card.rank}${card.suit}`,
+    source,
+    playerIndex
+  });
+
+  if (source === 'hand') {
+    const handIndex = gameState.playerHands[playerIndex].findIndex(c =>
+      c.rank === card.rank && c.suit === card.suit
+    );
+    if (handIndex >= 0) {
+      gameState.playerHands[playerIndex].splice(handIndex, 1);
+      console.log('[BUILD_SOURCE_REMOVAL] ✅ Removed from hand at index:', handIndex);
+    } else {
+      throw new Error(`Card ${card.rank}${card.suit} not found in player's hand`);
+    }
+  } else if (source === 'table') {
+    const cardIndex = gameState.tableCards.findIndex(tableCard =>
+      tableCard.rank === card.rank &&
+      tableCard.suit === card.suit &&
+      (!tableCard.type || tableCard.type === 'loose')
+    );
+    if (cardIndex >= 0) {
+      gameState.tableCards.splice(cardIndex, 1);
+      console.log('[BUILD_SOURCE_REMOVAL] ✅ Removed from table at index:', cardIndex);
+    } else {
+      throw new Error(`Card ${card.rank}${card.suit} not found on table`);
+    }
+  } else {
+    throw new Error(`Unknown source type: ${source}`);
+  }
 }
 
 module.exports = handleAddToOwnBuild;

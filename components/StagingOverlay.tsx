@@ -5,7 +5,8 @@ import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 interface StagingOverlayProps {
   isVisible: boolean;
   stackId?: string;
-  onAccept: (stackId: string) => void;  // ✅ Now passes stackId to trigger validation
+  overlayText?: string;  // NEW: Customizable text (default: 'STAGING')
+  onAccept: (stackId: string) => void;
   onReject: () => void;
   disabled?: boolean;
 }
@@ -13,14 +14,12 @@ interface StagingOverlayProps {
 const StagingOverlay: React.FC<StagingOverlayProps> = ({
   isVisible,
   stackId,
+  overlayText = 'STAGING',  // Default to 'STAGING' for backward compatibility
   onAccept,
   onReject,
   disabled = false
 }) => {
   const [fadeAnim] = React.useState(new Animated.Value(0));
-
-  // Detect build augmentation stacks vs regular staging
-  const isBuildAugmentation = stackId && stackId.includes('build-augment');
 
   React.useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -30,27 +29,22 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
     }).start();
   }, [isVisible, fadeAnim]);
 
-  // � REMOVED: Auto-accept logic for build augmentations - now manual control only
-
   if (!isVisible) {
     console.log(`[STAGING_OVERLAY] Overlay hidden for stack ${stackId || 'unknown'}`);
     return null;
   }
 
-  const overlayTitle = isBuildAugmentation ? 'BUILD AUGMENTATION' : 'STAGING';
-
-  console.log(`[STAGING_OVERLAY] 🎬 Rendering ${overlayTitle} overlay for stack ${stackId}, disabled: ${disabled}`, {
+  console.log(`[STAGING_OVERLAY] 🎬 Rendering ${overlayText} overlay for stack ${stackId}, disabled: ${disabled}`, {
     isVisible,
     stackId,
     disabled,
-    isBuildAugmentation,
-    overlayTitle,
+    overlayText,
     hasOnAccept: typeof onAccept === 'function',
     hasOnReject: typeof onReject === 'function'
   });
 
   // All staging stacks now show Accept/Cancel buttons (including build augmentations)
-  console.log(`🎯 [STAGING_DEBUG] ${overlayTitle} OVERLAY RENDERED: Accept/Cancel buttons should be visible for stack ${stackId}`);
+  console.log(`🎯 [STAGING_DEBUG] ${overlayText} OVERLAY RENDERED: Accept/Cancel buttons should be visible for stack ${stackId}`);
 
   return (
     <Animated.View
@@ -59,7 +53,7 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
     >
       {/* Dynamic indicator */}
       <View style={styles.stagingIndicator}>
-        <Text style={styles.indicatorText}>{overlayTitle}</Text>
+        <Text style={styles.indicatorText}>{overlayText}</Text>
       </View>
 
       <View style={styles.buttonContainer}>

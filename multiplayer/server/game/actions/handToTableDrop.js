@@ -4,9 +4,6 @@
  * Removes card from player's hand
  */
 
-const { createLogger } = require('../../utils/logger');
-const logger = createLogger('HandToTableDrop');
-
 function handleHandToTableDrop(gameManager, playerIndex, action) {
   console.log('[SERVER_CRASH_DEBUG] ===== HANDLER CALLED =====');
   console.log('[SERVER_CRASH_DEBUG] Handler: handToTableDrop');
