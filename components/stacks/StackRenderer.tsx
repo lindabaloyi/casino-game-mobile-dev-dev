@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
-import Card, { CardType } from '../card';
+import Card, { CardType } from '../cards/card';
 
-import DraggableCard from '../DraggableCard';
+import DraggableCard from '../cards/DraggableCard';
 
 interface StackRendererProps {
   cards: CardType[];

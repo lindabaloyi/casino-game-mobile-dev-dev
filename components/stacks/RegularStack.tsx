@@ -4,7 +4,7 @@ import { View } from 'react-native';
  * DEPRECATED: Drop zone system removed - regular stacks now use contact detection only
  */
 import { useLayoutMeasurement } from '../../hooks/useLayoutMeasurement';
-import { CardType } from '../card';
+import { CardType } from '../cards/card';
 import { CardCountIndicator } from '../indicators/CardCountIndicator';
 import { StackRenderer } from './StackRenderer';
 

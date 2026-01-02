@@ -4,9 +4,9 @@ import { View } from 'react-native';
  * DEPRECATED: Drop zone system removed - builds now use contact detection only
  */
 import { useLayoutMeasurement } from '../../hooks/useLayoutMeasurement';
-import { CardType } from '../card';
+import { CardType } from '../cards/card';
 import { BuildIndicator } from '../indicators/BuildIndicator';
-import StagingOverlay from '../StagingOverlay';
+import StagingOverlay from '../overlays/StagingOverlay';
 import { StackRenderer } from './StackRenderer';
 
 interface BuildStackProps {

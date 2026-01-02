@@ -5,8 +5,8 @@
  */
 
 import { Card, TableCard } from '../../multiplayer/server/game-logic/game-state';
-import { CardType } from '../card';
-import CardStack from '../CardStack';
+import { CardType } from '../cards/card';
+import CardStack from '../cards/CardStack';
 
 interface LooseCardRendererProps {
   tableItem: TableCard;

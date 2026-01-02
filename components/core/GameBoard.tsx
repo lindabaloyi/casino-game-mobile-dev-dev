@@ -3,19 +3,19 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useDragHandlers } from '../hooks/useDragHandlers';
-import { useModalManager } from '../hooks/useModalManager';
-import { useServerListeners } from '../hooks/useServerListeners';
-import { useStagingStacks } from '../hooks/useStagingStacks';
-import { GameState } from '../multiplayer/server/game-logic/game-state';
-import { AcceptValidationModal } from './AcceptValidationModal';
-import ActionModal from './ActionModal';
-import BurgerMenu from './BurgerMenu';
-import CapturedCards from './CapturedCards';
-import ErrorModal from './ErrorModal';
+import { useDragHandlers } from '../../hooks/useDragHandlers';
+import { useModalManager } from '../../hooks/useModalManager';
+import { useServerListeners } from '../../hooks/useServerListeners';
+import { useStagingStacks } from '../../hooks/useStagingStacks';
+import { GameState } from '../../multiplayer/server/game-logic/game-state';
+import CapturedCards from '../cards/CapturedCards';
+import { AcceptValidationModal } from '../modals/AcceptValidationModal';
+import ActionModal from '../modals/ActionModal';
+import ErrorModal from '../modals/ErrorModal';
+import TrailConfirmationModal from '../modals/TrailConfirmationModal';
+import BurgerMenu from '../navigation/BurgerMenu';
 import PlayerHand from './playerHand';
 import TableCards from './TableCards';
-import TrailConfirmationModal from './TrailConfirmationModal';
 
 interface GameBoardProps {
   gameState: GameState;

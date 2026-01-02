@@ -2,7 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { useLayoutMeasurement } from '../../hooks/useLayoutMeasurement';
 import { useCardContact } from '../../src/hooks/useCardContact';
-import { CardType } from '../card';
+import { CardType } from '../cards/card';
 import { TempStackIndicator } from '../indicators/TempStackIndicator';
 import { StackRenderer } from './StackRenderer';
 

@@ -1,10 +1,10 @@
 import React, { useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Card, TableCard } from '../multiplayer/server/game-logic/game-state';
-import { BuildCardRenderer } from './table/BuildCardRenderer';
-import TableDraggableCard from './table/TableDraggableCard';
-import { useTableInteractionManager } from './table/TableInteractionManager';
-import { TempStackRenderer } from './table/TempStackRenderer';
+import { Card, TableCard } from '../../multiplayer/server/game-logic/game-state';
+import { BuildCardRenderer } from '../table/BuildCardRenderer';
+import TableDraggableCard from '../table/TableDraggableCard';
+import { useTableInteractionManager } from '../table/TableInteractionManager';
+import { TempStackRenderer } from '../table/TempStackRenderer';
 
 // Removed unused screenWidth variable
 
@@ -73,8 +73,7 @@ const TableCards: React.FC<TableCardsProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency - only run once
 
-  // 🎯 NEW: Track drag position for overlap detection
-  const [dragPosition, setDragPosition] = React.useState({ x: 0, y: 0 });
+  // 🎯 NEW: Track drag state for overlap detection
   const [isDragging, setIsDragging] = React.useState(false);
 
   // 🎯 NEW: Enhanced drag handlers to track position
@@ -87,7 +86,6 @@ const TableCards: React.FC<TableCardsProps> = ({
   const handleTableCardDragEndWithPosition = React.useCallback((draggedItem: any, dropPosition: any) => {
     console.log(`[DRAG-TRACK] Table card drag ended`);
     setIsDragging(false);
-    setDragPosition({ x: 0, y: 0 }); // Reset
     onTableCardDragEnd?.(draggedItem, dropPosition);
   }, [onTableCardDragEnd]);
 
@@ -243,16 +241,10 @@ const TableCards: React.FC<TableCardsProps> = ({
               const itemType = getCardType(tableItem);
 
               // 🎯 NEW: Simple table overlap detection (no useMemo needed)
-              const isOverTable =
-                isDragging &&
-                tableBoundsRef.current &&
-                dragPosition.x >= tableBoundsRef.current.x &&
-                dragPosition.x <= tableBoundsRef.current.x + tableBoundsRef.current.width &&
-                dragPosition.y >= tableBoundsRef.current.y &&
-                dragPosition.y <= tableBoundsRef.current.y + tableBoundsRef.current.height;
+              // Removed unused isOverTable variable
 
               // Simplified z-index: drag z-index guarantees layering priority
-              const dynamicZIndex = baseZIndex;
+              // Removed unused dynamicZIndex variable
 
 
 

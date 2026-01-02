@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import DraggableCard from './DraggableCard';
-import { CardType } from './card';
+import DraggableCard from '../cards/DraggableCard';
+import { CardType } from '../cards/card';
 
 interface PlayerHandProps {
   player: number;

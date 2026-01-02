@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Card from './card';
+import Card from '../cards/card';
 
 interface TrailConfirmationModalProps {
   trailCard: { rank: string; suit: string } | null;

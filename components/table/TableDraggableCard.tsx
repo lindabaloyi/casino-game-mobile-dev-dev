@@ -11,7 +11,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, PanResponder, StyleSheet, View } from 'react-native';
 import { findContactAtPoint, removePosition, reportPosition } from '../../src/utils/contactDetection';
-import Card, { CardType } from '../card';
+import Card, { CardType } from '../cards/card';
 
 interface TableDraggableCardProps {
   card: CardType;

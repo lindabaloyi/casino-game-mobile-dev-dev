@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { GameBoard } from '../components/GameBoard';
+import { GameBoard } from '../components/core/GameBoard';
 import { useSocket } from '../hooks/useSocket';
 
 export const options = {

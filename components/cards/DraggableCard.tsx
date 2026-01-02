@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Animated, StyleSheet } from 'react-native';
-import { useDragGesture } from '../hooks/useDragGesture';
+import { useDragGesture } from '../../hooks/useDragGesture';
 import Card, { CardType } from './card';
 
 interface DraggableCardProps {

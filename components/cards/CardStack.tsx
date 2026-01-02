@@ -1,6 +1,6 @@
 import { memo } from 'react';
+import { StackFactory } from '../stacks/StackFactory';
 import { CardType } from './card';
-import { StackFactory } from './stacks/StackFactory';
 
 interface CardStackProps {
   stackId: string;

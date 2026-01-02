@@ -6,8 +6,8 @@
 
 import { StyleSheet, View } from 'react-native';
 import { TableCard } from '../../multiplayer/server/game-logic/game-state';
-import CardStack from '../CardStack';
-import StagingOverlay from '../StagingOverlay';
+import CardStack from '../cards/CardStack';
+import StagingOverlay from '../overlays/StagingOverlay';
 
 interface TempStackRendererProps {
   tableItem: TableCard;

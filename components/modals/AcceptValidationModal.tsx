@@ -41,22 +41,6 @@ export function AcceptValidationModal({
   const [validationResult, setValidationResult] = useState<any>(null);
   const isProcessing = useRef(false);
 
-  // Run validation when modal opens
-  useEffect(() => {
-    if (visible && tempStack) {
-      const result = validateTempStack(tempStack, playerHand);
-      setValidationResult(result);
-      console.log('🔍 [VALIDATION] Result:', result);
-    }
-  }, [visible, tempStack, playerHand]);
-
-  // Reset processing flag when modal closes
-  useEffect(() => {
-    if (!visible) {
-      isProcessing.current = false;
-    }
-  }, [visible]);
-
   // 🎯 NEW: Get all available capture and build options
   const getAvailableOptions = (stack: any, hand: Card[]): ActionOption[] => {
     const options: ActionOption[] = [];
@@ -119,58 +103,24 @@ export function AcceptValidationModal({
     };
   };
 
-  // Helper: Try to group cards sequentially into groups that sum to targetValue
-  const trySequentialGrouping = (cards: Card[], targetValue: number) => {
-    const groups = [];
-    const n = cards.length;
-    let i = 0;
-
-    while (i < n) {
-      // Try groups of 3 cards first (largest group)
-      if (i + 2 < n) {
-        const tripleSum = cards[i].value + cards[i + 1].value + cards[i + 2].value;
-        if (tripleSum === targetValue) {
-          groups.push({
-            cards: [cards[i], cards[i + 1], cards[i + 2]],
-            sum: tripleSum,
-            size: 3
-          });
-          i += 3;
-          continue;
-        }
-      }
-
-      // Try groups of 2 cards
-      if (i + 1 < n) {
-        const pairSum = cards[i].value + cards[i + 1].value;
-        if (pairSum === targetValue) {
-          groups.push({
-            cards: [cards[i], cards[i + 1]],
-            sum: pairSum,
-            size: 2
-          });
-          i += 2;
-          continue;
-        }
-      }
-
-      // Try single card
-      if (cards[i].value === targetValue) {
-        groups.push({
-          cards: [cards[i]],
-          sum: cards[i].value,
-          size: 1
-        });
-        i += 1;
-        continue;
-      }
-
-      // Can't group this card
-      return { valid: false, groups: [] };
+  // Run validation when modal opens
+  useEffect(() => {
+    if (visible && tempStack) {
+      const result = validateTempStack(tempStack, playerHand);
+      setValidationResult(result);
+      console.log('🔍 [VALIDATION] Result:', result);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, tempStack, playerHand]);
 
-    return { valid: true, groups };
-  };
+  // Reset processing flag when modal closes
+  useEffect(() => {
+    if (!visible) {
+      isProcessing.current = false;
+    }
+  }, [visible]);
+
+
 
   // 🎯 NEW: Handle selection of capture or build options
   const handleOptionSelect = (option: ActionOption) => {
@@ -272,17 +222,7 @@ export function AcceptValidationModal({
     }
   };
 
-  // LEGACY: Keep for backward compatibility
-  const handleCapture = () => {
-    // Use the first available capture option
-    const options = validationResult?.options || [];
-    const captureOption = options.find((opt: ActionOption) => opt.type === 'capture');
-    if (captureOption) {
-      handleOptionSelect(captureOption);
-    } else {
-      Alert.alert('Error', 'No capture option available');
-    }
-  };
+
 
   const renderContent = () => {
     if (!validationResult) {

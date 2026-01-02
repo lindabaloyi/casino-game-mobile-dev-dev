@@ -8,7 +8,7 @@ import React, { useRef } from 'react';
 import { View } from 'react-native';
 import { useBuildContactRegistration, useBuildDropHandler } from '../../hooks';
 import { TableCard } from '../../multiplayer/server/game-logic/game-state';
-import { CardType } from '../card';
+import { CardType } from '../cards/card';
 import { BuildStack } from '../stacks/BuildStack';
 
 interface BuildCardRendererProps {
