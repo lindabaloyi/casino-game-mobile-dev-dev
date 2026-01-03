@@ -7,6 +7,59 @@
 const { createLogger } = require('../utils/logger');
 const logger = createLogger('GameState');
 
+// Global build lifecycle tracker for debugging build creation/extension flow
+const buildLifecycleTracker = {
+  createdBuilds: new Map(),
+
+  trackCreation(buildId, context, metadata = {}) {
+    this.createdBuilds.set(buildId, {
+      createdAt: Date.now(),
+      context,
+      extensions: [],
+      metadata
+    });
+    console.log('[BUILD_LIFECYCLE] Build created:', { buildId, context, metadata });
+  },
+
+  trackExtension(buildId, context, metadata = {}) {
+    const build = this.createdBuilds.get(buildId);
+    if (build) {
+      build.extensions.push({ timestamp: Date.now(), context, metadata });
+      console.log('[BUILD_LIFECYCLE] Build extended:', {
+        buildId,
+        extensionCount: build.extensions.length,
+        context,
+        metadata
+      });
+    } else {
+      console.warn('[BUILD_LIFECYCLE] Attempting to extend unknown build:', { buildId, context, metadata });
+    }
+  },
+
+  getBuildInfo(buildId) {
+    return this.createdBuilds.get(buildId);
+  },
+
+  debugAllBuilds(gameState, context) {
+    const builds = gameState.tableCards.filter(item => item.type === 'build');
+    console.log(`[ALL_BUILDS:${context}]`, {
+      totalBuilds: builds.length,
+      builds: builds.map((b, i) => ({
+        index: i,
+        id: b.buildId,
+        owner: b.owner,
+        cards: b.cards.map(c => `${c.rank}${c.suit}`),
+        cardCount: b.cards.length,
+        value: b.value,
+        lifecycle: this.createdBuilds.get(b.buildId) ? {
+          createdAt: this.createdBuilds.get(b.buildId).createdAt,
+          extensions: this.createdBuilds.get(b.buildId).extensions.length
+        } : 'NOT_TRACKED'
+      }))
+    });
+  }
+};
+
 // Game configuration constants
 const GAME_CONFIG = {
   MAX_PLAYERS: 2,
@@ -274,5 +327,6 @@ module.exports = {
   isCard,
   isBuild,
   isTemporaryStack,
-  orderCardsBigToSmall
+  orderCardsBigToSmall,
+  buildLifecycleTracker
 };

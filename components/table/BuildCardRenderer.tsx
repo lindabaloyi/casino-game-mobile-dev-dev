@@ -50,10 +50,27 @@ export function BuildCardRenderer({
     owner: buildItem.owner,
     value: buildItem.value,
     cardCount: (buildItem.cards || []).length,
+    cards: (buildItem.cards || []).map((c: any, i: number) => ({
+      index: i,
+      card: `${c.rank}${c.suit}`,
+      value: c.value,
+      isTop: i === (buildItem.cards?.length || 0) - 1
+    })),
+    topCard: buildItem.cards?.[buildItem.cards.length - 1],
     index,
-    fullItem: buildItem,  // Check the actual object
     timestamp: Date.now()
   });
+
+  // Detect build data changes with useEffect
+  React.useEffect(() => {
+    console.log('[BUILD_RENDER_EFFECT] Build data changed:', {
+      buildId: buildItem.buildId,
+      cardCount: (buildItem.cards || []).length,
+      topCard: buildItem.cards?.[buildItem.cards.length - 1],
+      allCards: (buildItem.cards || []).map(c => `${c.rank}${c.suit}`),
+      timestamp: Date.now()
+    });
+  }, [buildItem.cards, buildItem.buildId]);
 
   // Build items can have multiple cards, or a single card representation
   const buildCards = buildItem.cards || [tableItem as CardType];

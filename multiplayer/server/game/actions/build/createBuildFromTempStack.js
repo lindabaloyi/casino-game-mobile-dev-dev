@@ -4,6 +4,7 @@
  */
 
 const { createLogger } = require('../../../utils/logger');
+const { buildLifecycleTracker } = require('../../GameState');
 const logger = createLogger('CreateBuildFromTempStack');
 
 function handleCreateBuildFromTempStack(gameManager, playerIndex, action, gameId) {
@@ -66,8 +67,31 @@ function handleCreateBuildFromTempStack(gameManager, playerIndex, action, gameId
     isExtendable: true
   };
 
+  // CRITICAL DEBUG: Log build creation with full details
+  console.log('[CREATE_BUILD_CRITICAL] Creating permanent build:', {
+    tempStackId,
+    newBuildId: build.buildId,
+    buildCards: build.cards.map((c, i) => `${i}:${c.rank}${c.suit}`),
+    buildValue,
+    owner: playerIndex,
+    tempStackCards: tempStackCards.map(c => `${c.rank}${c.suit}`),
+    addedBuildCard: buildCard ? `${buildCard.rank}${buildCard.suit}` : 'none',
+    lifecycleTracking: 'CREATED'
+  });
+
+  // Track build creation
+  buildLifecycleTracker.trackCreation(build.buildId, 'createBuildFromTempStack', {
+    tempStackId,
+    buildValue,
+    owner: playerIndex,
+    cardCount: build.cards.length
+  });
+
   // Add build to table
   gameState.tableCards.push(build);
+
+  // Debug all builds after creation
+  buildLifecycleTracker.debugAllBuilds(gameState, 'AfterCreateBuild');
 
   logger.info('Build created from temp stack', {
     buildId: build.buildId,

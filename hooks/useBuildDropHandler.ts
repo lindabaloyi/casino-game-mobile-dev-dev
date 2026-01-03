@@ -21,6 +21,7 @@ export function useBuildDropHandler({
   const handleBuildDrop = useCallback((draggedItem: any) => {
     console.log('[BUILD_DROP_HANDLER] 🚀 ENTERING handleBuildDrop', {
       buildId: buildItem.buildId,
+      buildItem: buildItem,
       draggedItem: draggedItem,
       draggedCard: draggedItem.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
       draggedType: draggedItem.type || 'unknown',
@@ -28,6 +29,17 @@ export function useBuildDropHandler({
       buildOwner: buildItem.owner,
       currentPlayer,
       timestamp: new Date().toISOString()
+    });
+
+    // CRITICAL: Log build selection for debugging
+    console.log('[UI_BUILD_SELECTION_CRITICAL] User dropped on build:', {
+      selectedBuildId: buildItem.buildId,
+      selectedBuildValue: buildItem.value,
+      selectedBuildCards: buildItem.cards?.length || 0,
+      draggedCard: draggedItem.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
+      draggedValue: draggedItem.card?.value,
+      totalValueWouldBe: buildItem.value + (draggedItem.card?.value || 0),
+      timestamp: Date.now()
     });
 
     // ✅ VALIDATION: Ownership check
