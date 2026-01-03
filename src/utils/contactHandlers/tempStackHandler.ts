@@ -4,6 +4,7 @@
  */
 
 import type { Card, GameState } from '../../../multiplayer/server/game-logic/game-state';
+import { findTempStackById } from '../contactUtils';
 
 interface Contact {
   id: string;
@@ -25,15 +26,44 @@ export function handleTempStackContact(
   console.log('[TEMP_STACK_HANDLER] 🎯 Handling temporary_stack contact:', {
     draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
     contactId: contact.id,
-    currentPlayer
+    currentPlayer,
+    timestamp: new Date().toISOString()
+  });
+
+  const tempStack = findTempStackById(contact.id, gameState);
+
+  if (!tempStack) {
+    console.log('[TEMP_STACK_HANDLER] ❌ Temp stack not found in game state:', {
+      contactId: contact.id,
+      availableTempStacks: gameState.tableCards
+        .filter(tc => (tc as any).type === 'temporary_stack')
+        .map(ts => ({
+          stackId: (ts as any).stackId,
+          owner: (ts as any).owner,
+          value: (ts as any).value,
+          cardsCount: (ts as any).cards?.length || 0,
+          canAugmentBuilds: (ts as any).canAugmentBuilds
+        })),
+      allTableCards: gameState.tableCards.map(c => {
+        const card = c as any;
+        return `${card.type || 'card'}:${card.stackId || card.buildId || `${card.rank || '?'}${card.suit || '?'}`}`;
+      })
+    });
+    return null;
+  }
+
+  console.log('[TEMP_STACK_HANDLER] 🔍 Found temp stack:', {
+    stackId: tempStack.stackId,
+    owner: tempStack.owner,
+    value: tempStack.value,
+    cardsCount: tempStack.cards?.length || 0,
+    cards: tempStack.cards?.map(c => `${c.rank}${c.suit}`) || [],
+    canAugmentBuilds: tempStack.canAugmentBuilds,
+    isMyStack: tempStack.owner === currentPlayer
   });
 
   // Handle dragging temporary stacks (build augmentation)
-  const draggedStack = gameState.tableCards.find(tc =>
-    (tc as any).type === 'temporary_stack' && (tc as any).stackId === contact.id
-  ) as any;
-
-  if (draggedStack && draggedStack.canAugmentBuilds) {
+  if (tempStack.canAugmentBuilds) {
     console.log('[TEMP_STACK_HANDLER] 🏗️ Draggable staging stack being dragged (can augment builds)');
     // This will be handled by the build contact logic below
     return null; // Let build contact logic handle it

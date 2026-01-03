@@ -38,12 +38,13 @@ export function removePosition(id: string): void {
 }
 
 /**
- * Find the closest contact at a given point - pure distance-based detection
+ * Find the closest contact at a given point - distance-based with context priority
  */
 export function findContactAtPoint(
   x: number,
   y: number,
-  threshold: number = 80
+  threshold: number = 80,
+  context?: { hasActiveBuild?: boolean; currentPlayer?: number }
 ): {
   id: string;
   type: string;
@@ -71,11 +72,90 @@ export function findContactAtPoint(
     return null;
   }
 
+  // 🎯 CONTEXT PRIORITY: During build extension, prefer player's own build
+  if (context?.hasActiveBuild && context?.currentPlayer !== undefined) {
+    const playerBuildHit = hits.find(hit =>
+      hit.type === 'build' && hit.data?.owner === context.currentPlayer
+    );
+
+    if (playerBuildHit) {
+      console.log('[CONTACT] 🎯 Build extension priority: Player build preferred', {
+        buildId: playerBuildHit.id,
+        player: context.currentPlayer,
+        distance: playerBuildHit.distance
+      });
+      return playerBuildHit;
+    }
+  }
+
   // PURE DISTANCE-BASED: Find the closest hit regardless of type
   return hits.reduce((closest, current) =>
     current.distance < closest.distance ? current : closest, hits[0]);
 }
 
+
+/**
+ * Get all registered contacts (for debugging)
+ */
+export function getAllContacts(): ContactPosition[] {
+  return Array.from(contactPositions.values());
+}
+
+/**
+ * Debug full contact registry (comprehensive diagnostic)
+ */
+export function debugFullContactRegistry() {
+  console.log('🔍 [CONTACT_REGISTRY_FULL_DUMP] ========= START =========');
+
+  const contacts = Array.from(contactPositions.entries());
+  console.log(`Total contacts: ${contacts.length}`);
+
+  const byType: Record<string, any[]> = {};
+  contacts.forEach(([id, contact]) => {
+    const type = contact.type;
+    if (!byType[type]) byType[type] = [];
+    byType[type].push({ ...contact });
+  });
+
+  console.log('📊 Contacts by type:', Object.keys(byType).map(type => ({
+    type,
+    count: byType[type].length,
+    ids: byType[type].map(c => c.id)
+  })));
+
+  // Show builds in detail
+  if (byType.build) {
+    console.log('🏗️ BUILDS in registry:');
+    byType.build.forEach((build, i) => {
+      console.log(`  Build ${i}: ${build.id}`, {
+        owner: build.data?.owner,
+        bounds: { x: Math.round(build.x), y: Math.round(build.y),
+                 width: Math.round(build.width), height: Math.round(build.height) },
+        cards: build.data?.cards?.length || 0
+      });
+    });
+  }
+
+  // Show temp stacks in detail
+  if (byType.tempStack) {
+    console.log('📦 TEMP STACKS in registry:');
+    byType.tempStack.forEach((stack, i) => {
+      console.log(`  TempStack ${i}: ${stack.id}`, {
+        bounds: { x: Math.round(stack.x), y: Math.round(stack.y) },
+        isUniversalStaging: stack.id.includes('universal-staging')
+      });
+    });
+  }
+
+  // Show loose cards
+  if (byType.card) {
+    console.log('🃏 LOOSE CARDS in registry:', byType.card.length);
+  }
+
+  console.log('🔍 [CONTACT_REGISTRY_FULL_DUMP] ========= END =========');
+
+  return { contacts, byType };
+}
 
 /**
  * Clear all positions (useful for cleanup)

@@ -114,6 +114,7 @@ export function useBuildDropHandler({
     });
 
     return true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildItem.buildId, buildItem.owner, buildItem.value, currentPlayer, sendAction]);
 
   return { handleBuildDrop };

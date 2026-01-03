@@ -132,8 +132,8 @@ export class BuildLifecycleTracker {
         index: i,
         id: b.buildId,
         owner: b.owner,
-        cards: b.cards.map((c: any) => `${c.rank}${c.suit}`),
-        cardCount: b.cards.length,
+        cards: Array.isArray(b.cards) ? b.cards.map((c: any) => `${c.rank}${c.suit}`) : [],
+        cardCount: Array.isArray(b.cards) ? b.cards.length : 0,
         value: b.value,
         lifecycle: this.createdBuilds.get(b.buildId) ? {
           createdAt: this.createdBuilds.get(b.buildId)!.createdAt,
@@ -150,7 +150,7 @@ export class BuildLifecycleTracker {
     const issues: string[] = [];
 
     summary.builds.forEach(build => {
-      if (build.extensions.length === 0) {
+      if (build.extensions === 0) {
         issues.push(`Build ${build.id} was created but never extended`);
       }
     });

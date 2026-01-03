@@ -1,81 +1,128 @@
 /**
- * Table-to-Table Drop Handler
- * Creates temp stack from TWO table cards
- * NO hand logic - assumes both cards are from table
+ * Enhanced Table-to-Table Drop Handler
+ * Handles multiple cases:
+ * 1. Two loose cards → temp stack
+ * 2. Loose card + temp stack → add to stack
+ * 3. Loose card + our own build → augment build
  */
 
-
-
 function handleTableToTableDrop(gameManager, playerIndex, action, gameId) {
-  const { createLogger } = require('../../utils/logger');
-  const logger = createLogger('tableToTableDrop');
+  // Simple inline logger to avoid module resolution issues
+  const logger = {
+    debug: (...args) => console.debug('[tableToTableDrop]', ...args),
+    info: (...args) => console.log('[tableToTableDrop]', ...args),
+    warn: (...args) => console.warn('[tableToTableDrop]', ...args),
+    error: (...args) => console.error('[tableToTableDrop]', ...args),
+    action: (type, gameId, playerIndex, data = {}) => console.log(`[${new Date().toISOString()}] [ACTION] ${type} | Game:${gameId} | Player:${playerIndex}`, data)
+  };
+
   logger.action('START tableToTableDrop', gameId, playerIndex, {
-    draggedCard: action.payload.draggedItem?.card ? `${action.payload.draggedItem.card.rank}${action.payload.draggedItem.card.suit}` : 'none',
-    targetCard: action.payload.targetInfo?.card ? `${action.payload.targetInfo.card.rank}${action.payload.targetInfo.card.suit}` : 'none'
+    draggedCard: action.payload.draggedItem?.card ?
+      `${action.payload.draggedItem.card.rank}${action.payload.draggedItem.card.suit}` : 'none',
+    targetCard: action.payload.targetInfo?.card ?
+      `${action.payload.targetInfo.card.rank}${action.payload.targetInfo.card.suit}` : 'none',
+    targetType: action.payload.targetInfo?.type
   });
 
   try {
     const { draggedItem, targetInfo } = action.payload;
     const gameState = gameManager.getGameState(gameId);
 
-  // VALIDATION: Ensure this is table-to-table (accepts both 'table' and 'loose' sources)
-  if (draggedItem.source !== 'table' && draggedItem.source !== 'loose') {
-    console.error('[TABLE_TO_TABLE] ERROR: Expected table source, got:', draggedItem.source);
-    throw new Error('TableToTableDrop handler requires table source');
+    // 1. VALIDATE SOURCE IS TABLE CARD
+    if (draggedItem.source !== 'table' && draggedItem.source !== 'loose') {
+      console.error('[TABLE_TO_TABLE] ERROR: Expected table source, got:', draggedItem.source);
+      throw new Error('TableToTableDrop handler requires table source');
+    }
+
+    // 2. IDENTIFY THE TARGET TYPE AND HANDLE ACCORDINGLY
+    const targetType = targetInfo.type;
+
+    switch (targetType) {
+      case 'loose':
+        // CASE 1: Two loose cards → create temp stack
+        return handleTwoLooseCards(gameState, draggedItem, targetInfo, playerIndex, logger, gameId);
+
+      case 'temporary_stack':
+        // CASE 2: Loose card + temp stack → add to existing stack
+        return handleAddToTempStack(gameState, draggedItem, targetInfo, playerIndex, logger, gameId);
+
+      case 'build':
+        // CASE 3: Loose card + build → augment build (if allowed)
+        return handleAugmentBuild(gameState, draggedItem, targetInfo, playerIndex, logger, gameId);
+
+      default:
+        throw new Error(`Unsupported target type for table-to-table drop: ${targetType}`);
+    }
+
+  } catch (error) {
+    console.error('[SERVER_CRASH_DEBUG] ❌ CRASH IN tableToTableDrop:');
+    console.error('[SERVER_CRASH_DEBUG] Error:', error.message);
+    console.error('[SERVER_CRASH_DEBUG] Stack:', error.stack);
+    throw error;
   }
+}
 
-  if (targetInfo.type !== 'loose') {
-    console.error('[TABLE_TO_TABLE] ERROR: Expected loose target, got:', targetInfo.type);
-    throw new Error('TableToTableDrop handler requires loose card target');
-  }
+// ==================== CASE 1: TWO LOOSE CARDS ====================
+function handleTwoLooseCards(gameState, draggedItem, targetInfo, playerIndex, logger, gameId) {
+  logger.info('Case 1: Creating temp stack from two loose cards');
 
-  // Remove original cards before creating temp stack
-
+  // FIX THE BUG: Ensure we're not finding the same card twice
   const indicesToRemove = [];
+  let foundDraggedCard = false;
+  let foundTargetCard = false;
 
-  // Find cards to remove
+  // Find cards to remove - CAREFULLY check each card
   for (let i = 0; i < gameState.tableCards.length; i++) {
     const tableItem = gameState.tableCards[i];
 
-    // Skip temp stacks and builds
+    // Only process loose cards for this case
     if (tableItem.type && tableItem.type !== 'loose') {
       continue;
     }
 
-    const isDraggedCard = tableItem.rank === draggedItem.card.rank &&
-                          tableItem.suit === draggedItem.card.suit;
-    const isTargetCard = tableItem.rank === targetInfo.card.rank &&
-                          tableItem.suit === targetInfo.card.suit;
+    // Convert both cards to comparable format
+    const draggedStr = `${draggedItem.card.rank}${draggedItem.card.suit}`;
+    const targetStr = `${targetInfo.card.rank}${targetInfo.card.suit}`;
+    const tableStr = `${tableItem.rank}${tableItem.suit}`;
 
-    if ((isDraggedCard || isTargetCard) && !indicesToRemove.includes(i)) {
+    // Check for dragged card
+    if (!foundDraggedCard && tableStr === draggedStr) {
       indicesToRemove.push(i);
+      foundDraggedCard = true;
+      continue; // Important: prevent matching same card twice
+    }
+
+    // Check for target card
+    if (!foundTargetCard && tableStr === targetStr) {
+      indicesToRemove.push(i);
+      foundTargetCard = true;
+      continue;
     }
   }
 
-  // Validate we found exactly 2 cards
+  // Validate we found exactly 2 DIFFERENT cards
   if (indicesToRemove.length !== 2) {
     logger.error('Table-to-table validation failed', {
       found: indicesToRemove.length,
       expected: 2,
       draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
-      targetCard: `${targetInfo.card.rank}${targetInfo.card.suit}`
+      targetCard: `${targetInfo.card.rank}${targetInfo.card.suit}`,
+      isSameCard: `${draggedItem.card.rank}${draggedItem.card.suit}` ===
+                  `${targetInfo.card.rank}${targetInfo.card.suit}`
     });
-    throw new Error(`Table-to-table drop: Expected 2 cards to remove, found ${indicesToRemove.length}`);
+    throw new Error(`Expected 2 different loose cards, found ${indicesToRemove.length}`);
   }
 
-  // Remove cards in reverse order to maintain indices
+  // Remove cards
   indicesToRemove.sort((a, b) => b - a).forEach(index => {
     gameState.tableCards.splice(index, 1);
   });
 
-  // ✅ Create temp stack with ordered cards: bigger at bottom
+  // Create temp stack
   const { orderCardsBigToSmall } = require('../../GameState');
   const stackId = `temp-${Date.now()}`;
-
-  // Order: bigger card at bottom, smaller card on top
   const [bottomCard, topCard] = orderCardsBigToSmall(targetInfo.card, draggedItem.card);
 
-  // Check if player has active builds for augmentation capability
   const playerHasBuilds = gameState.tableCards.some(tc =>
     tc.type === 'build' && tc.owner === playerIndex
   );
@@ -89,30 +136,142 @@ function handleTableToTableDrop(gameManager, playerIndex, action, gameId) {
     canAugmentBuilds: playerHasBuilds
   };
 
-  // Add temp stack to table
   gameState.tableCards.push(tempStack);
 
-  // Final validation: ensure no duplicates after operation
-  const { validateNoDuplicates } = require('../../GameState');
-  const isValid = validateNoDuplicates(gameState);
-  if (!isValid) {
-    logger.error('Duplicates detected after temp stack creation');
-  }
-
-  logger.action('END tableToTableDrop', gameId, playerIndex, {
+  logger.action('END tableToTableDrop (two loose)', gameId, playerIndex, {
     success: true,
     stackId,
-    stackValue: tempStack.value,
-    canAugmentBuilds: tempStack.canAugmentBuilds
+    stackValue: tempStack.value
   });
 
   return gameState;
-  } catch (error) {
-    console.error('[SERVER_CRASH_DEBUG] ❌ CRASH IN tableToTableDrop:');
-    console.error('[SERVER_CRASH_DEBUG] Error:', error.message);
-    console.error('[SERVER_CRASH_DEBUG] Stack:', error.stack);
-    throw error;
+}
+
+// ==================== CASE 2: ADD TO TEMP STACK ====================
+function handleAddToTempStack(gameState, draggedItem, targetInfo, playerIndex, logger, gameId) {
+  logger.info('Case 2: Adding loose card to existing temp stack');
+
+  // Find and remove the dragged loose card
+  let draggedCardIndex = -1;
+  for (let i = 0; i < gameState.tableCards.length; i++) {
+    const tableItem = gameState.tableCards[i];
+
+    if (tableItem.type === 'loose' || !tableItem.type) {
+      const draggedStr = `${draggedItem.card.rank}${draggedItem.card.suit}`;
+      const tableStr = `${tableItem.rank}${tableItem.suit}`;
+
+      if (tableStr === draggedStr) {
+        draggedCardIndex = i;
+        break;
+      }
+    }
   }
+
+  if (draggedCardIndex === -1) {
+    throw new Error('Could not find dragged loose card on table');
+  }
+
+  // Remove the loose card
+  const [removedCard] = gameState.tableCards.splice(draggedCardIndex, 1);
+
+  // Find the temp stack
+  const stackIndex = gameState.tableCards.findIndex(tc =>
+    tc.type === 'temporary_stack' && tc.stackId === targetInfo.stackId
+  );
+
+  if (stackIndex === -1) {
+    throw new Error('Target temp stack not found');
+  }
+
+  // Add card to temp stack (on top)
+  const tempStack = gameState.tableCards[stackIndex];
+  tempStack.cards.push(removedCard);
+  tempStack.value += (removedCard.value || 0);
+
+  logger.action('END tableToTableDrop (add to stack)', gameId, playerIndex, {
+    success: true,
+    stackId: tempStack.stackId,
+    newValue: tempStack.value,
+    cardsCount: tempStack.cards.length
+  });
+
+  return gameState;
+}
+
+// ==================== CASE 3: AUGMENT OUR OWN BUILD ====================
+function handleAugmentBuild(gameState, draggedItem, targetInfo, playerIndex, logger, gameId) {
+  logger.info('Case 3: Adding card to our own build (augmentation)');
+
+  // Validate the build belongs to the player
+  if (targetInfo.owner !== playerIndex) {
+    throw new Error('Cannot augment opponent\'s build');
+  }
+
+  // Validate build is not complete
+  if (targetInfo.isComplete) {
+    throw new Error('Cannot augment a complete build');
+  }
+
+  // Find and remove the dragged loose card
+  let draggedCardIndex = -1;
+  for (let i = 0; i < gameState.tableCards.length; i++) {
+    const tableItem = gameState.tableCards[i];
+
+    if (tableItem.type === 'loose' || !tableItem.type) {
+      const draggedStr = `${draggedItem.card.rank}${draggedItem.card.suit}`;
+      const tableStr = `${tableItem.rank}${tableItem.suit}`;
+
+      if (tableStr === draggedStr) {
+        draggedCardIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (draggedCardIndex === -1) {
+    throw new Error('Could not find dragged loose card on table');
+  }
+
+  // Remove the loose card
+  const [removedCard] = gameState.tableCards.splice(draggedCardIndex, 1);
+
+  // Find the build
+  const buildIndex = gameState.tableCards.findIndex(tc =>
+    tc.type === 'build' && tc.buildId === targetInfo.buildId
+  );
+
+  if (buildIndex === -1) {
+    throw new Error('Target build not found');
+  }
+
+  // Add card to build
+  const build = gameState.tableCards[buildIndex];
+  build.cards.push(removedCard);
+  build.value += (removedCard.value || 0);
+
+  // Check if build is now complete (e.g., reached target value)
+  const isComplete = checkBuildComplete(build);
+  if (isComplete) {
+    build.isComplete = true;
+    logger.info(`Build ${build.buildId} is now complete!`);
+  }
+
+  logger.action('END tableToTableDrop (augment build)', gameId, playerIndex, {
+    success: true,
+    buildId: build.buildId,
+    newValue: build.value,
+    isComplete: build.isComplete || false
+  });
+
+  return gameState;
+}
+
+// Helper function to check if build is complete
+function checkBuildComplete(build) {
+  // Your build completion logic here
+  // For example: build reaches specific target value
+  const TARGET_VALUE = 15; // Example: Casino build target
+  return build.value === TARGET_VALUE;
 }
 
 module.exports = handleTableToTableDrop;

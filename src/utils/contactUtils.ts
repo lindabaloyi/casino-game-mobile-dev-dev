@@ -5,6 +5,16 @@
 
 import type { Build, Card, GameState } from '../../multiplayer/server/game-logic/game-state';
 
+export interface TempStack {
+  type: 'temporary_stack';
+  stackId: string;
+  cards: Card[];
+  owner: number;
+  value: number;
+  canAugmentBuilds?: boolean;
+  [key: string]: any;
+}
+
 /**
  * Type guard for Card objects
  */
@@ -25,6 +35,18 @@ export function isBuild(item: any): item is Build {
          Array.isArray(item.cards) &&
          typeof item.value === 'number' &&
          typeof item.owner === 'number';
+}
+
+/**
+ * Type guard for TempStack objects
+ */
+export function isTempStack(item: any): item is TempStack {
+  return item && typeof item === 'object' &&
+         item.type === 'temporary_stack' &&
+         typeof item.stackId === 'string' &&
+         Array.isArray(item.cards) &&
+         typeof item.owner === 'number' &&
+         typeof item.value === 'number';
 }
 
 /**
@@ -49,6 +71,18 @@ export function findLooseCardById(cardId: string, gameState: GameState): Card | 
 export function findBuildById(buildId: string, gameState: GameState): Build | null {
   for (const tableItem of gameState.tableCards) {
     if (isBuild(tableItem) && tableItem.buildId === buildId) {
+      return tableItem;
+    }
+  }
+  return null;
+}
+
+/**
+ * Find a temporary stack in the table state by ID
+ */
+export function findTempStackById(stackId: string, gameState: GameState): TempStack | null {
+  for (const tableItem of gameState.tableCards) {
+    if (isTempStack(tableItem) && tableItem.stackId === stackId) {
       return tableItem;
     }
   }

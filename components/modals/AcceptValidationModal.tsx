@@ -194,6 +194,16 @@ export function AcceptValidationModal({
           }
         });
 
+        // 🎯 KISS FIX: Clean up old temp stack from contact registry
+        console.log('🧹 [BUILD_CONVERSION] Deleting temp stack from contact registry:', tempStack.stackId);
+        // Import and call removePosition dynamically to avoid circular imports
+        import('../../src/utils/contactDetection').then(({ removePosition }) => {
+          removePosition(tempStack.stackId);
+          console.log('✅ [BUILD_CONVERSION] Temp stack removed from contact registry');
+        }).catch(error => {
+          console.error('❌ [BUILD_CONVERSION] Failed to remove temp stack from registry:', error);
+        });
+
         // Show success alert
         Alert.alert(
           'Build Created!',
