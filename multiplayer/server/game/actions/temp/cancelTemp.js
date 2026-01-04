@@ -1,12 +1,12 @@
 /**
- * Cancel Staging Stack Action Handler
- * Player cancels temporary stack, returning cards to original positions
+ * Cancel Temp Action Handler
+ * Player cancels temp, returning cards to original positions
  */
 
 const { createLogger } = require('../../../utils/logger');
-const logger = createLogger('CancelStagingStack');
+const logger = createLogger('CancelTemp');
 
-function handleCancelStagingStack(gameManager, playerIndex, action, gameId) {
+function handleCancelTemp(gameManager, playerIndex, action, gameId) {
   const gameState = gameManager.getGameState(gameId);
   const { stackToCancel } = action.payload;
 
@@ -253,4 +253,4 @@ function handleCancelStagingStack(gameManager, playerIndex, action, gameId) {
   };
 }
 
-module.exports = handleCancelStagingStack;
+module.exports = handleCancelTemp;

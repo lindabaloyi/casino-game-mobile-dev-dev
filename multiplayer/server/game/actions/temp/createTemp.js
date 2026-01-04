@@ -1,12 +1,12 @@
 /**
- * Create Staging Stack Action Handler
- * Player creates staging stack by dropping hand card on loose table card
+ * Create Temp Action Handler
+ * Player creates temp by dropping hand card on loose table card
  */
 
 const { createLogger } = require('../../../utils/logger');
-const logger = createLogger('CreateStagingStack');
+const logger = createLogger('CreateTemp');
 
-function handleCreateStagingStack(gameManager, playerIndex, action, gameId) {
+function handleCreateTemp(gameManager, playerIndex, action, gameId) {
   const { source, card: draggedCard, targetIndex, isTableToTable } = action.payload;
   const gameState = gameManager.getGameState(gameId);
 
@@ -189,4 +189,4 @@ function handleCreateStagingStack(gameManager, playerIndex, action, gameId) {
   return newGameState;
 }
 
-module.exports = handleCreateStagingStack;
+module.exports = handleCreateTemp;

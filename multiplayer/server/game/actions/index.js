@@ -39,9 +39,9 @@ global.buildSortDetector = createSortingDetector();
 
 // 🎯 CORE 9 ACTIONS - Only actually used in gameplay
 const handleTrail = require('./trail/index');
-const handleCreateStagingStack = require('./staging/createStagingStack');
-const handleAddToStagingStack = require('./staging/addToStagingStack');
-const handleCancelStagingStack = require('./staging/cancelStagingStack');
+const handleCreateTemp = require('./temp/createTemp');
+const handleAddToOwnTemp = require('./temp/addToOwnTemp');
+const handleCancelTemp = require('./temp/cancelTemp');
 const handleCaptureTempStack = require('./capture/captureTempStack');
 const handleCreateBuildFromTempStack = require('./build/createBuildFromTempStack');
 const handleAddToOwnBuild = require('./build/addToOwnBuild');
@@ -51,9 +51,9 @@ const handleHandToTableDrop = require('./card-drop/handToTableDrop');
 module.exports = {
   // 🎯 CORE 9 ACTIONS - Only actually used in gameplay
   handleTrail,
-  handleCreateStagingStack,
-  handleAddToStagingStack,
-  handleCancelStagingStack,
+  handleCreateTemp,
+  handleAddToOwnTemp,
+  handleCancelTemp,
   handleCaptureTempStack,
   handleCreateBuildFromTempStack,
   handleAddToOwnBuild,

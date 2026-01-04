@@ -57,7 +57,7 @@ class ActionDeterminationEngine {
    */
   loadRules() {
     // Import rule modules
-    const stagingRules = require('./rules/stagingRules');
+    const stagingRules = require('./rules/tempRules');
     const captureRules = require('./rules/captureRules');
     const buildRules = require('./rules/buildRules');
     const trailRules = require('./rules/trailRules');

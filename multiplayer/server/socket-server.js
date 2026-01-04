@@ -63,9 +63,9 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
   const actionTypeMapping = {
     // 🎯 CORE 9 ACTIONS - Only actually used in gameplay
     trail: actionHandlers.handleTrail,
-    createStagingStack: actionHandlers.handleCreateStagingStack,
-    addToStagingStack: actionHandlers.handleAddToStagingStack,
-    cancelStagingStack: actionHandlers.handleCancelStagingStack,
+    createTemp: actionHandlers.handleCreateTemp,
+    addToOwnTemp: actionHandlers.handleAddToOwnTemp,
+    cancelTemp: actionHandlers.handleCancelTemp,
     captureTempStack: actionHandlers.handleCaptureTempStack,
     createBuildFromTempStack: actionHandlers.handleCreateBuildFromTempStack,
     addToOwnBuild: actionHandlers.handleAddToOwnBuild,

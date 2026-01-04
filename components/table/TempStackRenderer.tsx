@@ -7,7 +7,7 @@
 import { StyleSheet, View } from 'react-native';
 import { TableCard } from '../../multiplayer/server/game-logic/game-state';
 import CardStack from '../cards/CardStack';
-import StagingOverlay from '../overlays/StagingOverlay';
+import TempOverlay from '../overlays/TempOverlay';
 
 interface TempStackRendererProps {
   tableItem: TableCard;
@@ -18,8 +18,8 @@ interface TempStackRendererProps {
   onDropStack: (draggedItem: any) => boolean | any;
   onFinalizeStack?: (stackId: string) => void;
   onCancelStack?: (stackId: string) => void;
-  onStagingAccept?: (stackId: string) => void;  // ✅ Now triggers validation modal
-  onStagingReject?: (stackId: string) => void;
+  onTempAccept?: (tempId: string) => void;  // ✅ Now triggers validation modal
+  onTempReject?: (tempId: string) => void;
   isDragging?: boolean; // Add drag state to hide overlay during drag
   onDragStart?: (card: any) => void; // For updating table drag state
   onDragEnd?: (draggedItem: any, dropPosition: any) => void; // For updating table drag state
@@ -34,8 +34,8 @@ export function TempStackRenderer({
   onDropStack,
   onFinalizeStack,
   onCancelStack,
-  onStagingAccept,
-  onStagingReject,
+  onTempAccept,
+  onTempReject,
   isDragging = false,
   onDragStart,
   onDragEnd
@@ -60,7 +60,7 @@ export function TempStackRenderer({
     cards: tempStackCards.map((c: any) => `${c.rank}${c.suit}(${c.source})`),
     index,
     baseZIndex,
-    hasStagingCallbacks: !!(onStagingAccept && onStagingReject),
+    hasTempCallbacks: !!(onTempAccept && onTempReject),
     hasLegacyCallbacks: !!(onFinalizeStack && onCancelStack),
     unlimitedStagingEnabled: true,
     canAugmentBuilds
@@ -133,37 +133,37 @@ export function TempStackRenderer({
         // Pass build augmentation capability for contextual dragging
         canAugmentBuilds={canAugmentBuilds}
       />
-      {/* Show staging overlay only for player's own temporary stacks, hidden during drag */}
+      {/* Show temp overlay only for player's own temporary stacks, hidden during drag */}
       {isCurrentPlayerOwner && (
-        <StagingOverlay
+        <TempOverlay
           isVisible={!isDragging}
-          stackId={tempStackItem.stackId || stackId}
+          tempId={tempStackItem.stackId || stackId}
           onAccept={() => {
-            console.log(`[UNIVERSAL_STAGING_UI] 📨 ACCEPT callback triggered for stack ${stackId}`, {
-              stackId,
-              callingOnStagingAccept: !!onStagingAccept,
-              callbackType: 'onStagingAccept',
+            console.log(`[UNIVERSAL_TEMP_UI] 📨 ACCEPT callback triggered for temp ${stackId}`, {
+              tempId: stackId,
+              callingOnTempAccept: !!onTempAccept,
+              callbackType: 'onTempAccept',
               canAugmentBuilds,
-              stagingType: canAugmentBuilds ? 'enhanced' : 'basic',
+              tempType: canAugmentBuilds ? 'enhanced' : 'basic',
               action: 'capture_combination',
               timestamp: Date.now()
             });
 
-            onStagingAccept?.(stackId);
+            onTempAccept?.(stackId);
           }}
           onReject={() => {
-            console.log(`[UNIVERSAL_STAGING_UI] 📨 CANCEL callback triggered for stack ${stackId}`, {
-              stackId,
-              callingOnStagingReject: !!onStagingReject,
-              callbackType: 'onStagingReject',
+            console.log(`[UNIVERSAL_TEMP_UI] 📨 CANCEL callback triggered for temp ${stackId}`, {
+              tempId: stackId,
+              callingOnTempReject: !!onTempReject,
+              callbackType: 'onTempReject',
               canAugmentBuilds,
-              stagingType: canAugmentBuilds ? 'enhanced' : 'basic',
-              action: 'cancel_staging',
+              tempType: canAugmentBuilds ? 'enhanced' : 'basic',
+              action: 'cancel_temp',
               cardsReturned: tempStackCards.length,
               timestamp: Date.now()
             });
 
-            onStagingReject?.(stackId);
+            onTempReject?.(stackId);
           }}
         />
       )}

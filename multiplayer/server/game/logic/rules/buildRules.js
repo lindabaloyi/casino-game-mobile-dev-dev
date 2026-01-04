@@ -46,7 +46,7 @@ const buildRules = [
     action: (context) => {  // ✅ OPTION B: Function returns complete object
       console.log('[BUILD_RULE] Creating staging stack for build creation');
       const action = {
-        type: 'createStagingStack',
+        type: 'createTemp',
         payload: {
           draggedCard: context.draggedItem.card,
           targetCard: context.targetInfo.card,

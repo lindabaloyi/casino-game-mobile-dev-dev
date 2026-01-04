@@ -82,8 +82,8 @@ export const TableCardRenderer: React.FC<TableCardRendererProps> = ({
         onDropStack={(draggedItem) => onDropStack(draggedItem, (tableItem as any).stackId || `temp-${index}`)}
         onFinalizeStack={onFinalizeStack}
         onCancelStack={onCancelStack}
-        onStagingAccept={onStagingAccept}
-        onStagingReject={onStagingReject}
+        onTempAccept={onStagingAccept}
+        onTempReject={onStagingReject}
       />
     );
   }

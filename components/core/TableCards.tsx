@@ -16,8 +16,8 @@ interface TableCardsProps {
   onCancelStack?: (stackId: string) => void;
   onTableCardDragStart?: (card: any) => void;
   onTableCardDragEnd?: (draggedItem: any, dropPosition: any) => void;
-  onStagingAccept?: (stackId: string) => void;
-  onStagingReject?: (stackId: string) => void;
+  onTempAccept?: (tempId: string) => void;
+  onTempReject?: (tempId: string) => void;
   sendAction?: (action: any) => void; // For build augmentation
   // Build overlay support
   gameState?: any; // To check pending build additions
@@ -41,8 +41,8 @@ const TableCards: React.FC<TableCardsProps> = ({
   onCancelStack,
   onTableCardDragStart,
   onTableCardDragEnd,
-  onStagingAccept,
-  onStagingReject,
+  onTempAccept,
+  onTempReject,
   sendAction,
   // Build overlay props
   gameState,
@@ -67,7 +67,7 @@ const TableCards: React.FC<TableCardsProps> = ({
       propsStructure: {
         hasOnDropOnCard: !!onDropOnCard,
         hasCurrentPlayer: currentPlayer !== undefined,
-        allProps: Object.keys({tableCards, onDropOnCard, currentPlayer, onFinalizeStack, onCancelStack, onTableCardDragStart, onTableCardDragEnd, onStagingAccept, onStagingReject})
+        allProps: Object.keys({tableCards, onDropOnCard, currentPlayer, onFinalizeStack, onCancelStack, onTableCardDragStart, onTableCardDragEnd, onTempAccept, onTempReject})
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,24 +100,24 @@ const TableCards: React.FC<TableCardsProps> = ({
   // Track locally cancelled staging stacks for immediate UI updates
   const [cancelledStacks] = React.useState<Set<string>>(new Set());
 
-  // Simplified staging reject handler - just call server-side cancel
-  const handleStagingRejectWithLocalState = React.useCallback((stackId: string) => {
-    console.log(`[TableCards] ❌ CANCEL STAGING - CALLING SERVER-SIDE CANCEL:`, {
-      stackId,
-      action: 'server-side-cancelStagingStack',
+  // Simplified temp reject handler - just call server-side cancel
+  const handleTempRejectWithLocalState = React.useCallback((tempId: string) => {
+    console.log(`[TableCards] ❌ CANCEL TEMP - CALLING SERVER-SIDE CANCEL:`, {
+      tempId,
+      action: 'server-side-cancelTemp',
       timestamp: Date.now(),
       expectedOutcome: 'server-will-restore-cards-to-original-positions'
     });
 
     // Call the server-side cancel handler - let server handle all restoration
-    onStagingReject?.(stackId);
+    onTempReject?.(tempId);
 
     console.log(`[TableCards] ✅ CANCEL REQUEST SENT TO SERVER:`, {
-      stackId,
+      tempId,
       serverWillHandle: 'position-aware-card-restoration',
       clientWillReceive: 'updated-game-state-with-restored-cards'
     });
-  }, [onStagingReject]);
+  }, [onTempReject]);
 
   // FIXED: Preserve original positions when expanding cancelled stacks
   const visibleTableCards = React.useMemo(() => {
@@ -284,7 +284,7 @@ const TableCards: React.FC<TableCardsProps> = ({
               } else if (itemType === 'temporary_stack') {
                 return (
                   <TempStackRenderer
-                    key={`staging-container-${originalPosition}`}
+                    key={`temp-container-${originalPosition}`}
                     tableItem={tableItem}
                     index={originalPosition}
                     baseZIndex={baseZIndex}
@@ -293,8 +293,8 @@ const TableCards: React.FC<TableCardsProps> = ({
                     onDropStack={(draggedItem) => handleDropOnStack(draggedItem, (tableItem as any).stackId || `temp-${originalPosition}`)}
                     onFinalizeStack={onFinalizeStack}
                     onCancelStack={onCancelStack}
-                    onStagingAccept={onStagingAccept}
-                    onStagingReject={handleStagingRejectWithLocalState}
+                    onTempAccept={onTempAccept}
+                    onTempReject={handleTempRejectWithLocalState}
                     isDragging={isDragging}
                     onDragStart={handleTableCardDragStartWithPosition}
                     onDragEnd={handleTableCardDragEndWithPosition}

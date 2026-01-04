@@ -76,7 +76,7 @@ export function handleLooseCardContact(
 
       // Use single staging action for all players
       const action = {
-        type: 'createStagingStack',
+        type: 'createTemp',
         payload: {
           source: 'hand',
           isTableToTable: false,

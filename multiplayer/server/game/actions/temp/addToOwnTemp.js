@@ -1,13 +1,13 @@
 /**
- * Add To Staging Stack Action Handler
- * Player adds card to existing temporary stack
- * Implements Rule-Based Validation approach from specification
+ * Add To Own Temp Action Handler
+ * Player adds card to existing temp stack
+ * Implements freedom of play approach like addToOwnBuild
  */
 
 const handleCaptureTempStack = require('../capture/captureTempStack');
 
-function handleAddToStagingStack(gameManager, playerIndex, action, gameId) {
-  console.log('[TEMP_STACK] 🏃 ADD_TO_STAGING_STACK executing (GAME-APPROPRIATE)');
+function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
+  console.log('[TEMP_STACK] 🏃 ADD_TO_OWN_TEMP executing (FREEDOM OF PLAY)');
   console.log('[TEMP_STACK] Input action payload:', JSON.stringify(action.payload, null, 2));
 
   const { stackId, card, source } = action.payload;
@@ -214,4 +214,4 @@ function removeCardFromSource(gameState, card, source, playerIndex) {
   }
 }
 
-module.exports = handleAddToStagingStack;
+module.exports = handleAddToOwnTemp;

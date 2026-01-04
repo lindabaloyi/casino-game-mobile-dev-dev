@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDragHandlers } from '../../hooks/useDragHandlers';
 import { useModalManager } from '../../hooks/useModalManager';
 import { useServerListeners } from '../../hooks/useServerListeners';
-import { useStagingStacks } from '../../hooks/useStagingStacks';
+import { useTempStacks } from '../../hooks/useTempStacks';
 import { GameState } from '../../multiplayer/server/game-logic/game-state';
 import CapturedCards from '../cards/CapturedCards';
 import { AcceptValidationModal } from '../modals/AcceptValidationModal';
@@ -61,8 +61,8 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     setCardToReset
   });
 
-  // Extracted staging stack operations
-  const stagingStacks = useStagingStacks({
+  // Extracted temp stack operations
+  const tempStacks = useTempStacks({
     gameState,
     sendAction
   });
@@ -167,12 +167,12 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
           <TableCards
             tableCards={gameState.tableCards}
             currentPlayer={playerNumber}
-            onFinalizeStack={stagingStacks.handleFinalizeStack}
-            onCancelStack={stagingStacks.handleCancelStack}
+            onFinalizeStack={tempStacks.handleFinalizeStack}
+            onCancelStack={tempStacks.handleCancelStack}
             onTableCardDragStart={dragHandlers.handleTableCardDragStart}
             onTableCardDragEnd={dragHandlers.handleTableCardDragEnd}
-            onStagingAccept={handleAcceptClick}  // ✅ NEW: Open validation modal
-            onStagingReject={stagingStacks.handleStagingReject}
+            onTempAccept={handleAcceptClick}  // ✅ NEW: Open validation modal
+            onTempReject={tempStacks.handleTempReject}
             sendAction={sendAction}  // For build augmentation
             gameState={gameState}  // For build overlay detection
             onAcceptBuildAddition={handleAcceptBuildAddition}  // ✅ NEW: Build overlay handlers

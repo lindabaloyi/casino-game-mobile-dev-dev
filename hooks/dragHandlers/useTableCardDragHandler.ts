@@ -142,6 +142,21 @@ export function useTableCardDragHandler({
         }
       }
 
+      if (contact.type === 'tempStack') {
+        // Use our enhanced temp stack contact detection
+        const { handleTempStackContact } = require('../../src/utils/contactHandlers/tempStackHandler');
+        const action = handleTempStackContact(
+          { card: draggedItem.card, source: 'table' },
+          contact,
+          gameState,
+          playerNumber
+        );
+        if (action) {
+          sendAction(action);
+          return;
+        }
+      }
+
       if (contact.type === 'card') {
         const targetCard = contact.data;
         if (targetCard) {
@@ -161,7 +176,7 @@ export function useTableCardDragHandler({
         }
       }
     }
-  }, [sendAction, isMyTurn, handleBuildAugmentationDragEnd, playerNumber]);
+  }, [sendAction, isMyTurn, handleBuildAugmentationDragEnd, playerNumber, gameState]);
 
   return {
     handleTableCardDragEnd

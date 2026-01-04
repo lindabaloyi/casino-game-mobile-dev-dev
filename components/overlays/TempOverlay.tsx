@@ -2,19 +2,19 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-interface StagingOverlayProps {
+interface TempOverlayProps {
   isVisible: boolean;
-  stackId?: string;
-  overlayText?: string;  // NEW: Customizable text (default: 'STAGING')
-  onAccept: (stackId: string) => void;
+  tempId?: string;
+  overlayText?: string;  // NEW: Customizable text (default: 'TEMP')
+  onAccept: (tempId: string) => void;
   onReject: () => void;
   disabled?: boolean;
 }
 
-const StagingOverlay: React.FC<StagingOverlayProps> = ({
+const TempOverlay: React.FC<TempOverlayProps> = ({
   isVisible,
-  stackId,
-  overlayText = 'STAGING',  // Default to 'STAGING' for backward compatibility
+  tempId,
+  overlayText = 'TEMP',  // Default to 'TEMP' for new standard
   onAccept,
   onReject,
   disabled = false
@@ -30,21 +30,21 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
   }, [isVisible, fadeAnim]);
 
   if (!isVisible) {
-    console.log(`[STAGING_OVERLAY] Overlay hidden for stack ${stackId || 'unknown'}`);
+    console.log(`[TEMP_OVERLAY] Overlay hidden for temp ${tempId || 'unknown'}`);
     return null;
   }
 
-  console.log(`[STAGING_OVERLAY] 🎬 Rendering ${overlayText} overlay for stack ${stackId}, disabled: ${disabled}`, {
+  console.log(`[TEMP_OVERLAY] 🎬 Rendering ${overlayText} overlay for temp ${tempId}, disabled: ${disabled}`, {
     isVisible,
-    stackId,
+    tempId,
     disabled,
     overlayText,
     hasOnAccept: typeof onAccept === 'function',
     hasOnReject: typeof onReject === 'function'
   });
 
-  // All staging stacks now show Accept/Cancel buttons (including build augmentations)
-  console.log(`🎯 [STAGING_DEBUG] ${overlayText} OVERLAY RENDERED: Accept/Cancel buttons should be visible for stack ${stackId}`);
+  // All temp stacks now show Accept/Cancel buttons (including build augmentations)
+  console.log(`🎯 [TEMP_DEBUG] ${overlayText} OVERLAY RENDERED: Accept/Cancel buttons should be visible for temp ${tempId}`);
 
   return (
     <Animated.View
@@ -52,7 +52,7 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
       pointerEvents={disabled ? 'none' : 'auto'}
     >
       {/* Dynamic indicator */}
-      <View style={styles.stagingIndicator}>
+      <View style={styles.tempIndicator}>
         <Text style={styles.indicatorText}>{overlayText}</Text>
       </View>
 
@@ -60,21 +60,21 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
         <TouchableOpacity
           style={[styles.actionButton, styles.acceptButton, disabled && styles.disabled]}
           onPress={() => {
-            console.log(`[STAGING_OVERLAY] ✅ ACCEPT button pressed for stack ${stackId}`, {
-              stackId,
+            console.log(`[TEMP_OVERLAY] ✅ ACCEPT button pressed for temp ${tempId}`, {
+              tempId,
               disabled,
               timestamp: Date.now(),
-              action: 'finalizeStagingStack'
+              action: 'finalizeTemp'
             });
             if (onAccept) {
-              onAccept(stackId || 'unknown');
+              onAccept(tempId || 'unknown');
             } else {
-              console.error(`[STAGING_OVERLAY] No onAccept callback provided for stack ${stackId}`);
+              console.error(`[TEMP_OVERLAY] No onAccept callback provided for temp ${tempId}`);
             }
           }}
           disabled={disabled}
-          accessibilityLabel="Accept staging build"
-          accessibilityHint="Accepts and creates the temporary card build"
+          accessibilityLabel="Accept temp"
+          accessibilityHint="Accepts and creates the temporary card combination"
         >
           <Ionicons name="checkmark-circle" size={24} color="#28a745" />
           <Text style={styles.buttonText}>Accept</Text>
@@ -83,21 +83,21 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
         <TouchableOpacity
           style={[styles.actionButton, styles.rejectButton, disabled && styles.disabled]}
           onPress={() => {
-            console.log(`[STAGING_OVERLAY] ❌ CANCEL button pressed for stack ${stackId}`, {
-              stackId,
+            console.log(`[TEMP_OVERLAY] ❌ CANCEL button pressed for temp ${tempId}`, {
+              tempId,
               disabled,
               timestamp: Date.now(),
-              action: 'cancelStagingStack'
+              action: 'cancelTemp'
             });
             if (onReject) {
               onReject();
             } else {
-              console.error(`[STAGING_OVERLAY] No onReject callback provided for stack ${stackId}`);
+              console.error(`[TEMP_OVERLAY] No onReject callback provided for temp ${tempId}`);
             }
           }}
           disabled={disabled}
-          accessibilityLabel="Cancel staging build"
-          accessibilityHint="Cancels the card staging and returns cards"
+          accessibilityLabel="Cancel temp"
+          accessibilityHint="Cancels the temp and returns cards"
         >
           <Ionicons name="close-circle" size={24} color="#dc3545" />
           <Text style={styles.buttonText}>Cancel</Text>
@@ -110,7 +110,7 @@ const StagingOverlay: React.FC<StagingOverlayProps> = ({
 const styles = StyleSheet.create({
   overlayContainer: {
     position: 'absolute',
-    bottom: -70, // Exact position for staging overlay
+    bottom: -70, // Exact position for temp overlay
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'center'
   },
-  stagingIndicator: {
+  tempIndicator: {
     marginTop: 8,
     backgroundColor: '#17a2b8',
     paddingHorizontal: 12,
@@ -172,4 +172,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default StagingOverlay;
+export default TempOverlay;

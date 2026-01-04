@@ -6,7 +6,7 @@ import { View } from 'react-native';
 import { useLayoutMeasurement } from '../../hooks/useLayoutMeasurement';
 import { CardType } from '../cards/card';
 import { BuildIndicator } from '../indicators/BuildIndicator';
-import StagingOverlay from '../overlays/StagingOverlay';
+import TempOverlay from '../overlays/TempOverlay';
 import { StackRenderer } from './StackRenderer';
 
 interface BuildStackProps {
@@ -78,9 +78,9 @@ export const BuildStack: React.FC<BuildStackProps> = ({
       />
 
       {/* Build augmentation overlay */}
-      <StagingOverlay
+      <TempOverlay
         isVisible={showOverlay}
-        stackId={stackId}
+        tempId={stackId}
         overlayText={overlayText}
         onAccept={(id) => onAccept?.(id)}
         onReject={onReject || (() => {})}

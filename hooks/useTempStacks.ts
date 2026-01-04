@@ -2,71 +2,16 @@ import { useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
 
 /**
- * Custom hook to manage all staging stack operations in GameBoard
+ * Custom hook to manage all temp stack operations in GameBoard
  * Consolidates stack finalization, cancellation, accept/reject logic
  */
-export function useStagingStacks({
+export function useTempStacks({
   gameState,
   sendAction
 }: {
   gameState: any;
   sendAction: (action: any) => void;
 }) {
-  // 🎯 ALERT FUNCTIONS FOR USER FEEDBACK
-  const showCaptureConfirmation = useCallback((validation: any) => {
-    const message = validation.type === 'SAME_VALUE_CAPTURE'
-      ? `Capture ${validation.count} ${validation.value}s?`
-      : `Capture sum ${validation.value}?`;
-
-    console.log('🎯 [UI] Showing CAPTURE confirmation:', message);
-
-    Alert.alert(
-      'Confirm Capture',
-      message,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Capture',
-          onPress: () => {
-            console.log('✅ [UI] User confirmed CAPTURE');
-            executeAction(validation);
-          }
-        }
-      ]
-    );
-  }, []);
-
-  const showBuildConfirmation = useCallback((validation: any) => {
-    const message = `Create build totaling ${validation.value}? (Need ${validation.value} to capture later)`;
-
-    console.log('🏗️ [UI] Showing BUILD confirmation:', message);
-
-    Alert.alert(
-      'Create Build',
-      message,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Create Build',
-          onPress: () => {
-            console.log('✅ [UI] User confirmed BUILD');
-            executeAction(validation);
-          }
-        }
-      ]
-    );
-  }, []);
-
-  const showValidationError = useCallback((reason: string) => {
-    console.log('❌ [UI] Showing validation error:', reason);
-
-    Alert.alert(
-      'Cannot Proceed',
-      reason,
-      [{ text: 'OK' }]
-    );
-  }, []);
-
   // 🎯 EXECUTE ACTION FUNCTION (handles both capture and build)
   const executeAction = useCallback((validation: any) => {
     console.log('🚀 [EXECUTE] ===== STARTING ACTION EXECUTION =====');
@@ -112,6 +57,61 @@ export function useStagingStacks({
 
     console.log('✅ [EXECUTE] ===== ACTION SENT SUCCESSFULLY =====');
   }, [gameState.tableCards, sendAction]);
+
+  // 🎯 ALERT FUNCTIONS FOR USER FEEDBACK
+  const showCaptureConfirmation = useCallback((validation: any) => {
+    const message = validation.type === 'SAME_VALUE_CAPTURE'
+      ? `Capture ${validation.count} ${validation.value}s?`
+      : `Capture sum ${validation.value}?`;
+
+    console.log('🎯 [UI] Showing CAPTURE confirmation:', message);
+
+    Alert.alert(
+      'Confirm Capture',
+      message,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Capture',
+          onPress: () => {
+            console.log('✅ [UI] User confirmed CAPTURE');
+            executeAction(validation);
+          }
+        }
+      ]
+    );
+  }, [executeAction]);
+
+  const showBuildConfirmation = useCallback((validation: any) => {
+    const message = `Create build totaling ${validation.value}? (Need ${validation.value} to capture later)`;
+
+    console.log('🏗️ [UI] Showing BUILD confirmation:', message);
+
+    Alert.alert(
+      'Create Build',
+      message,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Create Build',
+          onPress: () => {
+            console.log('✅ [UI] User confirmed BUILD');
+            executeAction(validation);
+          }
+        }
+      ]
+    );
+  }, [executeAction]);
+
+  const showValidationError = useCallback((reason: string) => {
+    console.log('❌ [UI] Showing validation error:', reason);
+
+    Alert.alert(
+      'Cannot Proceed',
+      reason,
+      [{ text: 'OK' }]
+    );
+  }, []);
   // 🎯 CORRECTED BASIC CAPTURE VALIDATION FUNCTION
   const validateBasicCapture = useCallback((tempStack: any, playerHand: any[]) => {
     console.log('🎯 [VALIDATION] ===== STARTING VALIDATION =====');
@@ -157,7 +157,7 @@ export function useStagingStacks({
           valid: true,
           type: 'SAME_VALUE_CAPTURE',
           action: 'CAPTURE',
-          serverAction: 'finalizeStagingStack',
+        serverAction: 'finalizeTemp',
           stackId: tempStack.stackId,
           value: targetValue,
           count: tempStack.cards.length,
@@ -191,7 +191,7 @@ export function useStagingStacks({
           valid: true,
           type: 'SUM_CAPTURE',
           action: 'CAPTURE',
-          serverAction: 'finalizeStagingStack',
+          serverAction: 'finalizeTemp',
           stackId: tempStack.stackId,
           value: totalValue,
           reason: `Capture sum ${totalValue} immediately`
@@ -229,7 +229,7 @@ export function useStagingStacks({
     const stack = findStackById(stackId);
     if (stack && 'stackId' in stack) {
       sendAction({
-        type: 'finalizeStagingStack',
+        type: 'finalizeTemp',
         payload: { stack }
       });
     } else {
@@ -242,7 +242,7 @@ export function useStagingStacks({
     const stackToCancel = findStackById(stackId);
     if (stackToCancel && 'stackId' in stackToCancel) {
       sendAction({
-        type: 'cancelStagingStack',
+        type: 'cancelTemp',
         payload: { stackToCancel }
       });
     } else {
@@ -250,7 +250,7 @@ export function useStagingStacks({
     }
   }, [findStackById, sendAction]);
 
-  const handleStagingAccept = useCallback((stackId: string) => {
+  const handleTempAccept = useCallback((stackId: string) => {
     console.log('✅ [ACCEPT_CLICKED] ===== ACCEPT BUTTON PRESSED =====');
     console.log('✅ [ACCEPT_CLICKED] Stack ID:', stackId);
 
@@ -299,22 +299,22 @@ export function useStagingStacks({
     console.log('✅ [ACCEPT_CLICKED] ===== ACCEPT HANDLING COMPLETE =====');
   }, [findStackById, gameState.playerHands, gameState.currentPlayer, validateBasicCapture, showCaptureConfirmation, showBuildConfirmation, showValidationError]);
 
-  const handleStagingReject = useCallback((stackId: string) => {
-    console.log(`[STAGING_STACKS] ❌ CANCELING staging stack (SERVER-SIDE):`, {
+  const handleTempReject = useCallback((stackId: string) => {
+    console.log(`[TEMP_STACKS] ❌ CANCELING temp stack (SERVER-SIDE):`, {
       stackId,
-      actionType: 'cancelStagingStack',
+      actionType: 'cancelTemp',
       timestamp: Date.now(),
       serverCall: true
     });
 
     // Use the existing handleCancelStack function that sends to server
-    // This will trigger the server-side cancelStagingStack action
+    // This will trigger the server-side cancelTemp action
     // which properly restores cards to their original sources
     handleCancelStack(stackId);
 
-    console.log(`[STAGING_STACKS] 📤 Server cancel initiated - expecting proper card restoration:`, {
+    console.log(`[TEMP_STACKS] 📤 Server cancel initiated - expecting proper card restoration:`, {
       stackId,
-      serverAction: 'cancelStagingStack',
+      serverAction: 'cancelTemp',
       expectedOutcome: 'hand-cards-return-to-hand'
     });
   }, [handleCancelStack]);
@@ -335,7 +335,7 @@ export function useStagingStacks({
   return {
     handleFinalizeStack,
     handleCancelStack,
-    handleStagingAccept,
-    handleStagingReject
+    handleTempAccept,
+    handleTempReject
   };
 }

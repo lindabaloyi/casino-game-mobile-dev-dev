@@ -1,9 +1,9 @@
 /**
- * Staging Action Rules
- * Rules for determining staging actions (temp stack creation)
+ * Temp Action Rules
+ * Rules for determining temp actions (temp stack creation and management)
  */
 
-const stagingRules = [
+const tempRules = [
   {
     id: 'temp-stack-addition',
     priority: 100, // ✅ HIGHEST PRIORITY: Adding to existing temp stacks
@@ -17,7 +17,7 @@ const stagingRules = [
       const isTempStackTarget = targetInfo?.type === 'temporary_stack';
       const hasValidCard = draggedItem?.card;
 
-      console.log('[STAGING_RULE] Temp stack addition check:', {
+      console.log('[TEMP_RULE] Temp stack addition check:', {
         targetType: targetInfo?.type,
         stackId: targetInfo?.stackId,
         draggedSource: draggedItem?.source,
@@ -29,9 +29,9 @@ const stagingRules = [
       return isTempStackTarget && hasValidCard;
     },
     action: (context) => {
-      console.log('[STAGING_RULE] ✅ Creating temp stack addition action');
+      console.log('[TEMP_RULE] ✅ Creating temp stack addition action');
       return {
-        type: 'addToStagingStack',
+        type: 'addToOwnTemp',
         payload: {
           gameId: context.gameId,
           stackId: context.targetInfo?.stackId,
@@ -56,7 +56,7 @@ const stagingRules = [
       const isLooseTarget = targetInfo?.type === 'loose';
       const hasValidCards = draggedItem?.card && targetInfo?.card;
 
-      console.log('[STAGING_RULE] Table-to-table staging check:', {
+      console.log('[TEMP_RULE] Table-to-table temp creation check:', {
         source: draggedItem?.source,
         targetType: targetInfo?.type,
         isTableSource,
@@ -76,12 +76,12 @@ const stagingRules = [
         tc.type === 'build' && tc.owner === draggedItem.player
       );
 
-      console.log('[STAGING_RULE] ✅ Creating table-to-table staging action:', {
+      console.log('[TEMP_RULE] ✅ Creating table-to-table temp action:', {
         canAugmentBuilds: playerHasBuilds
       });
 
       return {
-        type: 'createStagingStack',
+        type: 'createTemp',
         payload: {
           source: draggedItem.source,
           card: draggedItem.card,
@@ -108,7 +108,7 @@ const stagingRules = [
       const isLooseTarget = targetInfo?.type === 'loose';
       const hasValidCards = draggedItem?.card && targetInfo?.card;
 
-      console.log('[STAGING_RULE] Hand-to-table staging check:', {
+      console.log('[TEMP_RULE] Hand-to-table temp creation check:', {
         source: draggedItem?.source,
         targetType: targetInfo?.type,
         isHandSource,
@@ -128,12 +128,12 @@ const stagingRules = [
         tc.type === 'build' && tc.owner === draggedItem.player
       );
 
-      console.log('[STAGING_RULE] ✅ Creating hand-to-table staging action:', {
+      console.log('[TEMP_RULE] ✅ Creating hand-to-table temp action:', {
         canAugmentBuilds: playerHasBuilds
       });
 
       return {
-        type: 'createStagingStack',
+        type: 'createTemp',
         payload: {
           source: draggedItem.source,
           card: draggedItem.card,
@@ -148,4 +148,4 @@ const stagingRules = [
   }
 ];
 
-module.exports = stagingRules;
+module.exports = tempRules;
