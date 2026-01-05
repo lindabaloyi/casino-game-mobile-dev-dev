@@ -177,7 +177,27 @@ class GameCoordinatorService {
         return;
       }
 
-      if (result.actions.length === 1 && !result.requiresModal) {
+      // 🎯 NEW: Check for data packets first (like showTempStackOptions)
+      if (result.dataPackets && result.dataPackets.length > 0) {
+        // Send data packets to frontend instead of executing as actions
+        this.logger.info('[STAGING_DEBUG] 📦 SENDING DATA PACKETS TO CLIENT:', {
+          gameId,
+          playerIndex,
+          dataPacketCount: result.dataPackets.length,
+          dataPacketTypes: result.dataPackets.map(dp => dp.type),
+          requestId: data.requestId,
+          timestamp: new Date().toISOString()
+        });
+
+        // Send each data packet to the client
+        result.dataPackets.forEach(dataPacket => {
+          if (dataPacket.type === 'showTempStackOptions') {
+            // Send temp stack options for modal display
+            this.broadcaster.sendTempStackOptions(socket, dataPacket.payload, data.requestId);
+          }
+        });
+
+      } else if (result.actions.length === 1 && !result.requiresModal) {
         // Auto-execute single action
         const actionToExecute = result.actions[0];
         this.logger.info('[STAGING_DEBUG] ⚡ AUTO-EXECUTING SINGLE ACTION:', {

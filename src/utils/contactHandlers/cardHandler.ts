@@ -41,60 +41,55 @@ export function handleLooseCardContact(
     value: touchedCard.value
   });
 
-  if (draggedCard.value === touchedCard.value) {
-    // Capture matching card
-    console.log('[CARD_HANDLER] ✅ Matching values - CAPTURE');
-    return {
-      type: 'capture',
+  // Allow creative freedom: Players can combine ANY cards in temp stacks
+  // Validation happens during build creation, not staging
+  const totalValue = draggedCard.value + touchedCard.value;
+  const isSameValue = draggedCard.value === touchedCard.value;
+
+  // Allow all combinations for maximum player creativity
+  if (isSameValue || totalValue > 0) {
+    // Check if player has active builds for contextual logging
+    const playerHasBuilds = gameState.tableCards.some(tc =>
+      (tc as any).type === 'build' && (tc as any).owner === currentPlayer
+    );
+
+    console.log('[CARD_HANDLER] 🎯 STAGING TRIGGERED:', {
+      player: currentPlayer,
+      draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+      touchedCard: `${touchedCard.rank}${touchedCard.suit}`,
+      totalValue,
+      isSameValue,
+      playerHasBuilds,
+      stagingType: isSameValue ? 'same-value (strategic options)' : (playerHasBuilds ? 'enhanced (with augmentation)' : 'basic (capture only)'),
+      reason: isSameValue ? 'Same-value cards need strategic options' : 'Universal staging available to all players'
+    });
+
+    // Find the index of the touched card in tableCards
+    const touchedIndex = findCardIndex(touchedCard, gameState);
+
+    // Use single staging action for all players
+    const action = {
+      type: 'createTemp',
       payload: {
-        draggedItem: { card: draggedCard, source: 'hand' },
-        selectedTableCards: [touchedCard],
-        targetCard: touchedCard
+        source: 'hand',
+        isTableToTable: false,
+        card: draggedCard,
+        targetIndex: touchedIndex,
+        // Include build augmentation capability flag
+        canAugmentBuilds: playerHasBuilds,
+        // Mark same-value stacks for special handling
+        isSameValueStack: isSameValue
       }
     };
-  } else {
-    // Universal staging: Always allow staging for all players
-    const totalValue = draggedCard.value + touchedCard.value;
-    if (totalValue <= 10) {
-      // Check if player has active builds for contextual logging
-      const playerHasBuilds = gameState.tableCards.some(tc =>
-        (tc as any).type === 'build' && (tc as any).owner === currentPlayer
-      );
 
-      console.log('[CARD_HANDLER] 🎯 UNIVERSAL STAGING TRIGGERED:', {
-        player: currentPlayer,
-        draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
-        touchedCard: `${touchedCard.rank}${touchedCard.suit}`,
-        totalValue,
-        playerHasBuilds,
-        stagingType: playerHasBuilds ? 'enhanced (with augmentation)' : 'basic (capture only)',
-        reason: 'Universal staging available to all players'
-      });
+    console.log('[CARD_HANDLER] 🚀 Sending staging action:', {
+      actionType: action.type,
+      canAugmentBuilds: action.payload.canAugmentBuilds,
+      isSameValueStack: action.payload.isSameValueStack,
+      stagingValue: totalValue
+    });
 
-      // Find the index of the touched card in tableCards
-      const touchedIndex = findCardIndex(touchedCard, gameState);
-
-      // Use single staging action for all players
-      const action = {
-        type: 'createTemp',
-        payload: {
-          source: 'hand',
-          isTableToTable: false,
-          card: draggedCard,
-          targetIndex: touchedIndex,
-          // Include build augmentation capability flag
-          canAugmentBuilds: playerHasBuilds
-        }
-      };
-
-      console.log('[CARD_HANDLER] 🚀 Sending universal staging action:', {
-        actionType: action.type,
-        canAugmentBuilds: action.payload.canAugmentBuilds,
-        stagingValue: totalValue
-      });
-
-      return action;
-    }
+    return action;
   }
 
   return null;

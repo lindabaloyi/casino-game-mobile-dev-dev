@@ -28,6 +28,8 @@ interface AcceptValidationModalProps {
   playerHand: Card[];
   onCapture?: (validation: any) => void; // Make optional
   sendAction: (action: any) => void; // Add required sendAction
+  // NEW: Receive pre-calculated options from server
+  availableOptions?: ActionOption[];
 }
 
 export function AcceptValidationModal({
@@ -36,12 +38,71 @@ export function AcceptValidationModal({
   tempStack,
   playerHand,
   onCapture,
-  sendAction
+  sendAction,
+  availableOptions // NEW: Pre-calculated options from server
 }: AcceptValidationModalProps) {
   const [validationResult, setValidationResult] = useState<any>(null);
   const isProcessing = useRef(false);
 
-  // 🎯 NEW: Get all available capture and build options
+  // 🎯 DETECT SAME-VALUE TEMP STACKS
+  const detectSameValueStack = (stack: any): boolean => {
+    if (!stack.cards || stack.cards.length < 2) return false;
+    const cards = stack.cards;
+    const firstValue = cards[0]?.value;
+    return cards.every((card: { value: number }) => card.value === firstValue);
+  };
+
+  // 🎯 STRATEGIC OPTIONS FOR SAME-VALUE STACKS (corrected casino logic)
+  const calculateStrategicOptions = (stack: any, hand: Card[]): ActionOption[] => {
+    const options: ActionOption[] = [];
+    const cards = stack.cards || [];
+    const stackValue = cards[0]?.value; // Rank value (e.g., 3)
+    const stackSum = cards.reduce((sum: number, card: { value: number }) => sum + card.value, 0);
+
+    console.log('🔍 [MODAL] Calculating options:', {
+      stackValue,  // Should be 3
+      stackSum,    // Should be 6
+      hand: hand.map(c => `${c.value}${c.suit}`)
+    });
+
+    // 1. FIX CAPTURE: Use rank value, not sum!
+    options.push({
+      type: 'capture',
+      label: `Capture ${stackValue}`, // "Capture 3" not "Capture 6"
+      card: null,
+      value: stackValue  // Store rank value (3), not sum (6)
+    });
+
+    // 2. ADD: Build with same rank value (if player has that card)
+    const hasSameValueCard = hand.some(card => card.value === stackValue);
+    if (hasSameValueCard) {
+      options.push({
+        type: 'build',
+        label: `Build ${stackValue}`, // "Build 3"
+        card: null,
+        value: stackValue
+      });
+    }
+
+    // 3. KEEP: Build with sum total (with correct conditions)
+    // Only if all cards ≤ 5 AND player has sum card
+    const allCardsFiveOrLess = cards.every((card: { value: number }) => card.value <= 5);
+    const hasSumCard = hand.some(card => card.value === stackSum);
+
+    if (allCardsFiveOrLess && hasSumCard) {
+      options.push({
+        type: 'build',
+        label: `Build ${stackSum}`, // "Build 6" (if player has 6)
+        card: null,
+        value: stackSum
+      });
+    }
+
+    console.log('✅ [MODAL] Generated options:', options.map(o => o.label));
+    return options;
+  };
+
+  // 🎯 NEW: Get all available capture and build options (enhanced with same-value logic)
   const getAvailableOptions = (stack: any, hand: Card[]): ActionOption[] => {
     const options: ActionOption[] = [];
 
@@ -50,6 +111,13 @@ export function AcceptValidationModal({
       return options; // No options available
     }
 
+    // 🎯 SAME-VALUE STACKS: Use strategic options
+    if (detectSameValueStack(stack)) {
+      console.log('[ACCEPT_MODAL] 🎯 Detected same-value stack, using strategic options');
+      return calculateStrategicOptions(stack, hand);
+    }
+
+    // 📋 REGULAR STACKS: Use existing basic validation
     const cards = stack.cards;
     const stackValue = cards.reduce((sum: number, card: { value: number }) => sum + card.value, 0);
 
@@ -84,9 +152,22 @@ export function AcceptValidationModal({
     return options;
   };
 
+  // 🎯 NEW: Use server-provided options when available, fallback to local calculation
+  const getOptionsToDisplay = (): ActionOption[] => {
+    // ✅ PRIORITY 1: Use server-provided options (clean architecture)
+    if (availableOptions && availableOptions.length > 0) {
+      console.log('🎯 [MODAL] Using server-provided options:', availableOptions.map(o => o.label));
+      return availableOptions;
+    }
+
+    // 🔄 FALLBACK: Local calculation for backward compatibility
+    console.log('🔄 [MODAL] Using local calculation (fallback)');
+    return getAvailableOptions(tempStack, playerHand);
+  };
+
   // 🎯 LEGACY: Keep for backward compatibility - returns single validation result
   const validateTempStack = (stack: any, hand: Card[]) => {
-    const options = getAvailableOptions(stack, hand);
+    const options = getOptionsToDisplay();
 
     if (options.length === 0) {
       return { valid: false, error: 'No valid capture or build options available' };
@@ -96,7 +177,7 @@ export function AcceptValidationModal({
     const primaryOption = options[0];
     return {
       valid: true,
-      options: options, // NEW: Include all options
+      options: options, // Include all options
       target: primaryOption.value,
       selectedCard: primaryOption.card,
       message: `Choose your action for this stack`
@@ -111,7 +192,7 @@ export function AcceptValidationModal({
       console.log('🔍 [VALIDATION] Result:', result);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, tempStack, playerHand]);
+  }, [visible, tempStack, playerHand, availableOptions]); // ✅ Add availableOptions dependency
 
   // Reset processing flag when modal closes
   useEffect(() => {

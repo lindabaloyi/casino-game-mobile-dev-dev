@@ -73,6 +73,17 @@ class BroadcasterService {
   }
 
   /**
+   * Send temp stack options to a specific player
+   */
+  sendTempStackOptions(socket, payload, requestId) {
+    socket.emit('temp-stack-options', {
+      requestId,
+      tempStackId: payload.tempStackId,
+      availableOptions: payload.availableOptions
+    });
+  }
+
+  /**
    * Send error message to a specific player
    */
   sendError(socket, message) {

@@ -129,6 +129,7 @@ class ActionDeterminationEngine {
   /**
    * Format matching rules into final result
    * OPTION B: All actions are functions that return complete objects
+   * SPECIAL: Handle data packets (like showTempStackOptions) separately
    */
   formatResult(matchingRules, context) {
     if (matchingRules.length === 0) {
@@ -140,17 +141,52 @@ class ActionDeterminationEngine {
     }
 
     // ✅ OPTION B: All actions are functions that return complete objects
-    const actions = matchingRules.map(rule => {
+    const results = matchingRules.map(rule => {
       try {
-        const action = rule.action(context); // All actions are functions
-        return action;
+        const result = rule.action(context); // All actions are functions
+
+        // 🎯 SPECIAL HANDLING: Check if result is a data packet (not an action)
+        if (result && typeof result === 'object' && result.type && result.payload) {
+          // Check if it's a data packet by looking for known data packet types
+          const dataPacketTypes = ['showTempStackOptions'];
+
+          if (dataPacketTypes.includes(result.type)) {
+            logger.debug(`Data packet detected: ${result.type} from rule ${rule.id}`);
+            return {
+              isDataPacket: true,
+              dataPacket: result
+            };
+          }
+        }
+
+        // Regular action
+        return {
+          isDataPacket: false,
+          action: result
+        };
+
       } catch (error) {
         logger.error(`Error executing action for rule ${rule.id}:`, error);
         throw error;
       }
     });
 
-    // Determine if modal is required
+    // Separate data packets from actions
+    const dataPackets = results.filter(r => r.isDataPacket).map(r => r.dataPacket);
+    const actions = results.filter(r => !r.isDataPacket).map(r => r.action);
+
+    // If we have data packets, return them separately
+    if (dataPackets.length > 0) {
+      logger.debug(`Returning ${dataPackets.length} data packets and ${actions.length} actions`);
+      return {
+        actions,
+        dataPackets,  // 🎯 NEW: Data packets for frontend
+        requiresModal: true,  // Data packets typically need modal
+        errorMessage: null
+      };
+    }
+
+    // Determine if modal is required for regular actions
     const requiresModal = matchingRules.some(rule =>
       rule.requiresModal ||
       actions.some(action => action.type === 'trail') ||  // Trail always requires modal
@@ -159,6 +195,7 @@ class ActionDeterminationEngine {
 
     return {
       actions,
+      dataPackets: [],  // No data packets
       requiresModal,
       errorMessage: null
     };
@@ -171,7 +208,6 @@ const engine = new ActionDeterminationEngine();
 /**
  * Public API - Maintains same interface as determineActions.js
  */
-const originalDetermineActions = determineActions;
 function determineActions(draggedItem, targetInfo, gameState) {
   totalGameActions++;
   const ruleHits = [];
@@ -193,7 +229,7 @@ function determineActions(draggedItem, targetInfo, gameState) {
   });
 
   try {
-    const result = originalDetermineActions(draggedItem, targetInfo, gameState);
+    const result = engine.determineActions(draggedItem, targetInfo, gameState);
 
     // Minimal summary logging
     if (ruleHits.length > 0) {

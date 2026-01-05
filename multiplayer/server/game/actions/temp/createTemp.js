@@ -125,7 +125,9 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
     possibleBuilds: [draggedCard.value + targetCard.value],
     isTableToTable: isTableToTable || false,
     // Universal staging: include build augmentation capability
-    canAugmentBuilds: action.payload.canAugmentBuilds || false
+    canAugmentBuilds: action.payload.canAugmentBuilds || false,
+    // Mark same-value stacks for special strategic handling
+    isSameValueStack: action.payload.isSameValueStack || false
   };
 
   const newGameState = { ...gameState };

@@ -1,6 +1,6 @@
 /**
- * KISS: Just move temp stack + capture card to captures
- * No validation, no points, no checks - client already validated rules
+ * KISS: Capture ONLY the temp stack cards
+ * Hand card is already in the temp stack from the drag
  */
 const { createLogger } = require('../../../utils/logger');
 const logger = createLogger('CaptureTempStack');
@@ -8,20 +8,13 @@ const logger = createLogger('CaptureTempStack');
 async function handleCaptureTempStack(gameManager, playerIndex, action, gameId) {
   const { tempStackId, captureValue } = action.payload;
 
-  logger.info('Starting capture', {
+  logger.info('Capturing temp stack', {
     tempStackId,
     captureValue,
     playerIndex
   });
 
   const gameState = gameManager.getGameState(gameId);
-
-  // Log BEFORE state
-  logger.debug('Before capture state', {
-    tableCards: gameState.tableCards.length,
-    playerHandSize: gameState.playerHands[playerIndex]?.length,
-    playerCapturesSize: gameState.playerCaptures?.[playerIndex]?.length
-  });
 
   // 1. Find temp stack
   const tempStackIndex = gameState.tableCards.findIndex(card =>
@@ -30,58 +23,42 @@ async function handleCaptureTempStack(gameManager, playerIndex, action, gameId) 
 
   if (tempStackIndex === -1) {
     logger.warn('Temp stack not found', { tempStackId });
-    return gameState; // Return unchanged state for error case
+    return gameState;
   }
 
   const tempStack = gameState.tableCards[tempStackIndex];
+  const tempStackCards = tempStack.cards || [];
 
-  // 2. Find capture card in hand
-  const playerHand = gameState.playerHands[playerIndex] || [];
-  const captureCardIndex = playerHand.findIndex(card => card.value === captureValue);
+  logger.debug('Found temp stack', {
+    tempStackCards: tempStackCards.map(c => `${c.rank}${c.suit}`),
+    captureValue
+  });
 
-  let captureCard = null;
-  if (captureCardIndex === -1) {
-    logger.warn('Capture card not found in hand, using first card', { captureValue, handSize: playerHand.length });
-    if (playerHand.length > 0) {
-      captureCard = playerHand[0];
-      gameState.playerHands[playerIndex].splice(0, 1);
-    }
-  } else {
-    captureCard = playerHand[captureCardIndex];
-    gameState.playerHands[playerIndex].splice(captureCardIndex, 1);
-  }
+  // 2. ✅ CRITICAL FIX: DO NOT look for or remove hand card!
+  // The hand card is already IN the temp stack from the drag
+  // Example: Temp stack [hand8, table8] - both cards already accounted for
 
   // 3. Remove temp stack from table
-  const tempStackCards = tempStack.cards || [];
   gameState.tableCards.splice(tempStackIndex, 1);
 
-  // 4. CRITICAL FIX: Add to playerCaptures NOT capturedCards
-  const allCards = captureCard ? [...tempStackCards, captureCard] : tempStackCards;
+  // 4. Add ONLY temp stack cards to captures
+  if (!gameState.playerCaptures) gameState.playerCaptures = [[], []];
+  if (!gameState.playerCaptures[playerIndex]) gameState.playerCaptures[playerIndex] = [];
 
-  // Ensure playerCaptures array exists
-  if (!gameState.playerCaptures) {
-    logger.warn('playerCaptures undefined, initializing', { gameId });
-    gameState.playerCaptures = [[], []];
-  }
-  if (!gameState.playerCaptures[playerIndex]) {
-    logger.warn(`playerCaptures[${playerIndex}] undefined, initializing`, { gameId, playerIndex });
-    gameState.playerCaptures[playerIndex] = [];
-  }
+  // ✅ FIX: Only add temp stack cards, NO hand card
+  gameState.playerCaptures[playerIndex].push(...tempStackCards);
 
-  // Add cards to CORRECT property
-  gameState.playerCaptures[playerIndex].push(...allCards);
-
-  // ✅ AUTO-TURN SWITCH: Capturing ends your turn (casino rule)
+  // 5. Auto-turn switch
   const nextPlayer = (playerIndex + 1) % 2;
   gameState.currentPlayer = nextPlayer;
 
-  logger.info('Auto-turn switch after capture', {
-    fromPlayer: playerIndex,
-    toPlayer: nextPlayer,
-    cardsCaptured: allCards.length
+  logger.info('Capture complete', {
+    player: playerIndex,
+    cardsCaptured: tempStackCards.length,
+    cards: tempStackCards.map(c => `${c.rank}${c.suit}`),
+    nextPlayer: nextPlayer
   });
 
-  // Return the modified game state (ActionRouter will handle updating GameManager)
   return gameState;
 }
 
