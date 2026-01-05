@@ -54,21 +54,47 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
   );
 
   if (!tempStack) {
-    console.log('[AUTO_CREATE] Stack not found, creating new temp stack:', {
+    console.log('[AUTO_CREATE] Stack not found, delegating to createTemp for creation:', {
       requestedStackId: stackId,
       playerIndex,
-      philosophy: 'never fail, always create'
+      philosophy: 'never fail, always create via createTemp'
     });
 
-    tempStack = {
-      type: 'temporary_stack',
-      stackId: stackId || `temp-${Date.now()}-${playerIndex}`,
-      cards: [],
-      owner: playerIndex,  // Default to current player
-      value: 0,
-      createdAt: Date.now()
+    // ✅ DELEGATE: Use createTemp.js for consistent temp stack creation
+    const { handleCreateTemp } = require('./createTemp');
+
+    // Determine source for createTemp (use the card's source)
+    const tempSource = source === 'table' ? 'table' : 'hand';
+
+    // Create action payload for createTemp
+    const createTempAction = {
+      payload: {
+        source: tempSource,
+        card: card,
+        targetIndex: 0, // Default target index
+        isTableToTable: false
+      }
     };
-    gameState.tableCards.push(tempStack);
+
+    // Use createTemp to handle the creation
+    const newGameState = handleCreateTemp(null, playerIndex, createTempAction, gameId);
+
+    // Find the newly created temp stack
+    tempStack = newGameState.tableCards.find(item =>
+      item.type === 'temporary_stack' && item.owner === playerIndex
+    );
+
+    if (!tempStack) {
+      throw new Error('Failed to create temp stack via createTemp');
+    }
+
+    // Update gameState reference
+    gameState = newGameState;
+
+    console.log('[AUTO_CREATE] ✅ Temp stack created via createTemp:', {
+      stackId: tempStack.stackId,
+      owner: tempStack.owner
+    });
   }
 
   // 🎯 COMPLETE FREEDOM: No validation for temp stack building

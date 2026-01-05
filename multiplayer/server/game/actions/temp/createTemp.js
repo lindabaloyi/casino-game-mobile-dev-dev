@@ -31,8 +31,8 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
   }
 
   if (!gameState.tableCards) {
-    const error = new Error(`Game ${gameId} has no table cards`);
-    logger.error('Staging stack creation failed - no table cards', { gameId, playerIndex });
+    const error = new Error(`Game ${gameId} has no tableCards`);
+    logger.error('Staging stack creation failed - no tableCards', { gameId, playerIndex });
     throw error;
   }
 
@@ -99,7 +99,7 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
     [targetCard, draggedCard].sort((a, b) => b.value - a.value);
   const stagingStack = {
     type: 'temporary_stack',
-    stackId: `universal-staging-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    stackId: `temp-${playerIndex}`,  // ✅ SIMPLE: player-based ID (players can only have one temp stack)
     cards: sortedCards.map(card => ({
       ...card,
       source: card === targetCard ? 'table' : source

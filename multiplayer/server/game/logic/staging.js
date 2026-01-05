@@ -222,7 +222,7 @@ function createStagingStackData(handCard, tableCard, playerIndex) {
 
   const stackData = {
     type: 'temporary_stack',
-    stackId: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    stackId: `temp-${playerIndex}`, // ✅ Consistent with centralized creation
     cards: orderedCards,
     owner: playerIndex,
     value: handCard.value + tableCard.value,

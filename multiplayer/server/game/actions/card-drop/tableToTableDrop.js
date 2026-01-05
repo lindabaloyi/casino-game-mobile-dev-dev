@@ -40,7 +40,7 @@ function handleTableToTableDrop(gameManager, playerIndex, action, gameId) {
     switch (targetType) {
       case 'loose':
         // CASE 1: Two loose cards → create temp stack
-        return handleTwoLooseCards(gameState, draggedItem, targetInfo, playerIndex, logger, gameId);
+        return handleTwoLooseCards(gameManager, gameState, draggedItem, targetInfo, playerIndex, logger, gameId);
 
       case 'temporary_stack':
         // CASE 2: Loose card + temp stack → add to existing stack
@@ -63,130 +63,31 @@ function handleTableToTableDrop(gameManager, playerIndex, action, gameId) {
 }
 
 // ==================== CASE 1: TWO LOOSE CARDS ====================
-function handleTwoLooseCards(gameState, draggedItem, targetInfo, playerIndex, logger, gameId) {
-  logger.info('Case 1: Creating temp stack from two loose cards');
+function handleTwoLooseCards(gameManager, gameState, draggedItem, targetInfo, playerIndex, logger, gameId) {
+  logger.info('Case 1: Creating temp stack from two loose cards via createTemp');
 
-  // === TEMP CREATION DEBUG ===
-  console.log('=== TEMP CREATION DEBUG ===');
-  console.log('BEFORE - Full table state:');
-  gameState.tableCards.forEach((item, idx) => {
-    const type = item.type || 'loose';
-    const cardStr = item.cards
-      ? `BUILD: ${item.cards.map(c => c.rank + c.suit).join('+')}`
-      : `${item.rank}${item.suit}`;
-    console.log(`  [${idx}] ${cardStr} (${type})`);
-  });
+  // ✅ DELEGATE: Use centralized temp stack creation from createTemp.js
+  const { handleCreateTemp } = require('../temp/createTemp');
 
-  console.log('DRAG OPERATION:');
-  console.log(`  Dragging index ${draggedItem.originalIndex}: ${draggedItem.card.rank}${draggedItem.card.suit}`);
-  console.log(`  Onto index ${targetInfo.index}: ${targetInfo.card.rank}${targetInfo.card.suit}`);
-
-  // FIX THE BUG: Ensure we're not finding the same card twice
-  const indicesToRemove = [];
-  let foundDraggedCard = false;
-  let foundTargetCard = false;
-
-  // Find cards to remove - CAREFULLY check each card
-  for (let i = 0; i < gameState.tableCards.length; i++) {
-    const tableItem = gameState.tableCards[i];
-
-    // Only process loose cards for this case
-    if (tableItem.type && tableItem.type !== 'loose') {
-      continue;
+  // Create action payload for createTemp
+  const createTempAction = {
+    payload: {
+      source: 'table',  // Both cards are from table
+      card: draggedItem.card,
+      targetIndex: targetInfo.index,
+      isTableToTable: true
     }
-
-    // Convert both cards to comparable format
-    const draggedStr = `${draggedItem.card.rank}${draggedItem.card.suit}`;
-    const targetStr = `${targetInfo.card.rank}${targetInfo.card.suit}`;
-    const tableStr = `${tableItem.rank}${tableItem.suit}`;
-
-    // Check for dragged card
-    if (!foundDraggedCard && tableStr === draggedStr) {
-      indicesToRemove.push(i);
-      foundDraggedCard = true;
-      continue; // Important: prevent matching same card twice
-    }
-
-    // Check for target card
-    if (!foundTargetCard && tableStr === targetStr) {
-      indicesToRemove.push(i);
-      foundTargetCard = true;
-      continue;
-    }
-  }
-
-  console.log('APPROACH 2 CORRECTED: Remove cards with BIG INDEX FIRST rule');
-  console.log('INDICES TO REMOVE:', {
-    draggedIndex: draggedItem.originalIndex,
-    targetIndex: targetInfo.index,
-    willRemove: indicesToRemove.sort((a,b) => a-b)
-  });
-
-  // Validate we found exactly 2 DIFFERENT cards
-  if (indicesToRemove.length !== 2) {
-    logger.error('Table-to-table validation failed', {
-      found: indicesToRemove.length,
-      expected: 2,
-      draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
-      targetCard: `${targetInfo.card.rank}${targetInfo.card.suit}`,
-      isSameCard: `${draggedItem.card.rank}${draggedItem.card.suit}` ===
-                  `${targetInfo.card.rank}${targetInfo.card.suit}`
-    });
-    throw new Error(`Expected 2 different loose cards, found ${indicesToRemove.length}`);
-  }
-
-  // APPROACH 2 CORRECTED: Remove from highest to lowest (big number first)
-  const indicesToRemoveSorted = indicesToRemove.sort((a, b) => b - a); // Highest first
-  console.log(`Removing indices in order: ${indicesToRemoveSorted.join(', ')} (highest first)`);
-
-  // Remove from highest to lowest to avoid index shifting issues
-  indicesToRemoveSorted.forEach(idx => {
-    const card = gameState.tableCards[idx];
-    console.log(`  Removing index ${idx}: ${card.rank}${card.suit}`);
-    gameState.tableCards.splice(idx, 1);
-  });
-
-  // APPROACH 2 CORRECTED: Create temp stack and add to END of array
-  const { orderCardsBigToSmall } = require('../../GameState');
-  const stackId = `temp-${Date.now()}`;
-  const [bottomCard, topCard] = orderCardsBigToSmall(targetInfo.card, draggedItem.card);
-
-  const playerHasBuilds = gameState.tableCards.some(tc =>
-    tc && tc.type === 'build' && tc.owner === playerIndex
-  );
-
-  const tempStack = {
-    type: 'temporary_stack',
-    stackId: stackId,
-    cards: [bottomCard, topCard],
-    owner: playerIndex,
-    value: (targetInfo.card.value || 0) + (draggedItem.card.value || 0),
-    canAugmentBuilds: playerHasBuilds
   };
 
-  // Add temp stack to the END of the array (not at target index)
-  gameState.tableCards.push(tempStack);
+  // Use createTemp to handle the creation
+  const newGameState = handleCreateTemp(gameManager, playerIndex, createTempAction, gameId);
 
-  console.log('AFTER FIX - Final table state:');
-  console.log(`  Temp stack added at end (index ${gameState.tableCards.length - 1})`);
-  gameState.tableCards.forEach((item, idx) => {
-    if (item && item.type === 'temporary_stack') {
-      console.log(`  [${idx}] TEMP: ${item.cards.map(c => c.rank + c.suit).join('+')} (value: ${item.value})`);
-    } else if (item) {
-      console.log(`  [${idx}] ${item.rank}${item.suit} (loose)`);
-    } else {
-      console.log(`  [${idx}] null (should not happen)`);
-    }
-  });
-  console.log('=== TEMP CREATION DEBUG END ===');
-
-  logger.action('END tableToTableDrop (two loose)', gameId, playerIndex, {
+  logger.action('END tableToTableDrop (two loose via createTemp)', gameId, playerIndex, {
     success: true,
-    stackId,
-    stackValue: tempStack.value
+    delegatedToCreateTemp: true
   });
 
-  return gameState;
+  return newGameState;
 }
 
 // ==================== CASE 2: ADD TO TEMP STACK ====================
