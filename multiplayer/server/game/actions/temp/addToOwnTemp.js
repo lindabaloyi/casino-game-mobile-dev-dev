@@ -61,7 +61,7 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
     });
 
     // ✅ DELEGATE: Use createTemp.js for consistent temp stack creation
-    const { handleCreateTemp } = require('./createTemp');
+    const handleCreateTemp = require('./createTemp');
 
     // Determine source for createTemp (use the card's source)
     const tempSource = source === 'table' ? 'table' : 'hand';

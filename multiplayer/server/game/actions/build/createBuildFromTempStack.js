@@ -60,7 +60,7 @@ function handleCreateBuildFromTempStack(gameManager, playerIndex, action, gameId
   const buildCards = buildCard ? [...tempStackCards, buildCard] : [...tempStackCards];
   const build = {
     type: 'build',
-    buildId: `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    buildId: `build-${playerIndex}`,  // ✅ SIMPLE: Same pattern as temp stacks (players can only have 1 build)
     cards: buildCards,
     value: buildValue,
     owner: playerIndex,

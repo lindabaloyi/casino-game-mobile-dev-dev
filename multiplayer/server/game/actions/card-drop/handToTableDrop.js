@@ -28,7 +28,7 @@ function handleHandToTableDrop(gameManager, playerIndex, action) {
   // ✅ DELEGATE: Use centralized temp stack creation from createTemp.js
   console.log('[TEMP_STACK] Delegating to createTemp for hand-to-table drop');
 
-  const { handleCreateTemp } = require('../temp/createTemp');
+  const handleCreateTemp = require('../temp/createTemp');
 
   // Create action payload for createTemp
   const createTempAction = {

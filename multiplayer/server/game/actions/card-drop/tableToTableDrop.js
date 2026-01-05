@@ -67,7 +67,7 @@ function handleTwoLooseCards(gameManager, gameState, draggedItem, targetInfo, pl
   logger.info('Case 1: Creating temp stack from two loose cards via createTemp');
 
   // ✅ DELEGATE: Use centralized temp stack creation from createTemp.js
-  const { handleCreateTemp } = require('../temp/createTemp');
+  const handleCreateTemp = require('../temp/createTemp');
 
   // Create action payload for createTemp
   const createTempAction = {
