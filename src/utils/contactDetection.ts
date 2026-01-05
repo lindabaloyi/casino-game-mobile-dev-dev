@@ -44,7 +44,11 @@ export function findContactAtPoint(
   x: number,
   y: number,
   threshold: number = 80,
-  context?: { hasActiveBuild?: boolean; currentPlayer?: number }
+  context?: {
+    hasActiveBuild?: boolean;
+    currentPlayer?: number;
+    excludeId?: string;  // NEW: Exclude this contact ID from results
+  }
 ): {
   id: string;
   type: string;
@@ -59,6 +63,11 @@ export function findContactAtPoint(
   const hits = [];
 
   for (const [id, pos] of contactPositions) {
+    // Skip excluded contact (prevents dragged card from finding itself)
+    if (context?.excludeId && id === context.excludeId) {
+      continue;
+    }
+
     const centerX = pos.x + pos.width / 2;
     const centerY = pos.y + pos.height / 2;
     const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));

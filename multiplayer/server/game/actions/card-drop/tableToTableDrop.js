@@ -66,6 +66,21 @@ function handleTableToTableDrop(gameManager, playerIndex, action, gameId) {
 function handleTwoLooseCards(gameState, draggedItem, targetInfo, playerIndex, logger, gameId) {
   logger.info('Case 1: Creating temp stack from two loose cards');
 
+  // === TEMP CREATION DEBUG ===
+  console.log('=== TEMP CREATION DEBUG ===');
+  console.log('BEFORE - Full table state:');
+  gameState.tableCards.forEach((item, idx) => {
+    const type = item.type || 'loose';
+    const cardStr = item.cards
+      ? `BUILD: ${item.cards.map(c => c.rank + c.suit).join('+')}`
+      : `${item.rank}${item.suit}`;
+    console.log(`  [${idx}] ${cardStr} (${type})`);
+  });
+
+  console.log('DRAG OPERATION:');
+  console.log(`  Dragging index ${draggedItem.originalIndex}: ${draggedItem.card.rank}${draggedItem.card.suit}`);
+  console.log(`  Onto index ${targetInfo.index}: ${targetInfo.card.rank}${targetInfo.card.suit}`);
+
   // FIX THE BUG: Ensure we're not finding the same card twice
   const indicesToRemove = [];
   let foundDraggedCard = false;
@@ -100,6 +115,13 @@ function handleTwoLooseCards(gameState, draggedItem, targetInfo, playerIndex, lo
     }
   }
 
+  console.log('APPROACH 2 CORRECTED: Remove cards with BIG INDEX FIRST rule');
+  console.log('INDICES TO REMOVE:', {
+    draggedIndex: draggedItem.originalIndex,
+    targetIndex: targetInfo.index,
+    willRemove: indicesToRemove.sort((a,b) => a-b)
+  });
+
   // Validate we found exactly 2 DIFFERENT cards
   if (indicesToRemove.length !== 2) {
     logger.error('Table-to-table validation failed', {
@@ -113,18 +135,24 @@ function handleTwoLooseCards(gameState, draggedItem, targetInfo, playerIndex, lo
     throw new Error(`Expected 2 different loose cards, found ${indicesToRemove.length}`);
   }
 
-  // Remove cards
-  indicesToRemove.sort((a, b) => b - a).forEach(index => {
-    gameState.tableCards.splice(index, 1);
+  // APPROACH 2 CORRECTED: Remove from highest to lowest (big number first)
+  const indicesToRemoveSorted = indicesToRemove.sort((a, b) => b - a); // Highest first
+  console.log(`Removing indices in order: ${indicesToRemoveSorted.join(', ')} (highest first)`);
+
+  // Remove from highest to lowest to avoid index shifting issues
+  indicesToRemoveSorted.forEach(idx => {
+    const card = gameState.tableCards[idx];
+    console.log(`  Removing index ${idx}: ${card.rank}${card.suit}`);
+    gameState.tableCards.splice(idx, 1);
   });
 
-  // Create temp stack
+  // APPROACH 2 CORRECTED: Create temp stack and add to END of array
   const { orderCardsBigToSmall } = require('../../GameState');
   const stackId = `temp-${Date.now()}`;
   const [bottomCard, topCard] = orderCardsBigToSmall(targetInfo.card, draggedItem.card);
 
   const playerHasBuilds = gameState.tableCards.some(tc =>
-    tc.type === 'build' && tc.owner === playerIndex
+    tc && tc.type === 'build' && tc.owner === playerIndex
   );
 
   const tempStack = {
@@ -136,7 +164,21 @@ function handleTwoLooseCards(gameState, draggedItem, targetInfo, playerIndex, lo
     canAugmentBuilds: playerHasBuilds
   };
 
+  // Add temp stack to the END of the array (not at target index)
   gameState.tableCards.push(tempStack);
+
+  console.log('AFTER FIX - Final table state:');
+  console.log(`  Temp stack added at end (index ${gameState.tableCards.length - 1})`);
+  gameState.tableCards.forEach((item, idx) => {
+    if (item && item.type === 'temporary_stack') {
+      console.log(`  [${idx}] TEMP: ${item.cards.map(c => c.rank + c.suit).join('+')} (value: ${item.value})`);
+    } else if (item) {
+      console.log(`  [${idx}] ${item.rank}${item.suit} (loose)`);
+    } else {
+      console.log(`  [${idx}] null (should not happen)`);
+    }
+  });
+  console.log('=== TEMP CREATION DEBUG END ===');
 
   logger.action('END tableToTableDrop (two loose)', gameId, playerIndex, {
     success: true,

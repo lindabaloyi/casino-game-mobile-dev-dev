@@ -144,9 +144,15 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
       };
 
       console.log(`[TableDraggableCard] 🎯 Drop position: ${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)}`);
-      
+
+      // Calculate this card's ID to exclude it from contact detection
+      const thisCardId = `${card.rank}${card.suit}_${index}`;
+
       // PURE CONTACT DETECTION: No fallbacks, no old drop zone system
-      const contact = findContactAtPoint(dropPosition.x, dropPosition.y, 80);
+      // Exclude this dragged card from contact detection to prevent self-contact
+      const contact = findContactAtPoint(dropPosition.x, dropPosition.y, 80, {
+        excludeId: thisCardId
+      });
 
       if (contact) {
         console.log(`[TableDraggableCard] ✅ Contact detected: ${contact.id} (${contact.type}) at ${contact.distance.toFixed(1)}px`);

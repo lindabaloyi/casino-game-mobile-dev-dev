@@ -97,6 +97,26 @@ export function useTableCardDragHandler({
     draggedItem: any,
     dropPosition: { x: number; y: number; handled?: boolean; contactDetected?: boolean; contact?: any }
   ) => {
+    // === FRONTEND DRAG DEBUG ===
+    console.log('[FRONTEND] Table card drag end:', {
+      draggedItem: {
+        card: draggedItem.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
+        stackId: draggedItem.stackId,
+        originalIndex: draggedItem.originalIndex,
+        source: draggedItem.source
+      },
+      dropPosition: {
+        x: Math.round(dropPosition.x),
+        y: Math.round(dropPosition.y),
+        contactDetected: dropPosition.contactDetected,
+        hasContact: !!dropPosition.contact
+      },
+      gameState: {
+        tableCardsCount: gameState.tableCards?.length || 0,
+        currentPlayer: gameState.currentPlayer
+      }
+    });
+
     // Use contact from TableDraggableCard if already detected, otherwise find it
     let contact = dropPosition.contact;
 
