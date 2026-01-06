@@ -5,6 +5,7 @@
 
 import { useCallback } from 'react';
 import { GameState } from '../../multiplayer/server/game-logic/game-state';
+import { findContactAtPoint } from '../../src/utils/contactDetection';
 
 interface CapturedCardDragHandlerProps {
   gameState: GameState;
@@ -27,33 +28,54 @@ export function useCapturedCardDragHandler({
    * Handle captured card drag start
    */
   const handleCapturedCardDragStart = useCallback((card: any) => {
-    console.log(`[CAPTURED-DRAG] Captured card drag start: ${card.rank}${card.suit}`);
+    console.log(`[CAPTURED-DRAG] 🏁 Captured card drag START:`, {
+      card: `${card.rank}${card.suit}`,
+      cardValue: card.value,
+      isMyTurn,
+      playerNumber,
+      dragSource: 'captured'
+    });
+
     if (!isMyTurn) {
       console.log(`[CAPTURED-DRAG] ❌ Not your turn - ignoring captured card drag`);
       return;
     }
     // Could add validation here if captured cards have drag restrictions
-  }, [isMyTurn]);
+  }, [isMyTurn, playerNumber]);
 
   /**
    * Handle captured card drag end
    */
   const handleCapturedCardDragEnd = useCallback((draggedItem: any, dropPosition: any) => {
-    console.log(`[CAPTURED-DRAG] Captured card drag end - not yet implemented with contact:`, {
-      card: `${draggedItem.card?.rank}${draggedItem.card?.suit}`,
-      dropPosition
+    console.log(`[CAPTURED-DRAG] 🏁 Captured card drag END:`, {
+      draggedCard: `${draggedItem.card?.rank}${draggedItem.card?.suit}`,
+      cardValue: draggedItem.card?.value,
+      source: draggedItem.source,
+      dropPosition: `${dropPosition?.x?.toFixed(1)}, ${dropPosition?.y?.toFixed(1)}`,
+      playerNumber,
+      isMyTurn
     });
 
-    // For now, this is a placeholder. Captured cards might have different drag rules
-    // than table cards (e.g., they might only be used for building or other actions)
+    // Find contact using contact detection
+    const contact = findContactAtPoint(dropPosition.x, dropPosition.y, 80);
 
-    // TODO: Implement captured card drag logic when needed
-    // This might involve:
-    // - Using captured cards to build on table cards
-    // - Captured card to captured card interactions
-    // - Special captured card rules
+    if (!contact) {
+      console.log('[CAPTURED-DRAG] ❌ No contact found at drop position');
+      return { validContact: false };
+    }
 
-  }, []);
+    console.log(`[CAPTURED-DRAG] 🎯 Contact detected:`, {
+      type: contact.type,
+      id: contact.id,
+      contactData: contact.data
+    });
+
+    // TODO: Implement captured card drop actions
+    // This will be implemented once we determine the correct behavior
+
+    console.log('[CAPTURED-DRAG] ⏳ Drop logic not yet implemented for captured cards');
+
+  }, [playerNumber, isMyTurn]);
 
   return {
     handleCapturedCardDragStart,

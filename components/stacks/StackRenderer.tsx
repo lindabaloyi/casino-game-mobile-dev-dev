@@ -63,10 +63,12 @@ export const StackRenderer: React.FC<StackRendererProps> = ({
     draggable,
     allowMultiCardDrag,
     isDraggable,
+    allCardsInStack: cards.map(c => `${c.rank}${c.suit}`),
     topCard: topCard ? `${topCard.rank}${topCard.suit}` : 'none',
     isDragging,
     dynamicZIndex: isDragging ? 99999 : baseZIndex,
-    dynamicElevation: isDragging ? 999 : baseElevation
+    dynamicElevation: isDragging ? 999 : baseElevation,
+    dragSource
   });
 
   // Dynamic style for stacking context management

@@ -37,6 +37,18 @@ const CapturedCards = memo<CapturedCardsProps>(({
   // Get top card for display
   const topCard = allCapturedCards[allCapturedCards.length - 1];
 
+  // 🐛 DEBUG: Log captured card rendering decision
+  console.log(`[CapturedCards:DEBUG] 🎴 Rendering captured cards for player ${playerIndex}:`, {
+    isOpponent,
+    isActivePlayerTurn,
+    hasCards,
+    cardCount: allCapturedCards.length,
+    isOpponentTopCardDraggable,
+    allCards: allCapturedCards.map(c => `${c.rank}${c.suit}`),
+    topCard: topCard ? `${topCard.rank}${topCard.suit}` : 'none',
+    renderingMode: isOpponentTopCardDraggable ? 'SINGLE_TOP_CARD_DRAGGABLE' : 'FULL_STACK_NON_DRAGGABLE'
+  });
+
   const handlePress = () => {
     if (isOpponent && onCardPress && topCard) {
       onCardPress(topCard, 'opponentCapture');

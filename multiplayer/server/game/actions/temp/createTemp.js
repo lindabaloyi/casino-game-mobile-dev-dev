@@ -75,6 +75,34 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
       logger.error('Staging stack creation failed - dragged table card not found', { draggedCard, targetIndex });
       throw error;
     }
+  } else if (source === 'oppTopCard') {
+    // Opponent card: validate it's the top card in opponent's captures
+    const opponentId = action.payload.opponentId;
+    if (opponentId === undefined) {
+      const error = new Error("opponentId is required for oppTopCard source");
+      logger.error('Staging stack creation failed - missing opponentId', { source });
+      throw error;
+    }
+
+    const opponentCaptures = gameState.playerCaptures[opponentId] || [];
+    if (opponentCaptures.length === 0) {
+      const error = new Error(`Opponent ${opponentId} has no captured cards`);
+      logger.error('Staging stack creation failed - opponent has no cards', { opponentId });
+      throw error;
+    }
+
+    // Check if it's the top card (last element in array)
+    const actualTopCard = opponentCaptures[opponentCaptures.length - 1];
+    if (actualTopCard.rank !== draggedCard.rank ||
+        actualTopCard.suit !== draggedCard.suit) {
+      const error = new Error(`Card ${draggedCard.rank}${draggedCard.suit} is not opponent ${opponentId}'s top card`);
+      logger.error('Staging stack creation failed - card is not top card', {
+        draggedCard,
+        actualTopCard,
+        opponentId
+      });
+      throw error;
+    }
   } else {
     const error = new Error("Invalid source for staging.");
     logger.error('Staging stack creation failed - invalid source', { source });
@@ -166,14 +194,22 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
       newGameState.tableCards = [...(newGameState.tableCards || gameState.tableCards)];
       newGameState.tableCards.splice(targetIndex, 1, stagingStack);
     }
+  } else if (source === 'oppTopCard') {
+    // Remove from opponent's captures (the top card)
+    const opponentId = action.payload.opponentId;
+    newGameState.playerCaptures = gameState.playerCaptures.map((captures, idx) =>
+      idx === opponentId ? captures.slice(0, -1) : captures // Remove last element (top card)
+    );
+
+    logger.info(`Removed top card ${draggedCard.rank}${draggedCard.suit} from opponent ${opponentId}'s captures`);
   } else {
     // For other sources (shouldn't happen due to earlier validation)
     newGameState.tableCards = [...(newGameState.tableCards || gameState.tableCards)];
     newGameState.tableCards.splice(targetIndex, 1, stagingStack);
   }
 
-  // Only need to handle hand source separately for table replacement
-  if (source === 'hand') {
+  // Handle table replacement for hand and opponent sources
+  if (source === 'hand' || source === 'oppTopCard') {
     newGameState.tableCards = [...(newGameState.tableCards || gameState.tableCards)];
     newGameState.tableCards.splice(targetIndex, 1, stagingStack);
   }
