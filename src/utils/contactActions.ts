@@ -33,6 +33,7 @@ export function determineActionFromContact(
   // Route to specific handlers based on contact type
   switch (touchedContact.type) {
     case 'temporary_stack':
+    case 'tempStack':
       return handleTempStackContact(draggedCard, touchedContact, gameState, currentPlayer, source);
 
     case 'build':

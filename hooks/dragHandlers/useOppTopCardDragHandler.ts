@@ -56,6 +56,12 @@ export function useOppTopCardDragHandler({
       return { validContact: false };
     }
 
+    console.log('[✅ OPP-DRAG-END] Found contact:', {
+      type: contact.type,
+      id: contact.id,
+      distance: contact.distance
+    });
+
     const opponentId = currentDragMetadata?.opponentId;
     console.log(`[🎯 OPP-CONTACT] Contact detected:`, {
       type: contact.type,
