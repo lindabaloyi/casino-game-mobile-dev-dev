@@ -24,15 +24,16 @@ function isTempStack(item: any): boolean {
  * Enhanced Temp Contact Handler
  */
 export function handleTempStackContact(
-  draggedItem: { card: Card; source: string },
+  draggedCard: Card,
   contact: Contact,
   gameState: GameState,
-  currentPlayer: number
+  currentPlayer: number,
+  source?: string
 ): { type: string; payload: any } | null {
 
   console.log('[TEMP_HANDLER] Processing contact:', {
-    source: draggedItem.source,
-    card: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+    source: source,
+    card: `${draggedCard.rank}${draggedCard.suit}`,
     contactType: contact.type,
     contactId: contact.id,
     player: currentPlayer
@@ -58,7 +59,7 @@ export function handleTempStackContact(
     }
 
     // Prevent temp-to-temp
-    const draggedFromTemp = isCardInTemp(draggedItem.card, gameState);
+    const draggedFromTemp = isCardInTemp(draggedCard, gameState);
     if (draggedFromTemp) {
       console.log('[TEMP_HANDLER] ❌ Cannot drag from temp to temp');
       return null;
@@ -66,16 +67,16 @@ export function handleTempStackContact(
 
     console.log('[TEMP_HANDLER] ✅ Adding to own temp:', {
       tempId: tempStack.stackId,
-      card: `${draggedItem.card.rank}${draggedItem.card.suit}`,
-      source: draggedItem.source
+      card: `${draggedCard.rank}${draggedCard.suit}`,
+      source: source
     });
 
     return {
       type: 'addToOwnTemp',
       payload: {
         stackId: tempStack.stackId,
-        card: draggedItem.card,
-        source: draggedItem.source
+        card: draggedCard,
+        source: source
       }
     };
   }
@@ -90,8 +91,8 @@ export function handleTempStackContact(
     }
 
     // Prevent dragging card onto itself
-    if (draggedItem.card.rank === targetCard.rank &&
-        draggedItem.card.suit === targetCard.suit) {
+    if (draggedCard.rank === targetCard.rank &&
+        draggedCard.suit === targetCard.suit) {
       console.log('[TEMP_HANDLER] ❌ Cannot create temp with same card');
       return null;
     }
@@ -107,13 +108,13 @@ export function handleTempStackContact(
     }
 
     // Prevent using cards already in temps
-    const draggedFromTemp = isCardInTemp(draggedItem.card, gameState);
+    const draggedFromTemp = isCardInTemp(draggedCard, gameState);
     if (draggedFromTemp) {
       console.log('[TEMP_HANDLER] ❌ Card is already in a temp');
       return null;
     }
 
-    const isTableToTable = draggedItem.source === 'table';
+    const isTableToTable = source === 'table';
     const sourceLocation = isTableToTable ? 'table' : 'hand';
 
     console.log('[TEMP_HANDLER] ✅ Creating new temp', {
@@ -121,7 +122,7 @@ export function handleTempStackContact(
       isTableToTable,
       cards: [
         `${targetCard.rank}${targetCard.suit} (target)`,
-        `${draggedItem.card.rank}${draggedItem.card.suit} (dragged)`
+        `${draggedCard.rank}${draggedCard.suit} (dragged)`
       ],
       player: currentPlayer
     });
@@ -129,14 +130,14 @@ export function handleTempStackContact(
     return {
       type: 'createTemp',
       payload: {
-        cards: [targetCard, draggedItem.card], // Target first, dragged second
+        cards: [targetCard, draggedCard], // Target first, dragged second
         isTableToTable,
         sourceLocation,
         playerIndex: currentPlayer,
         // Note: gameId will be added by the action router
         // Optional metadata for debugging
         targetCard,
-        draggedCard: draggedItem.card
+        draggedCard: draggedCard
       }
     };
   }

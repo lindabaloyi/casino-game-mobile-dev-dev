@@ -3,7 +3,7 @@
  * Exports all drag handler hooks for easy importing
  */
 
-export { useCapturedCardDragHandler } from './useCapturedCardDragHandler';
 export { useHandCardDragHandler } from './useHandCardDragHandler';
+export { useOppTopCardDragHandler } from './useOppTopCardDragHandler';
 export { useTableCardDragHandler } from './useTableCardDragHandler';
 

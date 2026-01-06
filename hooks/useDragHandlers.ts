@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Card, GameState } from '../multiplayer/server/game-logic/game-state';
-import { useCapturedCardDragHandler, useHandCardDragHandler, useTableCardDragHandler } from './dragHandlers';
+import { useHandCardDragHandler, useOppTopCardDragHandler, useTableCardDragHandler } from './dragHandlers';
 
 // Simplified type definitions
 interface ModalInfo {
@@ -38,6 +38,20 @@ export function useDragHandlers({
 
   const isMyTurn = gameState.currentPlayer === playerNumber;
 
+  /**
+   * Handle drag start
+   */
+  const handleDragStart = useCallback((card: any) => {
+    console.log(`[CONTACT-DRAG] 🎯 Drag start: ${card?.rank}${card?.suit}`);
+    if (!isMyTurn) {
+      console.log(`[CONTACT-DRAG] ❌ Not your turn, ignoring drag start`);
+      return;
+    }
+    setDragTurnState({ isMyTurn: true, currentPlayer: gameState.currentPlayer });
+    setDraggedCard(card);
+    setIsDragging(true);
+  }, [isMyTurn, gameState.currentPlayer]);
+
   // Separated drag handlers for different card types
   const handHandler = useHandCardDragHandler({
     gameState,
@@ -55,26 +69,13 @@ export function useDragHandlers({
     sendAction
   });
 
-  const capturedHandler = useCapturedCardDragHandler({
+  const opponentHandler = useOppTopCardDragHandler({
     gameState,
     playerNumber,
     isMyTurn,
-    sendAction
+    sendAction,
+    handleDragStart
   });
-
-  /**
-   * Handle drag start
-   */
-  const handleDragStart = useCallback((card: any) => {
-    console.log(`[CONTACT-DRAG] 🎯 Drag start: ${card?.rank}${card?.suit}`);
-    if (!isMyTurn) {
-      console.log(`[CONTACT-DRAG] ❌ Not your turn, ignoring drag start`);
-      return;
-    }
-    setDragTurnState({ isMyTurn: true, currentPlayer: gameState.currentPlayer });
-    setDraggedCard(card);
-    setIsDragging(true);
-  }, [isMyTurn, gameState.currentPlayer]);
 
   /**
    * Handle drag end (cleanup)
@@ -126,14 +127,14 @@ export function useDragHandlers({
   const handleTableCardDragEnd = tableHandler.handleTableCardDragEnd;
 
   /**
-   * Captured card drag start - delegate to separated handler
+   * Opponent card drag start - delegate to separated handler
    */
-  const handleCapturedCardDragStart = capturedHandler.handleCapturedCardDragStart;
+  const handleOppTopCardDragStart = opponentHandler.handleOppTopCardDragStart;
 
   /**
-   * Captured card drag end - delegate to separated handler
+   * Opponent card drag end - delegate to separated handler
    */
-  const handleCapturedCardDragEnd = capturedHandler.handleCapturedCardDragEnd;
+  const handleOppTopCardDragEnd = opponentHandler.handleOppTopCardDragEnd;
 
   return {
     draggedCard,
@@ -144,7 +145,7 @@ export function useDragHandlers({
     handleHandCardDragEnd,
     handleTableCardDragStart,
     handleTableCardDragEnd,
-    handleCapturedCardDragStart,
-    handleCapturedCardDragEnd
+    handleOppTopCardDragStart,
+    handleOppTopCardDragEnd
   };
 }

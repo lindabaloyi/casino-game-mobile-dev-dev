@@ -10,6 +10,17 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
   console.log('[TEMP_STACK] 🏃 ADD_TO_OWN_TEMP executing (FREEDOM OF PLAY)');
   console.log('[TEMP_STACK] Input action payload:', JSON.stringify(action.payload, null, 2));
 
+  // 🎯 DEBUG: Log opponent card handling specifically
+  if (action.payload.source === 'oppTopCard') {
+    console.log('[🎯 OPP-TEMP-STACK-SERVER] Processing opponent card for temp stack:', {
+      opponentId: action.payload.opponentId,
+      card: `${action.payload.card.rank}${action.payload.card.suit}`,
+      stackId: action.payload.stackId,
+      playerIndex,
+      gameId
+    });
+  }
+
   const { stackId, card, source } = action.payload;
   const gameState = gameManager.getGameState(gameId);
 
@@ -48,53 +59,20 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
     }
   }
 
-  // 🎯 FIX 4: AUTO-CREATE STACKS - Always find or create (race condition fix)
-  let tempStack = gameState.tableCards.find(item =>
+  // Find the temp stack - no auto-creation fallback
+  const tempStack = gameState.tableCards.find(item =>
     item.type === 'temporary_stack' && item.stackId === stackId
   );
 
   if (!tempStack) {
-    console.log('[AUTO_CREATE] Stack not found, delegating to createTemp for creation:', {
+    const error = new Error(`Temp stack '${stackId}' not found. Cannot add card to non-existent stack.`);
+    console.error('[TEMP_STACK_ERROR] Stack not found:', {
       requestedStackId: stackId,
-      playerIndex,
-      philosophy: 'never fail, always create via createTemp'
+      availableStacks: gameState.tableCards
+        .filter(item => item.type === 'temporary_stack')
+        .map(stack => ({ id: stack.stackId, owner: stack.owner, cards: stack.cards.length }))
     });
-
-    // ✅ DELEGATE: Use createTemp.js for consistent temp stack creation
-    const handleCreateTemp = require('./createTemp');
-
-    // Determine source for createTemp (use the card's source)
-    const tempSource = source === 'table' ? 'table' : 'hand';
-
-    // Create action payload for createTemp
-    const createTempAction = {
-      payload: {
-        source: tempSource,
-        card: card,
-        targetIndex: 0, // Default target index
-        isTableToTable: false
-      }
-    };
-
-    // Use createTemp to handle the creation
-    const newGameState = handleCreateTemp(null, playerIndex, createTempAction, gameId);
-
-    // Find the newly created temp stack
-    tempStack = newGameState.tableCards.find(item =>
-      item.type === 'temporary_stack' && item.owner === playerIndex
-    );
-
-    if (!tempStack) {
-      throw new Error('Failed to create temp stack via createTemp');
-    }
-
-    // Update gameState reference
-    gameState = newGameState;
-
-    console.log('[AUTO_CREATE] ✅ Temp stack created via createTemp:', {
-      stackId: tempStack.stackId,
-      owner: tempStack.owner
-    });
+    throw error;
   }
 
   // 🎯 COMPLETE FREEDOM: No validation for temp stack building
@@ -171,7 +149,7 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
   console.log('[EXECUTION] Removing card from source:', { source, card: `${card.rank}${card.suit}` });
 
   try {
-    removeCardFromSource(gameState, card, source, playerIndex);
+    removeCardFromSource(gameState, card, source, playerIndex, action.payload.opponentId);
     console.log('[EXECUTION] ✅ Card successfully removed from source');
   } catch (error) {
     console.error('[EXECUTION_ERROR] Failed to remove card from source:', error.message);
@@ -194,7 +172,7 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
  * Remove card from its source location
  * Handles hand, captures, and table sources
  */
-function removeCardFromSource(gameState, card, source, playerIndex) {
+function removeCardFromSource(gameState, card, source, playerIndex, opponentId) {
   console.log('[SOURCE_REMOVAL] Removing card from source:', {
     card: `${card.rank}${card.suit}`,
     source,
@@ -235,6 +213,26 @@ function removeCardFromSource(gameState, card, source, playerIndex) {
     } else {
       throw new Error(`Card ${card.rank}${card.suit} not found in player's captures`);
     }
+  } else if (source === 'oppTopCard') {
+    // Handle opponent top card - validate it's the top card and remove it
+    if (opponentId === undefined) {
+      throw new Error("opponentId is required for oppTopCard source");
+    }
+
+    const opponentCaptures = gameState.playerCaptures[opponentId] || [];
+    if (opponentCaptures.length === 0) {
+      throw new Error(`Opponent ${opponentId} has no captured cards`);
+    }
+
+    // Check if it's the top card (last element in array)
+    const actualTopCard = opponentCaptures[opponentCaptures.length - 1];
+    if (actualTopCard.rank !== card.rank || actualTopCard.suit !== card.suit) {
+      throw new Error(`Card ${card.rank}${card.suit} is not opponent ${opponentId}'s top card`);
+    }
+
+    // Remove the top card from opponent's captures
+    gameState.playerCaptures[opponentId].pop();
+    console.log('[SOURCE_REMOVAL] ✅ Removed opponent top card from captures');
   } else {
     throw new Error(`Unknown source type: ${source}`);
   }

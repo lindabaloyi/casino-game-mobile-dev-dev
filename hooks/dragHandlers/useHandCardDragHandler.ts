@@ -66,7 +66,8 @@ export function useHandCardDragHandler({
         draggedItem.card,
         contact,
         gameState,
-        playerNumber
+        playerNumber,
+        'hand'
       );
 
       if (action) {

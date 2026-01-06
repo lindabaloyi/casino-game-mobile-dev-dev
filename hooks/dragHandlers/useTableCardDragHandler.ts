@@ -166,10 +166,11 @@ export function useTableCardDragHandler({
         // Use our enhanced temp stack contact detection
         const { handleTempStackContact } = require('../../src/utils/contactHandlers/tempStackHandler');
         const action = handleTempStackContact(
-          { card: draggedItem.card, source: 'table' },
+          draggedItem.card,
           contact,
           gameState,
-          playerNumber
+          playerNumber,
+          'table'
         );
         if (action) {
           sendAction(action);

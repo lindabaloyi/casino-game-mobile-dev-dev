@@ -9,8 +9,8 @@ interface CapturedCardsProps {
   onCardPress?: (card: any, source: string) => void;
   isMinimal?: boolean; // Compact display mode
   isActivePlayerTurn?: boolean; // Whether it's the active player's turn
-  onCapturedCardDragStart?: (card: any) => void;
-  onCapturedCardDragEnd?: (draggedItem: any, dropPosition: any) => void;
+  onOppTopCardDragStart?: (card: any, metadata: any) => void;
+  onOppTopCardDragEnd?: (draggedItem: any, dropPosition: any) => void;
 }
 
 const CapturedCards = memo<CapturedCardsProps>(({
@@ -20,8 +20,8 @@ const CapturedCards = memo<CapturedCardsProps>(({
   onCardPress,
   isMinimal = false,
   isActivePlayerTurn = false,
-  onCapturedCardDragStart,
-  onCapturedCardDragEnd
+  onOppTopCardDragStart,
+  onOppTopCardDragEnd
 }) => {
   // Flatten all capture groups for display
   const allCapturedCards = useMemo(() => captures.flat(), [captures]);
@@ -68,8 +68,8 @@ const CapturedCards = memo<CapturedCardsProps>(({
               draggable={true}
               currentPlayer={playerIndex}
               dragSource="captured"
-              onDragStart={onCapturedCardDragStart}
-              onDragEnd={onCapturedCardDragEnd}
+              onDragStart={(card) => onOppTopCardDragStart?.(card, { opponentId: playerIndex })}
+              onDragEnd={onOppTopCardDragEnd}
             />
           ) : (
             <TouchableOpacity

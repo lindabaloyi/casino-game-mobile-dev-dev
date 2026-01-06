@@ -50,7 +50,7 @@ export const TempStack: React.FC<TempStackProps> = ({
   const { ref, bounds, measure } = useLayoutMeasurement(stackId, 0.5);
 
   // Report temp stack position to contact detection system
-  const { reportCardPosition } = useCardContact();
+  const { reportCardPosition, removeCardPosition } = useCardContact();
 
   React.useEffect(() => {
     if (bounds) {
@@ -64,7 +64,12 @@ export const TempStack: React.FC<TempStackProps> = ({
         data: { value: totalValue, canAugmentBuilds, cards } // Include stack data for drag handlers
       });
     }
-  }, [stackId, bounds, reportCardPosition, totalValue, canAugmentBuilds, cards]);
+
+    // ✅ CLEANUP: Remove position when component unmounts or stackId changes
+    return () => {
+      removeCardPosition(stackId);
+    };
+  }, [stackId, bounds, reportCardPosition, removeCardPosition, totalValue, canAugmentBuilds, cards]);
 
   return (
     <View ref={ref} onLayout={measure} style={{

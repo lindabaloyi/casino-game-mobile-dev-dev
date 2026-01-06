@@ -20,7 +20,8 @@ export function handleBuildContact(
   draggedCard: Card,
   contact: Contact,
   gameState: GameState,
-  currentPlayer: number
+  currentPlayer: number,
+  source?: string
 ): { type: string; payload: any } | null {
 
   console.log('[BUILD_HANDLER] 🎯 Handling build contact:', {
@@ -80,7 +81,7 @@ export function handleBuildContact(
     return {
       type: 'addToOwnBuild',
       payload: {
-        draggedItem: { card: draggedCard, source: 'hand' },
+        draggedItem: { card: draggedCard, source: source || 'hand' },
         buildToAddTo: build
       }
     };
@@ -90,7 +91,7 @@ export function handleBuildContact(
     return {
       type: 'capture',
       payload: {
-        draggedItem: { card: draggedCard, source: 'hand' },
+        draggedItem: { card: draggedCard, source: source || 'hand' },
         selectedTableCards: build.cards,
         targetCard: null // Build capture handled differently
       }

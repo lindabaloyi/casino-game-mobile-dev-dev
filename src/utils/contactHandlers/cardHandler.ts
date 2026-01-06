@@ -20,7 +20,8 @@ export function handleLooseCardContact(
   draggedCard: Card,
   contact: Contact,
   gameState: GameState,
-  currentPlayer: number
+  currentPlayer: number,
+  source?: string
 ): { type: string; payload: any } | null {
 
   console.log('[CARD_HANDLER] 🎯 Handling loose card contact:', {
@@ -71,7 +72,7 @@ export function handleLooseCardContact(
     const action = {
       type: 'createTemp',
       payload: {
-        source: 'hand',
+        source: source || 'hand',
         isTableToTable: false,
         card: draggedCard,
         targetIndex: touchedIndex,

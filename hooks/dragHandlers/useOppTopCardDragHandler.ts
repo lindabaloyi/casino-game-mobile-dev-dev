@@ -3,8 +3,9 @@
  * Clean, simple implementation for opponent card dragging
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { GameState } from '../../multiplayer/server/game-logic/game-state';
+import { determineActionFromContact } from '../../src/utils/contactActions';
 import { findContactAtPoint } from '../../src/utils/contactDetection';
 
 interface OppTopCardDragHandlerProps {
@@ -26,6 +27,9 @@ export function useOppTopCardDragHandler({
   handleDragStart
 }: OppTopCardDragHandlerProps) {
 
+  // Store opponent metadata during drag
+  const [currentDragMetadata, setCurrentDragMetadata] = useState<any>(null);
+
   /**
    * Handle opponent top card drag start
    */
@@ -34,11 +38,12 @@ export function useOppTopCardDragHandler({
       card: `${card.rank}${card.suit}`,
       opponentId: metadata.opponentId
     });
+    setCurrentDragMetadata(metadata);
     handleDragStart(card);
   }, [handleDragStart]);
 
   /**
-   * Handle opponent top card drag end - CLEAN DIRECT LOGIC
+   * Handle opponent top card drag end - ROBUST CENTRALIZED SYSTEM
    */
   const handleOppTopCardDragEnd = useCallback((draggedItem: any, dropPosition: any) => {
     console.log(`[🏁 OPP-DRAG-END] Processing drop at:`, dropPosition);
@@ -51,65 +56,36 @@ export function useOppTopCardDragHandler({
       return { validContact: false };
     }
 
-    const opponentId = draggedItem.metadata?.opponentId;
+    const opponentId = currentDragMetadata?.opponentId;
     console.log(`[🎯 OPP-CONTACT] Contact detected:`, {
       type: contact.type,
       opponentId,
       card: `${draggedItem.card.rank}${draggedItem.card.suit}`
     });
 
-    // DIRECT ACTION MAPPING - Same pattern as hand/table cards
-    if (contact.type === 'card') {
-      // Drop on loose card → Create temp stack
-      console.log('[✅ OPP-ACTION] Creating temp stack with loose card');
-      sendAction({
-        type: 'createTemp',
-        payload: {
-          source: 'oppTopCard',
-          card: draggedItem.card,
-          targetIndex: contact.data?.index,
-          opponentId: opponentId,
-          isTableToTable: false,
-          canAugmentBuilds: true
-        }
+    // 🎯 USE ROBUST CENTRALIZED SYSTEM - Same as hand cards
+    console.log('[🎯 OPP-DETERMINE-ACTION] Using centralized action determination');
+    const action = determineActionFromContact(draggedItem.card, contact, gameState, playerNumber, 'oppTopCard');
+
+    if (action) {
+      // Add opponentId to action payload for server processing
+      if (!action.payload) action.payload = {};
+      action.payload.opponentId = opponentId;
+
+      console.log('[✅ OPP-ACTION] Sending determined action:', {
+        type: action.type,
+        payload: action.payload,
+        timestamp: new Date().toISOString()
       });
+
+      sendAction(action);
       return { validContact: true };
     }
 
-    if (contact.type === 'build') {
-      // Drop on build → Add to build
-      console.log('[✅ OPP-ACTION] Adding to build');
-      sendAction({
-        type: 'addToOwnBuild',
-        payload: {
-          buildId: contact.data?.buildId,
-          card: draggedItem.card,
-          source: 'oppTopCard',
-          opponentId: opponentId
-        }
-      });
-      return { validContact: true };
-    }
-
-    if (contact.type === 'tempStack') {
-      // Drop on temp stack → Add to temp stack
-      console.log('[✅ OPP-ACTION] Adding to temp stack');
-      sendAction({
-        type: 'addToOwnTemp',
-        payload: {
-          stackId: contact.data?.stackId,
-          card: draggedItem.card,
-          source: 'oppTopCard',
-          opponentId: opponentId
-        }
-      });
-      return { validContact: true };
-    }
-
-    console.log(`[⚠️ OPP-UNKNOWN] Unknown contact type: ${contact.type}`);
+    console.log('[⚠️ OPP-NO-ACTION] No valid action determined from contact');
     return { validContact: false };
 
-  }, [sendAction]);
+  }, [sendAction, gameState, playerNumber, currentDragMetadata]);
 
   return {
     handleOppTopCardDragStart,

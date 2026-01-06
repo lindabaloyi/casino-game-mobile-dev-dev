@@ -186,7 +186,7 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
   });
 
   // Remove card from source
-  removeCardFromSource(gameState, card, source, playerIndex);
+  removeCardFromSource(gameState, card, source, playerIndex, action);
 
   // Create pending state for cancel option
   const newGameState = { ...gameState };
@@ -233,7 +233,7 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
 /**
  * Remove card from its source location
  */
-function removeCardFromSource(gameState, card, source, playerIndex) {
+function removeCardFromSource(gameState, card, source, playerIndex, action) {
   console.log('[BUILD_SOURCE_REMOVAL] Removing card from source:', {
     card: `${card.rank}${card.suit}`,
     source,
@@ -262,6 +262,37 @@ function removeCardFromSource(gameState, card, source, playerIndex) {
     } else {
       throw new Error(`Card ${card.rank}${card.suit} not found on table`);
     }
+  } else if (source === 'oppTopCard') {
+    // Handle opponent top card - validate it's the top card and remove it
+    // For build actions, opponentId should come from the action payload
+    // This needs to be passed in from the handler - for now, we'll need to modify the function signature
+    // or store it in the action payload. Let's assume it's in the payload for now.
+    let opponentId;
+    if (action && action.payload && action.payload.opponentId !== undefined) {
+      opponentId = action.payload.opponentId;
+    } else {
+      // Fallback: assume playerIndex + 1 (simple multiplayer assumption)
+      opponentId = (playerIndex + 1) % 2; // For 2-player game
+    }
+
+    if (opponentId === undefined) {
+      throw new Error("opponentId is required for oppTopCard source");
+    }
+
+    const opponentCaptures = gameState.playerCaptures[opponentId] || [];
+    if (opponentCaptures.length === 0) {
+      throw new Error(`Opponent ${opponentId} has no captured cards`);
+    }
+
+    // Check if it's the top card (last element in array)
+    const actualTopCard = opponentCaptures[opponentCaptures.length - 1];
+    if (actualTopCard.rank !== card.rank || actualTopCard.suit !== card.suit) {
+      throw new Error(`Card ${card.rank}${card.suit} is not opponent ${opponentId}'s top card`);
+    }
+
+    // Remove the top card from opponent's captures
+    gameState.playerCaptures[opponentId].pop();
+    console.log('[BUILD_SOURCE_REMOVAL] ✅ Removed opponent top card from captures');
   } else {
     throw new Error(`Unknown source type: ${source}`);
   }

@@ -19,7 +19,8 @@ export function determineActionFromContact(
     data?: any;
   },
   gameState: GameState,
-  currentPlayer: number
+  currentPlayer: number,
+  source?: string
 ): { type: string; payload: any } | null {
 
   console.log('[CONTACT-ACTIONS] 🎯 Determining action from contact:', {
@@ -32,13 +33,13 @@ export function determineActionFromContact(
   // Route to specific handlers based on contact type
   switch (touchedContact.type) {
     case 'temporary_stack':
-      return handleTempStackContact(draggedCard, touchedContact, gameState, currentPlayer);
+      return handleTempStackContact(draggedCard, touchedContact, gameState, currentPlayer, source);
 
     case 'build':
-      return handleBuildContact(draggedCard, touchedContact, gameState, currentPlayer);
+      return handleBuildContact(draggedCard, touchedContact, gameState, currentPlayer, source);
 
     case 'card':
-      return handleLooseCardContact(draggedCard, touchedContact, gameState, currentPlayer);
+      return handleLooseCardContact(draggedCard, touchedContact, gameState, currentPlayer, source);
 
     default:
       console.log('[CONTACT-ACTIONS] ❌ Unknown contact type:', touchedContact.type);

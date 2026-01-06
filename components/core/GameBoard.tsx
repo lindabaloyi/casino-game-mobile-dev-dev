@@ -188,8 +188,8 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
             isOpponent={true}
             isMinimal={true}
             isActivePlayerTurn={isMyTurn}
-            onCapturedCardDragStart={dragHandlers.handleCapturedCardDragStart}
-            onCapturedCardDragEnd={dragHandlers.handleCapturedCardDragEnd}
+            onOppTopCardDragStart={dragHandlers.handleOppTopCardDragStart}
+            onOppTopCardDragEnd={dragHandlers.handleOppTopCardDragEnd}
           />
         </View>
       </View>

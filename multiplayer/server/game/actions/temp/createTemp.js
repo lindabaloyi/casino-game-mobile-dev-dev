@@ -103,6 +103,27 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
       });
       throw error;
     }
+  } else if (source === 'capturedTopCard') {
+    // Player's own captured card: validate it's the top card in player's captures
+    const playerCaptures = gameState.playerCaptures[playerIndex] || [];
+    if (playerCaptures.length === 0) {
+      const error = new Error(`Player ${playerIndex} has no captured cards`);
+      logger.error('Staging stack creation failed - player has no captured cards', { playerIndex });
+      throw error;
+    }
+
+    // Check if it's the top card (last element in array)
+    const actualTopCard = playerCaptures[playerCaptures.length - 1];
+    if (actualTopCard.rank !== draggedCard.rank ||
+        actualTopCard.suit !== draggedCard.suit) {
+      const error = new Error(`Card ${draggedCard.rank}${draggedCard.suit} is not player ${playerIndex}'s top captured card`);
+      logger.error('Staging stack creation failed - card is not top captured card', {
+        draggedCard,
+        actualTopCard,
+        playerIndex
+      });
+      throw error;
+    }
   } else {
     const error = new Error("Invalid source for staging.");
     logger.error('Staging stack creation failed - invalid source', { source });
@@ -202,14 +223,21 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
     );
 
     logger.info(`Removed top card ${draggedCard.rank}${draggedCard.suit} from opponent ${opponentId}'s captures`);
+  } else if (source === 'capturedTopCard') {
+    // Remove from player's own captures (the top card)
+    newGameState.playerCaptures = gameState.playerCaptures.map((captures, idx) =>
+      idx === playerIndex ? captures.slice(0, -1) : captures // Remove last element (top card)
+    );
+
+    logger.info(`Removed top card ${draggedCard.rank}${draggedCard.suit} from player ${playerIndex}'s captures`);
   } else {
     // For other sources (shouldn't happen due to earlier validation)
     newGameState.tableCards = [...(newGameState.tableCards || gameState.tableCards)];
     newGameState.tableCards.splice(targetIndex, 1, stagingStack);
   }
 
-  // Handle table replacement for hand and opponent sources
-  if (source === 'hand' || source === 'oppTopCard') {
+  // Handle table replacement for hand, captured, and opponent sources
+  if (source === 'hand' || source === 'oppTopCard' || source === 'capturedTopCard') {
     newGameState.tableCards = [...(newGameState.tableCards || gameState.tableCards)];
     newGameState.tableCards.splice(targetIndex, 1, stagingStack);
   }
