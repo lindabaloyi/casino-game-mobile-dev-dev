@@ -562,3 +562,6 @@ const tempRules = [
 ];
 
 module.exports = tempRules;
+
+// Export the helper function for use in createTemp.js
+module.exports.checkBuildOptionsForStack = checkBuildOptionsForStack;
