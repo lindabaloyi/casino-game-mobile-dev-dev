@@ -135,6 +135,7 @@ class ActionDeterminationEngine {
     if (matchingRules.length === 0) {
       return {
         actions: [],
+        dataPackets: [],
         requiresModal: false,
         errorMessage: 'No valid actions available'
       };

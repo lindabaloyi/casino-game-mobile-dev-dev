@@ -4,7 +4,7 @@
  * Implements freedom of play approach like addToOwnBuild
  */
 
-const handleCaptureTempStack = require('../capture/captureTempStack');
+const handleCapture = require('../capture/capture');
 
 function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
   console.log('[TEMP_STACK] 🏃 ADD_TO_OWN_TEMP executing (FREEDOM OF PLAY)');
@@ -45,15 +45,19 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
       console.log('[DIRECT_CAPTURE] 🎯 Hand card matches temp stack value - executing direct capture:', {
         cardValue: card.value,
         stackValue: tempStack.value,
-        stackId: tempStack.stackId
+        stackId: tempStack.stackId,
+        tempStackCards: tempStack.cards.map(c => `${c.rank}${c.suit}`)
       });
 
       // Execute capture instead of adding to stack
-      return handleCaptureTempStack(gameManager, playerIndex, {
-        type: 'captureTempStack',
+      // Include capturing card in the captured set (like build captures)
+      return handleCapture(gameManager, playerIndex, {
+        type: 'capture',
         payload: {
-          tempStackId: tempStack.stackId,
-          captureValue: card.value
+          tempStackId: tempStack.stackId, // Include the actual stack ID for removal
+          captureValue: card.value,
+          targetCards: [...tempStack.cards, card], // Include capturing card on top
+          capturingCard: card // Mark for hand removal
         }
       }, gameId);
     }

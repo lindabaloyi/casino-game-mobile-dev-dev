@@ -76,15 +76,40 @@ export function handleBuildContact(
       }
     };
   } else if (build.owner === currentPlayer) {
-    // Add to own build - DIRECT ADDITION (no staging/validation)
-    console.log('[BUILD_HANDLER] ✅ Player adding directly to own build (no rules)');
-    return {
-      type: 'addToOwnBuild',
-      payload: {
-        draggedItem: { card: draggedCard, source: source || 'hand' },
-        buildToAddTo: build
-      }
-    };
+    // OWNED BUILD: Check if card matches build value for capture
+    const draggedValue = draggedCard.value;
+    const buildValue = build.value;
+    const valuesMatch = draggedValue === buildValue;
+
+    console.log('[BUILD_HANDLER] 🎯 Owned build interaction:', {
+      draggedValue,
+      buildValue,
+      valuesMatch,
+      buildCards: build.cards?.map(c => `${c.rank}${c.suit}`) || []
+    });
+
+    if (valuesMatch) {
+      // CAPTURE OWN BUILD: Values match, allow capture
+      console.log('[BUILD_HANDLER] ✅ Player capturing own build (value match)');
+      return {
+        type: 'capture',
+        payload: {
+          draggedItem: { card: draggedCard, source: source || 'hand' },
+          selectedTableCards: build.cards,
+          targetCard: null // Build capture handled differently
+        }
+      };
+    } else {
+      // ADD TO OWN BUILD: Values don't match, add to build
+      console.log('[BUILD_HANDLER] ✅ Player adding to own build (value mismatch)');
+      return {
+        type: 'addToOwnBuild',
+        payload: {
+          draggedItem: { card: draggedCard, source: source || 'hand' },
+          buildToAddTo: build
+        }
+      };
+    }
   } else {
     // Capture opponent's build
     console.log('[BUILD_HANDLER] ✅ Player capturing opponent build');

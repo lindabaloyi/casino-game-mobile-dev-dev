@@ -3,7 +3,7 @@
  * Tests that captureTempStack doesn't add extra hand cards
  */
 
-const handleCaptureTempStack = require('./game/actions/capture/captureTempStack');
+const handleCapture = require('./game/actions/capture/capture');
 
 // Mock game manager
 const mockGameManager = {
@@ -46,7 +46,7 @@ async function testCaptureFix() {
   };
 
   try {
-    const result = await handleCaptureTempStack(mockGameManager, 0, action, 'test-game');
+    const result = await handleCapture(mockGameManager, 0, action, 'test-game');
 
     console.log('\nAfter capture:');
     console.log('- Hand:', result.playerHands[0].map(c => `${c.rank}${c.suit}`));

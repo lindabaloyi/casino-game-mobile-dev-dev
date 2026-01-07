@@ -3,7 +3,66 @@
  * Rules for determining temp actions (temp stack creation and management)
  */
 
+const { rankValue, calculateCardSum } = require('../../GameState');
+
 const tempRules = [
+  {
+    id: 'immediate-temp-stack-capture',
+    priority: 110, // 🎯 HIGHEST PRIORITY: Direct capture when hand card matches temp stack value
+    exclusive: false,
+    requiresModal: false,
+    condition: (context) => {
+      console.log('[IMMEDIATE_CAPTURE] 🔍 Checking for direct temp stack capture');
+
+      const draggedItem = context.draggedItem;
+      const targetInfo = context.targetInfo;
+
+      // ✅ CONDITION 1: Must be dragging from hand
+      if (draggedItem?.source !== 'hand') {
+        console.log('[IMMEDIATE_CAPTURE] ❌ Not from hand, skipping');
+        return false;
+      }
+
+      // ✅ CONDITION 2: Target must be temp stack
+      if (targetInfo?.type !== 'temporary_stack') {
+        console.log('[IMMEDIATE_CAPTURE] ❌ Not a temp stack target, skipping');
+        return false;
+      }
+
+      // ✅ CONDITION 3: Values must match for direct capture
+      const draggedValue = rankValue(draggedItem.card.rank);
+      const stackValue = targetInfo.card.captureValue ||
+                         calculateCardSum(targetInfo.card.cards || []);
+
+      const valuesMatch = draggedValue === stackValue;
+
+      console.log('[IMMEDIATE_CAPTURE] 🎯 Value comparison:', {
+        draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
+        draggedValue,
+        stackId: targetInfo.card.stackId,
+        stackValue,
+        stackCards: targetInfo.card.cards?.map(c => `${c.rank}${c.suit}`) || [],
+        valuesMatch
+      });
+
+      return valuesMatch;
+    },
+    action: (context) => {
+      console.log('[IMMEDIATE_CAPTURE] ✅ Creating direct temp stack capture action');
+
+      const stackValue = context.targetInfo.card.captureValue ||
+                         calculateCardSum(context.targetInfo.card.cards || []);
+
+      return {
+        type: 'capture',
+        payload: {
+          tempStackId: context.targetInfo.card.stackId,
+          captureValue: stackValue
+        }
+      };
+    },
+    description: 'Direct capture when hand card matches temp stack value (highest priority)'
+  },
   {
     id: 'same-value-temp-stack-actions',
     priority: 95, // ✅ HIGH PRIORITY: Same-value temp stack strategic options
@@ -96,8 +155,8 @@ const tempRules = [
   },
   {
     id: 'temp-stack-addition',
-    priority: 100, // ✅ HIGHEST PRIORITY: Adding to existing temp stacks
-    exclusive: true, // ✅ EXCLUSIVE: Prevents other rules from matching
+    priority: 100, // Lower priority than immediate capture (110)
+    exclusive: false, // ✅ CHANGED: Allow other rules to be evaluated
     requiresModal: false,
     condition: (context) => {
       const targetInfo = context.targetInfo;

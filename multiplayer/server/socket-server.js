@@ -66,7 +66,7 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
     createTemp: actionHandlers.handleCreateTemp,
     addToOwnTemp: actionHandlers.handleAddToOwnTemp,
     cancelTemp: actionHandlers.handleCancelTemp,
-    captureTempStack: actionHandlers.handleCaptureTempStack,
+    capture: actionHandlers.handleCapture,
     createBuildFromTempStack: actionHandlers.handleCreateBuildFromTempStack,
     addToOwnBuild: actionHandlers.handleAddToOwnBuild,
     tableToTableDrop: actionHandlers.handleTableToTableDrop,

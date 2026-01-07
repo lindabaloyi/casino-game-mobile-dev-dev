@@ -5,6 +5,7 @@
 
 import { useCallback } from 'react';
 import { Card, GameState } from '../../multiplayer/server/game-logic/game-state';
+import { determineActions } from '../../multiplayer/server/game/logic/actionDetermination';
 import { determineActionFromContact } from '../../src/utils/contactActions';
 import { findContactAtPoint } from '../../src/utils/contactDetection';
 import { createLogger } from '../../src/utils/debugConfig';
@@ -62,7 +63,7 @@ export function useHandCardDragHandler({
       logger.info(`✅ Found contact: ${contact.id} (${contact.type}) at ${contact.distance.toFixed(1)}px`);
 
       // Determine action from contact
-      const action = determineActionFromContact(
+      let action = determineActionFromContact(
         draggedItem.card,
         contact,
         gameState,
@@ -70,13 +71,52 @@ export function useHandCardDragHandler({
         'hand'
       );
 
+      // If contact handler returns null, it means multiple options exist - use rule engine directly
+      if (!action && (contact.type === 'build' || contact.type === 'temporary_stack')) {
+        logger.info('🎯 Multiple options detected, calling rule engine directly');
+
+        const draggedItemForRules = {
+          card: draggedItem.card,
+          source: draggedItem.source || 'hand'
+        };
+
+        const targetInfoForRules = {
+          type: contact.type,
+          card: contact.data || contact,
+          index: contact.data?.index
+        };
+
+        try {
+          const ruleResult = determineActions(draggedItemForRules, targetInfoForRules, gameState);
+
+          logger.info(`📊 Rule engine result: ${ruleResult.actions.length} actions, requiresModal: ${ruleResult.requiresModal}`);
+
+          // For now, if multiple actions exist, we'll need modal handling
+          // For single actions, use it directly
+          if (ruleResult.actions.length === 1 && !ruleResult.requiresModal && ruleResult.dataPackets.length === 0) {
+            action = ruleResult.actions[0];
+            if (action) {
+              logger.info('✅ Using single action from rule engine:', action.type);
+            } else {
+              logger.error('❌ Rule engine returned null action despite length check');
+            }
+          } else {
+            logger.warn('🎯 Multiple actions/options require modal - not implemented yet');
+            // TODO: Implement modal for multiple options
+          }
+        } catch (error) {
+          logger.error('❌ Error calling rule engine:', error);
+        }
+      }
+
       if (action) {
         logger.info(`📤 Sending action: ${action.type}`, action.payload);
         sendAction(action);
         return { validContact: true }; // ✅ Valid contact - card should stay
       } else {
-        logger.warn('❌ No valid action determined from contact - this should not happen for builds!');
+        logger.warn('❌ No valid action determined from contact');
         logger.warn('Contact details:', contact);
+        // Continue to trail fallback
       }
     } else {
       logger.warn('❌ No contact found at drop position - falling back to trail');

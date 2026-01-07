@@ -42,7 +42,7 @@ const handleTrail = require('./trail/index');
 const handleCreateTemp = require('./temp/createTemp');
 const handleAddToOwnTemp = require('./temp/addToOwnTemp');
 const handleCancelTemp = require('./temp/cancelTemp');
-const handleCaptureTempStack = require('./capture/captureTempStack');
+const handleCapture = require('./capture/capture');
 const handleCreateBuildFromTempStack = require('./build/createBuildFromTempStack');
 const handleAddToOwnBuild = require('./build/addToOwnBuild');
 const handleTableToTableDrop = require('./card-drop/tableToTableDrop');
@@ -54,7 +54,7 @@ module.exports = {
   handleCreateTemp,
   handleAddToOwnTemp,
   handleCancelTemp,
-  handleCaptureTempStack,
+  handleCapture,
   handleCreateBuildFromTempStack,
   handleAddToOwnBuild,
   handleTableToTableDrop,
