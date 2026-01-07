@@ -237,14 +237,14 @@ export function AcceptValidationModal({
 
     try {
       if (option.type === 'capture') {
-        // CAPTURE: Use existing captureTempStack action
+        // CAPTURE: Use existing capture action (supports temp stacks)
         console.log('✅ [MODAL] Executing CAPTURE action:', {
           tempStackId: tempStack.stackId,
           captureValue: option.value
         });
 
         sendAction({
-          type: 'captureTempStack',
+          type: 'capture',
           payload: {
             tempStackId: tempStack.stackId,
             captureValue: option.value
