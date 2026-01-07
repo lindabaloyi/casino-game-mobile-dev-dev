@@ -148,7 +148,7 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
     console.log('[CREATE_TEMP] 🎯 Same-value stack created, checking for auto-capture...');
 
     // Import the build checking function
-    const { checkBuildOptionsForStack } = require('../../logic/rules/tempRules');
+    const { checkBuildOptionsForStack } = require('../../logic/utils/buildUtils');
 
     // Check if current player has build options
     const playerHand = newGameState.playerHands[playerIndex];
