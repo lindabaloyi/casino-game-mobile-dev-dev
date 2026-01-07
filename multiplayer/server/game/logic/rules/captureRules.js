@@ -59,7 +59,7 @@ const captureRules = [
       return action;
     },
     requiresModal: false,
-    priority: 50,
+    priority: 200, // BOOSTED: Was 50, now highest priority
     description: 'Capture single matching card'
   },
   {
@@ -118,7 +118,7 @@ const captureRules = [
       return action;
     },
     requiresModal: false,
-    priority: 45,
+    priority: 195, // BOOSTED: Was 45, now second highest
     description: 'Capture entire build'
   },
   {
@@ -177,7 +177,7 @@ const captureRules = [
       return action;
     },
     requiresModal: false,
-    priority: 40,
+    priority: 190, // BOOSTED: Was 40, now third highest
     description: 'Capture temporary stack'
   }
 ];

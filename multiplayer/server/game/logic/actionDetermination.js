@@ -102,26 +102,57 @@ class ActionDeterminationEngine {
    * Evaluate all rules against the context
    */
   evaluateRules(context) {
+    console.log('\n🎯 ========== RULE EVALUATION START ==========');
+    console.log('📦 Context:', {
+      draggedCard: context.draggedItem?.card ? `${context.draggedItem.card.rank}${context.draggedItem.card.suit}=${context.draggedItem.card.value}` : 'none',
+      draggedSource: context.draggedItem?.source,
+      targetType: context.targetInfo?.type,
+      targetCard: context.targetInfo?.card ? `${context.targetInfo.card.rank}${context.targetInfo.card.suit}=${context.targetInfo.card.value}` : 'none',
+      currentPlayer: context.currentPlayer,
+      playerHandSize: context.playerHands?.[context.currentPlayer]?.length || 0
+    });
+
+    console.log('📋 EVALUATING RULES IN PRIORITY ORDER:');
+    this.rules.forEach((rule, i) => {
+      console.log(`  ${i+1}. ${rule.id.padEnd(35)} (priority: ${rule.priority})`);
+    });
+
     const matchingRules = [];
 
     for (const rule of this.rules) {
       try {
-        if (rule.condition(context)) {
+        console.log(`\n🔍 EVALUATING RULE: ${rule.id} (priority: ${rule.priority})`);
+
+        const conditionResult = rule.condition(context);
+
+        console.log(`   CONDITION RESULT: ${conditionResult ? '✅ TRUE' : '❌ FALSE'}`);
+        console.log(`   Exclusive: ${rule.exclusive}, Requires Modal: ${rule.requiresModal}`);
+
+        if (conditionResult) {
           matchingRules.push(rule);
-          logger.debug(`Rule matched: ${rule.id}`, {
-            action: rule.action?.type || rule.action,
-            requiresModal: rule.requiresModal
-          });
+          console.log(`🎯 RULE MATCHED! ${rule.id}`);
 
           // If rule has exclusive flag, stop evaluating further rules
           if (rule.exclusive) {
+            console.log('🚫 EXCLUSIVE RULE - STOPPING FURTHER EVALUATION');
             break;
           }
         }
       } catch (error) {
+        console.log(`❌ ERROR in rule ${rule.id}: ${error.message}`);
         logger.error(`Error evaluating rule ${rule.id}:`, error.message);
       }
     }
+
+    console.log(`\n📊 EVALUATION COMPLETE: ${matchingRules.length} rules matched`);
+    if (matchingRules.length > 0) {
+      console.log('🎯 MATCHING RULES:');
+      matchingRules.forEach((rule, i) => {
+        console.log(`  ${i+1}. ${rule.id} (priority: ${rule.priority})`);
+      });
+    }
+
+    console.log('🎯 ========== RULE EVALUATION END ===========\n');
 
     return matchingRules;
   }
@@ -149,7 +180,7 @@ class ActionDeterminationEngine {
         // 🎯 SPECIAL HANDLING: Check if result is a data packet (not an action)
         if (result && typeof result === 'object' && result.type && result.payload) {
           // Check if it's a data packet by looking for known data packet types
-          const dataPacketTypes = ['showTempStackOptions'];
+          const dataPacketTypes = ['showTempStackOptions', 'showLooseCardOptions'];
 
           if (dataPacketTypes.includes(result.type)) {
             logger.debug(`Data packet detected: ${result.type} from rule ${rule.id}`);
