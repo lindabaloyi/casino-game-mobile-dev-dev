@@ -6,6 +6,13 @@
 const { createLogger } = require('../../../utils/logger');
 const logger = createLogger('CreateTemp');
 
+const {
+  validateBasic,
+  validateTargetCard,
+  validateSource,
+  validateNoExistingStagingStack
+} = require('./validators');
+
 /**
  * Dedicated Same-Value Auto-Capture Handler
  * Handles auto-capture of same-value cards without affecting existing temp stack logic
@@ -76,123 +83,11 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
     gameId
   });
 
-  // ✅ CRITICAL: Add null checks to prevent server crashes
-  if (!gameState) {
-    const error = new Error(`Game ${gameId} not found`);
-    logger.error('Staging stack creation failed - game not found', { gameId, playerIndex });
-    throw error;
-  }
-
-  if (!gameState.tableCards) {
-    const error = new Error(`Game ${gameId} has no tableCards`);
-    logger.error('Staging stack creation failed - no tableCards', { gameId, playerIndex });
-    throw error;
-  }
-
-  // Find the target table card at the specified index
-  if (targetIndex >= gameState.tableCards.length) {
-    const error = new Error("Target table card not found at specified index.");
-    logger.error('Staging stack creation failed - invalid target index', { targetIndex, tableCardsCount: gameState.tableCards.length });
-    throw error;
-  }
-
-  const targetCard = gameState.tableCards[targetIndex];
-  if (!targetCard || targetCard.type === 'temporary_stack') {
-    const error = new Error("Target card is not a valid loose card.");
-    logger.error('Staging stack creation failed - invalid target card', { targetCard, targetIndex });
-    throw error;
-  }
-
-  // Validate dragged card based on source
-  if (source === 'hand') {
-    // Hand-to-table: validate card exists in player's hand
-    const playerHand = gameState.playerHands[playerIndex];
-    const handExists = playerHand.some(card =>
-      card.rank === draggedCard.rank && card.suit === draggedCard.suit
-    );
-
-    if (!handExists) {
-      const error = new Error("Hand card not found.");
-      logger.error('Staging stack creation failed - hand card not in hand', { playerIndex, draggedCard });
-      throw error;
-    }
-  } else if (source === 'table') {
-    // Table-to-table: validate card exists on table (different from target)
-    const draggedExistsOnTable = gameState.tableCards.some((card, index) =>
-      index !== targetIndex && // Not the target card
-      card.rank === draggedCard.rank && card.suit === draggedCard.suit
-    );
-
-    if (!draggedExistsOnTable) {
-      const error = new Error("Dragged table card not found.");
-      logger.error('Staging stack creation failed - dragged table card not found', { draggedCard, targetIndex });
-      throw error;
-    }
-  } else if (source === 'oppTopCard') {
-    // Opponent card: validate it's the top card in opponent's captures
-    const opponentId = action.payload.opponentId;
-    if (opponentId === undefined) {
-      const error = new Error("opponentId is required for oppTopCard source");
-      logger.error('Staging stack creation failed - missing opponentId', { source });
-      throw error;
-    }
-
-    const opponentCaptures = gameState.playerCaptures[opponentId] || [];
-    if (opponentCaptures.length === 0) {
-      const error = new Error(`Opponent ${opponentId} has no captured cards`);
-      logger.error('Staging stack creation failed - opponent has no cards', { opponentId });
-      throw error;
-    }
-
-    // Check if it's the top card (last element in array)
-    const actualTopCard = opponentCaptures[opponentCaptures.length - 1];
-    if (actualTopCard.rank !== draggedCard.rank ||
-        actualTopCard.suit !== draggedCard.suit) {
-      const error = new Error(`Card ${draggedCard.rank}${draggedCard.suit} is not opponent ${opponentId}'s top card`);
-      logger.error('Staging stack creation failed - card is not top card', {
-        draggedCard,
-        actualTopCard,
-        opponentId
-      });
-      throw error;
-    }
-  } else if (source === 'capturedTopCard') {
-    // Player's own captured card: validate it's the top card in player's captures
-    const playerCaptures = gameState.playerCaptures[playerIndex] || [];
-    if (playerCaptures.length === 0) {
-      const error = new Error(`Player ${playerIndex} has no captured cards`);
-      logger.error('Staging stack creation failed - player has no captured cards', { playerIndex });
-      throw error;
-    }
-
-    // Check if it's the top card (last element in array)
-    const actualTopCard = playerCaptures[playerCaptures.length - 1];
-    if (actualTopCard.rank !== draggedCard.rank ||
-        actualTopCard.suit !== draggedCard.suit) {
-      const error = new Error(`Card ${draggedCard.rank}${draggedCard.suit} is not player ${playerIndex}'s top captured card`);
-      logger.error('Staging stack creation failed - card is not top captured card', {
-        draggedCard,
-        actualTopCard,
-        playerIndex
-      });
-      throw error;
-    }
-  } else {
-    const error = new Error("Invalid source for staging.");
-    logger.error('Staging stack creation failed - invalid source', { source });
-    throw error;
-  }
-
-  // Check that player doesn't already have a staging stack
-  const hasStagingStack = gameState.tableCards.some(card =>
-    card.type === 'temporary_stack' && card.owner === playerIndex
-  );
-
-  if (hasStagingStack) {
-    const error = new Error("You can only have one staging stack at a time.");
-    logger.error('Staging stack creation failed - player already has staging stack', { playerIndex });
-    throw error;
-  }
+  // 🎯 VALIDATION PIPELINE (clear, sequential)
+  const validatedTargetIndex = validateBasic(action, gameState);
+  const targetCard = validateTargetCard(gameState, validatedTargetIndex);
+  validateSource(source, draggedCard, targetCard, gameState, playerIndex, action.payload);
+  validateNoExistingStagingStack(gameState, playerIndex);
 
   // Create universal staging stack with position tracking
   // Sort cards by value: highest value at bottom, lowest at top
