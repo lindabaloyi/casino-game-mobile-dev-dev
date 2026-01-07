@@ -57,7 +57,9 @@ const tempRules = [
         type: 'capture',
         payload: {
           tempStackId: context.targetInfo.card.stackId,
-          captureValue: stackValue
+          captureValue: stackValue,
+          targetCards: [...(context.targetInfo.card.cards || []), context.draggedItem.card], // Include capturing card on top
+          capturingCard: context.draggedItem.card // Mark the capturing card
         }
       };
     },

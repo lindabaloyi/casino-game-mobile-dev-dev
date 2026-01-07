@@ -22,9 +22,67 @@ async function handleCapture(gameManager, playerIndex, action, gameId) {
 
   let cardsToCapture = [];
 
-  if (tempStackId !== null && tempStackId !== undefined) {
-    // 1A. Handle temp stack capture (existing logic)
-    logger.info('Capturing from temp stack', { tempStackId });
+  if (targetCards && targetCards.length > 0) {
+    // 1A. Handle captures with explicit targetCards (includes temp stack captures with capturing card)
+    logger.info('Capturing target cards directly', {
+      targetCards: targetCards.map(c => `${c.rank}${c.suit}`),
+      hasTempStackId: !!tempStackId
+    });
+
+    cardsToCapture = targetCards;
+
+    // If this capture includes a temp stack, remove it from table
+    if (tempStackId !== null && tempStackId !== undefined) {
+      logger.info('Removing temp stack from table for targetCards capture', { tempStackId });
+
+      const tempStackIndex = gameState.tableCards.findIndex(card =>
+        card.stackId === tempStackId
+      );
+
+      if (tempStackIndex !== -1) {
+        gameState.tableCards.splice(tempStackIndex, 1);
+        logger.debug('Temp stack removed from table', { tempStackId, tempStackIndex });
+      } else {
+        logger.warn('Temp stack not found for removal', { tempStackId });
+      }
+    }
+
+    // If this is a build capture, remove the build from table
+    if (buildId) {
+      logger.info('Removing build from table', { buildId });
+
+      const buildIndex = gameState.tableCards.findIndex(card =>
+        card.buildId === buildId
+      );
+
+      if (buildIndex !== -1) {
+        gameState.tableCards.splice(buildIndex, 1);
+        logger.debug('Build removed from table', { buildId, buildIndex });
+      } else {
+        logger.warn('Build not found for removal', { buildId });
+      }
+    }
+
+    // For direct captures, remove the captured cards from table (if they're loose cards)
+    // Build cards and temp stack cards are already handled above, single cards need to be removed
+    if (!buildId && !tempStackId && targetCards.length === 1) {
+      const singleCard = targetCards[0];
+      const cardIndex = gameState.tableCards.findIndex(card =>
+        card.rank === singleCard.rank && card.suit === singleCard.suit
+      );
+
+      if (cardIndex !== -1) {
+        gameState.tableCards.splice(cardIndex, 1);
+        logger.debug('Single card removed from table', {
+          card: `${singleCard.rank}${singleCard.suit}`,
+          index: cardIndex
+        });
+      }
+    }
+
+  } else if (tempStackId !== null && tempStackId !== undefined) {
+    // 1B. Handle legacy temp stack capture (no targetCards)
+    logger.info('Capturing from temp stack (legacy)', { tempStackId });
 
     const tempStackIndex = gameState.tableCards.findIndex(card =>
       card.stackId === tempStackId
@@ -46,56 +104,14 @@ async function handleCapture(gameManager, playerIndex, action, gameId) {
     // Remove temp stack from table
     gameState.tableCards.splice(tempStackIndex, 1);
 
-  } else if (targetCards && targetCards.length > 0) {
-    // 1B. Handle direct card capture (new logic for builds/single cards)
-    logger.info('Capturing target cards directly', {
-      targetCards: targetCards.map(c => `${c.rank}${c.suit}`)
-    });
-
-    cardsToCapture = targetCards;
-
-    // If this is a build capture, remove the build from table
-    if (buildId) {
-      logger.info('Removing build from table', { buildId });
-
-      const buildIndex = gameState.tableCards.findIndex(card =>
-        card.buildId === buildId
-      );
-
-      if (buildIndex !== -1) {
-        gameState.tableCards.splice(buildIndex, 1);
-        logger.debug('Build removed from table', { buildId, buildIndex });
-      } else {
-        logger.warn('Build not found for removal', { buildId });
-      }
-    }
-
-    // For direct captures, remove the captured cards from table (if they're loose cards)
-    // Build cards are already handled above, single cards need to be removed
-    if (!buildId && targetCards.length === 1) {
-      const singleCard = targetCards[0];
-      const cardIndex = gameState.tableCards.findIndex(card =>
-        card.rank === singleCard.rank && card.suit === singleCard.suit
-      );
-
-      if (cardIndex !== -1) {
-        gameState.tableCards.splice(cardIndex, 1);
-        logger.debug('Single card removed from table', {
-          card: `${singleCard.rank}${singleCard.suit}`,
-          index: cardIndex
-        });
-      }
-    }
-
   } else {
     logger.error('Invalid capture payload - no tempStackId or targetCards');
     return gameState;
   }
 
-  // 2. Handle capturing card removal from hand (for direct captures)
-  // For temp stack captures, the capturing card is already in the temp stack
-  // For direct captures (builds/single cards), we need to remove it from hand
-  if (capturingCard && tempStackId === null) {
+  // 2. Handle capturing card removal from hand
+  // Remove capturing card from hand when it's explicitly provided (for all direct captures)
+  if (capturingCard) {
     logger.info('Removing capturing card from hand', {
       card: `${capturingCard.rank}${capturingCard.suit}`,
       playerIndex

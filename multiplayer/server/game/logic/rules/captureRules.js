@@ -168,9 +168,9 @@ const captureRules = [
         payload: {
           tempStackId: context.targetInfo.card.stackId,
           captureValue: context.targetInfo.card.captureValue ||
-                       calculateCardSum(context.targetInfo.card.cards || [])
-          // Note: For temp stacks, capturing card is already in the stack
-          // No need for targetCards or capturingCard fields
+                       calculateCardSum(context.targetInfo.card.cards || []),
+          targetCards: [...(context.targetInfo.card.cards || []), context.draggedItem.card], // Include capturing card on top
+          capturingCard: context.draggedItem.card // Mark the capturing card
         }
       };
       console.log('[CAPTURE_RULE] Temp stack capture action created:', JSON.stringify(action, null, 2));
