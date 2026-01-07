@@ -13,6 +13,8 @@ const {
   validateNoExistingStagingStack
 } = require('./validators');
 
+const { removeCardsBySource } = require('./cardRemovers');
+
 /**
  * Dedicated Same-Value Auto-Capture Handler
  * Handles auto-capture of same-value cards without affecting existing temp stack logic
@@ -127,75 +129,26 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
     isSameValueStack: action.payload.isSameValueStack || false
   };
 
-  const newGameState = { ...gameState };
-
-  // Remove dragged card from appropriate location
-  if (source === 'hand') {
-    // Remove from player's hand
-    newGameState.playerHands = gameState.playerHands.map((hand, idx) =>
-      idx === playerIndex ? hand.filter(card =>
-        !(card.rank === draggedCard.rank && card.suit === draggedCard.suit)
-      ) : hand
-    );
-  } else if (source === 'table') {
-    // Create mutable variable for target index adjustment
-    let adjustedTargetIndex = targetIndex;
-
-    // Remove from table (find the dragged card, excluding the target)
-    const draggedIndex = gameState.tableCards.findIndex((card, index) =>
-      index !== targetIndex && // Not the target card
-      card.rank === draggedCard.rank && card.suit === draggedCard.suit
-    );
-
-    if (draggedIndex !== -1) {
-      newGameState.tableCards = [...gameState.tableCards];
-      newGameState.tableCards.splice(draggedIndex, 1);
-      // ✅ FIX: Use adjustedTargetIndex instead of targetIndex
-      // Adjust if we removed a card before the target
-      if (draggedIndex < adjustedTargetIndex) {
-        adjustedTargetIndex--; // ✅ CORRECT: Modifying mutable variable
-      }
-
-      // Replace target card with staging stack using adjusted index
-      newGameState.tableCards.splice(adjustedTargetIndex, 1, stagingStack);
-    } else {
-      // If dragged card not found (shouldn't happen due to earlier validation)
-      newGameState.tableCards = [...(newGameState.tableCards || gameState.tableCards)];
-      newGameState.tableCards.splice(targetIndex, 1, stagingStack);
+  // 🎯 CARD REMOVAL PIPELINE (Phase 2)
+  const newGameState = removeCardsBySource(
+    gameState,
+    playerIndex,
+    source,
+    draggedCard,
+    targetCard,
+    targetIndex,
+    {
+      ...action.payload,
+      stagingStack
     }
-  } else if (source === 'oppTopCard') {
-    // Remove from opponent's captures (the top card)
-    const opponentId = action.payload.opponentId;
-    newGameState.playerCaptures = gameState.playerCaptures.map((captures, idx) =>
-      idx === opponentId ? captures.slice(0, -1) : captures // Remove last element (top card)
-    );
-
-    logger.info(`Removed top card ${draggedCard.rank}${draggedCard.suit} from opponent ${opponentId}'s captures`);
-  } else if (source === 'capturedTopCard') {
-    // Remove from player's own captures (the top card)
-    newGameState.playerCaptures = gameState.playerCaptures.map((captures, idx) =>
-      idx === playerIndex ? captures.slice(0, -1) : captures // Remove last element (top card)
-    );
-
-    logger.info(`Removed top card ${draggedCard.rank}${draggedCard.suit} from player ${playerIndex}'s captures`);
-  } else {
-    // For other sources (shouldn't happen due to earlier validation)
-    newGameState.tableCards = [...(newGameState.tableCards || gameState.tableCards)];
-    newGameState.tableCards.splice(targetIndex, 1, stagingStack);
-  }
-
-  // Handle table replacement for hand, captured, and opponent sources
-  if (source === 'hand' || source === 'oppTopCard' || source === 'capturedTopCard') {
-    newGameState.tableCards = [...(newGameState.tableCards || gameState.tableCards)];
-    newGameState.tableCards.splice(targetIndex, 1, stagingStack);
-  }
+  );
 
   // 🎯 AUTO-CAPTURE CHECK: If this is a same-value stack with no build options, capture immediately
   if (stagingStack.isSameValueStack) {
     console.log('[CREATE_TEMP] 🎯 Same-value stack created, checking for auto-capture...');
 
     // Import the build checking function
-    const { checkBuildOptionsForStack } = require('../logic/rules/tempRules');
+    const { checkBuildOptionsForStack } = require('../../logic/rules/tempRules');
 
     // Check if current player has build options
     const playerHand = newGameState.playerHands[playerIndex];
