@@ -112,7 +112,11 @@ export function useHandCardDragHandler({
       if (action) {
         logger.info(`📤 Sending action: ${action.type}`, action.payload);
         sendAction(action);
-        return { validContact: true }; // ✅ Valid contact - card should stay
+
+        // For capture actions, return false so card resets to hand
+        // For other actions (like temp stack creation), return true so card stays
+        const shouldResetCard = action.type === 'capture';
+        return { validContact: !shouldResetCard };
       } else {
         logger.warn('❌ No valid action determined from contact');
         logger.warn('Contact details:', contact);

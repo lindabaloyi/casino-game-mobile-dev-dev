@@ -64,18 +64,63 @@ async function handleCapture(gameManager, playerIndex, action, gameId) {
     }
 
     // For direct captures, remove the captured cards from table (if they're loose cards)
-    // Build cards and temp stack cards are already handled above, single cards need to be removed
-    if (!buildId && !tempStackId && targetCards.length === 1) {
-      const singleCard = targetCards[0];
-      const cardIndex = gameState.tableCards.findIndex(card =>
-        card.rank === singleCard.rank && card.suit === singleCard.suit
-      );
+    // Build cards and temp stack cards are already handled above
+    if (!buildId && !tempStackId) {
+      // Special handling for same-value auto captures
+      // These include both the table card AND the dragged card from hand
+      // Only remove cards that are actually on the table
+      const isSameValueAutoCapture = action.payload.captureType === 'same_value_auto';
 
-      if (cardIndex !== -1) {
-        gameState.tableCards.splice(cardIndex, 1);
-        logger.debug('Single card removed from table', {
-          card: `${singleCard.rank}${singleCard.suit}`,
-          index: cardIndex
+      if (isSameValueAutoCapture && targetCards.length === 2) {
+        logger.info('Handling same-value auto capture - removing only table card', {
+          targetCards: targetCards.map(c => `${c.rank}${c.suit}`),
+          capturingCard: capturingCard ? `${capturingCard.rank}${capturingCard.suit}` : 'none'
+        });
+
+        // For same-value captures, only the first card (touched card) is on the table
+        // The second card (dragged card) comes from hand and should not be removed from table
+        const tableCard = targetCards[0]; // The card that was on the table
+        const draggedCard = targetCards[1]; // The card being dragged from hand
+
+        const cardIndex = gameState.tableCards.findIndex(card =>
+          card.rank === tableCard.rank && card.suit === tableCard.suit
+        );
+
+        if (cardIndex !== -1) {
+          gameState.tableCards.splice(cardIndex, 1);
+          logger.debug('Table card removed for same-value capture', {
+            card: `${tableCard.rank}${tableCard.suit}`,
+            index: cardIndex,
+            draggedCard: `${draggedCard.rank}${draggedCard.suit}`
+          });
+        } else {
+          logger.warn('Table card not found for same-value capture removal', {
+            card: `${tableCard.rank}${tableCard.suit}`
+          });
+        }
+      } else {
+        // Regular direct captures - remove all target cards from table
+        logger.info('Removing captured cards from table for direct capture', {
+          targetCardCount: targetCards.length,
+          targetCards: targetCards.map(c => `${c.rank}${c.suit}`)
+        });
+
+        targetCards.forEach(targetCard => {
+          const cardIndex = gameState.tableCards.findIndex(card =>
+            card.rank === targetCard.rank && card.suit === targetCard.suit
+          );
+
+          if (cardIndex !== -1) {
+            gameState.tableCards.splice(cardIndex, 1);
+            logger.debug('Card removed from table', {
+              card: `${targetCard.rank}${targetCard.suit}`,
+              index: cardIndex
+            });
+          } else {
+            logger.warn('Card not found on table for removal', {
+              card: `${targetCard.rank}${targetCard.suit}`
+            });
+          }
         });
       }
     }
