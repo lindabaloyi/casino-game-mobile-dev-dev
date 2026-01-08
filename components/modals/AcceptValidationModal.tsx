@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  Modal,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
-} from 'react-native';
+import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 // Import separated concerns
 import {
@@ -18,7 +11,7 @@ import {
 import { handleTempStackAction } from '../../src/utils/tempStackActions';
 
 interface ModalState {
-  type: 'loading' | 'valid' | 'invalid';
+  type: 'valid' | 'invalid';
   options?: ActionOption[];
   error?: string;
   validation?: any;
@@ -43,7 +36,7 @@ export function AcceptValidationModal({
   sendAction,
   availableOptions
 }: AcceptValidationModalProps) {
-  const [modalState, setModalState] = useState<ModalState>({ type: 'loading' });
+  const [modalState, setModalState] = useState<ModalState | null>(null);
   const isProcessing = useRef(false);
 
   // Validate immediately when modal opens
@@ -80,7 +73,7 @@ export function AcceptValidationModal({
   useEffect(() => {
     if (!visible) {
       isProcessing.current = false;
-      setModalState({ type: 'loading' });
+      setModalState(null);
     }
   }, [visible]);
 
@@ -89,6 +82,11 @@ export function AcceptValidationModal({
     // Prevent double-clicks
     if (isProcessing.current) {
       console.log('⚠️ [MODAL] Already processing, ignoring duplicate click');
+      return;
+    }
+
+    if (!modalState) {
+      console.log('❌ [MODAL] No modal state available');
       return;
     }
 
@@ -105,6 +103,9 @@ export function AcceptValidationModal({
     }
 
     isProcessing.current = true;
+
+    // Close modal immediately for instant feedback
+    onClose();
 
     try {
       // Use the action service to handle the action
@@ -142,9 +143,6 @@ export function AcceptValidationModal({
         onCapture({ tempStack, validation: modalState.validation, action });
       }
 
-      // Close modal
-      onClose();
-
     } catch (error) {
       console.error('❌ [MODAL] Action failed:', error);
       Alert.alert('Action Failed', 'Please try again');
@@ -157,11 +155,10 @@ export function AcceptValidationModal({
   };
 
   const renderContent = () => {
-    // Loading state
-    if (modalState.type === 'loading') {
+    if (!modalState) {
       return (
         <View style={styles.centered}>
-          <Text style={styles.title}>Validating...</Text>
+          <Text style={styles.title}>Loading...</Text>
         </View>
       );
     }
