@@ -62,6 +62,23 @@ export const captureTempStack = (
 };
 
 /**
+ * Process build extension validation
+ */
+export const validateBuildExtension = (
+  payload: { tempStackId: string },
+  sendAction: (action: any) => void
+): void => {
+  console.log('🔄 [ACTIONS] Validating build extension:', payload);
+
+  sendAction({
+    type: 'validateBuildExtension',
+    payload: {
+      tempStackId: payload.tempStackId
+    }
+  });
+};
+
+/**
  * Main action processor for temp stack operations
  */
 export const handleTempStackAction = async (

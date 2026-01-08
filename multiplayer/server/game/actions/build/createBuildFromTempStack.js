@@ -5,6 +5,38 @@
 
 const { createLogger } = require('../../../utils/logger');
 const { buildLifecycleTracker } = require('../../GameState');
+
+// Inline build extension utilities to avoid module resolution issues
+const analyzeBuildForExtension = (cards) => {
+  const totalSum = cards.reduce((sum, card) => sum + card.value, 0);
+
+  // Check for base structure (one card that supports = total - supports)
+  let hasBase = false;
+  for (let baseIndex = 0; baseIndex < cards.length; baseIndex++) {
+    const potentialBase = cards[baseIndex];
+    const supports = cards.filter((_, index) => index !== baseIndex);
+    const supportsSum = supports.reduce((sum, card) => sum + card.value, 0);
+
+    if (supportsSum === potentialBase.value && potentialBase.value <= 10) {
+      hasBase = true;
+      break;
+    }
+  }
+
+  // Check if single combination (only one way to interpret the build)
+  // For now, assume pure sum builds are single combination
+  const isSingleCombination = !hasBase;
+
+  // Build is extendable if: <5 cards, no base, single combination
+  const isExtendable = cards.length < 5 && !hasBase && isSingleCombination;
+
+  return {
+    hasBase,
+    isSingleCombination,
+    isExtendable
+  };
+};
+
 const logger = createLogger('CreateBuildFromTempStack');
 
 function handleCreateBuildFromTempStack(gameManager, playerIndex, action, gameId) {
@@ -108,13 +140,18 @@ function handleCreateBuildFromTempStack(gameManager, playerIndex, action, gameId
 
   // Create permanent build
   const buildCards = cardToAdd ? [...tempStackCards, cardToAdd] : [...tempStackCards];
+
+  // Analyze build for extension eligibility
+  const extensionAnalysis = analyzeBuildForExtension(buildCards);
+
   const build = {
     type: 'build',
     buildId: `build-${playerIndex}`,  // ✅ SIMPLE: Same pattern as temp stacks (players can only have 1 build)
     cards: buildCards,
     value: buildValue,
     owner: playerIndex,
-    isExtendable: true
+    // Extension eligibility flags
+    ...extensionAnalysis
   };
 
   // CRITICAL DEBUG: Log build creation with full details

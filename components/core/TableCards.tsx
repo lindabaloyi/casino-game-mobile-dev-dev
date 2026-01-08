@@ -262,9 +262,10 @@ const TableCards: React.FC<TableCardsProps> = ({
                   />
                 );
               } else if (itemType === 'build') {
-                // Check if this build has pending addition
+                // Check if this build has pending addition or extension
                 const buildId = (tableItem as any).buildId;
                 const hasPendingAddition = gameState?.pendingBuildAdditions?.[buildId];
+                const isPendingExtension = (tableItem as any).isPendingExtension;
 
                 return (
                   <BuildCardRenderer
@@ -276,7 +277,7 @@ const TableCards: React.FC<TableCardsProps> = ({
                     currentPlayer={currentPlayer}
                     sendAction={sendAction}
                     // Overlay props
-                    showOverlay={!!hasPendingAddition}
+                    showOverlay={!!hasPendingAddition || !!isPendingExtension}
                     onAcceptBuildAddition={onAcceptBuildAddition}
                     onRejectBuildAddition={onRejectBuildAddition}
                   />

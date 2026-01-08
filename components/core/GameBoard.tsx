@@ -69,18 +69,52 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
 
   // Build overlay handlers
   const handleAcceptBuildAddition = (buildId: string) => {
-    console.log('[GameBoard] Accepting build addition for build:', buildId);
-    sendAction({
-      type: 'acceptBuildAddition',
-      payload: { buildId }
-    });
+    console.log('[GameBoard] Accepting build addition/extension for build:', buildId);
+
+    // Find the build to check if it's a pending extension
+    const build = gameState.tableCards.find((card: any) =>
+      card.type === 'build' && card.buildId === buildId
+    ) as any;
+
+    if (build?.isPendingExtension) {
+      // 🎯 PENDING EXTENSION: Validate the extension
+      console.log('[GameBoard] Accepting build extension for build:', buildId);
+      sendAction({
+        type: 'validateBuildExtension',
+        payload: {
+          tempStackId: `extension-${gameState.currentPlayer}-${Date.now()}`, // Generate ID for validation
+          targetBuildId: buildId
+        }
+      });
+    } else {
+      // 🎯 PENDING ADDITION: Use existing logic
+      console.log('[GameBoard] Accepting build addition for build:', buildId);
+      sendAction({
+        type: 'acceptBuildAddition',
+        payload: { buildId }
+      });
+    }
   };
 
   const handleRejectBuildAddition = () => {
-    console.log('[GameBoard] Rejecting build addition');
-    // Find the first pending build addition and reject it
+    console.log('[GameBoard] Rejecting build addition/extension');
+
+    // Find the first pending build addition or extension
     const pendingBuildId = Object.keys(gameState.pendingBuildAdditions || {})[0];
-    if (pendingBuildId) {
+    const pendingExtensionBuild = gameState.tableCards.find((card: any) =>
+      card.type === 'build' && card.isPendingExtension
+    ) as any;
+
+    if (pendingExtensionBuild) {
+      // 🎯 CANCEL PENDING EXTENSION: Remove extension card from build
+      console.log('[GameBoard] Cancelling build extension for build:', pendingExtensionBuild.buildId);
+      sendAction({
+        type: 'cancelBuildExtension',
+        payload: { buildId: pendingExtensionBuild.buildId }
+      });
+    } else if (pendingBuildId) {
+      // 🎯 CANCEL PENDING ADDITION: Use existing logic
+      console.log('[GameBoard] Rejecting build addition for build:', pendingBuildId);
       sendAction({
         type: 'rejectBuildAddition',
         payload: { buildId: pendingBuildId }
@@ -135,6 +169,31 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
       console.log('✅ [GameBoard] Build augmentation validation action sent', {
         buildId,
         tempStackId: stackId
+      });
+    }
+    // 🎯 DETECT BUILD EXTENSION STACKS
+    else if ((tempStack as any).isBuildExtension) {
+      // ✅ BUILD EXTENSION: Use validation action
+      console.log('🔄 [GameBoard] Detected BUILD EXTENSION stack - calling validateBuildExtension');
+
+      // Extract target build ID from extension stack
+      const targetBuildId = (tempStack as any).targetBuildId;
+      if (!targetBuildId) {
+        console.error('❌ [GameBoard] Build extension stack missing targetBuildId:', tempStack);
+        return;
+      }
+
+      // Call the build extension validation action
+      sendAction({
+        type: 'validateBuildExtension',
+        payload: {
+          tempStackId: stackId
+        }
+      });
+
+      console.log('✅ [GameBoard] Build extension validation action sent', {
+        tempStackId: stackId,
+        targetBuildId
       });
     } else {
       // 🎯 REGULAR STAGING: Use existing modal system

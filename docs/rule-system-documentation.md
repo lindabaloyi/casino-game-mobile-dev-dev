@@ -21,6 +21,7 @@ Rules are evaluated in descending priority order. Higher priority rules execute 
  90: table-to-table-staging      ← Create temp from table cards
  85: hand-to-table-staging       ← Create temp from hand+table cards
  40: augment-own-build           ← Add to existing builds
+ 38: extend-opponent-build       ← Extend opponent builds (ownership transfer)
  35: create-own-build            ← Create new builds
 ```
 
@@ -124,6 +125,15 @@ Rules are evaluated in descending priority order. Higher priority rules execute 
 - **Conditions**:
   - Target is player's own build
   - Card can extend build value
+
+#### `extend-opponent-build` (Priority 38)
+- **Purpose**: Extend opponent's builds with single cards (ownership transfer)
+- **Exclusive**: `false`
+- **Modal**: `true` (temp stack validation)
+- **Conditions**:
+  - Target is opponent's extendable build (< 5 cards, no base, single combination)
+  - Single card addition maintains valid build
+- **Action**: Transfer build ownership and increase value
 
 #### `create-own-build` (Priority 35)
 - **Purpose**: Create new builds from staging stacks

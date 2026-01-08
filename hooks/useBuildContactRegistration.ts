@@ -66,7 +66,7 @@ export function useBuildContactRegistration({
           const cardCount = buildItem.cards?.length || 1;
           const accurateDimensions = calculateBuildDimensions(cardCount);
 
-          // 🏗️ Register build with contact system (FIXED DATA STRUCTURE + ACCURATE DIMENSIONS)
+          // 🏗️ Register build with contact system (COMPLETE DATA STRUCTURE)
           reportPosition(buildId, {
             id: buildId,
             x,
@@ -75,11 +75,9 @@ export function useBuildContactRegistration({
             height: accurateDimensions.height,   // ✅ Accurate height based on card count
             type: 'build',
             data: {
-              owner: buildItem.owner,
-              value: buildItem.value,
-              cards: buildItem.cards,
-              isExtendable: true,
-              buildId: buildId
+              // ✅ COMPLETE BUILD DATA - Include ALL server-side properties
+              ...buildItem,  // Spread all build properties including extension flags
+              buildId: buildId  // Ensure buildId is set
             }
           });
 

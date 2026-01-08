@@ -45,11 +45,14 @@ const handleCancelTemp = require('./temp/cancelTemp');
 const handleCapture = require('./capture/capture');
 const handleCreateBuildFromTempStack = require('./build/createBuildFromTempStack');
 const handleAddToOwnBuild = require('./build/addToOwnBuild');
+const handleInitiateBuildExtension = require('./build/initiateBuildExtension');
+const handleCancelBuildExtension = require('./build/cancelBuildExtension');
+const handleValidateBuildExtension = require('./build/validateBuildExtension');
 const handleTableToTableDrop = require('./card-drop/tableToTableDrop');
 const handleHandToTableDrop = require('./card-drop/handToTableDrop');
 
 module.exports = {
-  // 🎯 CORE 9 ACTIONS - Only actually used in gameplay
+  // 🎯 CORE 12 ACTIONS - Including Build Extension
   handleTrail,
   handleCreateTemp,
   handleAddToOwnTemp,
@@ -57,6 +60,9 @@ module.exports = {
   handleCapture,
   handleCreateBuildFromTempStack,
   handleAddToOwnBuild,
+  handleInitiateBuildExtension,  // 🎯 NEW: Build Extension Initiation
+  handleCancelBuildExtension,    // 🎯 NEW: Build Extension Cancellation
+  handleValidateBuildExtension,  // 🎯 NEW: Build Extension Validation
   handleTableToTableDrop,
   handleHandToTableDrop
 };

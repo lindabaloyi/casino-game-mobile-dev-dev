@@ -111,15 +111,33 @@ export function handleBuildContact(
       };
     }
   } else {
-    // Capture opponent's build
-    console.log('[BUILD_HANDLER] ✅ Player capturing opponent build');
-    return {
-      type: 'capture',
-      payload: {
-        draggedItem: { card: draggedCard, source: source || 'hand' },
-        selectedTableCards: build.cards,
-        targetCard: null // Build capture handled differently
-      }
-    };
+    // OPPONENT BUILD: Simple value-based logic
+    const draggedValue = draggedCard.value;
+    const buildValue = build.value;
+    const valuesMatch = draggedValue === buildValue;
+
+    if (valuesMatch) {
+      // 🎯 EXPLICIT CAPTURE: Card value matches build value
+      console.log('[BUILD_HANDLER] 🎯 Explicit capture: card value matches build value');
+      return {
+        type: 'capture',
+        payload: {
+          draggedItem: { card: draggedCard, source: source || 'hand' },
+          selectedTableCards: build.cards,
+          targetCard: null // Build capture handled differently
+        }
+      };
+    } else {
+      // 🎯 POTENTIAL EXTENSION: Visually add card to build and show overlay
+      console.log('[BUILD_HANDLER] 🎯 Potential extension: values don\'t match, initiating visual build extension');
+
+      return {
+        type: 'initiateBuildExtension',
+        payload: {
+          extensionCard: draggedCard,
+          targetBuildId: build.buildId
+        }
+      };
+    }
   }
 }
