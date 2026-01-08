@@ -8,17 +8,20 @@ import {
   View
 } from 'react-native';
 
-interface Card {
-  rank: string;
-  suit: string;
-  value: number;
-}
+// Import separated concerns
+import {
+  ActionOption,
+  calculateConsolidatedOptions,
+  Card,
+  validateTempStackDetailed
+} from '../../src/utils/buildValidators';
+import { handleTempStackAction } from '../../src/utils/tempStackActions';
 
-interface ActionOption {
-  type: 'capture' | 'build';
-  label: string;
-  card: Card | null;  // The hand card used for this action (null for builds)
-  value: number; // The value this action targets
+interface ModalState {
+  type: 'loading' | 'valid' | 'invalid';
+  options?: ActionOption[];
+  error?: string;
+  validation?: any;
 }
 
 interface AcceptValidationModalProps {
@@ -26,9 +29,8 @@ interface AcceptValidationModalProps {
   onClose: () => void;
   tempStack: any;
   playerHand: Card[];
-  onCapture?: (validation: any) => void; // Make optional
-  sendAction: (action: any) => void; // Add required sendAction
-  // NEW: Receive pre-calculated options from server
+  onCapture?: (validation: any) => void;
+  sendAction: (action: any) => void;
   availableOptions?: ActionOption[];
 }
 
@@ -39,185 +41,61 @@ export function AcceptValidationModal({
   playerHand,
   onCapture,
   sendAction,
-  availableOptions // NEW: Pre-calculated options from server
+  availableOptions
 }: AcceptValidationModalProps) {
-  const [validationResult, setValidationResult] = useState<any>(null);
+  const [modalState, setModalState] = useState<ModalState>({ type: 'loading' });
   const isProcessing = useRef(false);
 
-  // 🎯 DETECT SAME-VALUE TEMP STACKS
-  const detectSameValueStack = (stack: any): boolean => {
-    if (!stack.cards || stack.cards.length < 2) return false;
-    const cards = stack.cards;
-    const firstValue = cards[0]?.value;
-    return cards.every((card: { value: number }) => card.value === firstValue);
-  };
-
-  // 🎯 STRATEGIC OPTIONS FOR SAME-VALUE STACKS (corrected casino logic)
-  const calculateStrategicOptions = (stack: any, hand: Card[]): ActionOption[] => {
-    const options: ActionOption[] = [];
-    const cards = stack.cards || [];
-    const stackValue = cards[0]?.value; // Rank value (e.g., 3)
-    const stackSum = cards.reduce((sum: number, card: { value: number }) => sum + card.value, 0);
-
-    console.log('🔍 [MODAL] Calculating options:', {
-      stackValue,  // Should be 3
-      stackSum,    // Should be 6
-      hand: hand.map(c => `${c.value}${c.suit}`)
-    });
-
-    // 1. FIX CAPTURE: Use rank value, not sum!
-    options.push({
-      type: 'capture',
-      label: `Capture ${stackValue}`, // "Capture 3" not "Capture 6"
-      card: null,
-      value: stackValue  // Store rank value (3), not sum (6)
-    });
-
-    // 2. ADD: Build with same rank value (if player has that card)
-    const hasSameValueCard = hand.some(card => card.value === stackValue);
-    if (hasSameValueCard) {
-      options.push({
-        type: 'build',
-        label: `Build ${stackValue}`, // "Build 3"
-        card: null,
-        value: stackValue
-      });
-    }
-
-    // 3. KEEP: Build with sum total (with correct conditions)
-    // Only if all cards ≤ 5 AND player has sum card
-    const allCardsFiveOrLess = cards.every((card: { value: number }) => card.value <= 5);
-    const hasSumCard = hand.some(card => card.value === stackSum);
-
-    if (allCardsFiveOrLess && hasSumCard) {
-      options.push({
-        type: 'build',
-        label: `Build ${stackSum}`, // "Build 6" (if player has 6)
-        card: null,
-        value: stackSum
-      });
-    }
-
-    console.log('✅ [MODAL] Generated options:', options.map(o => o.label));
-    return options;
-  };
-
-  // 🎯 NEW: Get all available capture and build options (enhanced with same-value logic)
-  const getAvailableOptions = (stack: any, hand: Card[]): ActionOption[] => {
-    const options: ActionOption[] = [];
-
-    // RULE 1: Minimum cards check
-    if (!stack.cards || stack.cards.length < 2) {
-      return options; // No options available
-    }
-
-    // 🎯 SAME-VALUE STACKS: Use strategic options
-    if (detectSameValueStack(stack)) {
-      console.log('[ACCEPT_MODAL] 🎯 Detected same-value stack, using strategic options');
-      return calculateStrategicOptions(stack, hand);
-    }
-
-    // 📋 REGULAR STACKS: Use existing basic validation
-    const cards = stack.cards;
-    const stackValue = cards.reduce((sum: number, card: { value: number }) => sum + card.value, 0);
-
-    // CRITICAL RULE: Check if temp stack contains hand cards
-    const hasHandCards = cards.some((card: { source?: string }) => card.source === 'hand');
-
-    if (hasHandCards) {
-      // 🏗️ TEMP STACK WITH HAND CARDS → BUILD OPTION
-      // The temp stack value IS the build value
-      if (stackValue >= 1 && stackValue <= 10) {
-        options.push({
-          type: 'build',
-          label: `Build ${stackValue}`,
-          card: null, // No additional card needed
-          value: stackValue
-        });
-      }
-    } else {
-      // 🎯 TEMP STACK WITH TABLE CARDS ONLY → ONLY CAPTURE OPTIONS
-      // Can capture immediately since no hand cards involved
-      const captureCards = hand.filter(card => card.value === stackValue);
-      captureCards.forEach(card => {
-        options.push({
-          type: 'capture',
-          label: `Capture ${stackValue}`,
-          card: card,
-          value: stackValue
-        });
-      });
-    }
-
-    return options;
-  };
-
-  // 🎯 NEW: Use server-provided options when available, fallback to local calculation
-  const getOptionsToDisplay = (): ActionOption[] => {
-    // ✅ PRIORITY 1: Use server-provided options (clean architecture)
-    if (availableOptions && availableOptions.length > 0) {
-      console.log('🎯 [MODAL] Using server-provided options:', availableOptions.map(o => o.label));
-      return availableOptions;
-    }
-
-    // 🔄 FALLBACK: Local calculation for backward compatibility
-    console.log('🔄 [MODAL] Using local calculation (fallback)');
-    return getAvailableOptions(tempStack, playerHand);
-  };
-
-  // 🎯 LEGACY: Keep for backward compatibility - returns single validation result
-  const validateTempStack = (stack: any, hand: Card[]) => {
-    const options = getOptionsToDisplay();
-
-    if (options.length === 0) {
-      return { valid: false, error: 'No valid capture or build options available' };
-    }
-
-    // For backward compatibility, return the first option as the "primary" validation
-    const primaryOption = options[0];
-    return {
-      valid: true,
-      options: options, // Include all options
-      target: primaryOption.value,
-      selectedCard: primaryOption.card,
-      message: `Choose your action for this stack`
-    };
-  };
-
-  // Run validation when modal opens
+  // Validate immediately when modal opens
   useEffect(() => {
     if (visible && tempStack) {
-      const result = validateTempStack(tempStack, playerHand);
-      setValidationResult(result);
-      console.log('🔍 [VALIDATION] Result:', result);
+      console.log('🎯 [MODAL] Modal opened, validating temp stack...');
+
+      // First check if temp stack is valid for building
+      const validation = validateTempStackDetailed(tempStack, playerHand);
+
+      if (!validation.valid) {
+        // Invalid - show error message
+        console.log('❌ [MODAL] Temp stack invalid:', validation.error);
+        setModalState({
+          type: 'invalid',
+          error: validation.error
+        });
+      } else {
+        // Valid - show available action options
+        console.log('✅ [MODAL] Temp stack valid, calculating options...');
+        const options = calculateConsolidatedOptions(tempStack, playerHand);
+        console.log('🎯 [MODAL] Available options:', options.map(o => o.label));
+
+        setModalState({
+          type: 'valid',
+          options,
+          validation
+        });
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, tempStack, playerHand, availableOptions]); // ✅ Add availableOptions dependency
+  }, [visible, tempStack, playerHand]);
 
   // Reset processing flag when modal closes
   useEffect(() => {
     if (!visible) {
       isProcessing.current = false;
+      setModalState({ type: 'loading' });
     }
   }, [visible]);
 
-
-
-  // 🎯 NEW: Handle selection of capture or build options
-  const handleOptionSelect = (option: ActionOption) => {
+  // Handle action button clicks
+  const handleAction = async (action: ActionOption) => {
     // Prevent double-clicks
     if (isProcessing.current) {
       console.log('⚠️ [MODAL] Already processing, ignoring duplicate click');
       return;
     }
 
-    console.log('🎯 [MODAL] Option selected:', {
-      type: option.type,
-      label: option.label,
-      card: option.card,
-      value: option.value,
-      tempStack,
-      isProcessing: isProcessing.current
+    console.log('🎯 [MODAL] Action selected:', {
+      type: action.type,
+      label: action.label,
+      value: action.value
     });
 
     if (!tempStack?.stackId) {
@@ -226,85 +104,50 @@ export function AcceptValidationModal({
       return;
     }
 
-    // Check sendAction exists
-    if (!sendAction || typeof sendAction !== 'function') {
-      console.error('❌ [MODAL] sendAction is not available!', { sendAction, type: typeof sendAction });
-      Alert.alert('Error', 'Cannot send action: Connection issue');
-      return;
-    }
-
     isProcessing.current = true;
 
     try {
-      if (option.type === 'capture') {
-        // CAPTURE: Use existing capture action (supports temp stacks)
-        console.log('✅ [MODAL] Executing CAPTURE action:', {
+      // Use the action service to handle the action
+      if (action.type === 'build') {
+        await handleTempStackAction('build', {
           tempStackId: tempStack.stackId,
-          captureValue: option.value
-        });
-
-        sendAction({
-          type: 'capture',
-          payload: {
-            tempStackId: tempStack.stackId,
-            captureValue: option.value
-          }
-        });
-
-        // Show success alert
-        Alert.alert(
-          'Cards Captured!',
-          `Successfully captured ${option.value}`,
-          [{ text: 'OK' }]
-        );
-
-      } else if (option.type === 'build') {
-        // BUILD: Use new createBuildFromTempStack action
-        console.log('✅ [MODAL] Executing BUILD action:', {
-          tempStackId: tempStack.stackId,
-          buildValue: option.value,
-          buildCard: option.card
-        });
-
-        sendAction({
-          type: 'createBuildFromTempStack',
-          payload: {
-            tempStackId: tempStack.stackId,
-            buildValue: option.value,
-            buildCard: option.card
-          }
-        });
-
-        // 🎯 KISS FIX: Clean up old temp stack from contact registry
-        console.log('🧹 [BUILD_CONVERSION] Deleting temp stack from contact registry:', tempStack.stackId);
-        // Import and call removePosition dynamically to avoid circular imports
-        import('../../src/utils/contactDetection').then(({ removePosition }) => {
-          removePosition(tempStack.stackId);
-          console.log('✅ [BUILD_CONVERSION] Temp stack removed from contact registry');
-        }).catch(error => {
-          console.error('❌ [BUILD_CONVERSION] Failed to remove temp stack from registry:', error);
-        });
+          buildValue: modalState.validation.buildValue,
+          buildType: modalState.validation.buildType,
+          buildCard: action.card
+        }, sendAction);
 
         // Show success alert
         Alert.alert(
           'Build Created!',
-          `Successfully created build of ${option.value}`,
+          `Successfully created ${modalState.validation.buildType} build of ${modalState.validation.buildValue}`,
+          [{ text: 'OK' }]
+        );
+
+      } else if (action.type === 'capture') {
+        await handleTempStackAction('capture', {
+          tempStackId: tempStack.stackId,
+          captureValue: action.value
+        }, sendAction);
+
+        // Show success alert
+        Alert.alert(
+          'Cards Captured!',
+          `Successfully captured ${action.value}`,
           [{ text: 'OK' }]
         );
       }
 
       // Keep backward compatibility
       if (onCapture) {
-        onCapture({ ...option, tempStack });
+        onCapture({ tempStack, validation: modalState.validation, action });
       }
 
-      // Close modal immediately
+      // Close modal
       onClose();
 
     } catch (error) {
       console.error('❌ [MODAL] Action failed:', error);
       Alert.alert('Action Failed', 'Please try again');
-      // Don't close modal on error
     } finally {
       // Reset processing flag after a delay
       setTimeout(() => {
@@ -313,10 +156,9 @@ export function AcceptValidationModal({
     }
   };
 
-
-
   const renderContent = () => {
-    if (!validationResult) {
+    // Loading state
+    if (modalState.type === 'loading') {
       return (
         <View style={styles.centered}>
           <Text style={styles.title}>Validating...</Text>
@@ -324,12 +166,12 @@ export function AcceptValidationModal({
       );
     }
 
-    if (!validationResult.valid) {
-      // Invalid - show error modal
+    // Invalid temp stack - show error message
+    if (modalState.type === 'invalid') {
       return (
         <>
-          <Text style={styles.title}>Cannot Capture</Text>
-          <Text style={styles.message}>{validationResult.error}</Text>
+          <Text style={styles.title}>Cannot Create Build</Text>
+          <Text style={styles.message}>{modalState.error}</Text>
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
@@ -340,37 +182,45 @@ export function AcceptValidationModal({
       );
     }
 
-    // Valid state - show all available options
-    const options = validationResult.options || [];
+    // Valid temp stack - show available action options
+    if (modalState.type === 'valid' && modalState.options) {
+      return (
+        <>
+          <Text style={styles.title}>Build Options</Text>
+          <Text style={styles.message}>
+            Choose what to do with this temp stack:
+          </Text>
 
-    return (
-      <>
-        <Text style={styles.title}>Choose Action</Text>
-        <Text style={styles.message}>
-          What would you like to do with this stack?
-        </Text>
+          <View style={styles.buttonContainer}>
+            {modalState.options.map((option: ActionOption, index: number) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.actionButton,
+                  option.type === 'build' && styles.buildButton
+                ]}
+                onPress={() => handleAction(option)}
+              >
+                <Text style={styles.actionButtonText}>
+                  {option.label.toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            ))}
 
-        <View style={styles.buttonContainer}>
-          {options.map((option: ActionOption, index: number) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.actionButton,
-                option.type === 'build' && styles.buildButton
-              ]}
-              onPress={() => handleOptionSelect(option)}
-            >
-              <Text style={styles.actionButtonText}>
-                {option.label.toUpperCase()}
-              </Text>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-          ))}
+          </View>
+        </>
+      );
+    }
 
-          <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </>
+    // Fallback
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.title}>Error</Text>
+        <Text style={styles.message}>Something went wrong</Text>
+      </View>
     );
   };
 
