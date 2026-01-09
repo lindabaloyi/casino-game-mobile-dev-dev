@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import { useLayoutMeasurement } from '../../hooks/useLayoutMeasurement';
 import { CardType } from '../cards/card';
 import { BuildIndicator } from '../indicators/BuildIndicator';
+import { CardCountIndicator } from '../indicators/CardCountIndicator';
 import TempOverlay from '../overlays/TempOverlay';
 import { StackRenderer } from './StackRenderer';
 
@@ -76,6 +77,9 @@ export const BuildStack: React.FC<BuildStackProps> = ({
         value={buildValue}
         owner={stackOwner}
       />
+
+      {/* Card count indicator for builds with multiple cards */}
+      <CardCountIndicator count={cards.length} />
 
       {/* Build augmentation overlay */}
       <TempOverlay
