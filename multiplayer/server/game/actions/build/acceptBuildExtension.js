@@ -37,7 +37,7 @@ function handleAcceptBuildExtension(gameManager, playerIndex, action, gameId) {
     isPendingExtension: false,
     pendingExtensionCard: undefined,
     pendingExtensionPlayer: undefined,
-    // Apply the extension
+    // Apply the extension (card was already removed from hand in BuildExtension)
     cards: pendingBuild.previewCards,
     value: pendingBuild.previewValue,
     owner: pendingBuild.previewOwner,
@@ -45,20 +45,7 @@ function handleAcceptBuildExtension(gameManager, playerIndex, action, gameId) {
     isExtendable: pendingBuild.previewCards.length < 5
   };
 
-  // Remove the extension card from player's hand
-  const playerHand = gameState.playerHands[playerIndex];
-  const extensionCard = pendingBuild.pendingExtensionCard;
-  const cardIndex = playerHand.findIndex(card =>
-    card.rank === extensionCard.rank && card.suit === extensionCard.suit
-  );
-
-  if (cardIndex >= 0) {
-    playerHand.splice(cardIndex, 1);
-    logger.info('Extension card removed from hand', {
-      playerIndex,
-      card: `${extensionCard.rank}${extensionCard.suit}`
-    });
-  }
+  // Note: Extension card was already removed from hand in BuildExtension action
 
   // Replace with finalized build
   gameState.tableCards[buildIndex] = extendedBuild;

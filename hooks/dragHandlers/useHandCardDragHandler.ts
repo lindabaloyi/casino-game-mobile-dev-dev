@@ -83,6 +83,9 @@ export function useHandCardDragHandler({
             }
           });
 
+          // Clear cardToReset since action succeeded
+          setCardToReset(null);
+
           return { validContact: true }; // Keep card at drop position
         }
       }
@@ -134,14 +137,21 @@ export function useHandCardDragHandler({
         }
       }
 
-      if (action) {
+    if (action) {
         logger.info(`📤 Sending action: ${action.type}`, action.payload);
         sendAction(action);
 
         // For capture actions, return false so card resets to hand
         // For other actions (like temp stack creation), return true so card stays
         const shouldResetCard = action.type === 'capture';
-        return { validContact: !shouldResetCard };
+        const validContact = !shouldResetCard;
+
+        // Clear cardToReset if action succeeded (card should stay where it was dropped)
+        if (validContact) {
+          setCardToReset(null);
+        }
+
+        return { validContact };
       } else {
         logger.warn('❌ No valid action determined from contact');
         logger.warn('Contact details:', contact);

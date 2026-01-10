@@ -30,6 +30,15 @@ function handleCancelBuildExtension(gameManager, playerIndex, action, gameId) {
 
   const pendingBuild = gameState.tableCards[buildIndex];
 
+  // Add the extension card back to player's hand (since it was removed in BuildExtension)
+  const playerHand = gameState.playerHands[playerIndex];
+  const extensionCard = pendingBuild.pendingExtensionCard;
+  playerHand.push(extensionCard);
+  logger.info('Extension card added back to hand on cancel', {
+    playerIndex,
+    card: `${extensionCard.rank}${extensionCard.suit}`
+  });
+
   // Restore the original build state
   const restoredBuild = {
     ...pendingBuild,

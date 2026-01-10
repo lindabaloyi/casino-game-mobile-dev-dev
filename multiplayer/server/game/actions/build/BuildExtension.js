@@ -34,6 +34,22 @@ function handleBuildExtension(gameManager, playerIndex, action, gameId) {
 
   const targetBuild = gameState.tableCards[targetBuildIndex];
 
+  // Remove the extension card from player's hand immediately (like temp stacks)
+  const playerHand = gameState.playerHands[playerIndex];
+  const cardIndex = playerHand.findIndex(card =>
+    card.rank === extensionCard.rank && card.suit === extensionCard.suit
+  );
+
+  if (cardIndex >= 0) {
+    playerHand.splice(cardIndex, 1);
+    logger.info('Extension card removed from hand immediately', {
+      playerIndex,
+      card: `${extensionCard.rank}${extensionCard.suit}`
+    });
+  } else {
+    throw new Error(`Extension card ${extensionCard.rank}${extensionCard.suit} not found in player ${playerIndex}'s hand`);
+  }
+
   // Create pending extension state - similar to temp stacks
   const pendingExtensionBuild = {
     ...targetBuild,
