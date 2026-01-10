@@ -64,8 +64,15 @@ function handleTrail(gameManager, playerIndex, action, gameId) {
       throw new Error('Not your turn to trail');
     }
 
-    // Removed: Round 1 active build restriction
-    // Contact system now handles build augmentation priority
+    // ROUND 1 RULE: Cannot trail if player has active builds
+    if (gameState.round === 1 && hasActiveBuild) {
+      logger.logDecision('VALIDATION', 'TRAIL_REJECTED', {
+        reason: 'round_1_active_build_restriction',
+        round: gameState.round,
+        hasActiveBuild: true
+      });
+      throw new Error('Cannot trail in round 1 while you have active builds on the table');
+    }
 
     if (hasDuplicateOnTable) {
       logger.logDecision('VALIDATION', 'TRAIL_REJECTED', {
