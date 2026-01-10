@@ -77,14 +77,11 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     ) as any;
 
     if (build?.isPendingExtension) {
-      // 🎯 PENDING EXTENSION: Validate the extension
+      // 🎯 PENDING EXTENSION: Accept the extension
       console.log('[GameBoard] Accepting build extension for build:', buildId);
       sendAction({
-        type: 'validateBuildExtension',
-        payload: {
-          tempStackId: `extension-${gameState.currentPlayer}-${Date.now()}`, // Generate ID for validation
-          targetBuildId: buildId
-        }
+        type: 'acceptBuildExtension',
+        payload: { buildId }
       });
     } else {
       // 🎯 PENDING ADDITION: Use existing logic
@@ -236,6 +233,7 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
             gameState={gameState}  // For build overlay detection
             onAcceptBuildAddition={handleAcceptBuildAddition}  // ✅ NEW: Build overlay handlers
             onRejectBuildAddition={handleRejectBuildAddition}  // ✅ NEW: Build overlay handlers
+            onAcceptBuildExtension={handleAcceptBuildAddition} // ✅ NEW: Build extension overlay handler
           />
         </View>
 
@@ -401,3 +399,4 @@ const styles = StyleSheet.create({
 });
 
 export default GameBoard;
+

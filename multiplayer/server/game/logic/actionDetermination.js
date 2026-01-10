@@ -60,17 +60,27 @@ class ActionDeterminationEngine {
     const stagingRules = require('./rules/tempRules');
     const captureRules = require('./rules/captureRules');
     const buildRules = require('./rules/buildRules');
+    const { buildExtendRules } = require('./rules/buildExtendRules');
     const trailRules = require('./rules/trailRules');
 
     // Combine all rules with priority ordering
+    // IMPORTANT: Capture rules (190-200) must come before build extension rules (38)
+    // to ensure captures always take precedence over extensions
     this.rules = [
       ...stagingRules,
-      ...captureRules,
+      ...captureRules,        // Priority 190-200: Highest priority for captures
+      ...buildExtendRules,    // Priority 38: Lower priority for extensions
       ...buildRules,
       ...trailRules
     ].sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
-    logger.debug(`Loaded ${this.rules.length} action determination rules`);
+    logger.debug(`Loaded ${this.rules.length} action determination rules from ${[
+      'stagingRules',
+      'captureRules',
+      'buildExtendRules',
+      'buildRules',
+      'trailRules'
+    ].join(', ')}`);
   }
 
   /**

@@ -99,10 +99,9 @@ export function useBuildContactRegistration({
       }
     };
 
-    // Initial registration with small delay to ensure render
-    const initialTimeout = setTimeout(() => {
-      registerBuildBounds();
-    }, 100);
+    // 🚀 IMMEDIATE REGISTRATION: Register immediately when build data changes
+    // This fixes the timing issue where contact is removed but not re-registered quickly enough
+    registerBuildBounds();
 
     // Setup interval to update position (builds might move when cards are added)
     const UPDATE_INTERVAL = 1000; // Update every 1000ms (reduced frequency for performance)
@@ -110,7 +109,6 @@ export function useBuildContactRegistration({
 
     // Cleanup function
     return () => {
-      clearTimeout(initialTimeout);
       clearInterval(intervalId);
 
       // Remove from contact registry
@@ -121,5 +119,5 @@ export function useBuildContactRegistration({
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildItem.buildId, buildItem.cards?.length, stackRef]); // Re-run only when build ID, card count, or ref changes
+  }, [buildItem.buildId, buildItem.cards?.length, buildItem.owner, buildItem.value, stackRef]); // Re-run when any build data changes
 }

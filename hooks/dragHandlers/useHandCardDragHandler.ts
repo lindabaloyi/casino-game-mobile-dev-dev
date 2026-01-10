@@ -62,33 +62,7 @@ export function useHandCardDragHandler({
     if (contact) {
       logger.info(`✅ Found contact: ${contact.id} (${contact.type}) at ${contact.distance.toFixed(1)}px`);
 
-      // 🎯 DIRECT OPPONENT BUILD EXTENSION CHECK (Simple approach)
-      if (contact.type === 'build') {
-        const buildData = contact.data;
-        const buildValue = buildData?.value || 0;
-        const cardValue = draggedItem.card.rank;
-
-        // Check if this is an opponent build (not owned by current player)
-        const isOpponentBuild = buildData?.owner !== playerNumber;
-
-        if (isOpponentBuild && cardValue !== buildValue) {
-          // 🎯 OPPONENT BUILD EXTENSION: Different card value = valid extension
-          logger.info(`🎯 Opponent build extension: ${cardValue}${draggedItem.card.suit} on build ${buildData?.buildId} (value: ${buildValue})`);
-
-          sendAction({
-            type: 'BuildExtension',
-            payload: {
-              extensionCard: draggedItem.card,
-              targetBuildId: contact.id
-            }
-          });
-
-          // Clear cardToReset since action succeeded
-          setCardToReset(null);
-
-          return { validContact: true }; // Keep card at drop position
-        }
-      }
+      // 🎯 CONTACT DETERMINATION: Use rule engine and contact handlers for all interactions
 
       // Determine action from contact (for other cases: captures, own builds, etc.)
       let action = determineActionFromContact(

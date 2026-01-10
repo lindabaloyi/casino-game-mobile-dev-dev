@@ -7,6 +7,7 @@ import { useLayoutMeasurement } from '../../hooks/useLayoutMeasurement';
 import { CardType } from '../cards/card';
 import { BuildIndicator } from '../indicators/BuildIndicator';
 import { CardCountIndicator } from '../indicators/CardCountIndicator';
+import BuildExtensionOverlay from '../overlays/BuildExtensionOverlay';
 import TempOverlay from '../overlays/TempOverlay';
 import { StackRenderer } from './StackRenderer';
 
@@ -98,13 +99,13 @@ export const BuildStack: React.FC<BuildStackProps> = ({
         onReject={onReject || (() => {})}
       />
 
-      {/* Build extension overlay - similar to temp overlay but for build extensions */}
-      <TempOverlay
+      {/* Build extension overlay - custom overlay for build extensions */}
+      <BuildExtensionOverlay
         isVisible={isPendingExtension}
-        tempId={stackId}
-        overlayText="EXTEND"
+        buildId={stackId}
+        extensionText="EXTEND BUILD"
         onAccept={(id) => onAcceptExtension?.(id)}
-        onReject={() => onCancelExtension?.(stackId)}
+        onCancel={() => onCancelExtension?.(stackId)}
       />
     </View>
   );
