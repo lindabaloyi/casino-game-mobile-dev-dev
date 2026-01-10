@@ -127,11 +127,11 @@ class ActionRouter {
           }
 
         } else if (finalGameState.round === 2) {
-          // 🏆 ROUND 2 → GAME OVER: End when ANY player empties their hand in round 2
-          const anyPlayerEmpty = finalGameState.playerHands[0].length === 0 ||
-                                finalGameState.playerHands[1].length === 0;
+          // 🏆 ROUND 2 → GAME OVER: End when BOTH players empty their hands in round 2
+          const bothPlayersEmpty = finalGameState.playerHands[0].length === 0 &&
+                                  finalGameState.playerHands[1].length === 0;
 
-          if (anyPlayerEmpty) {
+          if (bothPlayersEmpty) {
             console.log('🏆 GAME_OVER_TRIGGERED: Round 2 complete - player emptied hand, finalizing game with scoring', {
               gameId,
               triggerAction: actionType,

@@ -43,8 +43,27 @@ export function useHandCardDragHandler({
   ): { validContact: boolean } => {
     logger.info(`Hand card drag end: ${draggedItem.card.rank}${draggedItem.card.suit}`);
 
+    // 🎯 COMPREHENSIVE TURN STATE DEBUGGING
+    const turnState = {
+      isMyTurn,
+      gameState_currentPlayer: gameState.currentPlayer,
+      playerNumber,
+      playerHandSize: gameState.playerHands[playerNumber]?.length || 0,
+      opponentHandSize: gameState.playerHands[(playerNumber + 1) % 2]?.length || 0,
+      gameRound: gameState.round,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('🎯 TURN_STATE_DEBUG at drag end:', turnState);
+    logger.info('Turn state debug', turnState);
+
     if (!isMyTurn) {
-      logger.warn('Not your turn - blocking drag');
+      console.error('🚨 TURN_VIOLATION_DETECTED:', {
+        ...turnState,
+        attemptedAction: 'trail',
+        reason: 'Client attempted action when not player turn'
+      });
+      logger.error('Not your turn - blocking drag', turnState);
       setErrorModal({ visible: true, title: 'Not Your Turn', message: 'Please wait for your turn.' });
       return { validContact: false };
     }
@@ -132,21 +151,41 @@ export function useHandCardDragHandler({
         // Continue to trail fallback
       }
     } else {
-      logger.warn('❌ No contact found at drop position - falling back to trail');
-      logger.warn('Drop position:', dropPosition);
-      logger.warn('This is the BUG - build contact should have been detected!');
-    }
+      logger.info('ℹ️ No contact found - empty table drop, sending trail action');
+      logger.info('Drop position:', dropPosition);
 
-    // No contact or invalid action = trail (card should reset)
-    sendAction({
-      type: 'trail',
-      payload: {
-        card: draggedItem.card,
-        requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      // 🎯 DEFENSIVE TURN VALIDATION: Double-check before sending trail
+      if (!isMyTurn) {
+        console.error('🚨 DEFENSIVE_TURN_CHECK_FAILED:', {
+          isMyTurn,
+          gameState_currentPlayer: gameState.currentPlayer,
+          playerNumber,
+          attemptedAction: 'trail_on_empty_table',
+          reason: 'Turn validation failed before sending trail action'
+        });
+        setErrorModal({ visible: true, title: 'Turn Error', message: 'Cannot trail - not your turn.' });
+        return { validContact: false };
       }
-    });
 
-    return { validContact: false }; // ❌ No valid contact - card should reset
+      // 🎯 Empty table = Valid trail action (traditional Casino gameplay)
+      const clientTurnState = {
+        playerNumber,
+        expectedCurrentPlayer: gameState.currentPlayer,
+        isMyTurn,
+        timestamp: new Date().toISOString()
+      };
+
+      sendAction({
+        type: 'trail',
+        payload: {
+          card: draggedItem.card,
+          requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          clientTurnState // Include for server-side validation debugging
+        }
+      });
+
+      return { validContact: false }; // Card stays on table (trail behavior)
+    }
 
   }, [sendAction, gameState, playerNumber, isMyTurn, setCardToReset, setErrorModal]);
 

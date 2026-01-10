@@ -39,18 +39,49 @@ export function useDragHandlers({
   const isMyTurn = gameState.currentPlayer === playerNumber;
 
   /**
-   * Handle drag start
+   * Enhanced turn validation with comprehensive logging and debugging
+   */
+  const validateAndLogTurn = useCallback((action: string, context?: any) => {
+    const turnState = {
+      isMyTurn,
+      gameState_currentPlayer: gameState.currentPlayer,
+      playerNumber,
+      playerHandSize: gameState.playerHands[playerNumber]?.length || 0,
+      opponentHandSize: gameState.playerHands[(playerNumber + 1) % 2]?.length || 0,
+      gameRound: gameState.round,
+      action,
+      context: context || {},
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('🎯 TURN_VALIDATION_DEBUG:', turnState);
+
+    if (!isMyTurn) {
+      console.error('🚨 TURN_VIOLATION_DETECTED:', {
+        ...turnState,
+        reason: 'Client attempted action when not player turn',
+        serverExpectedPlayer: gameState.currentPlayer,
+        clientPlayer: playerNumber
+      });
+    }
+
+    return isMyTurn;
+  }, [isMyTurn, gameState.currentPlayer, gameState.playerHands, gameState.round, playerNumber]);
+
+  /**
+   * Handle drag start with enhanced turn validation
    */
   const handleDragStart = useCallback((card: any) => {
     console.log(`[CONTACT-DRAG] 🎯 Drag start: ${card?.rank}${card?.suit}`);
-    if (!isMyTurn) {
-      console.log(`[CONTACT-DRAG] ❌ Not your turn, ignoring drag start`);
+
+    if (!validateAndLogTurn('DRAG_START', { card: `${card?.rank}${card?.suit}` })) {
       return;
     }
+
     setDragTurnState({ isMyTurn: true, currentPlayer: gameState.currentPlayer });
     setDraggedCard(card);
     setIsDragging(true);
-  }, [isMyTurn, gameState.currentPlayer]);
+  }, [validateAndLogTurn, gameState.currentPlayer]);
 
   // Separated drag handlers for different card types
   const handHandler = useHandCardDragHandler({
@@ -107,17 +138,18 @@ export function useDragHandlers({
   }, [handHandler]);
 
   /**
-   * Table card drag start
+   * Table card drag start with enhanced turn validation
    */
   const handleTableCardDragStart = useCallback((card: any) => {
     console.log(`[CONTACT-DRAG] Table drag start: ${card.rank}${card.suit}`);
-    if (!isMyTurn) {
-      console.log(`[CONTACT-DRAG] ❌ Not your turn - ignoring table drag`);
+
+    if (!validateAndLogTurn('TABLE_DRAG_START', { card: `${card.rank}${card.suit}` })) {
       return;
     }
+
     setDraggedCard(card);
     setIsDragging(true);
-  }, [isMyTurn]);
+  }, [validateAndLogTurn]);
 
 
 
