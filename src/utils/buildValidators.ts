@@ -90,11 +90,56 @@ export const calculateConsolidatedOptions = (stack: any, hand: Card[]): ActionOp
     handCardCount: hand.length
   });
 
-  // 🎯 STEP 1: CHECK SAME VALUE BUILDS
+  // 🎯 STEP 1: USE PRE-CALCULATED SAME-VALUE BUILD OPTIONS (if available)
+  const sameValueBuildOptions = stack.sameValueBuildOptions;
+  if (sameValueBuildOptions && sameValueBuildOptions.length > 0) {
+    console.log('🎯 [VALIDATOR] USING PRE-CALCULATED SAME-VALUE BUILD OPTIONS');
+    console.log('🔍 [VALIDATOR] Pre-calculated options:', sameValueBuildOptions.map(o => ({
+      type: o.type,
+      buildValue: o.buildValue,
+      captureCard: o.captureCard,
+      description: o.description
+    })));
+
+    // Convert pre-calculated options to ActionOption format
+    sameValueBuildOptions.forEach(option => {
+      // Check if player has the required capture card
+      const hasCaptureCard = hand.some(card => card.value === option.captureCard);
+      console.log(`🔍 [VALIDATOR] Checking capture card ${option.captureCard}: ${hasCaptureCard ? '✅' : '❌'}`);
+
+      if (hasCaptureCard) {
+        options.push({
+          type: 'build',
+          label: option.description,
+          card: null,
+          value: option.buildValue
+        });
+        console.log(`✅ [VALIDATOR] Added: ${option.description} (pre-calculated option)`);
+      } else {
+        console.log(`❌ [VALIDATOR] Rejected: ${option.description} (missing capture card ${option.captureCard})`);
+      }
+    });
+
+    // Also add capture option for same-value cards
+    const value = cards[0].value;
+    options.push({
+      type: 'capture',
+      label: `Capture ${value}`,
+      card: null,
+      value: value
+    });
+    console.log(`✅ [VALIDATOR] Added: Capture ${value} (same-value capture option)`);
+
+    console.log('✅ [VALIDATOR] ======= PRE-CALCULATED OPTIONS COMPLETE =======');
+    console.log('✅ [VALIDATOR] Final options from pre-calculated:', options.map(o => `${o.type.toUpperCase()}: ${o.label}`));
+    return options;
+  }
+
+  // 🎯 STEP 2: FALLBACK - CHECK SAME VALUE BUILDS (legacy logic)
   const sameValueCheck = isSameValueBuild(cards);
   console.log(`🔍 [VALIDATOR] Same-value check: ${sameValueCheck ? '✅ PASS' : '❌ FAIL'}`);
   if (sameValueCheck) {
-    console.log('🎯 [VALIDATOR] DETECTED: Same-value build - using enhanced same-value logic');
+    console.log('🎯 [VALIDATOR] DETECTED: Same-value build - using legacy same-value logic');
     const value = cards[0].value;
     options.push({
       type: 'capture',
@@ -222,11 +267,10 @@ export const validateTempStackDetailed = (stack: any, hand: Card[]): ValidationR
   // Check same-value builds
   const sameValueCheck = isSameValueBuild(cards);
   if (sameValueCheck) {
+    // For same-value builds, capture is ALWAYS available (direct capture of the pair)
+    // Build options are filtered in calculateConsolidatedOptions based on available cards
     const value = cards[0].value;
-    // Check if player has capture card for same-value builds
-    if (!playerHasCaptureCard(value, hand)) {
-      return { valid: false, error: `Missing capture card - you need a ${value} in your hand to create this build` };
-    }
+    console.log('🎯 [VALIDATION] Same-value build - capture always available, build options filtered individually');
     return { valid: true, buildType: 'same-value', buildValue: value };
   }
 

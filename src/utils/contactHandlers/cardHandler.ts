@@ -7,59 +7,100 @@ import type { Card, GameState } from '../../../multiplayer/server/game-logic/gam
 import { findCardIndex, findLooseCardById } from '../contactUtils';
 
 /**
- * Check if player has build options for same-value cards
+ * Calculate all valid build options for same-value cards
+ * Returns array of build options with their capture requirements
  */
-function checkBuildOptionsForSameValue(handCard: Card, playerHand: Card[]): boolean {
-  const value = handCard.value;
+function calculateAllBuildOptions(draggedCard: Card, touchedCard: Card, playerHand: Card[]): {
+  buildValue: number;
+  captureCard: number;
+  type: 'spare' | 'sum';
+  description: string;
+}[] {
+  const value = draggedCard.value;
 
-  console.log('[BUILD_CHECK_CLIENT] Checking options for same-value card:', {
-    handCard: `${handCard.rank}${handCard.suit}=${value}`,
+  console.log('[BUILD_OPTIONS_CALC] Calculating build options for same-value cards:', {
+    draggedCard: `${draggedCard.rank}${draggedCard.suit}=${value}`,
+    touchedCard: `${touchedCard.rank}${touchedCard.suit}=${value}`,
     playerHandSize: playerHand.length,
     playerHand: playerHand.map(c => `${c.rank}${c.suit}=${c.value}`)
   });
 
-  // Check 1: Spare same-value card for building
-  const hasSpareCard = playerHand.some(card =>
+  const options: {
+    buildValue: number;
+    captureCard: number;
+    type: 'spare' | 'sum';
+    description: string;
+  }[] = [];
+
+  // Option 1: Spare same-value card build (build with same value)
+  const spareCards = playerHand.filter(card =>
     card.value === value &&
-    !(card.rank === handCard.rank && card.suit === handCard.suit)
+    !(card.rank === draggedCard.rank && card.suit === draggedCard.suit)
   );
 
-  console.log('[BUILD_CHECK_CLIENT] Spare card check:', {
-    neededValue: value,
-    hasSpareCard,
-    spareCards: playerHand.filter(c =>
-      c.value === value &&
-      !(c.rank === handCard.rank && c.suit === handCard.suit)
-    ).map(c => `${c.rank}${c.suit}`)
-  });
-
-  // Check 2: Sum build (only for low cards 1-5)
-  let canBuildSum = false;
-  if (value <= 5) {
-    // For same-value cards, sum would be value + value = 2 * value
-    const sumValue = value * 2;
-    canBuildSum = playerHand.some(card => card.value === sumValue);
-
-    console.log('[BUILD_CHECK_CLIENT] Sum build check:', {
-      isLowCard: value <= 5,
-      sumValue,
-      hasSumCard: playerHand.some(c => c.value === sumValue),
-      canBuildSum
+  if (spareCards.length > 0) {
+    options.push({
+      buildValue: value,
+      captureCard: value,
+      type: 'spare',
+      description: `Build ${value} (captured by spare ${value})`
     });
-  } else {
-    console.log('[BUILD_CHECK_CLIENT] Sum build: ❌ High card (6+), no sum builds possible');
+
+    console.log('[BUILD_OPTIONS_CALC] ✅ Spare card build available:', {
+      buildValue: value,
+      captureCard: value,
+      availableCards: spareCards.map(c => `${c.rank}${c.suit}`)
+    });
   }
 
-  const hasBuildOptions = hasSpareCard || canBuildSum;
+  // Option 2: Sum build (only for low cards 1-5, sum = value + value)
+  if (value <= 5) {
+    const sumValue = value * 2;
+    const hasSumCard = playerHand.some(card => card.value === sumValue);
 
-  console.log('[BUILD_CHECK_CLIENT] Final result:', {
-    hasSpareCard,
-    canBuildSum,
-    totalBuildOptions: (hasSpareCard ? 1 : 0) + (canBuildSum ? 1 : 0),
-    hasBuildOptions
+    if (hasSumCard) {
+      options.push({
+        buildValue: sumValue,
+        captureCard: sumValue,
+        type: 'sum',
+        description: `Build ${sumValue} (${value}+${value}, captured by ${sumValue})`
+      });
+
+      console.log('[BUILD_OPTIONS_CALC] ✅ Sum build available:', {
+        buildValue: sumValue,
+        captureCard: sumValue,
+        sumCalculation: `${value} + ${value} = ${sumValue}`
+      });
+    } else {
+      console.log('[BUILD_OPTIONS_CALC] ❌ Sum build not available:', {
+        neededCard: sumValue,
+        availableCards: playerHand.map(c => c.value).sort()
+      });
+    }
+  } else {
+    console.log('[BUILD_OPTIONS_CALC] ❌ Sum build: High card (6+), no sum builds possible');
+  }
+
+  console.log('[BUILD_OPTIONS_CALC] Final build options:', {
+    totalOptions: options.length,
+    options: options.map(o => ({
+      type: o.type,
+      buildValue: o.buildValue,
+      captureCard: o.captureCard,
+      description: o.description
+    }))
   });
 
-  return hasBuildOptions;
+  return options;
+}
+
+/**
+ * Legacy function - kept for backward compatibility
+ * Now delegates to calculateAllBuildOptions and returns boolean
+ */
+function checkBuildOptionsForSameValue(handCard: Card, playerHand: Card[]): boolean {
+  const options = calculateAllBuildOptions(handCard, handCard, playerHand);
+  return options.length > 0;
 }
 
 interface Contact {
@@ -103,29 +144,39 @@ export function handleLooseCardContact(
   const totalValue = draggedCard.value + touchedCard.value;
   const isSameValue = draggedCard.value === touchedCard.value;
 
-  // For same-value interactions, check build options BEFORE staging
+  // For same-value interactions, calculate all build options
+  let buildOptions: {
+    buildValue: number;
+    captureCard: number;
+    type: 'spare' | 'sum';
+    description: string;
+  }[] = [];
+
   if (isSameValue) {
     console.log('[CARD_HANDLER] ⚡ SAME-VALUE CONTACT DETECTED');
 
     const playerHand = gameState.playerHands[currentPlayer];
-    const hasBuildOptions = checkBuildOptionsForSameValue(draggedCard, playerHand);
+    buildOptions = calculateAllBuildOptions(draggedCard, touchedCard, playerHand);
 
-    if (!hasBuildOptions) {
+    console.log('[CARD_HANDLER] 📊 Calculated build options:', {
+      totalOptions: buildOptions.length,
+      options: buildOptions.map(o => o.description),
+      willShowModal: buildOptions.length > 0
+    });
+
+    // If no build options available, do immediate capture
+    if (buildOptions.length === 0) {
       console.log('[CARD_HANDLER] 🚀 NO BUILD OPTIONS - IMMEDIATE CAPTURE');
 
-      // Send immediate capture action for both cards
       return {
         type: 'capture',
         payload: {
-          targetCards: [touchedCard, draggedCard], // Both cards to capture
-          capturingCard: draggedCard, // The hand card being played
+          targetCards: [touchedCard, draggedCard],
+          capturingCard: draggedCard,
           captureValue: draggedCard.value,
           captureType: 'same_value_auto'
         }
       };
-    } else {
-      console.log('[CARD_HANDLER] 📋 HAS BUILD OPTIONS - PROCEED TO STAGING');
-      // Continue with existing staging logic
     }
   }
 
@@ -161,7 +212,9 @@ export function handleLooseCardContact(
         // Include build augmentation capability flag
         canAugmentBuilds: playerHasBuilds,
         // Mark same-value stacks for special handling
-        isSameValueStack: isSameValue
+        isSameValueStack: isSameValue,
+        // Include calculated build options for same-value stacks
+        sameValueBuildOptions: isSameValue ? buildOptions : []
       }
     };
 
