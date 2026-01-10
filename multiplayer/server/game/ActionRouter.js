@@ -93,6 +93,26 @@ class ActionRouter {
       });
 
       if (!currentPlayerCanMove || forceTurnSwitch) {
+        // 🔄 BEFORE TURN SWITCH - Check for round transition
+        // Round ends when the CURRENT player's turn completes and their hand is empty
+        const currentPlayerHandSize = finalGameState.playerHands[playerIndex].length;
+        if (currentPlayerHandSize === 0 && finalGameState.round === 1) {
+          console.log('🎯 ROUND_TRANSITION_TRIGGERED: Round 1 complete after current player turn - initializing Round 2', {
+            gameId,
+            triggerAction: actionType,
+            playerIndex,
+            currentPlayer: playerIndex,
+            handSize: currentPlayerHandSize,
+            round1FinalState: {
+              player0HandSize: finalGameState.playerHands[0].length,
+              player1HandSize: finalGameState.playerHands[1].length
+            }
+          });
+
+          const { initializeRound2 } = require('./GameState');
+          finalGameState = initializeRound2(finalGameState);
+        }
+
         // Switch to next player
         const nextPlayer = (finalGameState.currentPlayer + 1) % 2;
         finalGameState.currentPlayer = nextPlayer;

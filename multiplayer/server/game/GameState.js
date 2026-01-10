@@ -135,6 +135,72 @@ function initializeGame() {
 }
 
 /**
+ * Initialize Round 2 from Round 1 state
+ * Deals 10 new cards to each player while preserving table state
+ */
+function initializeRound2(gameState) {
+  console.log('🏁 ROUND_2_INIT_STARTED: Beginning round 2 initialization', {
+    fromRound: gameState.round,
+    tableCardsCount: gameState.tableCards.length,
+    buildsCount: gameState.tableCards.filter(tc => tc.type === 'build').length,
+    playerCaptures: gameState.playerCaptures.map((captures, idx) => `${idx}:${captures.length} cards`),
+    deckSize: gameState.deck.length,
+    scores: gameState.scores
+  });
+
+  const newGameState = { ...gameState };
+
+  // Increment round
+  const oldRound = newGameState.round;
+  newGameState.round = 2;
+
+  console.log(`🔄 ROUND_INCREMENT: ${oldRound} → ${newGameState.round}`);
+
+  // Deal 10 new cards to each player from remaining deck
+  // NOTE: Each player gets 10 cards for round 2 (same as round 1)
+  const cardsPerPlayer = 10;
+  const totalCardsNeeded = cardsPerPlayer * GAME_CONFIG.MAX_PLAYERS;
+
+  console.log('🃏 CARD_DEALING_START: Dealing fresh hands for round 2', {
+    deckSizeBefore: newGameState.deck.length,
+    cardsPerPlayer,
+    players: GAME_CONFIG.MAX_PLAYERS,
+    totalCardsNeeded,
+    deckHasEnoughCards: newGameState.deck.length >= totalCardsNeeded
+  });
+
+  for (let playerIndex = 0; playerIndex < GAME_CONFIG.MAX_PLAYERS; playerIndex++) {
+    const oldHandSize = newGameState.playerHands[playerIndex].length;
+    const newCards = newGameState.deck.splice(0, cardsPerPlayer);
+    newGameState.playerHands[playerIndex] = newCards;
+
+    console.log(`✅ PLAYER_HAND_DEALT: Player ${playerIndex}`, {
+      oldHandSize,
+      newHandSize: newCards.length,
+      cardsReceived: newCards.length,
+      firstFewCards: newCards.slice(0, 3).map(c => `${c.rank}${c.suit}`),
+      handComplete: newCards.length === cardsPerPlayer
+    });
+  }
+
+  console.log('🎯 ROUND_2_INIT_COMPLETE: Round 2 initialization finished', {
+    roundTransition: `${oldRound} → ${newGameState.round}`,
+    finalHandSizes: newGameState.playerHands.map((hand, idx) => `P${idx}:${hand.length}`),
+    remainingDeckSize: newGameState.deck.length,
+    cardsUsed: totalCardsNeeded,
+    statePreservation: {
+      tableCards: newGameState.tableCards.length > 0 ? 'PRESERVED' : 'EMPTY',
+      builds: newGameState.tableCards.filter(tc => tc.type === 'build').length > 0 ? 'PRESERVED' : 'NONE',
+      captures: newGameState.playerCaptures.some(c => c.length > 0) ? 'PRESERVED' : 'EMPTY',
+      scores: newGameState.scores.some(s => s > 0) ? 'PRESERVED' : 'ZERO'
+    },
+    gameReady: newGameState.playerHands.every(hand => hand.length === cardsPerPlayer)
+  });
+
+  return newGameState;
+}
+
+/**
  * Validate game state structure
  */
 function validateGameState(gameState) {
@@ -319,6 +385,7 @@ function validateNoDuplicates(gameState) {
 
 module.exports = {
   initializeGame,
+  initializeRound2,
   validateGameState,
   validateNoDuplicates,
   clone,

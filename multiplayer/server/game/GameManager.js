@@ -78,6 +78,8 @@ class GameManager {
       // Store updated state (ActionRouter should update our internal state)
       logger.debug('Action executed successfully by ActionRouter', { gameId, actionType: action.type });
 
+
+
       return newGameState;
     } catch (error) {
       logger.error('Action execution failed', { gameId, actionType: action.type, error: error.message });
@@ -197,3 +199,4 @@ class GameManager {
 }
 
 module.exports = GameManager;
+

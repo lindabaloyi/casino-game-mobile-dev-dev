@@ -3,6 +3,7 @@
  * Handles all types of captures: temp stacks, builds, and single cards
  */
 const { createLogger } = require('../../../utils/logger');
+const { initializeRound2 } = require('../../GameState');
 const logger = createLogger('Capture');
 
 async function handleCapture(gameManager, playerIndex, action, gameId) {
