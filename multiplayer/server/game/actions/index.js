@@ -45,14 +45,15 @@ const handleCancelTemp = require('./temp/cancelTemp');
 const handleCapture = require('./capture/capture');
 const handleCreateBuildFromTempStack = require('./build/createBuildFromTempStack');
 const handleAddToOwnBuild = require('./build/addToOwnBuild');
-const handleInitiateBuildExtension = require('./build/initiateBuildExtension');
+// Build extension utilities
+const handleBuildExtension = require('./build/BuildExtension');
+const handleAcceptBuildExtension = require('./build/acceptBuildExtension');
 const handleCancelBuildExtension = require('./build/cancelBuildExtension');
-const handleValidateBuildExtension = require('./build/validateBuildExtension');
 const handleTableToTableDrop = require('./card-drop/tableToTableDrop');
 const handleHandToTableDrop = require('./card-drop/handToTableDrop');
 
 module.exports = {
-  // 🎯 CORE 12 ACTIONS - Including Build Extension
+  // 🎯 CORE 12 ACTIONS - Build Extension System
   handleTrail,
   handleCreateTemp,
   handleAddToOwnTemp,
@@ -60,9 +61,9 @@ module.exports = {
   handleCapture,
   handleCreateBuildFromTempStack,
   handleAddToOwnBuild,
-  handleInitiateBuildExtension,  // 🎯 NEW: Build Extension Initiation
-  handleCancelBuildExtension,    // 🎯 NEW: Build Extension Cancellation
-  handleValidateBuildExtension,  // 🎯 NEW: Build Extension Validation
+  handleBuildExtension,  // 🎯 NEW: Direct Build Extension
+  handleAcceptBuildExtension,  // 🎯 NEW: Accept Build Extension
+  handleCancelBuildExtension,  // 🎯 NEW: Cancel Build Extension
   handleTableToTableDrop,
   handleHandToTableDrop
 };

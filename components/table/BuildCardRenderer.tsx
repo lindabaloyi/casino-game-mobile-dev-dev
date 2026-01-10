@@ -24,6 +24,9 @@ interface BuildCardRendererProps {
   showOverlay?: boolean;
   onAcceptBuildAddition?: (buildId: string) => void;
   onRejectBuildAddition?: () => void;
+  // Overlay support for build extensions
+  onAcceptBuildExtension?: (buildId: string) => void;
+  onCancelBuildExtension?: (buildId: string) => void;
 }
 
 export function BuildCardRenderer({
@@ -37,7 +40,10 @@ export function BuildCardRenderer({
   // Overlay props
   showOverlay = false,
   onAcceptBuildAddition,
-  onRejectBuildAddition
+  onRejectBuildAddition,
+  // Extension overlay props
+  onAcceptBuildExtension,
+  onCancelBuildExtension
 }: BuildCardRendererProps) {
   // Type assertion for build item
   const buildItem = tableItem as any; // Build has type: 'build' with additional properties
@@ -74,7 +80,10 @@ export function BuildCardRenderer({
   }, [buildItem.cards, buildItem.buildId]);
 
   // Build items can have multiple cards, or a single card representation
-  const buildCards = buildItem.cards || [tableItem as CardType];
+  // When in pending extension, show preview cards to visualize the extension
+  const buildCards = buildItem.isPendingExtension
+    ? (buildItem.previewCards || buildItem.cards || [tableItem as CardType])
+    : (buildItem.cards || [tableItem as CardType]);
 
   // Extracted hooks for cleaner separation of concerns
   useBuildDropHandler({
@@ -275,14 +284,18 @@ export function BuildCardRenderer({
         key={`table-build-${index}`}
         stackId={stackId}
         cards={buildCards}
-        buildValue={buildItem.value}
+        buildValue={buildItem.isPendingExtension ? buildItem.previewValue : buildItem.value}
         stackOwner={buildItem.owner}
         currentPlayer={currentPlayer}
-        // Overlay props
+        // Overlay props for build additions
         showOverlay={showOverlay}
         overlayText="BUILD"
         onAccept={onAcceptBuildAddition}
         onReject={onRejectBuildAddition}
+        // Overlay props for build extensions
+        isPendingExtension={buildItem.isPendingExtension}
+        onAcceptExtension={onAcceptBuildExtension}
+        onCancelExtension={onCancelBuildExtension}
         baseZIndex={baseZIndex}
         baseElevation={1}
       />

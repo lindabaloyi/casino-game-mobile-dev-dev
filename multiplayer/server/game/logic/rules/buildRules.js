@@ -183,9 +183,9 @@ const buildRules = [
   },
 
   {
-    id: 'extend-opponent-build',
+    id: 'buildExtension',
     condition: (context) => {
-      console.log('[BUILD_EXTENSION_RULE] 🔍 Evaluating extend opponent build:', {
+      console.log('[BUILD_EXTENSION_RULE] 🔍 Evaluating build extension:', {
         draggedSource: context.draggedItem?.source,
         draggedCard: context.draggedItem?.card ? `${context.draggedItem.card.rank}${context.draggedItem.card.suit}` : 'none',
         targetType: context.targetInfo?.type,
@@ -194,15 +194,14 @@ const buildRules = [
         buildOwner: context.targetInfo?.card?.owner,
         buildValue: context.targetInfo?.card?.value,
         buildId: context.targetInfo?.card?.buildId,
-        currentPlayer: context.currentPlayer,
-        isExtendable: context.targetInfo?.card?.isExtendable
+        currentPlayer: context.currentPlayer
       });
 
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
       const currentPlayer = context.currentPlayer;
 
-      // Only allow hand cards for extension (single card extension)
+      // Only allow hand cards for extension
       if (draggedItem?.source !== 'hand') {
         console.log('[BUILD_EXTENSION_RULE] ❌ Not hand card, rejecting build extension');
         return false;
@@ -219,38 +218,41 @@ const buildRules = [
         return false;
       }
 
-      // Check if build can be extended by current player
-      const canExtend = canBuildBeExtended(targetInfo.card, currentPlayer);
-      console.log('[BUILD_EXTENSION_RULE] Extension eligibility check:', {
-        canExtend,
-        buildOwner: targetInfo.card.owner,
-        currentPlayer,
-        isExtendable: targetInfo.card.isExtendable,
-        cardCount: targetInfo.card.cards?.length || 0,
-        hasBase: targetInfo.card.hasBase,
-        isSingleCombination: targetInfo.card.isSingleCombination
+      // Card value must differ from build value
+      const draggedValue = rankValue(draggedItem.card.rank);
+      const buildValue = targetInfo.card.value;
+
+      if (draggedValue === buildValue) {
+        console.log('[BUILD_EXTENSION_RULE] ❌ Same value as build, rejecting extension');
+        return false;
+      }
+
+      console.log('[BUILD_EXTENSION_RULE] ✅ Build extension conditions met:', {
+        draggedValue,
+        buildValue,
+        buildId: targetInfo.card.buildId,
+        newOwner: currentPlayer
       });
 
-      return canExtend;
+      return true;
     },
-    action: (context) => {  // ✅ OPTION B: Function returns complete object
-      console.log('[BUILD_EXTENSION_RULE] Creating build extension temp stack');
-      const tempStack = createExtensionTempStack(
-        context.draggedItem.card,
-        context.targetInfo.card,
-        context.currentPlayer
-      );
+    action: (context) => {  // Direct action, no modal needed
+      console.log('[BUILD_EXTENSION_RULE] Creating direct build extension action');
 
       const action = {
-        type: 'createTemp',
-        payload: tempStack
+        type: 'BuildExtension',
+        payload: {
+          extensionCard: context.draggedItem.card,
+          targetBuildId: context.targetInfo.card.buildId
+        }
       };
-      console.log('[BUILD_EXTENSION_RULE] Extension temp stack action created:', JSON.stringify(action, null, 2));
+
+      console.log('[BUILD_EXTENSION_RULE] Build extension action created:', JSON.stringify(action, null, 2));
       return action;
     },
-    requiresModal: true, // Temp stack validation required
+    requiresModal: false, // Direct action, no validation needed
     priority: 38, // Between augment-own-build (40) and create-own-build (35)
-    description: 'Extend opponent build with single card (ownership transfer)'
+    description: 'Directly extend opponent build with ownership transfer'
   }
 ];
 

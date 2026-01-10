@@ -21,11 +21,15 @@ interface BuildStackProps {
   dragZIndex?: number;
   baseZIndex?: number;
   baseElevation?: number;
-  // NEW: Overlay support
+  // NEW: Overlay support for pending extensions
   showOverlay?: boolean;
   overlayText?: string;
   onAccept?: (buildId: string) => void;
   onReject?: () => void;
+  // NEW: Build extension overlay
+  isPendingExtension?: boolean;
+  onAcceptExtension?: (buildId: string) => void;
+  onCancelExtension?: (buildId: string) => void;
 }
 
 /**
@@ -44,11 +48,15 @@ export const BuildStack: React.FC<BuildStackProps> = ({
   dragZIndex,
   baseZIndex = 1,
   baseElevation = 1,
-  // NEW: Overlay props
+  // Overlay props
   showOverlay = false,
   overlayText = 'BUILD',
   onAccept,
-  onReject
+  onReject,
+  // Build extension overlay props
+  isPendingExtension = false,
+  onAcceptExtension,
+  onCancelExtension
 }) => {
   // DEPRECATED: Drop zone registration removed - builds now use contact detection only
   // Layout measurement still needed for contact detection positioning
@@ -88,6 +96,15 @@ export const BuildStack: React.FC<BuildStackProps> = ({
         overlayText={overlayText}
         onAccept={(id) => onAccept?.(id)}
         onReject={onReject || (() => {})}
+      />
+
+      {/* Build extension overlay - similar to temp overlay but for build extensions */}
+      <TempOverlay
+        isVisible={isPendingExtension}
+        tempId={stackId}
+        overlayText="EXTEND"
+        onAccept={(id) => onAcceptExtension?.(id)}
+        onReject={() => onCancelExtension?.(stackId)}
       />
     </View>
   );

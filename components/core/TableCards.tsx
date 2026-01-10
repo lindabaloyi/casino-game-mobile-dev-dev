@@ -23,6 +23,9 @@ interface TableCardsProps {
   gameState?: any; // To check pending build additions
   onAcceptBuildAddition?: (buildId: string) => void;
   onRejectBuildAddition?: () => void;
+  // Build extension overlay support
+  onAcceptBuildExtension?: (buildId: string) => void;
+  onCancelBuildExtension?: (buildId: string) => void;
 }
 
 // Helper function to get card type from union types
@@ -47,7 +50,10 @@ const TableCards: React.FC<TableCardsProps> = ({
   // Build overlay props
   gameState,
   onAcceptBuildAddition,
-  onRejectBuildAddition
+  onRejectBuildAddition,
+  // Build extension overlay props
+  onAcceptBuildExtension,
+  onCancelBuildExtension
 }) => {
   const tableRef = useRef<View>(null);
   const tableBoundsRef = useRef<any>(null);  // 🎯 NEW: Store table bounds for overlap detection
@@ -277,9 +283,12 @@ const TableCards: React.FC<TableCardsProps> = ({
                     currentPlayer={currentPlayer}
                     sendAction={sendAction}
                     // Overlay props
-                    showOverlay={!!hasPendingAddition || !!isPendingExtension}
+                    showOverlay={!!hasPendingAddition}
                     onAcceptBuildAddition={onAcceptBuildAddition}
                     onRejectBuildAddition={onRejectBuildAddition}
+                    // Extension overlay props
+                    onAcceptBuildExtension={onAcceptBuildExtension}
+                    onCancelBuildExtension={onCancelBuildExtension}
                   />
                 );
               } else if (itemType === 'temporary_stack') {

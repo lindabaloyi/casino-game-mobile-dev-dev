@@ -1,6 +1,6 @@
 /**
  * Cancel Build Extension Action Handler
- * Removes the extension card from a build when player cancels the extension
+ * Cancels the pending build extension and restores original state
  */
 
 const { createLogger } = require('../../../utils/logger');
@@ -10,10 +10,7 @@ const logger = createLogger('CancelBuildExtension');
 function handleCancelBuildExtension(gameManager, playerIndex, action, gameId) {
   const { buildId } = action.payload;
 
-  logger.info('Cancelling build extension - removing extension card from build', {
-    buildId,
-    playerIndex
-  });
+  logger.info('Canceling build extension', { buildId, playerIndex });
 
   const gameState = gameManager.getGameState(gameId);
 
@@ -22,55 +19,43 @@ function handleCancelBuildExtension(gameManager, playerIndex, action, gameId) {
   }
 
   // Find the build with pending extension
-  const targetBuildIndex = gameState.tableCards.findIndex(card =>
+  const buildIndex = gameState.tableCards.findIndex(card =>
     card.type === 'build' && card.buildId === buildId && card.isPendingExtension
   );
 
-  if (targetBuildIndex === -1) {
+  if (buildIndex === -1) {
     logger.warn('Build with pending extension not found', { buildId });
     return gameState;
   }
 
-  const targetBuild = gameState.tableCards[targetBuildIndex];
+  const pendingBuild = gameState.tableCards[buildIndex];
 
-  // Get the card that was being extended
-  const extensionCard = targetBuild.pendingExtensionCard;
-  if (!extensionCard) {
-    logger.warn('No pending extension card found to restore', { buildId });
-    return gameState;
-  }
-
-  // Restore the build to its original state
+  // Restore the original build state
   const restoredBuild = {
-    ...targetBuild,
-    cards: targetBuild.originalCards || targetBuild.cards.slice(0, -1), // Remove last card (extension)
-    value: targetBuild.originalValue || (targetBuild.value - extensionCard.value),
-    // Remove pending extension flags
-    isPendingExtension: undefined,
+    ...pendingBuild,
+    // Clear all pending extension state
+    isPendingExtension: false,
     pendingExtensionCard: undefined,
+    pendingExtensionPlayer: undefined,
+    // Restore original values
+    cards: pendingBuild.originalCards,
+    value: pendingBuild.originalValue,
+    // Remove preview values
+    previewValue: undefined,
+    previewCards: undefined,
+    previewOwner: undefined,
     originalValue: undefined,
-    originalCards: undefined,
-    extensionDetails: undefined
+    originalCards: undefined
   };
 
-  // Replace the build with the restored version
-  gameState.tableCards[targetBuildIndex] = restoredBuild;
+  // Replace with restored build
+  gameState.tableCards[buildIndex] = restoredBuild;
 
-  // Restore the card to player's hand
-  const playerHand = gameState.playerHands[playerIndex];
-  playerHand.push(extensionCard);
-
-  logger.info('Build extension cancelled - card restored to hand', {
+  logger.info('Build extension canceled - restored to original state', {
     buildId,
     playerIndex,
-    buildRestored: {
-      originalCardCount: targetBuild.cards.length,
-      restoredCardCount: restoredBuild.cards.length,
-      originalValue: targetBuild.value,
-      restoredValue: restoredBuild.value
-    },
-    cardRestored: `${extensionCard.rank}${extensionCard.suit}`,
-    handSize: playerHand.length
+    restoredValue: restoredBuild.value,
+    cardCount: restoredBuild.cards.length
   });
 
   return gameState;

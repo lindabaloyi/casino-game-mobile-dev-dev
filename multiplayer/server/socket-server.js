@@ -61,7 +61,7 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
   // Register all action handlers - map action types to handlers
   const actionHandlers = require('./game/actions');
   const actionTypeMapping = {
-    // 🎯 CORE 12 ACTIONS - Including Build Extension
+    // 🎯 CORE 12 ACTIONS - Build Extension System
     trail: actionHandlers.handleTrail,
     createTemp: actionHandlers.handleCreateTemp,
     addToOwnTemp: actionHandlers.handleAddToOwnTemp,
@@ -69,9 +69,9 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
     capture: actionHandlers.handleCapture,
     createBuildFromTempStack: actionHandlers.handleCreateBuildFromTempStack,
     addToOwnBuild: actionHandlers.handleAddToOwnBuild,
-    initiateBuildExtension: actionHandlers.handleInitiateBuildExtension,  // 🎯 NEW: Build Extension Initiation
-    cancelBuildExtension: actionHandlers.handleCancelBuildExtension,    // 🎯 NEW: Build Extension Cancellation
-    validateBuildExtension: actionHandlers.handleValidateBuildExtension,  // 🎯 NEW: Build Extension Validation
+    BuildExtension: actionHandlers.handleBuildExtension,  // 🎯 NEW: Direct Build Extension
+    acceptBuildExtension: actionHandlers.handleAcceptBuildExtension,  // 🎯 NEW: Accept Build Extension
+    cancelBuildExtension: actionHandlers.handleCancelBuildExtension,  // 🎯 NEW: Cancel Build Extension
     tableToTableDrop: actionHandlers.handleTableToTableDrop,
     handToTableDrop: actionHandlers.handleHandToTableDrop
   };

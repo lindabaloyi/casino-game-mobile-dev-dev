@@ -132,7 +132,7 @@ export function handleBuildContact(
       console.log('[BUILD_HANDLER] 🎯 Potential extension: values don\'t match, initiating visual build extension');
 
       return {
-        type: 'initiateBuildExtension',
+        type: 'BuildExtension',
         payload: {
           extensionCard: draggedCard,
           targetBuildId: build.buildId
