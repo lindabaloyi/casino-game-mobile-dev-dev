@@ -380,6 +380,117 @@ function validateNoDuplicates(gameState) {
 }
 
 // ============================================================================
+// SCORING AND WINNER DETERMINATION
+// ============================================================================
+
+/**
+ * Calculate score for a single player's captured cards
+ */
+function calculatePlayerScore(capturedCards) {
+  let score = 0;
+
+  capturedCards.forEach(card => {
+    // Scoring cards only
+    if (card.rank === 'A') score += 1;                    // Aces = 1 point each
+    if (card.rank === '2' && card.suit === '♠') score += 1; // 2♠ = 1 point
+    if (card.rank === '10' && card.suit === '♦') score += 2; // 10♦ = 2 points
+  });
+
+  // Bonus conditions
+  const spadeCount = capturedCards.filter(c => c.suit === '♠').length;
+  if (spadeCount === 6) score += 2; // 6 Spades bonus
+
+  if (capturedCards.length >= 21) score += 2; // 21+ Cards bonus
+
+  return score;
+}
+
+/**
+ * Calculate final game result with scoring and winner determination
+ */
+function calculateGameResult(gameState, lastCapturer) {
+  const player0Cards = gameState.playerCaptures[0] || [];
+  const player1Cards = gameState.playerCaptures[1] || [];
+
+  const player0Score = calculatePlayerScore(player0Cards);
+  const player1Score = calculatePlayerScore(player1Cards);
+
+  const scores = [player0Score, player1Score];
+
+  // Determine winner
+  let winner;
+  if (player0Score > player1Score) {
+    winner = 0;
+  } else if (player1Score > player0Score) {
+    winner = 1;
+  } else {
+    // Tie: Last capturer wins
+    winner = lastCapturer;
+  }
+
+  // Create detailed breakdown
+  const details = {
+    scores: [player0Score, player1Score],
+    winner: winner,
+    lastCapturer: lastCapturer,
+    totalCardsCaptured: player0Cards.length + player1Cards.length,
+    playerBreakdowns: {
+      player0: {
+        cards: player0Cards.length,
+        score: player0Score,
+        scoringCards: {
+          aces: player0Cards.filter(c => c.rank === 'A').length,
+          twoSpades: player0Cards.filter(c => c.rank === '2' && c.suit === '♠').length,
+          tenDiamonds: player0Cards.filter(c => c.rank === '10' && c.suit === '♦').length
+        },
+        bonuses: {
+          sixSpades: player0Cards.filter(c => c.suit === '♠').length === 6 ? 2 : 0,
+          twentyOneCards: player0Cards.length >= 21 ? 2 : 0
+        }
+      },
+      player1: {
+        cards: player1Cards.length,
+        score: player1Score,
+        scoringCards: {
+          aces: player1Cards.filter(c => c.rank === 'A').length,
+          twoSpades: player1Cards.filter(c => c.rank === '2' && c.suit === '♠').length,
+          tenDiamonds: player1Cards.filter(c => c.rank === '10' && c.suit === '♦').length
+        },
+        bonuses: {
+          sixSpades: player1Cards.filter(c => c.suit === '♠').length === 6 ? 2 : 0,
+          twentyOneCards: player1Cards.length >= 21 ? 2 : 0
+        }
+      }
+    },
+    finalCaptures: {
+      player0: player0Cards.map(c => `${c.rank}${c.suit}`),
+      player1: player1Cards.map(c => `${c.rank}${c.suit}`)
+    }
+  };
+
+  console.log('📊 SCORING_CALCULATION:', {
+    player0: {
+      cards: player0Cards.length,
+      score: player0Score,
+      breakdown: details.playerBreakdowns.player0
+    },
+    player1: {
+      cards: player1Cards.length,
+      score: player1Score,
+      breakdown: details.playerBreakdowns.player1
+    },
+    winner: winner,
+    tieBreakerUsed: player0Score === player1Score
+  });
+
+  return {
+    winner,
+    scores,
+    details
+  };
+}
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 
@@ -395,5 +506,7 @@ module.exports = {
   isBuild,
   isTemporaryStack,
   orderCardsBigToSmall,
-  buildLifecycleTracker
+  buildLifecycleTracker,
+  calculateGameResult,
+  calculatePlayerScore
 };

@@ -12,6 +12,7 @@ import CapturedCards from '../cards/CapturedCards';
 import { AcceptValidationModal } from '../modals/AcceptValidationModal';
 import ActionModal from '../modals/ActionModal';
 import ErrorModal from '../modals/ErrorModal';
+import { GameOverModal } from '../modals/GameOverModal';
 import TrailConfirmationModal from '../modals/TrailConfirmationModal';
 import BurgerMenu from '../navigation/BurgerMenu';
 import PlayerHand from './playerHand';
@@ -50,6 +51,19 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     setErrorModal: modalManager.setErrorModal
   });
 
+  // Game over state
+  const [gameOverData, setGameOverData] = useState<{
+    winner: number;
+    scores: [number, number];
+    winnerScore: number;
+    loserScore: number;
+    lastCapturer: number;
+    finalCaptures: {
+      player0: string[];
+      player1: string[];
+    };
+  } | null>(null);
+
   // Extracted server event listeners
   useServerListeners({
     serverError: serverError || null,
@@ -58,7 +72,8 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     setModalInfo: modalManager.setModalInfo,
     setTrailCard: modalManager.setTrailCard,
     setErrorModal: modalManager.setErrorModal,
-    setCardToReset
+    setCardToReset,
+    setGameOverData
   });
 
   // Extracted temp stack operations
@@ -321,6 +336,27 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
         sendAction={sendAction} // REQUIRED for auto-capture
         // onCapture prop removed - now optional
       />
+
+      {/* Game Over Modal */}
+      {gameOverData && (
+        <GameOverModal
+          visible={true}
+          winner={gameOverData.winner}
+          scores={gameOverData.scores}
+          winnerScore={gameOverData.winnerScore}
+          loserScore={gameOverData.loserScore}
+          lastCapturer={gameOverData.lastCapturer}
+          finalCaptures={gameOverData.finalCaptures}
+          onPlayAgain={() => {
+            console.log('[GameBoard] Play again pressed');
+            // TODO: Implement play again logic
+          }}
+          onReturnToMenu={() => {
+            console.log('[GameBoard] Return to menu pressed');
+            // TODO: Implement return to menu logic
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }

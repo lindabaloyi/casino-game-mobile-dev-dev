@@ -12,7 +12,8 @@ export function useServerListeners({
   setModalInfo,
   setTrailCard,
   setErrorModal,
-  setCardToReset
+  setCardToReset,
+  setGameOverData
 }: {
   serverError: { message: string } | null;
   buildOptions?: any;
@@ -21,6 +22,7 @@ export function useServerListeners({
   setTrailCard: (card: { rank: string; suit: string } | null) => void;
   setErrorModal: (modal: { visible: boolean; title: string; message: string } | null) => void;
   setCardToReset: (card: { rank: string; suit: string } | null) => void;
+  setGameOverData?: (data: any) => void;
 }) {
   // Handle server errors (Game-Appropriate Version)
   useEffect(() => {
@@ -172,6 +174,23 @@ export function useServerListeners({
       socket.off('staging-created', handleStagingCreated);
     };
   }, []);
+
+  // Handle game over events
+  useEffect(() => {
+    const socket = (global as any).socket;
+    if (!socket || !setGameOverData) return;
+
+    const handleGameOver = (data: any) => {
+      console.log('[CLIENT] Game over event received:', data);
+      setGameOverData(data);
+    };
+
+    socket.on('game-over', handleGameOver);
+
+    return () => {
+      socket.off('game-over', handleGameOver);
+    };
+  }, [setGameOverData]);
 
   // Hide navigation bar when entering game (Platform/OS specific)
   useEffect(() => {

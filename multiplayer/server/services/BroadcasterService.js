@@ -84,6 +84,24 @@ class BroadcasterService {
   }
 
   /**
+   * Broadcast game over event to all players in a finished game
+   */
+  broadcastGameOver(gameId, gameOverData) {
+    const gameSockets = this.matchmaking.getGameSockets(gameId, this.io);
+
+    this.logger.info(`Broadcasting game-over to ${gameSockets.length} players in game ${gameId}`, {
+      winner: gameOverData.winner,
+      scores: gameOverData.scores,
+      winnerScore: gameOverData.winnerScore,
+      loserScore: gameOverData.loserScore
+    });
+
+    gameSockets.forEach(gameSocket => {
+      gameSocket.emit('game-over', gameOverData);
+    });
+  }
+
+  /**
    * Send error message to a specific player
    */
   sendError(socket, message) {

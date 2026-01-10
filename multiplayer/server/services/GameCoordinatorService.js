@@ -52,11 +52,32 @@ class GameCoordinatorService {
         tableCardsBefore: this.gameManager.getGameState(gameId)?.tableCards?.length || 0,
         tableCardsAfter: newGameState.tableCards?.length || 0,
         broadcastingToClients: true,
+        gameOver: newGameState.gameOver || false,
         timestamp: new Date().toISOString()
       });
 
-      // Broadcast updated game state to all players in game
-      this.broadcaster.broadcastGameUpdate(gameId, newGameState);
+      // Check if game just ended
+      if (newGameState.gameOver) {
+        // Broadcast game-over event with final results
+        this.broadcaster.broadcastGameOver(gameId, {
+          winner: newGameState.winner,
+          scores: newGameState.finalScores,
+          winnerScore: Math.max(...newGameState.finalScores),
+          loserScore: Math.min(...newGameState.finalScores),
+          lastCapturer: newGameState.lastCapturer,
+          finalCaptures: newGameState.scoreDetails?.finalCaptures || { player0: [], player1: [] }
+        });
+
+        console.log('[GAME-OVER] 🎉 Game ended! Broadcasting final results:', {
+          gameId,
+          winner: newGameState.winner,
+          scores: newGameState.finalScores,
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        // Broadcast normal game state update
+        this.broadcaster.broadcastGameUpdate(gameId, newGameState);
+      }
 
     } catch (error) {
       this.logger.error(`Action failed:`, error);

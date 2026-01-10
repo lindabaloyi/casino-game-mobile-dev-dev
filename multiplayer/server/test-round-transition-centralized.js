@@ -65,8 +65,8 @@ async function runTest(testName, testFunction) {
   }
 }
 
-// Test 1: Trail action should trigger round transition when emptying hand
-async function testTrailRoundTransition() {
+// Test 1: Trail action should NOT trigger round transition when only one player empties hand
+async function testTrailNoEarlyRoundTransition() {
   const { gameManager, actionRouter, gameId } = createTestGame();
 
   // Setup: Player 0 has 1 card, Player 1 has cards
@@ -77,7 +77,7 @@ async function testTrailRoundTransition() {
 
   const initialState = gameManager.getGameState(gameId);
 
-  // Execute trail action (should empty Player 0's hand)
+  // Execute trail action (should empty Player 0's hand but NOT trigger round transition)
   const trailAction = {
     type: 'trail',
     payload: { card: {rank: 'A', suit: 'H'} }
@@ -85,21 +85,22 @@ async function testTrailRoundTransition() {
 
   const result = await actionRouter.executeAction(gameId, 0, trailAction);
 
-  // Validate round transition occurred
-  if (result.round === 2 &&
+  // Validate NO round transition occurred (both players need empty hands)
+  if (result.round === 1 &&
       result.playerHands[0].length === 0 &&
+      result.playerHands[1].length === 2 &&
       result.currentPlayer === 1) { // Should switch to Player 1
 
     return {
       success: true,
-      message: 'Trail correctly triggered round transition when emptying hand',
-      details: `Round: 1→2, Player switched: 0→1, Hands: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
+      message: 'Trail correctly did NOT trigger round transition when only one player empties hand',
+      details: `Round: ${result.round}, Player switched: 0→1, Hands: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
     };
   }
 
   return {
     success: false,
-    message: 'Trail did not trigger round transition',
+    message: 'Trail incorrectly triggered round transition when opponent still has cards',
     details: `Round: ${initialState.round}→${result.round}, Current player: ${initialState.currentPlayer}→${result.currentPlayer}, Hands: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
   };
 }
@@ -143,21 +144,21 @@ async function testTrailNoTransitionWithCards() {
   };
 }
 
-// Test 3: Capture action should trigger round transition when emptying hand AND forcing turn switch
-async function testCaptureRoundTransition() {
+// Test 3: Round transition triggers when BOTH players empty hands (not just one)
+async function testBothPlayersEmptyRoundTransition() {
   const { gameManager, actionRouter, gameId } = createTestGame();
 
-  // Setup: Player 0 has 1 card, Player 1 has no valid moves (empty hand)
-  // This will force a turn switch after capture
-  const gameState = setupGameState(gameManager, gameId,
+  // Setup: Player 0 has 1 card, Player 1 has 0 cards (both will be empty after Player 0's action)
+  setupGameState(gameManager, gameId,
     [{rank: 'A', suit: 'H'}], // Player 0: 1 card
-    []  // Player 1: 0 cards (can't move)
+    []  // Player 1: 0 cards (already empty)
   );
 
   // Add a card to table that can be captured
+  const gameState = gameManager.getGameState(gameId);
   gameState.tableCards = [{rank: 'A', suit: 'S', type: 'loose'}];
 
-  // Execute capture action
+  // Execute capture action (will empty Player 0's hand, making both players empty)
   const captureAction = {
     type: 'capture',
     payload: {
@@ -168,75 +169,68 @@ async function testCaptureRoundTransition() {
 
   const result = await actionRouter.executeAction(gameId, 0, captureAction);
 
-  // Validate round transition occurred
+  // Validate round transition occurred because BOTH players now have empty hands
   if (result.round === 2 &&
       result.playerHands[0].length === 0 &&
-      result.currentPlayer === 1) {
+      result.playerHands[1].length === 0) {
 
     return {
       success: true,
-      message: 'Capture correctly triggered round transition when emptying hand and forcing turn switch',
-      details: `Round: 1→2, Player switched: 0→1, Hands: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
+      message: 'Round transition correctly triggered when BOTH players have empty hands',
+      details: `Round: 1→2, Both players empty: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
     };
   }
 
   return {
     success: false,
-    message: 'Capture did not trigger round transition',
-    details: `Round: 1→${result.round}, Current player: 0→${result.currentPlayer}, Hands: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
+    message: 'Round transition did not trigger when both players emptied hands',
+    details: `Round: 1→${result.round}, Hands: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
   };
 }
 
-// Test 4: Multi-action play should NOT trigger early round transition
-async function testMultiActionSafety() {
+// Test 4: Round 2 ends when any player empties their hand
+async function testRound2GameOver() {
   const { gameManager, actionRouter, gameId } = createTestGame();
 
-  // Setup: Player 0 has 2 cards, Player 1 has cards
-  // This simulates a "build then capture" scenario
-  const gameState = setupGameState(gameManager, gameId,
-    [{rank: 'A', suit: 'H'}, {rank: '2', suit: 'H'}], // Player 0: 2 cards
-    [{rank: 'K', suit: 'S'}] // Player 1: 1 card
+  // Setup: Round 2, Player 0 has 1 card, Player 1 has 0 cards
+  setupGameState(gameManager, gameId,
+    [{rank: 'A', suit: 'H'}], // Player 0: 1 card
+    []  // Player 1: 0 cards
   );
 
-  // Add table setup for potential build+capture
+  const gameState = gameManager.getGameState(gameId);
+  gameState.round = 2; // Force round 2
+
+  // Add a card to table that can be captured
   gameState.tableCards = [{rank: 'A', suit: 'S', type: 'loose'}];
 
-  // First action: Build (would use 1 card, leave 1)
-  // We can't easily simulate the full build+capture in this test framework
-  // But we can test that a regular action doesn't trigger round transition prematurely
-
-  const buildAction = {
-    type: 'addToOwnBuild',
+  // Execute capture action (will empty Player 0's hand, ending round 2)
+  const captureAction = {
+    type: 'capture',
     payload: {
-      buildId: 'test-build',
-      card: {rank: 'A', suit: 'H'},
-      source: 'hand',
-      buildToAddTo: {
-        buildId: 'test-build',
-        cards: [{rank: 'A', suit: 'S'}],
-        owner: 0
-      }
+      targetCards: [{rank: 'A', suit: 'S'}],
+      capturingCard: {rank: 'A', suit: 'H'}
     }
   };
 
-  const result = await actionRouter.executeAction(gameId, 0, buildAction);
+  const result = await actionRouter.executeAction(gameId, 0, captureAction);
 
-  // After build, player should still have 1 card, no round transition
-  if (result.round === 1 &&
-      result.playerHands[0].length === 1 &&
-      result.currentPlayer === 1) {
+  // Validate game over occurred because player emptied hand in round 2
+  if (result.gameOver &&
+      result.playerHands[0].length === 0 &&
+      result.playerHands[1].length === 0) {
 
     return {
       success: true,
-      message: 'Build action correctly did NOT trigger premature round transition',
-      details: `Round: ${result.round}, Player switched: 0→1, Hands: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
+      message: 'Round 2 correctly ended when player emptied hand',
+      details: `Game over: ${result.gameOver}, Hands: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
     };
   }
 
   return {
     success: false,
-    message: 'Build action incorrectly triggered round transition',
-    details: `Round: 1→${result.round}, Current player: 0→${result.currentPlayer}, Hands: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
+    message: 'Round 2 did not end when player emptied hand',
+    details: `Game over: ${result.gameOver}, Hands: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
   };
 }
 
@@ -247,21 +241,21 @@ async function runAllTests() {
   let passed = 0;
   let total = 0;
 
-  // Test 1: Trail triggers round transition
+  // Test 1: Trail does NOT trigger early round transition
   total++;
-  if (await runTest('Trail Round Transition', testTrailRoundTransition)) passed++;
+  if (await runTest('Trail No Early Round Transition', testTrailNoEarlyRoundTransition)) passed++;
 
   // Test 2: Trail does NOT trigger when cards remain
   total++;
   if (await runTest('Trail No Transition With Cards', testTrailNoTransitionWithCards)) passed++;
 
-  // Test 3: Capture triggers round transition
+  // Test 3: Round transition triggers when both players empty hands
   total++;
-  if (await runTest('Capture Round Transition', testCaptureRoundTransition)) passed++;
+  if (await runTest('Both Players Empty Round Transition', testBothPlayersEmptyRoundTransition)) passed++;
 
-  // Test 4: Multi-action safety
+  // Test 4: Round 2 game over
   total++;
-  if (await runTest('Multi-Action Safety', testMultiActionSafety)) passed++;
+  if (await runTest('Round 2 Game Over', testRound2GameOver)) passed++;
 
   // Summary
   console.log('==========================================');
@@ -283,4 +277,4 @@ runAllTests().then(success => {
 }).catch(error => {
   console.error('Test suite failed with error:', error);
   process.exit(1);
-});
+});// Run the test suite

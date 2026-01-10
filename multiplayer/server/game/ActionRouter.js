@@ -93,24 +93,93 @@ class ActionRouter {
       });
 
       if (!currentPlayerCanMove || forceTurnSwitch) {
-        // 🔄 BEFORE TURN SWITCH - Check for round transition
-        // Round ends when the CURRENT player's turn completes and their hand is empty
-        const currentPlayerHandSize = finalGameState.playerHands[playerIndex].length;
-        if (currentPlayerHandSize === 0 && finalGameState.round === 1) {
-          console.log('🎯 ROUND_TRANSITION_TRIGGERED: Round 1 complete after current player turn - initializing Round 2', {
-            gameId,
-            triggerAction: actionType,
-            playerIndex,
-            currentPlayer: playerIndex,
-            handSize: currentPlayerHandSize,
-            round1FinalState: {
-              player0HandSize: finalGameState.playerHands[0].length,
-              player1HandSize: finalGameState.playerHands[1].length
-            }
-          });
+        // 🔄 BEFORE TURN SWITCH - Check for round/phase transitions
 
-          const { initializeRound2 } = require('./GameState');
-          finalGameState = initializeRound2(finalGameState);
+        if (finalGameState.round === 1) {
+          // 🎯 ROUND 1 → ROUND 2: Wait for BOTH players to empty their hands
+          const bothPlayersEmpty = finalGameState.playerHands[0].length === 0 &&
+                                  finalGameState.playerHands[1].length === 0;
+
+          if (bothPlayersEmpty) {
+            console.log('🎯 ROUND_TRANSITION_TRIGGERED: Round 1 complete - BOTH players have empty hands, initializing Round 2', {
+              gameId,
+              triggerAction: actionType,
+              playerWhoJustMoved: playerIndex,
+              round1FinalState: {
+                player0HandSize: finalGameState.playerHands[0].length,
+                player1HandSize: finalGameState.playerHands[1].length,
+                bothPlayersFinished: bothPlayersEmpty
+              }
+            });
+
+            const { initializeRound2 } = require('./GameState');
+            finalGameState = initializeRound2(finalGameState);
+          } else {
+            console.log('⏳ ROUND_1_WAITING: Player finished their hand, waiting for opponent', {
+              gameId,
+              playerWhoJustFinished: playerIndex,
+              currentHandSizes: {
+                player0HandSize: finalGameState.playerHands[0].length,
+                player1HandSize: finalGameState.playerHands[1].length
+              },
+              bothPlayersFinished: bothPlayersEmpty
+            });
+          }
+
+        } else if (finalGameState.round === 2) {
+          // 🏆 ROUND 2 → GAME OVER: End when ANY player empties their hand in round 2
+          const anyPlayerEmpty = finalGameState.playerHands[0].length === 0 ||
+                                finalGameState.playerHands[1].length === 0;
+
+          if (anyPlayerEmpty) {
+            console.log('🏆 GAME_OVER_TRIGGERED: Round 2 complete - player emptied hand, finalizing game with scoring', {
+              gameId,
+              triggerAction: actionType,
+              lastPlayer: playerIndex,
+              finalHandSizes: {
+                player0HandSize: finalGameState.playerHands[0].length,
+                player1HandSize: finalGameState.playerHands[1].length
+              },
+              remainingTableCards: finalGameState.tableCards.length
+            });
+
+            // Award remaining table cards to the last player who moved
+            if (finalGameState.tableCards.length > 0) {
+              console.log('🎁 AWARDING_REMAINING_CARDS: All table cards go to last player', {
+                lastPlayer: playerIndex,
+                cardsAwarded: finalGameState.tableCards.length,
+                cardList: finalGameState.tableCards.map(c => `${c.rank}${c.suit}`)
+              });
+
+              // Add remaining cards to last player's captures
+              if (!finalGameState.playerCaptures[playerIndex]) {
+                finalGameState.playerCaptures[playerIndex] = [];
+              }
+              finalGameState.playerCaptures[playerIndex].push(...finalGameState.tableCards);
+
+              // Clear table
+              finalGameState.tableCards = [];
+            }
+
+            // Calculate final scores and determine winner
+            const { calculateGameResult } = require('./GameState');
+            const gameResult = calculateGameResult(finalGameState, playerIndex);
+
+            // Set game over state
+            finalGameState.gameOver = true;
+            finalGameState.winner = gameResult.winner;
+            finalGameState.finalScores = gameResult.scores;
+            finalGameState.scoreDetails = gameResult.details;
+
+            console.log('🏆 GAME_FINALIZED:', {
+              winner: gameResult.winner,
+              scores: gameResult.scores,
+              lastCapturer: playerIndex,
+              totalCardsCaptured: gameResult.details.totalCardsCaptured
+            });
+
+            // Broadcast game over to clients (will be handled by caller)
+          }
         }
 
         // Switch to next player
@@ -123,9 +192,9 @@ class ActionRouter {
           reason: forceTurnSwitch ? 'forced' : 'no_moves'
         });
 
-        // Check if next player can move
+        // Check if next player can move (but don't end game here - game over is handled above)
         const nextPlayerCanMove = canPlayerMove(finalGameState);
-        if (!nextPlayerCanMove) {
+        if (!nextPlayerCanMove && !finalGameState.gameOver) {
           logger.warn('Game end condition: Neither player can move', { gameId });
         }
       }
