@@ -4,6 +4,7 @@
  */
 
 const { createLogger } = require('../../../utils/logger');
+const { insertCardIntoBuildDescending } = require('../../../utils/buildExtensionUtils');
 
 const logger = createLogger('CancelBuildExtension');
 

@@ -4,6 +4,7 @@
  */
 
 const { createLogger } = require('../../../utils/logger');
+const { insertCardIntoBuildDescending } = require('../../../utils/buildExtensionUtils');
 
 const logger = createLogger('BuildExtension');
 
@@ -60,9 +61,9 @@ function handleBuildExtension(gameManager, playerIndex, action, gameId) {
     // Store original values for cancellation
     originalValue: targetBuild.value,
     originalCards: [...targetBuild.cards],
-    // Calculate preview values
+    // Calculate preview values using proper insertion to maintain descending order
     previewValue: targetBuild.value + extensionCard.value,
-    previewCards: [...targetBuild.cards, extensionCard],
+    previewCards: insertCardIntoBuildDescending(targetBuild.cards, extensionCard),
     previewOwner: playerIndex
   };
 
