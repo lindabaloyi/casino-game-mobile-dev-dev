@@ -31,7 +31,7 @@ const tempStackRules = [
     action: (context) => {
       console.log('[SAME_VALUE_RULE] 🎯 Processing same-value temp stack');
 
-      const tempStack = context.targetInfo.card; // Note: targetInfo.card has the stack data
+      const tempStack = context.targetInfo; // targetInfo has the stack data directly
       const playerHand = context.playerHands[context.currentPlayer];
 
       console.log('[SAME_VALUE_RULE] Stack details:', {

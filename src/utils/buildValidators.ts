@@ -102,7 +102,7 @@ export const calculateConsolidatedOptions = (stack: any, hand: Card[]): ActionOp
     })));
 
     // Convert pre-calculated options to ActionOption format
-    sameValueBuildOptions.forEach(option => {
+    sameValueBuildOptions.forEach((option: any) => {
       // Check if player has the required capture card
       const hasCaptureCard = hand.some(card => card.value === option.captureCard);
       console.log(`🔍 [VALIDATOR] Checking capture card ${option.captureCard}: ${hasCaptureCard ? '✅' : '❌'}`);
@@ -157,22 +157,22 @@ export const calculateConsolidatedOptions = (stack: any, hand: Card[]): ActionOp
     });
     console.log(`✅ [VALIDATOR] Added: Build ${value} (same-value build option)`);
 
-    // Sum build for low cards
+    // Sum build for low cards - check if player has card with SUM value
     const sumBuildEligible = value <= 5 && totalSum <= 10;
     console.log(`🔍 [VALIDATOR] Sum build eligibility: ${sumBuildEligible ? '✅' : '❌'} (value≤5: ${value <= 5}, totalSum≤10: ${totalSum <= 10})`);
     if (sumBuildEligible) {
-      const hasExtraCard = hand.some((c: Card) => c.value === value);
-      console.log(`🔍 [VALIDATOR] Has extra ${value} in hand: ${hasExtraCard ? '✅' : '❌'}`);
-      if (hasExtraCard) {
+      const hasSumCard = hand.some((c: Card) => c.value === totalSum);
+      console.log(`🔍 [VALIDATOR] Has ${totalSum} in hand: ${hasSumCard ? '✅' : '❌'}`);
+      if (hasSumCard) {
         options.push({
           type: 'build',
           label: `Build ${totalSum}`,
           card: null,
           value: totalSum
         });
-        console.log(`✅ [VALIDATOR] Added: Build ${totalSum} (sum build with extra card)`);
+        console.log(`✅ [VALIDATOR] Added: Build ${totalSum} (sum build)`);
       } else {
-        console.log(`❌ [VALIDATOR] Skipped: Build ${totalSum} (no extra card in hand)`);
+        console.log(`❌ [VALIDATOR] Skipped: Build ${totalSum} (no sum card in hand)`);
       }
     }
   }
