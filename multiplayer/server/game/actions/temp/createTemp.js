@@ -5,6 +5,7 @@
 
 const { createLogger } = require('../../../utils/logger');
 const logger = createLogger('CreateTemp');
+const { initializeBuildCalculator } = require('../../logic/utils/tempStackBuildCalculator');
 
 const {
   validateBasic,
@@ -129,6 +130,30 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
     isSameValueStack: action.payload.isSameValueStack || false
   };
 
+  // 🎯 INITIALIZE BUILD CALCULATOR for real-time updates
+  console.log('[DEBUG] 🎯 About to initialize build calculator for new temp stack');
+  console.log('[DEBUG] Original staging stack:', {
+    stackId: stagingStack.stackId,
+    cards: stagingStack.cards.map(c => `${c.rank}${c.suit}(${c.value})`),
+    value: stagingStack.value,
+    hasBuildValue: 'buildValue' in stagingStack
+  });
+  console.log('[DEBUG] initializeBuildCalculator imported:', typeof initializeBuildCalculator);
+
+  const enhancedStagingStack = initializeBuildCalculator(stagingStack);
+
+  console.log('[DEBUG] ✅ Build calculator initialization complete');
+  console.log('[DEBUG] Enhanced staging stack:', {
+    stackId: enhancedStagingStack.stackId,
+    cards: enhancedStagingStack.cards?.length || 0,
+    originalValue: stagingStack.value,
+    enhancedValue: enhancedStagingStack.value,
+    displayValue: enhancedStagingStack.displayValue,
+    buildValue: enhancedStagingStack.buildValue,
+    isValid: enhancedStagingStack.isValid,
+    segmentCount: enhancedStagingStack.segmentCount
+  });
+
   // 🎯 CARD REMOVAL PIPELINE (Phase 2)
   const newGameState = removeCardsBySource(
     gameState,
@@ -139,12 +164,12 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
     targetIndex,
     {
       ...action.payload,
-      stagingStack
+      stagingStack: enhancedStagingStack
     }
   );
 
   // 🎯 AUTO-CAPTURE CHECK: If this is a same-value stack with no build options, capture immediately
-  if (stagingStack.isSameValueStack) {
+  if (enhancedStagingStack.isSameValueStack) {
     console.log('[CREATE_TEMP] 🎯 Same-value stack created, checking for auto-capture...');
 
     // Import the build checking function
@@ -152,7 +177,7 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
 
     // Check if current player has build options
     const playerHand = newGameState.playerHands[playerIndex];
-    const hasBuildOptions = checkBuildOptionsForStack(stagingStack, playerHand);
+    const hasBuildOptions = checkBuildOptionsForStack(enhancedStagingStack, playerHand);
 
     if (!hasBuildOptions) {
       console.log('[CREATE_TEMP] 🚀 NO BUILD OPTIONS - AUTO-CAPTURING SAME-VALUE STACK');
@@ -172,10 +197,10 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
   }
 
   logger.info('Unified staging stack created successfully', {
-    stackId: stagingStack.stackId,
+    stackId: enhancedStagingStack.stackId,
     source,
     isTableToTable,
-    value: stagingStack.value,
+    value: enhancedStagingStack.value,
     tableCardsCount: newGameState.tableCards.length,
     draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
     targetCard: `${targetCard.rank}${targetCard.suit}`
@@ -185,6 +210,3 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
 }
 
 module.exports = handleCreateTemp;
-
-
-

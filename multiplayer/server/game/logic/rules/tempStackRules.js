@@ -13,20 +13,46 @@ const tempStackRules = [
     exclusive: false,
     requiresModal: true, // ✅ MODAL: Multiple strategic options available
     condition: (context) => {
-      console.log('[TEMP_RULE] Evaluating same-value rule condition');
+      console.log('[TEMP_RULE_EVAL] 📋 Evaluating rule: same-value-modal-options (priority: 188)');
+      console.log('[TEMP_RULE_EVAL] 📊 Context:', {
+        draggedItem: context.draggedItem ? `${context.draggedItem.card?.rank}${context.draggedItem.card?.suit}(${context.draggedItem.card?.value})` : null,
+        draggedSource: context.draggedItem?.source,
+        targetInfoType: context.targetInfo?.type,
+        targetInfoStackId: context.targetInfo?.stackId,
+        currentPlayer: context.currentPlayer
+      });
+
       const targetInfo = context.targetInfo;
 
       // ✅ CONDITION: Target is temp stack marked as same-value
       const isTempStack = targetInfo?.type === 'temporary_stack';
-      console.log('[TEMP_RULE] Is temp stack:', isTempStack);
-      if (!isTempStack) return false;
+      console.log('[TEMP_RULE_EVAL] ✅ Condition 1 - Is temp stack:', {
+        condition: 'targetInfo?.type === "temporary_stack"',
+        result: isTempStack,
+        actualType: targetInfo?.type
+      });
+
+      if (!isTempStack) {
+        console.log('[TEMP_RULE_EVAL] ❌ Rule same-value-modal-options: FAILED - not a temp stack');
+        return false;
+      }
 
       // Use the flag set by client during temp stack creation
       const isSameValueStack = targetInfo.isSameValueStack === true;
-      console.log('[TEMP_RULE] Is same-value stack (from flag):', isSameValueStack);
+      console.log('[TEMP_RULE_EVAL] ✅ Condition 2 - Is same-value stack:', {
+        condition: 'targetInfo.isSameValueStack === true',
+        result: isSameValueStack,
+        actualFlag: targetInfo.isSameValueStack,
+        flagType: typeof targetInfo.isSameValueStack
+      });
 
-      console.log('[TEMP_RULE] Same-value temp stack check result:', isSameValueStack);
-      return isSameValueStack;
+      const finalResult = isSameValueStack;
+      console.log('[TEMP_RULE_EVAL] 🎯 Rule same-value-modal-options final result:', {
+        result: finalResult,
+        reason: finalResult ? 'Same-value temp stack detected' : 'Not a same-value stack'
+      });
+
+      return finalResult;
     },
     action: (context) => {
       console.log('[SAME_VALUE_RULE] 🎯 Processing same-value temp stack');
@@ -121,6 +147,15 @@ const tempStackRules = [
     exclusive: false, // ✅ CHANGED: Allow other rules to be evaluated
     requiresModal: false,
     condition: (context) => {
+      console.log('[TEMP_RULE_EVAL] 📋 Evaluating rule: temp-stack-addition (priority: 100)');
+      console.log('[TEMP_RULE_EVAL] 📊 Context:', {
+        draggedItem: context.draggedItem ? `${context.draggedItem.card?.rank}${context.draggedItem.card?.suit}(${context.draggedItem.card?.value})` : null,
+        draggedSource: context.draggedItem?.source,
+        targetInfoType: context.targetInfo?.type,
+        targetInfoStackId: context.targetInfo?.stackId,
+        currentPlayer: context.currentPlayer
+      });
+
       const targetInfo = context.targetInfo;
       const draggedItem = context.draggedItem;
 
@@ -128,16 +163,25 @@ const tempStackRules = [
       const isTempStackTarget = targetInfo?.type === 'temporary_stack';
       const hasValidCard = draggedItem?.card;
 
-      console.log('[TEMP_RULE] Temp stack addition check:', {
-        targetType: targetInfo?.type,
-        stackId: targetInfo?.stackId,
-        draggedSource: draggedItem?.source,
-        hasValidCard,
-        isTempStackTarget,
-        result: isTempStackTarget && hasValidCard
+      console.log('[TEMP_RULE_EVAL] ✅ Condition 1 - Is temp stack target:', {
+        condition: 'targetInfo?.type === "temporary_stack"',
+        result: isTempStackTarget,
+        actualType: targetInfo?.type
       });
 
-      return isTempStackTarget && hasValidCard;
+      console.log('[TEMP_RULE_EVAL] ✅ Condition 2 - Has valid card:', {
+        condition: 'draggedItem?.card exists',
+        result: hasValidCard,
+        card: hasValidCard ? `${draggedItem.card.rank}${draggedItem.card.suit}(${draggedItem.card.value})` : null
+      });
+
+      const finalResult = isTempStackTarget && hasValidCard;
+      console.log('[TEMP_RULE_EVAL] 🎯 Rule temp-stack-addition final result:', {
+        result: finalResult,
+        reason: finalResult ? 'Valid temp stack addition' : 'Missing temp stack target or valid card'
+      });
+
+      return finalResult;
     },
     action: (context) => {
       console.log('[TEMP_RULE] ✅ Creating temp stack addition action');

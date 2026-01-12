@@ -49,6 +49,26 @@ export function TempStackRenderer({
   // Check if this player has any builds they can augment (contextual capability)
   const canAugmentBuilds = tempStackItem.canAugmentBuilds || false;
 
+  // 🔍 CLIENT-SIDE DEBUGGING: Log when component receives new props
+  console.log('[CLIENT_DEBUG] 🎯 TempStackRenderer RENDER TRIGGERED:', {
+    stackId: tempStackItem.stackId || `temp-${index}`,
+    renderTimestamp: Date.now(),
+    propsChanged: {
+      displayValue: tempStackItem.displayValue,
+      buildValue: tempStackItem.buildValue,
+      segmentCount: tempStackItem.segmentCount,
+      isValid: tempStackItem.isValid,
+      isBuilding: tempStackItem.isBuilding,
+      cardsCount: tempStackCards.length,
+      tableItemKeys: Object.keys(tempStackItem)
+    },
+    componentState: {
+      isCurrentPlayerOwner,
+      canAugmentBuilds,
+      isDragging
+    }
+  });
+
   console.log(`[TEMP_STACK_RENDERER] 🎴 Rendering TEMPORARY STACKING STACK:`, {
     stackId: tempStackItem.stackId || stackId,
     owner: tempStackItem.owner,
@@ -57,6 +77,14 @@ export function TempStackRenderer({
     cardCount: tempStackCards.length,
     captureValue: tempStackItem.captureValue,
     stackValue: tempStackItem.value,
+    buildCalculatorFields: {
+      displayValue: tempStackItem.displayValue,
+      buildValue: tempStackItem.buildValue,
+      runningSum: tempStackItem.runningSum,
+      segmentCount: tempStackItem.segmentCount,
+      isValid: tempStackItem.isValid,
+      isBuilding: tempStackItem.isBuilding
+    },
     cards: tempStackCards.map((c: any) => `${c.rank}${c.suit}(${c.source})`),
     index,
     baseZIndex,
@@ -64,6 +92,17 @@ export function TempStackRenderer({
     hasLegacyCallbacks: !!(onFinalizeStack && onCancelStack),
     unlimitedStagingEnabled: true,
     canAugmentBuilds
+  });
+
+  // Log display value propagation
+  const totalValueForIndicator = tempStackItem.displayValue || tempStackItem.value;
+  console.log(`[DISPLAY_VALUE_PROPAGATION] 📤 SERVER → CLIENT: TempStackRenderer passing totalValue to TempStackIndicator`, {
+    stackId: tempStackItem.stackId || stackId,
+    serverDisplayValue: tempStackItem.displayValue,
+    serverValue: tempStackItem.value,
+    totalValuePassed: totalValueForIndicator,
+    passedFrom: tempStackItem.displayValue !== undefined ? 'displayValue' : 'value (fallback)',
+    buildCalculatorUsed: tempStackItem.displayValue !== undefined
   });
 
   // Contextual logging based on player's build augmentation capability
@@ -124,7 +163,7 @@ export function TempStackRenderer({
         currentPlayer={currentPlayer}
         isTemporaryStack={true}
         stackOwner={tempStackItem.owner}
-        totalValue={tempStackItem.value} // Shows total sum of card values
+        totalValue={tempStackItem.displayValue || tempStackItem.value} // Shows build calculator value
         onFinalizeStack={onFinalizeStack}
         onCancelStack={onCancelStack}
         baseZIndex={baseZIndex}

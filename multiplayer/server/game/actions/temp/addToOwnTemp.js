@@ -5,8 +5,12 @@
  */
 
 const handleCapture = require('../capture/capture');
+const { updateBuildCalculator } = require('../../logic/utils/tempStackBuildCalculator');
 
 function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
+  console.log('🚨🚨🚨 EMERGENCY: handleAddToOwnTemp EXECUTING 🚨🚨🚨');
+  console.log('🚨🚨🚨 Action payload:', JSON.stringify(action.payload));
+  console.log('🚨🚨🚨 Player:', playerIndex, 'Game:', gameId);
   console.log('[TEMP_STACK] 🏃 ADD_TO_OWN_TEMP executing (FREEDOM OF PLAY)');
   console.log('[TEMP_STACK] Input action payload:', JSON.stringify(action.payload, null, 2));
 
@@ -145,7 +149,44 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
     source: source || 'unknown'
   });
 
-  // Update stack value (simple sum)
+  // 🎯 REAL-TIME BUILD CALCULATOR: Update build state as cards are added (ALWAYS RUNS)
+  console.log('[DEBUG] 🎯 About to call build calculator - THIS SHOULD ALWAYS APPEAR');
+  console.log('[DEBUG] Source check - source:', source, 'card.value:', card.value, 'tempStack.value:', tempStack.value);
+  console.log('[DEBUG] Direct capture check result:', source === 'hand' && card.value === tempStack.value);
+  console.log('[DEBUG] updateBuildCalculator imported:', typeof updateBuildCalculator);
+  console.log('[DEBUG] tempStack before build calc:', {
+    stackId: tempStack.stackId,
+    cards: tempStack.cards.map(c => `${c.rank}${c.suit}(${c.value})`),
+    value: tempStack.value,
+    hasBuildValue: 'buildValue' in tempStack
+  });
+
+  try {
+    console.log('[BUILD_CALCULATOR] 🎯 Updating real-time build calculator:', {
+      stackId: tempStack.stackId,
+      beforeCards: tempStack.cards.length - 1,
+      newCardValue: card.value,
+      currentBuildValue: tempStack.buildValue,
+      currentRunningSum: tempStack.runningSum
+    });
+
+    updateBuildCalculator(tempStack, card.value);
+
+    console.log('[BUILD_CALCULATOR] ✅ Build calculator updated:', {
+      displayValue: tempStack.displayValue,
+      isValid: tempStack.isValid,
+      isBuilding: tempStack.isBuilding,
+      buildValue: tempStack.buildValue,
+      runningSum: tempStack.runningSum,
+      segmentCount: tempStack.segmentCount
+    });
+  } catch (error) {
+    console.error('[BUILD_CALCULATOR] ❌ ERROR in build calculator:', error.message);
+    console.error('[BUILD_CALCULATOR] Stack trace:', error.stack);
+    // Continue execution even if build calculator fails
+  }
+
+  // Update stack value (simple sum for backward compatibility)
   tempStack.value = tempStack.cards.reduce((sum, c) => sum + (c.value || 0), 0);
   tempStack.lastUpdated = Date.now();
 
@@ -160,13 +201,119 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
     throw error;
   }
 
+  // 🎯 COMPLEX BUILD CHECK: After adding card, check if we now have complex build options
+  console.log('[COMPLEX_BUILD_CHECK] Checking for complex build options after adding card:', {
+    stackId: tempStack.stackId,
+    cardCount: tempStack.cards.length,
+    isSameValueStack: tempStack.isSameValueStack,
+    cardValues: tempStack.cards.map(c => c.value)
+  });
+
+  // Check if this is now a complex stack (3+ cards, not same-value)
+  const isComplexStack = tempStack.cards.length >= 3 && !tempStack.isSameValueStack;
+
+  if (isComplexStack) {
+    console.log('[COMPLEX_BUILD_CHECK] ✅ Complex stack detected - checking for build options');
+
+    const { detectNormalBuildCombinations, detectBaseBuild } = require('../../logic/utils/tempStackBuildCalculator');
+    const playerHand = gameState.playerHands[playerIndex];
+    const cardValues = tempStack.cards.map(c => c.value);
+
+    const availableOptions = [];
+
+    // Check for Base Build options
+    for (let baseIndex = 0; baseIndex < tempStack.cards.length; baseIndex++) {
+      const potentialBase = tempStack.cards[baseIndex];
+      const supports = tempStack.cards.filter((_, index) => index !== baseIndex);
+      const supportsSum = supports.reduce((s, c) => s + c.value, 0);
+
+      if (supportsSum === potentialBase.value && potentialBase.value <= 10) {
+        // Check position requirements
+        let isValidBase = false;
+        if (potentialBase.source === 'oppTopCard') {
+          isValidBase = (baseIndex > 0); // oppTopCard base anywhere except bottom
+        } else if (potentialBase.source === 'table' || potentialBase.source === 'hand') {
+          isValidBase = (baseIndex === 0); // table/hand base must be bottom
+        }
+
+        if (isValidBase) {
+          // Check if player has the capture card
+          const hasCaptureCard = playerHand.some(card => card.value === potentialBase.value);
+          if (hasCaptureCard) {
+            availableOptions.push({
+              type: 'build',
+              label: `Build ${potentialBase.value} (base build)`,
+              value: potentialBase.value,
+              buildType: 'base',
+              actionType: 'createBuildFromTempStack'
+            });
+            console.log(`[COMPLEX_BUILD_CHECK] ✅ Added base build option: ${potentialBase.value}`);
+          }
+        }
+      }
+    }
+
+    // Check for Normal Build options
+    const normalCombinations = detectNormalBuildCombinations(cardValues);
+
+    normalCombinations.forEach((combo) => {
+      // Check if player has the capture card for this build value
+      const hasCaptureCard = playerHand.some(card => card.value === combo.buildValue);
+      if (hasCaptureCard) {
+        availableOptions.push({
+          type: 'build',
+          label: `Build ${combo.buildValue} (normal build)`,
+          value: combo.buildValue,
+          buildType: 'normal',
+          segments: combo.segments,
+          actionType: 'createBuildFromTempStack'
+        });
+        console.log(`[COMPLEX_BUILD_CHECK] ✅ Added normal build option: ${combo.buildValue} (${combo.segmentCount} segments)`);
+      }
+    });
+
+    // If we have build options, send modal data packet instead of just updating the stack
+    if (availableOptions.length > 0) {
+      // Always add capture option
+      availableOptions.push({
+        type: 'capture',
+        label: `Capture all (${tempStack.cards.length} cards)`,
+        value: tempStack.cards[0]?.value || 0,
+        actionType: 'captureTempStack'
+      });
+
+      console.log('[COMPLEX_BUILD_CHECK] 🎯 Complex build options found - sending modal data packet:', {
+        optionCount: availableOptions.length,
+        options: availableOptions.map(o => `${o.label} (${o.type})`)
+      });
+
+      // Create a special action to trigger modal on client
+      // We'll modify the game state to include a pending modal action
+      gameState.pendingModalAction = {
+        type: 'showTempStackOptions',
+        payload: {
+          tempStackId: tempStack.stackId,
+          availableOptions: availableOptions,
+          isComplexBuild: true
+        }
+      };
+
+      console.log('[COMPLEX_BUILD_CHECK] 📦 Modal data packet attached to game state');
+    } else {
+      console.log('[COMPLEX_BUILD_CHECK] ❌ No build options available - stack remains basic');
+    }
+  } else {
+    console.log('[COMPLEX_BUILD_CHECK] ❌ Not a complex stack (same-value or < 3 cards)');
+  }
+
   console.log('[EXECUTION] ✅ Card added successfully (game-appropriate):', {
     stackId: tempStack.stackId,
     newCardCount: tempStack.cards.length,
     newValue: tempStack.value,
     remainingHand: gameState.playerHands[playerIndex]?.length || 0,
     unlimitedStacking: true,
-    autoCreated: !!tempStack.createdAt
+    autoCreated: !!tempStack.createdAt,
+    hasPendingModal: !!gameState.pendingModalAction
   });
 
   return gameState;

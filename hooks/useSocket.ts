@@ -57,6 +57,16 @@ export const useSocket = () => {
     });
 
     socketInstance.on('game-update', (updatedGameState: GameState) => {
+      console.log('[CLIENT_DEBUG] 📡 GAME-UPDATE RECEIVED:', {
+        timestamp: new Date().toISOString(),
+        tableCardsCount: updatedGameState.tableCards?.length || 0,
+        tempStacks: updatedGameState.tableCards?.filter(card => (card as any).type === 'temporary_stack').map(stack => ({
+          stackId: (stack as any).stackId,
+          displayValue: (stack as any).displayValue,
+          buildValue: (stack as any).buildValue,
+          cardsCount: (stack as any).cards?.length || 0
+        })) || []
+      });
       setGameState(updatedGameState);
     });
 
