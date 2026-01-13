@@ -38,6 +38,33 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
     philosophy: 'ALWAYS FIND OR CREATE'
   });
 
+  // 🎯 EARLY VALIDATION: Check for undefined stackId (client bug)
+  if (!stackId || stackId === 'undefined') {
+    console.log('[TEMP_STACK] 🚨 CLIENT BUG: Received undefined stackId from client');
+    throw new Error('Invalid temp stack selection. Please try again.');
+  }
+
+  // 🎯 GUARD RAIL: Prevent multiple hand card additions to temp stacks per turn
+  if (source === 'hand') {
+    console.log('[TEMP_STACK_GUARD] 🎯 Checking hand card usage for temp stacks this turn');
+
+    // Initialize tracking array if it doesn't exist
+    if (!gameState.tempStackHandCardUsedThisTurn) {
+      gameState.tempStackHandCardUsedThisTurn = [false, false];
+      console.log('[TEMP_STACK_GUARD] 🆕 Initialized temp stack hand card tracking');
+    }
+
+    // Check if player has already used a hand card for temp stacks this turn
+    if (gameState.tempStackHandCardUsedThisTurn[playerIndex]) {
+      console.log('[TEMP_STACK_GUARD] ❌ BLOCKED: Player already added hand card to temp stack this turn');
+      throw new Error('Cannot add multiple hand cards to temp stacks in the same turn. You must resolve your temp stack or wait for your next turn.');
+    }
+
+    // Mark hand card as used for temp stacks this turn
+    gameState.tempStackHandCardUsedThisTurn[playerIndex] = true;
+    console.log('[TEMP_STACK_GUARD] ✅ ALLOWED: Marked hand card usage for temp stack this turn');
+  }
+
   // 🎯 DIRECT CAPTURE CHECK: FIRST CHECK - If dragging hand card that equals temp stack value
   if (source === 'hand') {
     // Find the temp stack to check its value

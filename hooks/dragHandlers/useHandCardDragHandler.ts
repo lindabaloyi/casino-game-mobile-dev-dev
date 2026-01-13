@@ -134,15 +134,19 @@ export function useHandCardDragHandler({
         logger.info(`📤 Sending action: ${action.type}`, action.payload);
         sendAction(action);
 
-        // For capture actions, return false so card resets to hand
-        // For other actions (like temp stack creation), return true so card stays
-        const shouldResetCard = action.type === 'capture';
-        const validContact = !shouldResetCard;
+        // For capture actions, return false so card resets to hand immediately
+        // For other actions (like temp stack additions), keep cardToReset set and wait for server confirmation
+        const shouldResetImmediately = action.type === 'capture';
+        const validContact = !shouldResetImmediately;
 
-        // Clear cardToReset if action succeeded (card should stay where it was dropped)
-        if (validContact) {
+        // For actions that need server confirmation (like temp stacks), keep cardToReset set
+        // The server will send action-failed event if it fails, which will trigger reset
+        // If server confirms success, game-update will clear cardToReset
+        if (shouldResetImmediately) {
+          // Only clear for immediate resets (captures)
           setCardToReset(null);
         }
+        // For temp stack actions, leave cardToReset set - server will handle success/failure
 
         return { validContact };
       } else {
@@ -186,6 +190,9 @@ export function useHandCardDragHandler({
 
       return { validContact: false }; // Card stays on table (trail behavior)
     }
+
+    // Default fallback - should not reach here
+    return { validContact: false };
 
   }, [sendAction, gameState, playerNumber, isMyTurn, setCardToReset, setErrorModal]);
 

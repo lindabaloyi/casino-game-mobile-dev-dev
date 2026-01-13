@@ -125,6 +125,31 @@ export const useSocket = () => {
       });
     });
 
+    // 🎯 ACTION FAILURE HANDLING: Listen for action failures to reset dragged cards
+    socketInstance.on('action-failed', (data: any) => {
+      console.log('[CLIENT] 🚨 Action failed - resetting dragged card:', {
+        actionType: data.actionType,
+        error: data.error,
+        resetCard: data.resetCard,
+        timestamp: new Date().toISOString()
+      });
+
+      // Trigger card reset for failed drag actions
+      if (data.resetCard && typeof window !== 'undefined') {
+        console.log('[CLIENT] 🎯 Emitting cardDragFailed custom event');
+        // Emit custom event that GameBoard can listen to
+        window.dispatchEvent(new CustomEvent('cardDragFailed', {
+          detail: {
+            card: data.resetCard,
+            reason: data.error
+          }
+        }));
+        console.log('[CLIENT] ✅ cardDragFailed custom event emitted');
+      } else {
+        console.log('[CLIENT] ⚠️ No resetCard in action-failed data or window undefined');
+      }
+    });
+
     return () => {
       socketInstance.close();
     };

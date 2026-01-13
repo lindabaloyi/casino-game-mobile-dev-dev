@@ -186,6 +186,15 @@ class ActionRouter {
         const nextPlayer = (finalGameState.currentPlayer + 1) % 2;
         finalGameState.currentPlayer = nextPlayer;
 
+        // 🎯 RESET TEMP STACK HAND CARD TRACKING on turn switch
+        if (finalGameState.tempStackHandCardUsedThisTurn) {
+          finalGameState.tempStackHandCardUsedThisTurn = [false, false];
+          console.log('[TURN_RESET] 🎯 Reset temp stack hand card tracking for new turn', {
+            newCurrentPlayer: nextPlayer,
+            resetTracking: finalGameState.tempStackHandCardUsedThisTurn
+          });
+        }
+
         const fromPlayer = newGameState.currentPlayer;
         logger.info(`Turn switched: P${fromPlayer + 1} -> P${nextPlayer + 1}`, {
           actionType,
@@ -229,6 +238,32 @@ class ActionRouter {
         error: error.message,
         timestamp: new Date().toISOString()
       });
+
+      // 🎯 EMIT ACTION FAILURE TO CLIENT: For drag-related actions that should reset cards
+      const dragRelatedActions = ['addToOwnTemp', 'trail', 'capture'];
+      if (dragRelatedActions.includes(actionType)) {
+        console.log('[ActionRouter] 🚨 Emitting action-failed event to client:', {
+          actionType,
+          playerIndex,
+          error: error.message,
+          resetCard: payload?.card ? { rank: payload.card.rank, suit: payload.card.suit } : null
+        });
+
+        // Emit to the specific player's socket
+        const gameManager = this.gameManager;
+        const game = gameManager.activeGames.get(gameId);
+        if (game && game.players) {
+          const playerSocketId = game.players[playerIndex]?.socketId;
+          if (playerSocketId) {
+            const io = require('../socket-server').getIO();
+            io.to(playerSocketId).emit('action-failed', {
+              actionType,
+              error: error.message,
+              resetCard: payload?.card ? { rank: payload.card.rank, suit: payload.card.suit } : null
+            });
+          }
+        }
+      }
 
       // Re-throw with structured format
       throw {

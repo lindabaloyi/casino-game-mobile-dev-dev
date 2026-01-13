@@ -45,4 +45,6 @@ export interface GameState {
       timestamp: number;
     };
   };
+  // Temp stack hand card usage tracking (one per turn per player)
+  tempStackHandCardUsedThisTurn?: boolean[];
 }
