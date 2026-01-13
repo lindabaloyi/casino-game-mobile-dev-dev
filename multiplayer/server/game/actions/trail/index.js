@@ -39,6 +39,10 @@ function handleTrail(gameManager, playerIndex, action, gameId) {
       tc.type === 'build' && tc.owner === playerIndex
     );
 
+    const hasPendingTempStack = gameState.tableCards.some(tc =>
+      tc.type === 'temporary_stack' && tc.owner === playerIndex
+    );
+
     const hasDuplicateOnTable = gameState.tableCards.some(tc =>
       (!tc.type || tc.type === 'loose') &&
       tc.rank === card.rank
@@ -48,6 +52,7 @@ function handleTrail(gameManager, playerIndex, action, gameId) {
       card: `${card.rank}${card.suit}`,
       tableEmpty: gameState.tableCards.length === 0,
       hasDuplicateOnTable,
+      hasPendingTempStack,
       playerTurn: gameState.currentPlayer === playerIndex,
       round: gameState.round,
       hasActiveBuild,
@@ -74,6 +79,14 @@ function handleTrail(gameManager, playerIndex, action, gameId) {
       throw new Error('Cannot trail in round 1 while you have active builds on the table');
     }
 
+    if (hasPendingTempStack) {
+      logger.logDecision('VALIDATION', 'TRAIL_REJECTED', {
+        reason: 'pending_temp_stack_restriction',
+        hasPendingTempStack: true
+      });
+      throw new Error('Cannot trail while you have pending temp stacks that need to be resolved');
+    }
+
     if (hasDuplicateOnTable) {
       logger.logDecision('VALIDATION', 'TRAIL_REJECTED', {
         reason: 'duplicate_card_on_table',
@@ -88,6 +101,7 @@ function handleTrail(gameManager, playerIndex, action, gameId) {
       reason: 'all_conditions_met',
       conditions: {
         playerTurn: true,
+        noPendingTempStack: !hasPendingTempStack,
         noRound1Restriction: gameState.round !== 1 || !hasActiveBuild,
         noDuplicate: !hasDuplicateOnTable
       }
