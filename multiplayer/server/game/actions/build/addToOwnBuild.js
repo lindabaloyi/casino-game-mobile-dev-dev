@@ -76,6 +76,27 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
     gameId
   });
 
+  // 🎯 GUARD RAIL: Prevent multiple hand card additions to builds per turn
+  if (source === 'hand') {
+    console.log('[BUILD_GUARD] 🎯 Checking hand card usage for builds this turn');
+
+    // Initialize tracking array if it doesn't exist
+    if (!gameState.buildHandCardUsedThisTurn) {
+      gameState.buildHandCardUsedThisTurn = [false, false];
+      console.log('[BUILD_GUARD] 🆕 Initialized build hand card tracking');
+    }
+
+    // Check if player has already used a hand card for builds this turn
+    if (gameState.buildHandCardUsedThisTurn[playerIndex]) {
+      console.log('[BUILD_GUARD] ❌ BLOCKED: Player already added hand card to build this turn');
+      throw new Error('Cannot add multiple hand cards to builds in the same turn. You must resolve your build or wait for your next turn.');
+    }
+
+    // Mark hand card as used for builds this turn
+    gameState.buildHandCardUsedThisTurn[playerIndex] = true;
+    console.log('[BUILD_GUARD] ✅ ALLOWED: Marked hand card usage for build this turn');
+  }
+
   // Verify build ownership (for contact handler structure, we already have the build)
   if (!build) {
     build = gameState.tableCards.find(item =>

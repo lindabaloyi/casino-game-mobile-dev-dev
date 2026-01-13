@@ -186,12 +186,20 @@ class ActionRouter {
         const nextPlayer = (finalGameState.currentPlayer + 1) % 2;
         finalGameState.currentPlayer = nextPlayer;
 
-        // 🎯 RESET TEMP STACK HAND CARD TRACKING on turn switch
+        // 🎯 RESET TEMP STACK AND BUILD HAND CARD TRACKING on turn switch
         if (finalGameState.tempStackHandCardUsedThisTurn) {
           finalGameState.tempStackHandCardUsedThisTurn = [false, false];
           console.log('[TURN_RESET] 🎯 Reset temp stack hand card tracking for new turn', {
             newCurrentPlayer: nextPlayer,
             resetTracking: finalGameState.tempStackHandCardUsedThisTurn
+          });
+        }
+
+        if (finalGameState.buildHandCardUsedThisTurn) {
+          finalGameState.buildHandCardUsedThisTurn = [false, false];
+          console.log('[TURN_RESET] 🎯 Reset build hand card tracking for new turn', {
+            newCurrentPlayer: nextPlayer,
+            resetTracking: finalGameState.buildHandCardUsedThisTurn
           });
         }
 
@@ -240,7 +248,7 @@ class ActionRouter {
       });
 
       // 🎯 EMIT ACTION FAILURE TO CLIENT: For drag-related actions that should reset cards
-      const dragRelatedActions = ['addToOwnTemp', 'trail', 'capture'];
+      const dragRelatedActions = ['addToOwnTemp', 'addToOwnBuild', 'trail', 'capture'];
       if (dragRelatedActions.includes(actionType)) {
         console.log('[ActionRouter] 🚨 Emitting action-failed event to client:', {
           actionType,

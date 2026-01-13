@@ -135,7 +135,7 @@ export function useHandCardDragHandler({
         sendAction(action);
 
         // For capture actions, return false so card resets to hand immediately
-        // For other actions (like temp stack additions), keep cardToReset set and wait for server confirmation
+        // For other actions (like temp stack additions and build additions), keep cardToReset set and wait for server confirmation
         const shouldResetImmediately = action.type === 'capture';
         const validContact = !shouldResetImmediately;
 
