@@ -347,8 +347,11 @@ function canPlayerMove(gameState) {
           return true; // Found valid build extension
         }
       } else if (isTemporaryStack(tableCard)) {
-        // Check stack capture possibilities
-        const stackValue = tableCard.captureValue || calculateCardSum(tableCard.cards || []);
+        // Check stack capture possibilities - use sophisticated build values
+        const stackValue = tableCard.displayValue ||
+                          tableCard.captureValue ||
+                          tableCard.buildValue ||
+                          calculateCardSum(tableCard.cards || []);
         if (stackValue === rankValue(card.rank)) {
           return true; // Found valid stack capture
         }

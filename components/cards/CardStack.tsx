@@ -20,6 +20,7 @@ interface CardStackProps {
   onCancelStack?: (stackId: string) => void;
   captureValue?: number; // For temp stacks: shows the value to capture with
   totalValue?: number; // For temp stacks: shows total sum of card values
+  displayValue?: number; // For temp stacks: calculated build display value
   style?: any; // For custom styles like z-index
   dragZIndex?: number; // Z-index for dragged cards from this stack
   baseZIndex?: number; // Base z-index for stacking context management

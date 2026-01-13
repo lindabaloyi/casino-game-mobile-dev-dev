@@ -11,6 +11,8 @@ interface TempStackProps {
   cards: CardType[];
   captureValue?: number;
   totalValue?: number;
+  displayValue?: number; // Calculated build display value for rule engine
+  buildValue?: number; // Calculated build value for rule engine
   onDropStack?: (draggedItem: any) => boolean | any;
   onFinalizeStack?: (stackId: string) => void;
   onCancelStack?: (stackId: string) => void;
@@ -34,6 +36,8 @@ export const TempStack: React.FC<TempStackProps> = ({
   cards,
   captureValue,
   totalValue,
+  displayValue,
+  buildValue,
   onDropStack,
   onFinalizeStack,
   onCancelStack,
@@ -61,7 +65,14 @@ export const TempStack: React.FC<TempStackProps> = ({
         width: bounds.width,
         height: bounds.height,
         type: 'tempStack',
-        data: { value: totalValue, canAugmentBuilds, cards } // Include stack data for drag handlers
+        data: {
+          displayValue, // Calculated build display value for rule engine
+          buildValue,   // Calculated build value for rule engine
+          captureValue, // Explicit capture value
+          value: totalValue, // Fallback total value
+          canAugmentBuilds,
+          cards
+        } // Include all build values for rule engine evaluation
       });
     }
 
@@ -69,7 +80,7 @@ export const TempStack: React.FC<TempStackProps> = ({
     return () => {
       removeCardPosition(stackId);
     };
-  }, [stackId, bounds, reportCardPosition, removeCardPosition, totalValue, canAugmentBuilds, cards]);
+  }, [stackId, bounds, reportCardPosition, removeCardPosition, totalValue, displayValue, buildValue, canAugmentBuilds, cards]);
 
   return (
     <View ref={ref} onLayout={measure} style={{

@@ -22,6 +22,7 @@ interface StackFactoryProps {
   onCancelStack?: (stackId: string) => void;
   captureValue?: number;
   totalValue?: number;
+  displayValue?: number; // For temp stacks: calculated build display value
   style?: any;
   dragZIndex?: number;
   baseZIndex?: number;
@@ -90,6 +91,8 @@ export const StackFactory: React.FC<StackFactoryProps> = (props) => {
         cards={props.cards}
         captureValue={props.captureValue}
         totalValue={props.totalValue}
+        displayValue={props.displayValue}
+        buildValue={props.buildValue}
         onDropStack={props.onDropStack}
         onFinalizeStack={props.onFinalizeStack}
         onCancelStack={props.onCancelStack}

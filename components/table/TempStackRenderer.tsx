@@ -164,6 +164,9 @@ export function TempStackRenderer({
         isTemporaryStack={true}
         stackOwner={tempStackItem.owner}
         totalValue={tempStackItem.displayValue || tempStackItem.value} // Shows build calculator value
+        displayValue={tempStackItem.displayValue} // Pass calculated build values for contact detection
+        buildValue={tempStackItem.buildValue}
+        captureValue={tempStackItem.captureValue}
         onFinalizeStack={onFinalizeStack}
         onCancelStack={onCancelStack}
         baseZIndex={baseZIndex}

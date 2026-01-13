@@ -32,7 +32,7 @@ export function determineActionFromContact(
   });
 
   // For complex cases that might have multiple options, use the rule engine
-  if (touchedContact.type === 'build' || touchedContact.type === 'temporary_stack') {
+  if (touchedContact.type === 'build' || touchedContact.type === 'temporary_stack' || touchedContact.type === 'tempStack') {
     console.log('[CONTACT-ACTIONS] 🔀 Using rule engine for complex contact type:', touchedContact.type);
 
     // Prepare context for rule engine
@@ -41,13 +41,51 @@ export function determineActionFromContact(
       source: source || 'hand'
     };
 
+    // CRITICAL FIX: Properly preserve all temp stack build values for rule engine
+    // Normalize type to ensure rule engine compatibility (tempStack → temporary_stack)
+    const normalizedType = touchedContact.type === 'tempStack' ? 'temporary_stack' : touchedContact.type;
+
     const targetInfo = {
-      type: touchedContact.type,
-      card: touchedContact.data ? { ...touchedContact.data, type: touchedContact.type } : touchedContact,
+      type: normalizedType,
+      card: {
+        // Preserve the card object structure
+        ...(touchedContact.data || touchedContact),
+
+        // Force the type to match normalized contact type
+        type: normalizedType,
+
+        // Explicitly preserve all build values from contact data
+        displayValue: touchedContact.data?.displayValue,
+        captureValue: touchedContact.data?.captureValue,
+        buildValue: touchedContact.data?.buildValue,
+        value: touchedContact.data?.value,
+
+        // Preserve the cards array
+        cards: touchedContact.data?.cards,
+
+        // Preserve IDs - fall back to touchedContact.id for temp stacks
+        stackId: touchedContact.data?.stackId || ((touchedContact.type === 'tempStack' || touchedContact.type === 'temporary_stack') ? touchedContact.id : undefined),
+        buildId: touchedContact.data?.buildId
+      },
       index: touchedContact.data?.index
     };
 
+    // Debug: Verify build values are preserved for temp stack captures
+    if (touchedContact.type === 'temporary_stack' || touchedContact.type === 'tempStack') {
+      console.log('[TEMP_STACK_CAPTURE] 🎯 Build values preserved in targetInfo:', {
+        originalType: touchedContact.type,
+        normalizedType: normalizedType,
+        displayValue: targetInfo.card.displayValue,
+        captureValue: targetInfo.card.captureValue,
+        buildValue: targetInfo.card.buildValue,
+        fallbackValue: targetInfo.card.value,
+        hasCards: !!targetInfo.card.cards,
+        cardsCount: targetInfo.card.cards?.length || 0
+      });
+    }
+
     try {
+
       const result = determineActions(draggedItem, targetInfo, gameState);
 
       console.log('[CONTACT-ACTIONS] 📊 Rule engine result:', {
@@ -67,6 +105,18 @@ export function determineActionFromContact(
       // If rule engine finds exactly one action, return it
       if (result.actions.length === 1) {
         console.log('[CONTACT-ACTIONS] ✅ Single action determined by rules:', result.actions[0].type);
+
+        // LOGGING: Special logging for successful temp stack captures
+        if (result.actions[0].type === 'capture' && touchedContact.type === 'temporary_stack') {
+          console.log('[TEMP_STACK_CAPTURE] ✅ CAPTURE ACTION SUCCESS:', {
+            actionType: result.actions[0].type,
+            captureValue: result.actions[0].payload?.captureValue,
+            tempStackId: result.actions[0].payload?.tempStackId,
+            targetCardsCount: result.actions[0].payload?.targetCards?.length || 0,
+            implementationWorking: true
+          });
+        }
+
         return result.actions[0];
       }
 

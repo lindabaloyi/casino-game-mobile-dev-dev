@@ -148,36 +148,56 @@ const captureRules = [
       }
 
       const draggedValue = rankValue(draggedItem.card.rank);
-      const stackValue = targetInfo.card.captureValue ||
+      // Use sophisticated build values: displayValue > captureValue > buildValue > simple sum
+      const stackValue = targetInfo.card.displayValue ||
+                        targetInfo.card.captureValue ||
+                        targetInfo.card.buildValue ||
                         calculateCardSum(targetInfo.card.cards || []);
       const matches = draggedValue === stackValue;
 
-      console.log('[CAPTURE_RULE] 🎯 Temp stack value check:', {
+      // LOGGING: Show temp stack capture evaluation result
+      console.log('[TEMP_STACK_CAPTURE] 🔍 Rule evaluation result:', {
         draggedValue,
-        stackValue,
-        stackCards: targetInfo.card.cards?.map(c => `${c.rank}${c.suit}`) || [],
+        selectedStackValue: stackValue,
+        selectedFrom: targetInfo.card.displayValue !== undefined ? 'displayValue' :
+                     targetInfo.card.captureValue !== undefined ? 'captureValue' :
+                     targetInfo.card.buildValue !== undefined ? 'buildValue' : 'simpleSum',
         matches,
-        rule: 'temp-stack-capture'
+        ruleTriggered: matches
       });
       return matches;
     },
     action: (context) => {  // ✅ OPTION B: Function returns complete object
       console.log('[CAPTURE_RULE] Creating temp stack capture action');
+      // Use the same sophisticated value calculation as the condition
+      const captureValue = context.targetInfo.card.displayValue ||
+                          context.targetInfo.card.captureValue ||
+                          context.targetInfo.card.buildValue ||
+                          calculateCardSum(context.targetInfo.card.cards || []);
+
+      const tempStackId = context.targetInfo.card.stackId;
+      console.log('[CAPTURE_RULE] 📋 Temp stack capture details:', {
+        stackId: tempStackId,
+        captureValue: captureValue,
+        tempStackCards: context.targetInfo.card.cards?.map(c => `${c.rank}${c.suit}`) || [],
+        capturingCard: `${context.draggedItem.card.rank}${context.draggedItem.card.suit}`
+      });
+
       const action = {
         type: 'capture',
         payload: {
-          tempStackId: context.targetInfo.card.stackId,
-          captureValue: context.targetInfo.card.captureValue ||
-                       calculateCardSum(context.targetInfo.card.cards || []),
+          tempStackId: tempStackId,  // CRITICAL: Must be set to remove entire temp stack from table
+          captureValue: captureValue,
           targetCards: [...(context.targetInfo.card.cards || []), context.draggedItem.card], // Include capturing card on top
           capturingCard: context.draggedItem.card // Mark the capturing card
         }
       };
-      console.log('[CAPTURE_RULE] Temp stack capture action created:', JSON.stringify(action, null, 2));
+      console.log('[CAPTURE_RULE] Temp stack capture action created:', JSON.stringify(action.payload, null, 2));
       return action;
     },
     requiresModal: false,
     priority: 190, // BOOSTED: Was 40, now third highest
+    exclusive: true, // 🚫 EXCLUSIVE: Stop further rule evaluation when capture matches
     description: 'Capture temporary stack'
   }
 ];
