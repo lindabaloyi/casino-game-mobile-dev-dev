@@ -148,20 +148,14 @@ const captureRules = [
       }
 
       const draggedValue = rankValue(draggedItem.card.rank);
-      // Use sophisticated build values: displayValue > captureValue > buildValue > simple sum
-      const stackValue = targetInfo.card.displayValue ||
-                        targetInfo.card.captureValue ||
-                        targetInfo.card.buildValue ||
-                        calculateCardSum(targetInfo.card.cards || []);
+      // Use ONLY displayValue - this is the authoritative capture value set by build calculator
+      const stackValue = targetInfo.card.displayValue;
       const matches = draggedValue === stackValue;
 
       // LOGGING: Show temp stack capture evaluation result
       console.log('[TEMP_STACK_CAPTURE] 🔍 Rule evaluation result:', {
         draggedValue,
-        selectedStackValue: stackValue,
-        selectedFrom: targetInfo.card.displayValue !== undefined ? 'displayValue' :
-                     targetInfo.card.captureValue !== undefined ? 'captureValue' :
-                     targetInfo.card.buildValue !== undefined ? 'buildValue' : 'simpleSum',
+        stackDisplayValue: stackValue,
         matches,
         ruleTriggered: matches
       });
@@ -169,13 +163,10 @@ const captureRules = [
     },
     action: (context) => {  // ✅ OPTION B: Function returns complete object
       console.log('[CAPTURE_RULE] Creating temp stack capture action');
-      // Use the same sophisticated value calculation as the condition
-      const captureValue = context.targetInfo.card.displayValue ||
-                          context.targetInfo.card.captureValue ||
-                          context.targetInfo.card.buildValue ||
-                          calculateCardSum(context.targetInfo.card.cards || []);
 
       const tempStackId = context.targetInfo.card.stackId;
+      const captureValue = context.targetInfo.card.displayValue; // Use ONLY displayValue
+
       console.log('[CAPTURE_RULE] 📋 Temp stack capture details:', {
         stackId: tempStackId,
         captureValue: captureValue,
