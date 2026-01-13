@@ -61,10 +61,11 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
   // Register all action handlers - map action types to handlers
   const actionHandlers = require('./game/actions');
   const actionTypeMapping = {
-    // 🎯 CORE 12 ACTIONS - Build Extension System
+    // 🎯 CORE 13 ACTIONS - Build Extension System + Strategic Temp Stack
     trail: actionHandlers.handleTrail,
     createTemp: actionHandlers.handleCreateTemp,
     addToOwnTemp: actionHandlers.handleAddToOwnTemp,
+    addToTempAndCapture: actionHandlers.handleAddToTempAndCapture,  // 🎯 NEW: Strategic temp stack capture
     cancelTemp: actionHandlers.handleCancelTemp,
     capture: actionHandlers.handleCapture,
     createBuildFromTempStack: actionHandlers.handleCreateBuildFromTempStack,

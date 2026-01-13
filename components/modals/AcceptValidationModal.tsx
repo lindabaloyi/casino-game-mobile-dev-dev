@@ -20,11 +20,12 @@ interface ModalState {
 interface AcceptValidationModalProps {
   visible: boolean;
   onClose: () => void;
-  tempStack: any;
-  playerHand: Card[];
+  tempStack?: any; // Optional for strategic capture mode
+  playerHand?: Card[]; // Optional for strategic capture mode
   onCapture?: (validation: any) => void;
   sendAction: (action: any) => void;
   availableOptions?: ActionOption[];
+  strategicOptions?: any; // For strategic capture options
 }
 
 export function AcceptValidationModal({
@@ -41,33 +42,42 @@ export function AcceptValidationModal({
 
   // Validate immediately when modal opens
   useEffect(() => {
-    if (visible && tempStack) {
-      console.log('🎯 [MODAL] Modal opened, validating temp stack...');
-
-      // First check if temp stack is valid for building
-      const validation = validateTempStackDetailed(tempStack, playerHand);
-
-      if (!validation.valid) {
-        // Invalid - show error message
-        console.log('❌ [MODAL] Temp stack invalid:', validation.error);
-        setModalState({
-          type: 'invalid',
-          error: validation.error
-        });
-      } else {
-        // Valid - show available action options
-        console.log('✅ [MODAL] Temp stack valid, calculating options...');
-        const options = calculateConsolidatedOptions(tempStack, playerHand);
-        console.log('🎯 [MODAL] Available options:', options.map(o => o.label));
-
+    if (visible) {
+      // Check if this is strategic capture mode (no tempStack/playerHand validation needed)
+      if (availableOptions) {
+        console.log('🎯 [MODAL] Strategic capture mode - using provided options');
         setModalState({
           type: 'valid',
-          options,
-          validation
+          options: availableOptions
         });
+      } else if (tempStack && playerHand) {
+        console.log('🎯 [MODAL] Modal opened, validating temp stack...');
+
+        // First check if temp stack is valid for building
+        const validation = validateTempStackDetailed(tempStack, playerHand);
+
+        if (!validation.valid) {
+          // Invalid - show error message
+          console.log('❌ [MODAL] Temp stack invalid:', validation.error);
+          setModalState({
+            type: 'invalid',
+            error: validation.error
+          });
+        } else {
+          // Valid - show available action options
+          console.log('✅ [MODAL] Temp stack valid, calculating options...');
+          const options = calculateConsolidatedOptions(tempStack, playerHand);
+          console.log('🎯 [MODAL] Available options:', options.map(o => o.label));
+
+          setModalState({
+            type: 'valid',
+            options,
+            validation
+          });
+        }
       }
     }
-  }, [visible, tempStack, playerHand]);
+  }, [visible, tempStack, playerHand, availableOptions]);
 
   // Reset processing flag when modal closes
   useEffect(() => {
@@ -96,51 +106,70 @@ export function AcceptValidationModal({
       value: action.value
     });
 
-    if (!tempStack?.stackId) {
-      console.log('❌ [MODAL] Invalid state, cannot proceed');
-      Alert.alert('Error', 'Cannot proceed: Invalid state');
-      return;
-    }
-
     isProcessing.current = true;
 
     // Close modal immediately for instant feedback
     onClose();
 
     try {
-      // Use the action service to handle the action
-      if (action.type === 'build') {
-        await handleTempStackAction('build', {
-          tempStackId: tempStack.stackId,
-          buildValue: modalState.validation.buildValue,
-          buildType: modalState.validation.buildType,
-          buildCard: action.card
-        }, sendAction);
+      // Check if this is strategic capture mode (action has payload with server action data)
+      if (action.payload) {
+        // Strategic capture mode - send the action directly to server
+        console.log('🎯 [MODAL] Strategic capture mode - sending action to server');
+        sendAction(action.payload);
 
-        // Show success alert
-        Alert.alert(
-          'Build Created!',
-          `Successfully created ${modalState.validation.buildType} build of ${modalState.validation.buildValue}`,
-          [{ text: 'OK' }]
-        );
+        // Show success feedback for strategic actions
+        if (action.type === 'capture') {
+          Alert.alert(
+            'Cards Captured!',
+            `Successfully captured with strategic play`,
+            [{ text: 'OK' }]
+          );
+        } else if (action.type === 'addToTempAndCapture') {
+          Alert.alert(
+            'Strategic Play!',
+            `Added card to temp stack for larger capture`,
+            [{ text: 'OK' }]
+          );
+        }
+      } else if (tempStack?.stackId) {
+        // Traditional build mode - use action service
+        if (action.type === 'build') {
+          await handleTempStackAction('build', {
+            tempStackId: tempStack.stackId,
+            buildValue: modalState.validation.buildValue,
+            buildType: modalState.validation.buildType,
+            buildCard: action.card
+          }, sendAction);
 
-      } else if (action.type === 'capture') {
-        await handleTempStackAction('capture', {
-          tempStackId: tempStack.stackId,
-          captureValue: action.value
-        }, sendAction);
+          // Show success alert
+          Alert.alert(
+            'Build Created!',
+            `Successfully created ${modalState.validation.buildType} build of ${modalState.validation.buildValue}`,
+            [{ text: 'OK' }]
+          );
 
-        // Show success alert
-        Alert.alert(
-          'Cards Captured!',
-          `Successfully captured ${action.value}`,
-          [{ text: 'OK' }]
-        );
-      }
+        } else if (action.type === 'capture') {
+          await handleTempStackAction('capture', {
+            tempStackId: tempStack.stackId,
+            captureValue: action.value
+          }, sendAction);
 
-      // Keep backward compatibility
-      if (onCapture) {
-        onCapture({ tempStack, validation: modalState.validation, action });
+          // Show success alert
+          Alert.alert(
+            'Cards Captured!',
+            `Successfully captured ${action.value}`,
+            [{ text: 'OK' }]
+          );
+        }
+
+        // Keep backward compatibility
+        if (onCapture) {
+          onCapture({ tempStack, validation: modalState.validation, action });
+        }
+      } else {
+        console.log('❌ [MODAL] Invalid state for action processing');
+        Alert.alert('Error', 'Cannot proceed: Invalid state');
       }
 
     } catch (error) {
@@ -181,11 +210,19 @@ export function AcceptValidationModal({
 
     // Valid temp stack - show available action options
     if (modalState.type === 'valid' && modalState.options) {
+      // Check if this is strategic capture mode (has options with payload)
+      const isStrategicCapture = modalState.options.some(option => option.payload);
+
       return (
         <>
-          <Text style={styles.title}>Build Options</Text>
+          <Text style={styles.title}>
+            {isStrategicCapture ? 'Strategic Capture Options' : 'Build Options'}
+          </Text>
           <Text style={styles.message}>
-            Choose what to do with this temp stack:
+            {isStrategicCapture
+              ? 'You have multiple cards that can capture this temp stack. Choose your strategy:'
+              : 'Choose what to do with this temp stack:'
+            }
           </Text>
 
           <View style={styles.buttonContainer}>

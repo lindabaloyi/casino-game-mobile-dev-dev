@@ -23,13 +23,15 @@ export function useDragHandlers({
   playerNumber,
   sendAction,
   setCardToReset,
-  setErrorModal
+  setErrorModal,
+  setModalInfo
 }: {
   gameState: GameState;
   playerNumber: number;
   sendAction: (action: any) => void;
   setCardToReset: (card: { rank: string; suit: string } | null) => void;
   setErrorModal: (modal: ModalInfo | null) => void;
+  setModalInfo: (modal: any) => void;
 }) {
   // Base drag state management
   const [draggedCard, setDraggedCard] = useState<Card | null>(null);
@@ -90,6 +92,7 @@ export function useDragHandlers({
     sendAction,
     setCardToReset,
     setErrorModal,
+    setModalInfo,
     isMyTurn
   });
 

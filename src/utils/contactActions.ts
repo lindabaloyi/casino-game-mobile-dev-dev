@@ -94,20 +94,110 @@ export function determineActionFromContact(
         hasDataPackets: result.dataPackets.length > 0
       });
 
+      // Handle data packets (modals) - return them directly to frontend
+      const dataPacketsLength = result.dataPackets ? result.dataPackets.length : 0;
+      if (dataPacketsLength > 0) {
+        console.log('[CONTACT-ACTIONS] 📦 Returning data packet for modal display');
+        return result.dataPackets[0]; // Return the data packet for modal handling
+      }
+
       // If rule engine finds multiple actions or requires modal, return null
       // The frontend should handle this by calling determineActions directly
-      const dataPacketsLength = result.dataPackets ? result.dataPackets.length : 0;
-      if (result.actions.length > 1 || result.requiresModal || dataPacketsLength > 0) {
+      if (result.actions.length > 1 || result.requiresModal) {
         console.log('[CONTACT-ACTIONS] 🎯 Multiple actions/options detected - frontend should show modal');
         return null; // Signal to frontend that modal is needed
       }
 
-      // If rule engine finds exactly one action, return it
-      if (result.actions.length === 1) {
+      // 🎯 STRATEGIC CAPTURE DETECTION: Check for multiple capture options on temp stacks
+      if (result.actions.length === 1 && result.actions[0].type === 'capture' &&
+          (touchedContact.type === 'temporary_stack' || touchedContact.type === 'tempStack')) {
+        const captureAction = result.actions[0];
+        const tempStackValue = captureAction.payload?.captureValue;
+
+        if (tempStackValue) {
+          // Check if player has multiple cards that can capture this temp stack
+          const playerHand = gameState.playerHands[currentPlayer] || [];
+          const captureCards = playerHand.filter(card => card.value === tempStackValue);
+
+          console.log('[STRATEGIC_CAPTURE] 🎯 Analyzing strategic options:', {
+            tempStackValue,
+            captureCardsInHand: captureCards.length,
+            playerHandSize: playerHand.length,
+            draggedCard: `${draggedCard.rank}${draggedCard.suit}`
+          });
+
+          // If player has 2+ cards that can capture this temp stack, offer strategic choice
+          if (captureCards.length >= 2) {
+            console.log('[STRATEGIC_CAPTURE] ✅ Multiple capture options detected - showing strategic modal');
+
+            // Calculate the strategic options
+            const tempStackId = captureAction.payload?.tempStackId;
+            const tempStack = gameState.tableCards.find((tc: any) =>
+              tc.type === 'temporary_stack' && tc.stackId === tempStackId
+            );
+
+            if (tempStack) {
+              // Safely access temp stack value with fallbacks
+              const currentTempValue = (tempStack as any).value ||
+                                     (tempStack as any).displayValue ||
+                                     (tempStack as any).captureValue ||
+                                     tempStackValue; // fallback
+
+              const newTempValue = currentTempValue + tempStackValue; // Adding the capture card to temp
+
+              console.log('[STRATEGIC_CAPTURE] 📊 Strategic calculation:', {
+                currentTempValue,
+                addedCardValue: tempStackValue,
+                newTempValue,
+                remainingCaptureCards: captureCards.length - 1 // After using one for temp
+              });
+
+              // Return strategic modal data packet (typed as any to allow modal properties)
+              const strategicDataPacket: any = {
+                availableOptions: [
+                  {
+                    actionType: 'captureTempStack',
+                    label: `Capture ${tempStackValue} now`,
+                    payload: {
+                      tempStackId,
+                      captureValue: tempStackValue,
+                      captureType: 'strategic_temp_stack_capture'
+                    }
+                  },
+                  {
+                    actionType: 'addToTempAndCapture',
+                    label: `Add to temp stack (${newTempValue})`,
+                    addedCard: draggedCard,
+                    newTempStackValue: newTempValue,
+                    payload: {
+                      tempStackId,
+                      addedCard: draggedCard,
+                      captureCard: draggedCard, // Use same card for both operations
+                      captureValue: newTempValue,
+                      captureType: 'strategic_temp_stack_build_capture'
+                    }
+                  }
+                ],
+                tempStackId,
+                tempStackValue: currentTempValue,
+                newTempStackValue: newTempValue,
+                captureCardsAvailable: captureCards.length,
+                requestId: `strategic_${tempStackId}_${Date.now()}`
+              };
+
+              return strategicDataPacket;
+            }
+          }
+
+          // Only one capture card - proceed with normal capture
+          console.log('[STRATEGIC_CAPTURE] ⚡ Single capture card - proceeding normally');
+        }
+
         console.log('[CONTACT-ACTIONS] ✅ Single action determined by rules:', result.actions[0].type);
 
         // LOGGING: Special logging for successful temp stack captures
-        if (result.actions[0].type === 'capture' && touchedContact.type === 'temporary_stack') {
+        if (result.actions[0].type === 'capture' &&
+            (touchedContact.type === 'temporary_stack' || touchedContact.type === 'tempStack')) {
           console.log('[TEMP_STACK_CAPTURE] ✅ CAPTURE ACTION SUCCESS:', {
             actionType: result.actions[0].type,
             captureValue: result.actions[0].payload?.captureValue,

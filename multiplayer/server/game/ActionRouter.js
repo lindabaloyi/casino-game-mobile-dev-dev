@@ -85,11 +85,15 @@ class ActionRouter {
       const currentPlayerCanMove = canPlayerMove(finalGameState);
       const forceTurnSwitch = (actionType === 'trail' || actionType === 'confirmTrail' || actionType === 'createBuildFromTempStack');
 
-      const phase = (currentPlayerCanMove && !forceTurnSwitch) ? 'continue' : 'switch';
+      // 🎯 TABLE REORGANIZATION ACTIONS: Never end turn (table-to-table and hand-to-table drops)
+      const isTableReorganization = (actionType === 'tableToTableDrop' || actionType === 'handToTableDrop');
+
+      const phase = (currentPlayerCanMove && !forceTurnSwitch && !isTableReorganization) ? 'continue' : 'switch';
       logger.info(`Turn management: P${finalGameState.currentPlayer + 1} -> ${phase}`, {
         actionType,
         currentPlayerCanMove,
-        forceTurnSwitch
+        forceTurnSwitch,
+        isTableReorganization
       });
 
       if (!currentPlayerCanMove || forceTurnSwitch) {
