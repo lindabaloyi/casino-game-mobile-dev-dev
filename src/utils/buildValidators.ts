@@ -3,9 +3,6 @@
  * Contains all logic for validating temp stack builds and card combinations
  */
 
-// Import advanced build calculator for complex combinations
-const { detectBuildType } = require('../../multiplayer/server/game/logic/utils/tempStackBuildCalculator');
-
 export interface Card {
   rank: string;
   suit: string;
@@ -255,63 +252,49 @@ export const calculateConsolidatedOptions = (stack: any, hand: Card[]): ActionOp
 
 /**
  * Enhanced validation with specific error messages
- * Now uses advanced tempStackBuildCalculator for complex combinations
  */
 export const validateTempStackDetailed = (stack: any, hand: Card[]): ValidationResult => {
   const cards = stack.cards || [];
-  const cardValues = cards.map((c: Card) => c.value);
+  const hasHandCards = cards.some((c: { source?: string }) => c.source === 'hand');
   const totalSum = cards.reduce((s: number, c: { value: number }) => s + c.value, 0);
 
-  console.log('🔍 [VALIDATION] ======= ADVANCED VALIDATION START =======');
-  console.log('🔍 [VALIDATION] Card values:', cardValues);
-  console.log('🔍 [VALIDATION] Total sum:', totalSum);
+  console.log('🔍 [VALIDATION] ======= DETAILED VALIDATION START =======');
 
   // Check minimum cards
   if (!cards || cards.length < 2) {
     return { valid: false, error: 'Temp stacks must contain at least 2 cards' };
   }
 
-  // 🎯 USE ADVANCED BUILD CALCULATOR FOR ALL BUILD DETECTION
-  console.log('🔍 [VALIDATION] Calling detectBuildType from tempStackBuildCalculator...');
-  const buildResult = detectBuildType(cardValues);
-  console.log('🔍 [VALIDATION] detectBuildType result:', buildResult);
-
-  if (buildResult.isValid) {
-    const buildValue = buildResult.buildValue;
-    console.log(`✅ [VALIDATION] VALID BUILD DETECTED: ${buildResult.type} with value ${buildValue}`);
-
-    // Check if player has the required capture card
-    if (!playerHasCaptureCard(buildValue, hand)) {
-      return {
-        valid: false,
-        error: `Missing capture card - you need a ${buildValue} in your hand to create this build`
-      };
-    }
-
-    // Map build types to our interface
-    const buildTypeMap: { [key: string]: 'same-value' | 'base' | 'normal' } = {
-      'sum_build': 'normal',
-      'base_build': 'base',
-      'normal_build': 'normal'
-    };
-
-    return {
-      valid: true,
-      buildType: buildTypeMap[buildResult.type] || 'normal',
-      buildValue: buildValue
-    };
-  }
-
-  // Legacy fallback for same-value builds (if calculator misses them)
+  // Check same-value builds
   const sameValueCheck = isSameValueBuild(cards);
   if (sameValueCheck) {
+    // For same-value builds, capture is ALWAYS available (direct capture of the pair)
+    // Build options are filtered in calculateConsolidatedOptions based on available cards
     const value = cards[0].value;
-    console.log('🎯 [VALIDATION] Legacy same-value build detected');
+    console.log('🎯 [VALIDATION] Same-value build - capture always available, build options filtered individually');
     return { valid: true, buildType: 'same-value', buildValue: value };
   }
 
+  // Check base builds
+  const baseDetails = findBaseBuildDetails(cards);
+  if (baseDetails) {
+    // Check if player has capture card for base builds
+    if (!playerHasCaptureCard(baseDetails.baseValue, hand)) {
+      return { valid: false, error: `Missing capture card - you need a ${baseDetails.baseValue} in your hand to create this build` };
+    }
+    return { valid: true, buildType: 'base', buildValue: baseDetails.baseValue, baseDetails };
+  }
+
+  // Check normal sum builds
+  if (hasHandCards && totalSum <= 10 && totalSum >= 2) {
+    // Check if player has capture card for normal builds
+    if (!playerHasCaptureCard(totalSum, hand)) {
+      return { valid: false, error: `Missing capture card - you need a ${totalSum} in your hand to create this build` };
+    }
+    return { valid: true, buildType: 'normal', buildValue: totalSum };
+  }
+
   // No valid build found
-  console.log('❌ [VALIDATION] No valid build combination found');
   return { valid: false, error: 'Invalid build combination - cards don\'t form a valid build' };
 };
 
