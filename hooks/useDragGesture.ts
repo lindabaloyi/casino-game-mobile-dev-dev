@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Animated, PanResponder } from 'react-native';
-import { CardType } from '../components/cards/card';
+import { CardType } from '../components/card';
 
 interface UseDragGestureProps {
   draggable: boolean;
@@ -77,8 +77,10 @@ export const useDragGesture = ({
       }
 
       if (isDragging) {
-        // Update animated position directly
-        pan.setValue({ x: gestureState.dx, y: gestureState.dy });
+        // Update animated position using native driver
+        Animated.event([null, { dx: pan.x, dy: pan.y }], {
+          useNativeDriver,
+        })(event, gestureState);
 
         // Notify parent of position updates
         onDragMove?.(card, { x: gestureState.moveX, y: gestureState.moveY });
