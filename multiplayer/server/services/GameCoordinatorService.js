@@ -89,14 +89,6 @@ class GameCoordinatorService {
    * Handle card drop action coordination
    */
   async handleCardDrop(socket, data) {
-    console.log('[SERVER] card-drop received', {
-      playerId: data.draggedItem.player,
-      draggedSource: data.draggedItem.source,
-      targetType: data.targetInfo.type,
-      draggedCardId: data.draggedItem.card.id,
-      targetCardId: data.targetInfo.card?.id
-    });
-
     const gameId = this.matchmaking.getGameId(socket.id);
     if (!gameId) {
       this.logger.error('[STAGING_DEBUG] ❌ CARD_DROP: Not in active game', {
@@ -167,10 +159,6 @@ class GameCoordinatorService {
 
       // Use GameManager's determineActions (which will delegate to logic module)
       const result = this.gameManager.determineActions(gameId, data.draggedItem, data.targetInfo);
-
-      console.log('[SERVER] determineActions result', {
-        actionCount: result.actions.length,
-        actionTypes: result.actions.map(a => a.type)
       });
 
       this.logger.info('[STAGING_DEBUG] 📋 determineActions RESULT:', {

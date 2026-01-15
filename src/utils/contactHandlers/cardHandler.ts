@@ -17,12 +17,6 @@ function calculateAllBuildOptions(draggedCard: Card, touchedCard: Card, playerHa
   description: string;
 }[] {
   const value = draggedCard.value;
-
-  console.log('[BUILD_OPTIONS_CALC] Calculating build options for same-value cards:', {
-    draggedCard: `${draggedCard.rank}${draggedCard.suit}=${value}`,
-    touchedCard: `${touchedCard.rank}${touchedCard.suit}=${value}`,
-    playerHandSize: playerHand.length,
-    playerHand: playerHand.map(c => `${c.rank}${c.suit}=${c.value}`)
   });
 
   const options: {
@@ -45,11 +39,6 @@ function calculateAllBuildOptions(draggedCard: Card, touchedCard: Card, playerHa
       type: 'spare',
       description: `Build ${value} (captured by spare ${value})`
     });
-
-    console.log('[BUILD_OPTIONS_CALC] ✅ Spare card build available:', {
-      buildValue: value,
-      captureCard: value,
-      availableCards: spareCards.map(c => `${c.rank}${c.suit}`)
     });
   }
 
@@ -65,12 +54,6 @@ function calculateAllBuildOptions(draggedCard: Card, touchedCard: Card, playerHa
         type: 'sum',
         description: `Build ${sumValue} (${value}+${value}, captured by ${sumValue})`
       });
-
-      console.log('[BUILD_OPTIONS_CALC] ✅ Sum build available:', {
-        buildValue: sumValue,
-        captureCard: sumValue,
-        sumCalculation: `${value} + ${value} = ${sumValue}`
-      });
     } else {
       console.log('[BUILD_OPTIONS_CALC] ❌ Sum build not available:', {
         neededCard: sumValue,
@@ -78,7 +61,6 @@ function calculateAllBuildOptions(draggedCard: Card, touchedCard: Card, playerHa
       });
     }
   } else {
-    console.log('[BUILD_OPTIONS_CALC] ❌ Sum build: High card (6+), no sum builds possible');
   }
 
   console.log('[BUILD_OPTIONS_CALC] Final build options:', {
@@ -120,25 +102,11 @@ export function handleLooseCardContact(
   currentPlayer: number,
   source?: string
 ): { type: string; payload: any } | null {
-
-  console.log('[CARD_HANDLER] 🎯 Handling loose card contact:', {
-    draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
-    contactId: contact.id,
-    currentPlayer
-  });
-
   const touchedCard = findLooseCardById(contact.id, gameState);
 
   if (!touchedCard) {
-    console.log('[CARD_HANDLER] ❌ Card not found in game state:', contact.id);
     return null;
   }
-
-  console.log('[CARD_HANDLER] 🔍 Found loose card:', {
-    card: `${touchedCard.rank}${touchedCard.suit}`,
-    value: touchedCard.value
-  });
-
   // Allow creative freedom: Players can combine ANY cards in temp stacks
   // Validation happens during build creation, not staging
   const totalValue = draggedCard.value + touchedCard.value;
@@ -153,8 +121,6 @@ export function handleLooseCardContact(
   }[] = [];
 
   if (isSameValue) {
-    console.log('[CARD_HANDLER] ⚡ SAME-VALUE CONTACT DETECTED');
-
     const playerHand = gameState.playerHands[currentPlayer];
     buildOptions = calculateAllBuildOptions(draggedCard, touchedCard, playerHand);
 
@@ -166,8 +132,6 @@ export function handleLooseCardContact(
 
     // If no build options available, do immediate capture
     if (buildOptions.length === 0) {
-      console.log('[CARD_HANDLER] 🚀 NO BUILD OPTIONS - IMMEDIATE CAPTURE');
-
       return {
         type: 'capture',
         payload: {
@@ -217,14 +181,6 @@ export function handleLooseCardContact(
         sameValueBuildOptions: isSameValue ? buildOptions : []
       }
     };
-
-    console.log('[CARD_HANDLER] 🚀 Sending staging action:', {
-      actionType: action.type,
-      canAugmentBuilds: action.payload.canAugmentBuilds,
-      isSameValueStack: action.payload.isSameValueStack,
-      stagingValue: totalValue
-    });
-
     return action;
   }
 

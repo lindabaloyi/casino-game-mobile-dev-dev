@@ -14,14 +14,11 @@ const autoCaptureRules = [
     exclusive: true, // ✅ EXCLUSIVE: Stop other rules when this fires
     requiresModal: false,
     condition: (context) => {
-      console.log('[AUTO_CAPTURE] 🔍 Checking for same-value auto-capture');
-
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
       // Must be dragging from hand
       if (draggedItem?.source !== 'hand') {
-        console.log('[AUTO_CAPTURE] ❌ Not from hand');
         return false;
       }
 
@@ -38,15 +35,6 @@ const autoCaptureRules = [
         const buildOptions = canBuildWithCards(handCard, targetInfo, playerHand);
 
         const canAutoCapture = buildOptions.length === 0;
-
-        console.log('[AUTO_CAPTURE] 🎯 Loose card check:', {
-          handCard: `${handCard.rank}${handCard.suit}`,
-          targetCard: `${targetCard.rank}${targetCard.suit}`,
-          buildOptions: buildOptions.length,
-          canAutoCapture,
-          options: buildOptions
-        });
-
         return canAutoCapture;
 
       } else if (targetInfo?.type === 'temporary_stack' && targetInfo.isSameValueStack) {
@@ -62,24 +50,12 @@ const autoCaptureRules = [
         const buildOptions = canBuildWithCards(handCard, targetInfo, playerHand);
 
         const canAutoCapture = buildOptions.length === 0;
-
-        console.log('[AUTO_CAPTURE] 🎯 Temp stack check:', {
-          handCard: `${handCard.rank}${handCard.suit}`,
-          stackValue: firstValue,
-          stackSize: stackCards.length,
-          buildOptions: buildOptions.length,
-          canAutoCapture,
-          options: buildOptions
-        });
-
         return canAutoCapture;
       }
 
       return false;
     },
     action: (context) => {
-      console.log('[AUTO_CAPTURE] ✅ Executing same-value auto-capture');
-
       const handCard = context.draggedItem.card;
       const target = context.targetInfo;
 
@@ -114,14 +90,11 @@ const autoCaptureRules = [
     exclusive: false,
     requiresModal: true, // ✅ MODAL: Multiple strategic options available
     condition: (context) => {
-      console.log('[MODAL_RULE] 🔍 Checking loose card modal options');
-
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
       // Must be hand card on loose card
       if (draggedItem?.source !== 'hand' || targetInfo?.type !== 'loose') {
-        console.log('[MODAL_RULE] ❌ Not hand card on loose card');
         return false;
       }
 
@@ -129,7 +102,6 @@ const autoCaptureRules = [
       const handValue = draggedItem.card.value;
       const targetValue = targetInfo.card.value;
       if (handValue !== targetValue) {
-        console.log('[MODAL_RULE] ❌ Values don\'t match');
         return false;
       }
 
@@ -138,20 +110,9 @@ const autoCaptureRules = [
       const buildOptions = canBuildWithCards(draggedItem.card, targetInfo, playerHand);
 
       const shouldShowModal = buildOptions.length > 0;
-
-      console.log('[MODAL_RULE] 🎯 Build options check:', {
-        handCard: `${draggedItem.card.rank}${draggedItem.card.suit}`,
-        targetCard: `${targetInfo.card.rank}${targetInfo.card.suit}`,
-        buildOptions: buildOptions.length,
-        options: buildOptions,
-        shouldShowModal
-      });
-
       return shouldShowModal;
     },
     action: (context) => {
-      console.log('[MODAL_RULE] ✅ Returning loose card modal options');
-
       const handCard = context.draggedItem.card;
       const targetCard = context.targetInfo.card;
       const playerHand = context.playerHands[context.currentPlayer];
@@ -190,10 +151,6 @@ const autoCaptureRules = [
           });
         }
       }
-
-      console.log('[MODAL_RULE] ✅ Generated loose card options:', {
-        optionCount: availableOptions.length,
-        options: availableOptions.map(o => o.label)
       });
 
       // Return data packet for modal

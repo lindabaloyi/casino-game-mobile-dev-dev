@@ -84,8 +84,6 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
 
   // Build overlay handlers
   const handleAcceptBuildAddition = (buildId: string) => {
-    console.log('[GameBoard] Accepting build addition/extension for build:', buildId);
-
     // Find the build to check if it's a pending extension
     const build = gameState.tableCards.find((card: any) =>
       card.type === 'build' && card.buildId === buildId
@@ -93,14 +91,12 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
 
     if (build?.isPendingExtension) {
       // 🎯 PENDING EXTENSION: Accept the extension
-      console.log('[GameBoard] Accepting build extension for build:', buildId);
       sendAction({
         type: 'acceptBuildExtension',
         payload: { buildId }
       });
     } else {
       // 🎯 PENDING ADDITION: Use existing logic
-      console.log('[GameBoard] Accepting build addition for build:', buildId);
       sendAction({
         type: 'acceptBuildAddition',
         payload: { buildId }
@@ -109,8 +105,6 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
   };
 
   const handleRejectBuildAddition = () => {
-    console.log('[GameBoard] Rejecting build addition/extension');
-
     // Find the first pending build addition or extension
     const pendingBuildId = Object.keys(gameState.pendingBuildAdditions || {})[0];
     const pendingExtensionBuild = gameState.tableCards.find((card: any) =>
@@ -119,14 +113,12 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
 
     if (pendingExtensionBuild) {
       // 🎯 CANCEL PENDING EXTENSION: Remove extension card from build
-      console.log('[GameBoard] Cancelling build extension for build:', pendingExtensionBuild.buildId);
       sendAction({
         type: 'cancelBuildExtension',
         payload: { buildId: pendingExtensionBuild.buildId }
       });
     } else if (pendingBuildId) {
       // 🎯 CANCEL PENDING ADDITION: Use existing logic
-      console.log('[GameBoard] Rejecting build addition for build:', pendingBuildId);
       sendAction({
         type: 'rejectBuildAddition',
         payload: { buildId: pendingBuildId }
@@ -141,12 +133,7 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
 
   // 🎯 NEW: Handle Accept button press - detect stack type and route appropriately
   const handleAcceptClick = (stackId: string) => {
-    console.log('[FUNCTION] 🚀 ENTERING handleAcceptClick', {
-      stackId,
-      timestamp: Date.now()
     });
-    console.log('🎯 [GameBoard] Accept button clicked for stack:', stackId);
-
     // Find the temp stack by stackId
     const tempStack = gameState.tableCards.find((card: any) =>
       card.type === 'temporary_stack' && card.stackId === stackId
@@ -160,8 +147,6 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     // 🎯 DETECT BUILD AUGMENTATION STACKS
     if ((tempStack as any).isBuildAugmentation) {
       // ✅ BUILD AUGMENTATION: Use new two-phase validation
-      console.log('🏗️ [GameBoard] Detected BUILD AUGMENTATION stack - calling validateBuildAugmentation');
-
       // Extract build ID from augmentation stack
       const buildId = (tempStack as any).targetBuildId;
       if (!buildId) {
@@ -177,17 +162,10 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
           tempStackId: stackId
         }
       });
-
-      console.log('✅ [GameBoard] Build augmentation validation action sent', {
-        buildId,
-        tempStackId: stackId
-      });
     }
     // 🎯 DETECT BUILD EXTENSION STACKS
     else if ((tempStack as any).isBuildExtension) {
       // ✅ BUILD EXTENSION: Use validation action
-      console.log('🔄 [GameBoard] Detected BUILD EXTENSION stack - calling validateBuildExtension');
-
       // Extract target build ID from extension stack
       const targetBuildId = (tempStack as any).targetBuildId;
       if (!targetBuildId) {
@@ -202,14 +180,8 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
           tempStackId: stackId
         }
       });
-
-      console.log('✅ [GameBoard] Build extension validation action sent', {
-        tempStackId: stackId,
-        targetBuildId
-      });
     } else {
       // 🎯 REGULAR STAGING: Use existing modal system
-      console.log('🎯 [GameBoard] Regular staging stack - opening validation modal:', tempStack);
       setSelectedTempStack(tempStack);
       setShowValidationModal(true);
     }
@@ -300,7 +272,6 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
         trailCard={modalManager.trailCard}
         onConfirm={() => {
           if (modalManager.trailCard) {
-            console.log('[GameBoard] Trail confirmed - sending trail action');
             sendAction({
               type: 'trail',
               payload: {
@@ -312,7 +283,6 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
           }
         }}
         onCancel={() => {
-          console.log('[GameBoard] Trail cancelled');
           modalManager.setTrailCard(null); // Clear the trail card
         }}
       />
@@ -327,7 +297,6 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
       <AcceptValidationModal
         visible={showValidationModal}
         onClose={() => {
-          console.log('🔒 [GameBoard] Modal closing');
           setShowValidationModal(false);
           setSelectedTempStack(null);
         }}
@@ -348,11 +317,9 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
           lastCapturer={gameOverData.lastCapturer}
           finalCaptures={gameOverData.finalCaptures}
           onPlayAgain={() => {
-            console.log('[GameBoard] Play again pressed');
             // TODO: Implement play again logic
           }}
           onReturnToMenu={() => {
-            console.log('[GameBoard] Return to menu pressed');
             // TODO: Implement return to menu logic
           }}
         />

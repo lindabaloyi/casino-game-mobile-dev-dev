@@ -27,16 +27,12 @@ export function useServerListeners({
   // Handle server errors (Game-Appropriate Version)
   useEffect(() => {
     if (serverError) {
-      console.log('[GameBoard] Received server error:', serverError.message);
-
       // 🎯 FIX 7: GRACEFUL ERROR HANDLING - Don't interrupt temp stack building
       const isTempStackError = serverError.message?.includes('staging') ||
                               serverError.message?.includes('temp') ||
                               serverError.message?.includes('stack');
 
       if (isTempStackError) {
-        console.log('[GRACEFUL_ERROR] Temp stack error - showing warning but continuing gameplay:', serverError.message);
-
         // For temp stack errors, show brief warning but don't reset cards or interrupt flow
         setErrorModal({
           visible: true,
@@ -54,8 +50,6 @@ export function useServerListeners({
       }
 
       // For critical errors (not temp stack related), use original behavior
-      console.log('[CRITICAL_ERROR] Non-temp-stack error - full interruption:', serverError.message);
-
       setErrorModal({
         visible: true,
         title: 'Invalid Move',
@@ -72,8 +66,6 @@ export function useServerListeners({
   // Handle build options when they arrive
   useEffect(() => {
     if (buildOptions && buildOptions.options) {
-      console.log('[GameBoard] Build options received:', buildOptions);
-
       // Handle different types of options (builds, captures, etc.)
       const actions = buildOptions.options.map((option: any) => {
         if (option.type === 'build') {
@@ -118,23 +110,6 @@ export function useServerListeners({
   // Handle action choices when they arrive (Phase 2: server-centric logic)
   useEffect(() => {
     if (actionChoices && actionChoices.actions) {
-      console.log('[CLIENT_DEBUG] ===== ACTION CHOICES RECEIVED =====');
-      console.log('[CLIENT_DEBUG] Raw actionChoices:', JSON.stringify(actionChoices, null, 2));
-      console.log('[CLIENT_DEBUG] Actions count:', actionChoices.actions.length);
-      console.log('[CLIENT_DEBUG] Actions types:', actionChoices.actions.map((a: any) => a.type));
-
-      // Check if this is a single trail action that requires confirmation
-      if (actionChoices.actions.length === 1 && actionChoices.actions[0].type === 'trail') {
-        const trailAction = actionChoices.actions[0];
-        console.log('[CLIENT_DEBUG] Single trail action detected');
-        console.log('[CLIENT_DEBUG] Trail action structure:', JSON.stringify(trailAction, null, 2));
-        console.log('[CLIENT_DEBUG] Checking trailAction.payload:', !!trailAction.payload);
-        console.log('[CLIENT_DEBUG] Checking trailAction.payload.card:', !!trailAction.payload?.card);
-
-        if (trailAction.payload && trailAction.payload.card) {
-          console.log('[CLIENT_DEBUG] Setting trail card:', trailAction.payload.card);
-          setTrailCard(trailAction.payload.card);
-          console.log('[CLIENT_DEBUG] Trail card set successfully');
           return;
         } else {
           console.error('[CLIENT_DEBUG] ❌ TRAIL ACTION MALFORMED:', {
@@ -145,15 +120,12 @@ export function useServerListeners({
           return;
         }
       }
-
-      console.log('[CLIENT_DEBUG] Setting modal for multiple actions');
       setModalInfo({
         title: 'Choose Your Action',
         message: 'What would you like to do?',
         actions: actionChoices.actions,
         requestId: actionChoices.requestId
       });
-      console.log('[CLIENT_DEBUG] Modal set successfully');
     }
   }, [actionChoices, setModalInfo, setTrailCard]);
 
@@ -163,7 +135,6 @@ export function useServerListeners({
     if (!socket) return;
 
     const handleStagingCreated = (data: any) => {
-      console.log(`[GameBoard] Staging created from server:`, data);
       // Client receives staging-created event but doesn't need to do anything special
       // The game state update will show the staging stack
     };
@@ -181,7 +152,6 @@ export function useServerListeners({
     if (!socket || !setGameOverData) return;
 
     const handleGameOver = (data: any) => {
-      console.log('[CLIENT] Game over event received:', data);
       setGameOverData(data);
     };
 
@@ -199,9 +169,7 @@ export function useServerListeners({
         try {
           const NavigationBar = require('expo-navigation-bar');
           await NavigationBar.setVisibilityAsync('hidden');
-          console.log('[GAMEBOARD] Navigation bar hidden for gameplay');
         } catch (error) {
-          console.warn('[GAMEBOARD] Failed to hide navigation bar:', error);
         }
       }
     };

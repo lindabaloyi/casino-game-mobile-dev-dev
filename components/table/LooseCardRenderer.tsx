@@ -37,8 +37,6 @@ export function LooseCardRenderer({
 
   // 🎯 COMPREHENSIVE DRAG DATA LOGGING
   const handleDragStartWithLogging = () => {
-    console.log('📊 [DRAG_START_DATA] ===== LOOSE CARD DRAG START =====');
-
     // Get ALL available data from the tableItem
     const tableItemData = tableItem as any;
 
@@ -97,15 +95,6 @@ export function LooseCardRenderer({
         isCapturable: tableItemData.isCapturable
       }
     };
-
-    console.log('📊 [DRAG_START_DATA] Full drag data:', dragData);
-    console.log('📊 [DRAG_START_DATA] TableItem raw object:', tableItem);
-    console.log('📊 [DRAG_START_DATA] TableItem type:', typeof tableItem);
-    console.log('📊 [DRAG_START_DATA] TableItem keys:', Object.keys(tableItemData));
-    console.log('📊 [DRAG_START_DATA] ===== END =====\n');
-
-    // Pass the data forward (let existing handler process it)
-    onTableCardDragStart?.(dragData);
   };
 
   // Store card bounds globally for contact validation (this is a technical debt item)

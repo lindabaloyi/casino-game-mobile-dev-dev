@@ -30,19 +30,8 @@ const BuildExtensionOverlay: React.FC<BuildExtensionOverlayProps> = ({
   }, [isVisible, fadeAnim]);
 
   if (!isVisible) {
-    console.log(`[BUILD_EXTENSION_OVERLAY] Overlay hidden for build ${buildId || 'unknown'}`);
     return null;
   }
-
-  console.log(`[BUILD_EXTENSION_OVERLAY] 🎬 Rendering extension overlay for build ${buildId}, disabled: ${disabled}`, {
-    isVisible,
-    buildId,
-    disabled,
-    extensionText,
-    hasOnAccept: typeof onAccept === 'function',
-    hasOnCancel: typeof onCancel === 'function'
-  });
-
   return (
     <Animated.View
       style={[styles.overlayContainer, { opacity: fadeAnim }]}

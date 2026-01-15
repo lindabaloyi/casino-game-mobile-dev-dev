@@ -44,14 +44,6 @@ export const StackFactory: React.FC<StackFactoryProps> = (props) => {
   };
 
   const stackType = getStackType();
-
-  console.log(`[StackFactory] Rendering ${stackType} stack for ${props.stackId}:`, {
-    cardCount: props.cards.length,
-    isBuild: props.isBuild,
-    isTemporaryStack: props.isTemporaryStack,
-    hasDropHandler: !!props.onDropStack
-  });
-
   const stacks = {
     REGULAR: (
       <RegularStack

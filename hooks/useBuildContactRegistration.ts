@@ -20,7 +20,6 @@ export function useBuildContactRegistration({
   useEffect(() => {
     // 🚨 SAFETY CHECK 1: Valid build item
     if (!buildItem || !buildItem.buildId) {
-      console.warn('[BUILD_CONTACT_REG] ❌ Invalid buildItem:', buildItem);
       return;
     }
 
@@ -28,16 +27,8 @@ export function useBuildContactRegistration({
 
     // 🚨 SAFETY CHECK 2: Valid ref
     if (!stackRef || !stackRef.current) {
-      console.warn('[BUILD_CONTACT_REG] ❌ Invalid stackRef for build:', buildId);
       return;
     }
-
-    console.log('[BUILD_CONTACT_REG] 🎯 Setting up contact registration for build:', {
-      buildId,
-      owner: buildItem.owner,
-      cardCount: buildItem.cards?.length || 0
-    });
-
     // Calculate accurate build dimensions for contact detection
     const calculateBuildDimensions = (cardCount: number) => {
       const baseHeight = 120;  // Standard card height
@@ -57,7 +48,6 @@ export function useBuildContactRegistration({
           // Validate measurements
           if (isNaN(x) || isNaN(y) || width <= 0 || height <= 0) {
             if (DEBUG_CONFIG.CONTACT_DETECTION) {
-              console.warn('[BUILD_CONTACT_REG] ⚠️ Invalid measurements:', { x, y, width, height });
             }
             return;
           }
@@ -115,7 +105,6 @@ export function useBuildContactRegistration({
       removePosition(buildId);
 
       if (DEBUG_CONFIG.CONTACT_DETECTION) {
-        console.log('[BUILD_CONTACT_REG] 🧹 Cleaned up contact position for build:', buildId);
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps

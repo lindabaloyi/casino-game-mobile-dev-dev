@@ -93,7 +93,6 @@ export function determineActions(
 
         if (!hasExistingBuild) {
           // DEBUG: Log successful build detection
-          console.log(`[SHARED_LOGIC] Build detected: ${draggedValue}+${targetValue}=${targetValue + draggedValue}`);
           actions.push({
             type: 'build',
             label: `Build ${targetValue + draggedValue} (${draggedValue}+${targetValue})`,
@@ -112,26 +111,11 @@ export function determineActions(
 
   // Check for build extensions (detailed logging)
   if (targetInfo.type === 'build') {
-    console.log('[SHARED_LOGIC] 🎯 BUILD EXTENSION CHECK:', {
-      targetBuildId: targetInfo.buildId,
-      draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
-      draggedValue,
-      currentPlayer
-    });
-
     const targetBuild = tableCards.find(c =>
       isBuild(c) && c.buildId === targetInfo.buildId
     ) as Build | undefined;
 
     if (targetBuild) {
-      console.log('[SHARED_LOGIC] ✅ Found target build:', {
-        buildId: targetBuild.buildId,
-        buildValue: targetBuild.value,
-        buildOwner: targetBuild.owner,
-        isExtendable: targetBuild.isExtendable,
-        currentPlayer
-      });
-
       if (targetBuild.owner === currentPlayer) {
         console.log('[SHARED_LOGIC] 🏗️ Adding action: addToBuilding (own build)', {
           buildId: targetBuild.buildId,
@@ -151,32 +135,16 @@ export function determineActions(
       } else if (targetBuild.isExtendable) {
         const newValue = targetBuild.value + draggedValue;
         if (newValue <= 10) {
-          console.log('[SHARED_LOGIC] 🏗️ Adding action: addToOpponentBuild', {
-            buildId: targetBuild.buildId,
-            oldValue: targetBuild.value,
-            newValue,
-            card: `${draggedCard.rank}${draggedCard.suit}`
-          });
-
           actions.push({
             type: 'addToOpponentBuild',
             label: `Extend to ${newValue}`,
             payload: { draggedItem, buildToAddTo: targetBuild }
           });
         } else {
-          console.log('[SHARED_LOGIC] ❌ Opponent build extension blocked - value too high:', {
-            newValue,
-            maxAllowed: 10
-          });
         }
       } else {
-        console.log('[SHARED_LOGIC] ❌ Build not extendable by opponent:', {
-          buildId: targetBuild.buildId,
-          isExtendable: targetBuild.isExtendable
-        });
       }
     } else {
-      console.log('[SHARED_LOGIC] ❌ Target build not found:', targetInfo.buildId);
     }
   }
 
@@ -234,13 +202,10 @@ export function determineActions(
   };
 }
 
-
 /**
  * Initialize a new game state with shuffled deck and dealt cards
  */
 export function initializeGame(): GameState {
-  console.log('Initializing game state...');
-
   const suits = ['♠', '♥', '♦', '♣'];
   const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
   let deck: Card[] = [];
@@ -369,7 +334,6 @@ function rankValue(rank: string | number): number {
 function calculateCardSum(cards: Card[]): number {
   return cards.reduce((sum, card) => sum + rankValue(card.rank), 0);
 }
-
 
 export function canFinalizeStagingStack(stack: TemporaryStack): boolean {
   // Must have at least 1 hand card + 1 table card

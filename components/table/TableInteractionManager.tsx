@@ -20,11 +20,8 @@ const safeHasProperty = (obj: any, prop: string): boolean => {
 export function useTableInteractionManager({ tableCards, onDropOnCard }: TableInteractionManagerProps) {
 
 const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
-  console.log('[GAME_APPROPRIATE_DROP] Processing drop with stackId:', stackId);
-
   // Enhanced validation for game-appropriate approach
   if (!draggedItem || !draggedItem.card) {
-    console.log('[GAME_APPROPRIATE_DROP] ❌ No dragged item');
     return false;
   }
 
@@ -51,7 +48,6 @@ const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
   }
 
   if (!targetItem) {
-    console.log('[GAME_APPROPRIATE_DROP] ❌ No target found for stackId:', stackId);
     return false;
   }
 
@@ -68,8 +64,6 @@ const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
     // 🎯 FIX 6: IMMEDIATE UI FEEDBACK - Show placement instantly
     try {
       // Immediate visual feedback for smooth UX
-      console.log('[UI_FEEDBACK] Showing immediate placement for:', draggedItem.card);
-
       // Send optimistic update to UI (server will validate)
       const optimisticUpdate = {
         type: 'temp_stack_card_added',
@@ -84,7 +78,6 @@ const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
         (global as any).socket.emit('optimistic_update', optimisticUpdate);
       }
     } catch (uiError: any) {
-      console.warn('[UI_FEEDBACK] Could not show immediate feedback:', uiError.message);
     }
 
     // Server will handle with flexible validation (no modals)
@@ -97,8 +90,6 @@ const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
     });
   } else {
     // Dropping on loose card - CREATE NEW TEMP STACK
-    console.log('[GAME_APPROPRIATE_DROP] 🎯 Creating new temp stack from loose card');
-
     // 🎯 FIX 6: IMMEDIATE UI FEEDBACK for new stack creation
     try {
       const optimisticNewStack = {
@@ -113,7 +104,6 @@ const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
         (global as any).socket.emit('optimistic_update', optimisticNewStack);
       }
     } catch (uiError: any) {
-      console.warn('[UI_FEEDBACK] Could not show new stack feedback:', uiError.message);
     }
 
     const targetIndex = tableCards.indexOf(targetItem);

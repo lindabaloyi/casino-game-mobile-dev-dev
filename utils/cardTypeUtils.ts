@@ -21,7 +21,6 @@ export const expandCancelledStack = (stack: any, originalIndex: number): any[] =
   const cards = stack.cards || [];
 
   if (cards.length === 0) {
-    console.warn(`[cardTypeUtils] Cancelled stack ${stack.stackId} has no cards`);
     return [];
   }
 

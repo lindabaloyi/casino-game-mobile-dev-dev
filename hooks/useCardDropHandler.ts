@@ -37,11 +37,8 @@ interface CardDropHandlerProps {
  * This hook is kept for backwards compatibility but does nothing
  */
 export const useCardDropHandler = (props: CardDropHandlerProps) => {
-  console.warn('[DEPRECATED] useCardDropHandler called - all drop handling now uses contact detection');
-
   const handleDrop = () => {
     // NO-OP: Contact detection handles all drops now
-    console.warn('[DEPRECATED] useCardDropHandler.handleDrop called - this should not happen');
     return { handled: false, attempted: false } as DropPosition;
   };
 

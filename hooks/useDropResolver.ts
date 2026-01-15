@@ -13,11 +13,8 @@
  * DEPRECATED: Use contact detection system instead
  */
 export function useDropResolver() {
-  console.warn('[DEPRECATED] useDropResolver called - all drop resolution now uses contact detection');
-
   const resolveDrop = () => {
     // NO-OP: Contact detection handles all drop resolution now
-    console.warn('[DEPRECATED] useDropResolver.resolveDrop called - this should not happen');
     return null;
   };
 

@@ -4,9 +4,6 @@
  */
 
 // 🔍 DEBUG: Intercept build card sorting (without extending native prototypes)
-console.log('[ACTIONS_DEBUG] Loading actions.js file');
-console.log('[ACTIONS_DEBUG] Checking for sorting functions...');
-
 // Create a wrapper to detect build card sorting
 const createSortingDetector = () => {
   return (array, compareFn) => {

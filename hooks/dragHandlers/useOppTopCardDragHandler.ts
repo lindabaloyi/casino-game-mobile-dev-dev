@@ -34,10 +34,6 @@ export function useOppTopCardDragHandler({
    * Handle opponent top card drag start
    */
   const handleOppTopCardDragStart = useCallback((card: any, metadata: any = {}) => {
-    console.log(`[🎯 OPP-DRAG-START] Opponent card drag started:`, {
-      card: `${card.rank}${card.suit}`,
-      opponentId: metadata.opponentId
-    });
     setCurrentDragMetadata(metadata);
     handleDragStart(card);
   }, [handleDragStart]);
@@ -46,31 +42,14 @@ export function useOppTopCardDragHandler({
    * Handle opponent top card drag end - ROBUST CENTRALIZED SYSTEM
    */
   const handleOppTopCardDragEnd = useCallback((draggedItem: any, dropPosition: any) => {
-    console.log(`[🏁 OPP-DRAG-END] Processing drop at:`, dropPosition);
-
     // Find contact using contact detection system
     const contact = findContactAtPoint(dropPosition.x, dropPosition.y, 80);
 
     if (!contact) {
-      console.log('[❌ OPP-DRAG-END] No contact found');
       return { validContact: false };
     }
-
-    console.log('[✅ OPP-DRAG-END] Found contact:', {
-      type: contact.type,
-      id: contact.id,
-      distance: contact.distance
-    });
-
     const opponentId = currentDragMetadata?.opponentId;
-    console.log(`[🎯 OPP-CONTACT] Contact detected:`, {
-      type: contact.type,
-      opponentId,
-      card: `${draggedItem.card.rank}${draggedItem.card.suit}`
-    });
-
     // 🎯 USE ROBUST CENTRALIZED SYSTEM - Same as hand cards
-    console.log('[🎯 OPP-DETERMINE-ACTION] Using centralized action determination');
     const action = determineActionFromContact(draggedItem.card, contact, gameState, playerNumber, 'oppTopCard');
 
     if (action) {
@@ -87,8 +66,6 @@ export function useOppTopCardDragHandler({
       sendAction(action);
       return { validContact: true };
     }
-
-    console.log('[⚠️ OPP-NO-ACTION] No valid action determined from contact');
     return { validContact: false };
 
   }, [sendAction, gameState, playerNumber, currentDragMetadata]);

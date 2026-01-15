@@ -38,7 +38,6 @@ const PORT = process.env.PORT || 3001;
 // Middleware for logging all connections and data
 io.use((socket, next) => {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}][SERVER] Handshake attempt: ${socket.id}`);
   next();
 });
 
@@ -79,8 +78,6 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
   Object.keys(actionTypeMapping).forEach(actionType => {
     actionRouter.registerAction(actionType, actionTypeMapping[actionType]);
   });
-
-  console.log('[SERVER] Service-oriented architecture initialized with', Object.keys(actionHandlers).length, 'action handlers');
 }
 
 /**
@@ -90,8 +87,6 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
 
 // Service-based event handlers using composition
 const handleMatchmaking = (socket) => {
-  console.log(`[SERVER] Adding ${socket.id} to matchmaking queue`);
-
   // Try to create a game - service returns game info if created
   const gameResult = matchmaking.addToQueue(socket);
 
@@ -102,8 +97,6 @@ const handleMatchmaking = (socket) => {
 };
 
 const handleDisconnect = (socket) => {
-  console.log(`[SERVER] Player disconnected: ${socket.id}`);
-
   // Handle disconnection through matchmaking service
   const disconnectedGame = matchmaking.handleDisconnection(socket);
 
@@ -113,7 +106,6 @@ const handleDisconnect = (socket) => {
 
     // End game if insufficient players
     if (disconnectedGame.remainingSockets.length <= 1) {
-      console.log(`[SERVER] Ending game ${disconnectedGame.gameId} - insufficient players`);
       gameManager.endGame(disconnectedGame.gameId);
     }
   }
@@ -121,8 +113,6 @@ const handleDisconnect = (socket) => {
 
 // Socket event handlers - now pure service orchestration
 io.on('connection', (socket) => {
-  console.log(`[SERVER] Client connected: ${socket.id}`);
-
   // Service-based matchmaking
   handleMatchmaking(socket);
 
@@ -131,13 +121,7 @@ io.on('connection', (socket) => {
   socket.on('game-action', (data) => gameCoordinator.handleGameAction(socket, data));
   socket.on('card-drop', (data) => {
     // 📡 COMPREHENSIVE SERVER DROP DATA LOGGING
-    console.log('📡 [SERVER_DROP_DATA] ===== SERVER RECEIVED CARD-DROP =====');
-    console.log('📡 [SERVER_DROP_DATA] Raw data:', data);
-
     // Deep analysis
-    console.log('📡 [SERVER_DROP_DATA] Data type:', typeof data);
-    console.log('📡 [SERVER_DROP_DATA] Data keys:', Object.keys(data));
-
     if (data.draggedItem) {
       console.log('📡 [SERVER_DROP_DATA] DraggedItem analysis:', {
         // Structure
@@ -165,14 +149,7 @@ io.on('connection', (socket) => {
     }
 
     if (data.targetInfo) {
-      console.log('📡 [SERVER_DROP_DATA] TargetInfo analysis:', {
-        ...data.targetInfo,
-        cardType: data.targetInfo.card ? typeof data.targetInfo.card : 'none'
-      });
     }
-
-    console.log('📡 [SERVER_DROP_DATA] ===== END =====\n');
-
     // Continue with normal processing
     gameCoordinator.handleCardDrop(socket, data);
   });
@@ -184,7 +161,6 @@ function startServer(GameManagerClass, ActionRouterClass) {
   initializeGameSystem(GameManagerClass, ActionRouterClass);
 
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`[SERVER] Multiplayer game server listening on all interfaces at port ${PORT}`);
     console.log(`[SERVER] Game system ready with ${gameManager ? gameManager.getActiveGamesCount() : 0} active games`);
   });
 
@@ -194,7 +170,6 @@ function startServer(GameManagerClass, ActionRouterClass) {
 function stopServer() {
   if (server.listening) {
     server.close();
-    console.log('[SERVER] Server stopped');
   }
 }
 

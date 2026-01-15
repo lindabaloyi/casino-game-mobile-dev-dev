@@ -8,61 +8,31 @@ const handleCapture = require('../capture/capture');
 const { updateBuildCalculator } = require('../../logic/utils/tempStackBuildCalculator');
 
 function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
-  console.log('🚨🚨🚨 EMERGENCY: handleAddToOwnTemp EXECUTING 🚨🚨🚨');
-  console.log('🚨🚨🚨 Action payload:', JSON.stringify(action.payload));
-  console.log('🚨🚨🚨 Player:', playerIndex, 'Game:', gameId);
-  console.log('[TEMP_STACK] 🏃 ADD_TO_OWN_TEMP executing (FREEDOM OF PLAY)');
-  console.log('[TEMP_STACK] Input action payload:', JSON.stringify(action.payload, null, 2));
-
   // 🎯 DEBUG: Log opponent card handling specifically
   if (action.payload.source === 'oppTopCard') {
-    console.log('[🎯 OPP-TEMP-STACK-SERVER] Processing opponent card for temp stack:', {
-      opponentId: action.payload.opponentId,
-      card: `${action.payload.card.rank}${action.payload.card.suit}`,
-      stackId: action.payload.stackId,
-      playerIndex,
-      gameId
-    });
   }
 
   const { stackId, card, source } = action.payload;
   const gameState = gameManager.getGameState(gameId);
-
-  console.log('[TEMP_STACK] Operation details:', {
-    gameId,
-    stackId,
-    card: `${card.rank}${card.suit}`,
-    cardValue: card.value,
-    source,
-    playerIndex,
-    philosophy: 'ALWAYS FIND OR CREATE'
-  });
-
   // 🎯 EARLY VALIDATION: Check for undefined stackId (client bug)
   if (!stackId || stackId === 'undefined') {
-    console.log('[TEMP_STACK] 🚨 CLIENT BUG: Received undefined stackId from client');
     throw new Error('Invalid temp stack selection. Please try again.');
   }
 
   // 🎯 GUARD RAIL: Prevent multiple hand card additions to temp stacks per turn
   if (source === 'hand') {
-    console.log('[TEMP_STACK_GUARD] 🎯 Checking hand card usage for temp stacks this turn');
-
     // Initialize tracking array if it doesn't exist
     if (!gameState.tempStackHandCardUsedThisTurn) {
       gameState.tempStackHandCardUsedThisTurn = [false, false];
-      console.log('[TEMP_STACK_GUARD] 🆕 Initialized temp stack hand card tracking');
     }
 
     // Check if player has already used a hand card for temp stacks this turn
     if (gameState.tempStackHandCardUsedThisTurn[playerIndex]) {
-      console.log('[TEMP_STACK_GUARD] ❌ BLOCKED: Player already added hand card to temp stack this turn');
       throw new Error('Cannot add multiple hand cards to temp stacks in the same turn. You must resolve your temp stack or wait for your next turn.');
     }
 
     // Mark hand card as used for temp stacks this turn
     gameState.tempStackHandCardUsedThisTurn[playerIndex] = true;
-    console.log('[TEMP_STACK_GUARD] ✅ ALLOWED: Marked hand card usage for temp stack this turn');
   }
 
   // 🎯 DIRECT CAPTURE CHECK: FIRST CHECK - If dragging hand card that equals temp stack value
@@ -73,11 +43,6 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
     );
 
     if (tempStack && card.value === tempStack.value) {
-      console.log('[DIRECT_CAPTURE] 🎯 Hand card matches temp stack value - executing direct capture:', {
-        cardValue: card.value,
-        stackValue: tempStack.value,
-        stackId: tempStack.stackId,
-        tempStackCards: tempStack.cards.map(c => `${c.rank}${c.suit}`)
       });
 
       // Execute capture instead of adding to stack
@@ -112,12 +77,6 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
 
   // 🎯 COMPLETE FREEDOM: No validation for temp stack building
   // All validation deferred to finalizeStagingStack
-  console.log('[VALIDATION] 🎯 Skipping validation for temp stack (player freedom)');
-
-  // Basic sanity checks only (no game rule validation)
-  if (!card || !card.rank || !card.suit) {
-    console.error('[VALIDATION_ERROR] Invalid card data');
-    throw new Error('Invalid card data');
   }
 
   if (!source) {
@@ -177,10 +136,6 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
   });
 
   // 🎯 REAL-TIME BUILD CALCULATOR: Update build state as cards are added (ALWAYS RUNS)
-  console.log('[DEBUG] 🎯 About to call build calculator - THIS SHOULD ALWAYS APPEAR');
-  console.log('[DEBUG] Source check - source:', source, 'card.value:', card.value, 'tempStack.value:', tempStack.value);
-  console.log('[DEBUG] Direct capture check result:', source === 'hand' && card.value === tempStack.value);
-  console.log('[DEBUG] updateBuildCalculator imported:', typeof updateBuildCalculator);
   console.log('[DEBUG] tempStack before build calc:', {
     stackId: tempStack.stackId,
     cards: tempStack.cards.map(c => `${c.rank}${c.suit}(${c.value})`),
@@ -189,24 +144,7 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
   });
 
   try {
-    console.log('[BUILD_CALCULATOR] 🎯 Updating real-time build calculator:', {
-      stackId: tempStack.stackId,
-      beforeCards: tempStack.cards.length - 1,
-      newCardValue: card.value,
-      currentBuildValue: tempStack.buildValue,
-      currentRunningSum: tempStack.runningSum
-    });
-
     updateBuildCalculator(tempStack, card.value);
-
-    console.log('[BUILD_CALCULATOR] ✅ Build calculator updated:', {
-      displayValue: tempStack.displayValue,
-      isValid: tempStack.isValid,
-      isBuilding: tempStack.isBuilding,
-      buildValue: tempStack.buildValue,
-      runningSum: tempStack.runningSum,
-      segmentCount: tempStack.segmentCount
-    });
   } catch (error) {
     console.error('[BUILD_CALCULATOR] ❌ ERROR in build calculator:', error.message);
     console.error('[BUILD_CALCULATOR] Stack trace:', error.stack);
@@ -218,30 +156,20 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
   tempStack.lastUpdated = Date.now();
 
   // 🎯 SOURCE REMOVAL: Remove card from original source
-  console.log('[EXECUTION] Removing card from source:', { source, card: `${card.rank}${card.suit}` });
-
   try {
     removeCardFromSource(gameState, card, source, playerIndex, action.payload.opponentId);
-    console.log('[EXECUTION] ✅ Card successfully removed from source');
   } catch (error) {
     console.error('[EXECUTION_ERROR] Failed to remove card from source:', error.message);
     throw error;
   }
 
   // 🎯 COMPLEX BUILD CHECK: After adding card, check if we now have complex build options
-  console.log('[COMPLEX_BUILD_CHECK] Checking for complex build options after adding card:', {
-    stackId: tempStack.stackId,
-    cardCount: tempStack.cards.length,
-    isSameValueStack: tempStack.isSameValueStack,
-    cardValues: tempStack.cards.map(c => c.value)
   });
 
   // Check if this is now a complex stack (3+ cards, not same-value)
   const isComplexStack = tempStack.cards.length >= 3 && !tempStack.isSameValueStack;
 
   if (isComplexStack) {
-    console.log('[COMPLEX_BUILD_CHECK] ✅ Complex stack detected - checking for build options');
-
     const { detectNormalBuildCombinations, detectBaseBuild } = require('../../logic/utils/tempStackBuildCalculator');
     const playerHand = gameState.playerHands[playerIndex];
     const cardValues = tempStack.cards.map(c => c.value);
@@ -274,7 +202,6 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
               buildType: 'base',
               actionType: 'createBuildFromTempStack'
             });
-            console.log(`[COMPLEX_BUILD_CHECK] ✅ Added base build option: ${potentialBase.value}`);
           }
         }
       }
@@ -324,13 +251,9 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
           isComplexBuild: true
         }
       };
-
-      console.log('[COMPLEX_BUILD_CHECK] 📦 Modal data packet attached to game state');
     } else {
-      console.log('[COMPLEX_BUILD_CHECK] ❌ No build options available - stack remains basic');
     }
   } else {
-    console.log('[COMPLEX_BUILD_CHECK] ❌ Not a complex stack (same-value or < 3 cards)');
   }
 
   console.log('[EXECUTION] ✅ Card added successfully (game-appropriate):', {
@@ -351,25 +274,17 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
  * Handles hand, captures, and table sources
  */
 function removeCardFromSource(gameState, card, source, playerIndex, opponentId) {
-  console.log('[SOURCE_REMOVAL] Removing card from source:', {
-    card: `${card.rank}${card.suit}`,
-    source,
-    playerIndex
-  });
-
   if (source === 'hand') {
     const handIndex = gameState.playerHands[playerIndex].findIndex(c =>
       c.rank === card.rank && c.suit === card.suit
     );
     if (handIndex >= 0) {
       gameState.playerHands[playerIndex].splice(handIndex, 1);
-      console.log('[SOURCE_REMOVAL] ✅ Removed from hand at index:', handIndex);
     } else {
       throw new Error(`Card ${card.rank}${card.suit} not found in player's hand`);
     }
   } else if (source === 'table' || source === 'loose') {
     // 🎯 FIX: Handle 'loose' source same as 'table' (loose cards are table cards)
-    console.log('[SOURCE_REMOVAL] Removing loose card from table');
     const cardIndex = gameState.tableCards.findIndex(tableCard =>
       tableCard.rank === card.rank &&
       tableCard.suit === card.suit &&
@@ -377,7 +292,6 @@ function removeCardFromSource(gameState, card, source, playerIndex, opponentId) 
     );
     if (cardIndex >= 0) {
       gameState.tableCards.splice(cardIndex, 1);
-      console.log('[SOURCE_REMOVAL] ✅ Removed from table at index:', cardIndex);
     } else {
       throw new Error(`Card ${card.rank}${card.suit} not found on table`);
     }
@@ -387,7 +301,6 @@ function removeCardFromSource(gameState, card, source, playerIndex, opponentId) 
     );
     if (captureIndex >= 0) {
       gameState.playerCaptures[playerIndex].splice(captureIndex, 1);
-      console.log('[SOURCE_REMOVAL] ✅ Removed from captures at index:', captureIndex);
     } else {
       throw new Error(`Card ${card.rank}${card.suit} not found in player's captures`);
     }
@@ -410,7 +323,6 @@ function removeCardFromSource(gameState, card, source, playerIndex, opponentId) 
 
     // Remove the top card from opponent's captures
     gameState.playerCaptures[opponentId].pop();
-    console.log('[SOURCE_REMOVAL] ✅ Removed opponent top card from captures');
   } else {
     throw new Error(`Unknown source type: ${source}`);
   }

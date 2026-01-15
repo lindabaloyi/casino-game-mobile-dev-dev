@@ -16,8 +16,6 @@ export function useModalManager({
   const [trailCard, setTrailCard] = useState<{ rank: string; suit: string } | null>(null);
 
   const handleModalAction = useCallback((action: any) => {
-    console.log(`[GameBoard] Modal action selected:`, action);
-
     // Check if this is from actionChoices (server-centric modal) or buildOptions (legacy modal)
     if (modalInfo?.requestId) {
       // Phase 2: Action from actionChoices - use execute-action
@@ -34,12 +32,10 @@ export function useModalManager({
   }, [sendAction, modalInfo?.requestId]);
 
   const handleModalCancel = useCallback(() => {
-    console.log(`[GameBoard] Modal cancelled`);
     setModalInfo(null);
   }, []);
 
   const handleErrorModalClose = useCallback(() => {
-    console.log(`[GameBoard] Error modal closed`);
     setErrorModal(null);
     // Clear server error if it's a server error
     if (onServerErrorClose) {
@@ -48,20 +44,11 @@ export function useModalManager({
   }, [onServerErrorClose]);
 
   const handleTrailConfirm = useCallback(() => {
-    console.log(`[GameBoard] Trail confirmed for card:`, trailCard);
-
     // Validate trailCard before sending
     if (!trailCard) {
       console.error('[GameBoard] ERROR: No trailCard available for confirmation');
       return;
     }
-
-    console.log(`[GameBoard] Sending confirmTrail with card:`, {
-      rank: trailCard.rank,
-      suit: trailCard.suit,
-      fullCard: trailCard
-    });
-
     // Send the confirmTrail action with the card (matches server registration)
     sendAction({
       type: 'execute-action',
@@ -77,8 +64,6 @@ export function useModalManager({
   }, [sendAction, trailCard]);
 
   const handleTrailCancel = useCallback(() => {
-    console.log(`[GameBoard] Trail cancelled for card:`, trailCard);
-
     // Send the cancel-trail action with the card
     sendAction({
       type: 'execute-action',

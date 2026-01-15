@@ -30,22 +30,9 @@ const TempOverlay: React.FC<TempOverlayProps> = ({
   }, [isVisible, fadeAnim]);
 
   if (!isVisible) {
-    console.log(`[TEMP_OVERLAY] Overlay hidden for temp ${tempId || 'unknown'}`);
     return null;
   }
-
-  console.log(`[TEMP_OVERLAY] 🎬 Rendering ${overlayText} overlay for temp ${tempId}, disabled: ${disabled}`, {
-    isVisible,
-    tempId,
-    disabled,
-    overlayText,
-    hasOnAccept: typeof onAccept === 'function',
-    hasOnReject: typeof onReject === 'function'
-  });
-
   // All temp stacks now show Accept/Cancel buttons (including build augmentations)
-  console.log(`🎯 [TEMP_DEBUG] ${overlayText} OVERLAY RENDERED: Accept/Cancel buttons should be visible for temp ${tempId}`);
-
   return (
     <Animated.View
       style={[styles.overlayContainer, { opacity: fadeAnim }]}

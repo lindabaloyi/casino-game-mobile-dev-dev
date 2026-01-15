@@ -84,13 +84,11 @@ const TableCards: React.FC<TableCardsProps> = ({
 
   // 🎯 NEW: Enhanced drag handlers to track position
   const handleTableCardDragStartWithPosition = React.useCallback((card: any) => {
-    console.log(`[DRAG-TRACK] Table card drag started:`, card);
     setIsDragging(true);
     onTableCardDragStart?.(card);
   }, [onTableCardDragStart]);
 
   const handleTableCardDragEndWithPosition = React.useCallback((draggedItem: any, dropPosition: any) => {
-    console.log(`[DRAG-TRACK] Table card drag ended`);
     setIsDragging(false);
     onTableCardDragEnd?.(draggedItem, dropPosition);
   }, [onTableCardDragEnd]);
@@ -117,20 +115,10 @@ const TableCards: React.FC<TableCardsProps> = ({
 
     // Call the server-side cancel handler - let server handle all restoration
     onTempReject?.(tempId);
-
-    console.log(`[TableCards] ✅ CANCEL REQUEST SENT TO SERVER:`, {
-      tempId,
-      serverWillHandle: 'position-aware-card-restoration',
-      clientWillReceive: 'updated-game-state-with-restored-cards'
-    });
   }, [onTempReject]);
 
   // FIXED: Preserve original positions when expanding cancelled stacks
   const visibleTableCards = React.useMemo(() => {
-    console.log(`[TableCards] 🔄 POSITION-PRESERVING EXPANSION:`, {
-      totalTableCards: tableCards.length,
-      cancelledStacksCount: cancelledStacks.size,
-      cancelledStacksList: Array.from(cancelledStacks)
     });
 
     // Use flatMap to expand cancelled temp stacks into individual cards
@@ -138,7 +126,6 @@ const TableCards: React.FC<TableCardsProps> = ({
     const transformedCards = tableCards.flatMap((tableItem, originalIndex) => {
       // Handle null/undefined items
       if (!tableItem) {
-        console.warn(`[TableCards] ⚠️ Found null table item at index ${originalIndex}`);
         return [];
       }
 
@@ -162,7 +149,6 @@ const TableCards: React.FC<TableCardsProps> = ({
 
           // Handle edge case: empty cards array
           if (stackCards.length === 0) {
-            console.warn(`[TableCards] ⚠️ Cancelled stack ${stackId} has no cards`);
             return []; // Remove from array entirely
           }
 
@@ -221,7 +207,6 @@ const TableCards: React.FC<TableCardsProps> = ({
       onLayout={() => {  // 🎯 FIX 1: Use measureInWindow for proper coordinates
         tableRef.current?.measureInWindow((x, y, width, height) => {
           tableBoundsRef.current = { x, y, width, height };
-          console.log('[TABLE-BOUNDS] Captured via measureInWindow:', tableBoundsRef.current);
         });
       }}
     >
@@ -242,8 +227,6 @@ const TableCards: React.FC<TableCardsProps> = ({
               const baseZIndex = visibleIndex + 1;
               const dragZIndex = 100000;
 
-
-
               const itemType = getCardType(tableItem);
 
               // 🎯 NEW: Simple table overlap detection (no useMemo needed)
@@ -251,8 +234,6 @@ const TableCards: React.FC<TableCardsProps> = ({
 
               // Simplified z-index: drag z-index guarantees layering priority
               // Removed unused dynamicZIndex variable
-
-
 
               if (itemType === 'loose') {
                 return (

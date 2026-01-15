@@ -101,29 +101,9 @@ class ActionRouter {
                                   finalGameState.playerHands[1].length === 0;
 
           if (bothPlayersEmpty) {
-            console.log('🎯 ROUND_TRANSITION_TRIGGERED: Round 1 complete - BOTH players have empty hands, initializing Round 2', {
-              gameId,
-              triggerAction: actionType,
-              playerWhoJustMoved: playerIndex,
-              round1FinalState: {
-                player0HandSize: finalGameState.playerHands[0].length,
-                player1HandSize: finalGameState.playerHands[1].length,
-                bothPlayersFinished: bothPlayersEmpty
-              }
-            });
-
             const { initializeRound2 } = require('./GameState');
             finalGameState = initializeRound2(finalGameState);
           } else {
-            console.log('⏳ ROUND_1_WAITING: Player finished their hand, waiting for opponent', {
-              gameId,
-              playerWhoJustFinished: playerIndex,
-              currentHandSizes: {
-                player0HandSize: finalGameState.playerHands[0].length,
-                player1HandSize: finalGameState.playerHands[1].length
-              },
-              bothPlayersFinished: bothPlayersEmpty
-            });
           }
 
         } else if (finalGameState.round === 2) {
@@ -132,23 +112,8 @@ class ActionRouter {
                                   finalGameState.playerHands[1].length === 0;
 
           if (bothPlayersEmpty) {
-            console.log('🏆 GAME_OVER_TRIGGERED: Round 2 complete - player emptied hand, finalizing game with scoring', {
-              gameId,
-              triggerAction: actionType,
-              lastPlayer: playerIndex,
-              finalHandSizes: {
-                player0HandSize: finalGameState.playerHands[0].length,
-                player1HandSize: finalGameState.playerHands[1].length
-              },
-              remainingTableCards: finalGameState.tableCards.length
-            });
-
             // Award remaining table cards to the last player who moved
             if (finalGameState.tableCards.length > 0) {
-              console.log('🎁 AWARDING_REMAINING_CARDS: All table cards go to last player', {
-                lastPlayer: playerIndex,
-                cardsAwarded: finalGameState.tableCards.length,
-                cardList: finalGameState.tableCards.map(c => `${c.rank}${c.suit}`)
               });
 
               // Add remaining cards to last player's captures
@@ -170,14 +135,6 @@ class ActionRouter {
             finalGameState.winner = gameResult.winner;
             finalGameState.finalScores = gameResult.scores;
             finalGameState.scoreDetails = gameResult.details;
-
-            console.log('🏆 GAME_FINALIZED:', {
-              winner: gameResult.winner,
-              scores: gameResult.scores,
-              lastCapturer: playerIndex,
-              totalCardsCaptured: gameResult.details.totalCardsCaptured
-            });
-
             // Broadcast game over to clients (will be handled by caller)
           }
         }
@@ -189,18 +146,10 @@ class ActionRouter {
         // 🎯 RESET TEMP STACK AND BUILD HAND CARD TRACKING on turn switch
         if (finalGameState.tempStackHandCardUsedThisTurn) {
           finalGameState.tempStackHandCardUsedThisTurn = [false, false];
-          console.log('[TURN_RESET] 🎯 Reset temp stack hand card tracking for new turn', {
-            newCurrentPlayer: nextPlayer,
-            resetTracking: finalGameState.tempStackHandCardUsedThisTurn
-          });
         }
 
         if (finalGameState.buildHandCardUsedThisTurn) {
           finalGameState.buildHandCardUsedThisTurn = [false, false];
-          console.log('[TURN_RESET] 🎯 Reset build hand card tracking for new turn', {
-            newCurrentPlayer: nextPlayer,
-            resetTracking: finalGameState.buildHandCardUsedThisTurn
-          });
         }
 
         const fromPlayer = newGameState.currentPlayer;
@@ -250,13 +199,6 @@ class ActionRouter {
       // 🎯 EMIT ACTION FAILURE TO CLIENT: For drag-related actions that should reset cards
       const dragRelatedActions = ['addToOwnTemp', 'addToOwnBuild', 'trail', 'capture'];
       if (dragRelatedActions.includes(actionType)) {
-        console.log('[ActionRouter] 🚨 Emitting action-failed event to client:', {
-          actionType,
-          playerIndex,
-          error: error.message,
-          resetCard: payload?.card ? { rank: payload.card.rank, suit: payload.card.suit } : null
-        });
-
         // Emit to the specific player's socket
         const gameManager = this.gameManager;
         const game = gameManager.activeGames.get(gameId);

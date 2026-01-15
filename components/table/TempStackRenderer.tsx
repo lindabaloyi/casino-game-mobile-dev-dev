@@ -131,24 +131,8 @@ export function TempStackRenderer({
       instruction: 'Accept to capture combination'
     });
   }
-  console.log(`🎯 [STAGING_DEBUG] TEMP STACK ${index} READY: Can accept unlimited loose card drops`);
-
   if (isCurrentPlayerOwner) {
-    console.log(`[TEMP_STACK_RENDERER] 👑 Player owns this stack - showing STAGING OVERLAY with Accept/Cancel buttons`, {
-      stackId,
-      player: currentPlayer,
-      overlayEnabled: true,
-      stackCards: tempStackCards.length,
-      stagingSource: tempStackCards.length > 1 ? 'table-to-loose-drop' : 'unknown'
-    });
-    console.log(`🎯 [STAGING_DEBUG] STAGING OVERLAY SHOULD APPEAR for stack ${stackId} - Accept/Cancel buttons visible`);
   } else {
-    console.log(`[TEMP_STACK_RENDERER] 👀 Player does NOT own this stack - NO overlay shown`, {
-      stackId,
-      owner: tempStackItem.owner,
-      currentPlayer,
-      overlayEnabled: false
-    });
   }
 
   return (
@@ -181,28 +165,11 @@ export function TempStackRenderer({
           isVisible={!isDragging}
           tempId={tempStackItem.stackId || stackId}
           onAccept={() => {
-            console.log(`[UNIVERSAL_TEMP_UI] 📨 ACCEPT callback triggered for temp ${stackId}`, {
-              tempId: stackId,
-              callingOnTempAccept: !!onTempAccept,
-              callbackType: 'onTempAccept',
-              canAugmentBuilds,
-              tempType: canAugmentBuilds ? 'enhanced' : 'basic',
-              action: 'capture_combination',
-              timestamp: Date.now()
             });
 
             onTempAccept?.(stackId);
           }}
           onReject={() => {
-            console.log(`[UNIVERSAL_TEMP_UI] 📨 CANCEL callback triggered for temp ${stackId}`, {
-              tempId: stackId,
-              callingOnTempReject: !!onTempReject,
-              callbackType: 'onTempReject',
-              canAugmentBuilds,
-              tempType: canAugmentBuilds ? 'enhanced' : 'basic',
-              action: 'cancel_temp',
-              cardsReturned: tempStackCards.length,
-              timestamp: Date.now()
             });
 
             onTempReject?.(stackId);

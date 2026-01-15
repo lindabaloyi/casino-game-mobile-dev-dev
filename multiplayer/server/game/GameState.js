@@ -18,21 +18,13 @@ const buildLifecycleTracker = {
       extensions: [],
       metadata
     });
-    console.log('[BUILD_LIFECYCLE] Build created:', { buildId, context, metadata });
   },
 
   trackExtension(buildId, context, metadata = {}) {
     const build = this.createdBuilds.get(buildId);
     if (build) {
       build.extensions.push({ timestamp: Date.now(), context, metadata });
-      console.log('[BUILD_LIFECYCLE] Build extended:', {
-        buildId,
-        extensionCount: build.extensions.length,
-        context,
-        metadata
-      });
     } else {
-      console.warn('[BUILD_LIFECYCLE] Attempting to extend unknown build:', { buildId, context, metadata });
     }
   },
 
@@ -153,22 +145,10 @@ function initializeRound2(gameState) {
   // Increment round
   const oldRound = newGameState.round;
   newGameState.round = 2;
-
-  console.log(`🔄 ROUND_INCREMENT: ${oldRound} → ${newGameState.round}`);
-
   // Deal 10 new cards to each player from remaining deck
   // NOTE: Each player gets 10 cards for round 2 (same as round 1)
   const cardsPerPlayer = 10;
   const totalCardsNeeded = cardsPerPlayer * GAME_CONFIG.MAX_PLAYERS;
-
-  console.log('🃏 CARD_DEALING_START: Dealing fresh hands for round 2', {
-    deckSizeBefore: newGameState.deck.length,
-    cardsPerPlayer,
-    players: GAME_CONFIG.MAX_PLAYERS,
-    totalCardsNeeded,
-    deckHasEnoughCards: newGameState.deck.length >= totalCardsNeeded
-  });
-
   for (let playerIndex = 0; playerIndex < GAME_CONFIG.MAX_PLAYERS; playerIndex++) {
     const oldHandSize = newGameState.playerHands[playerIndex].length;
     const newCards = newGameState.deck.splice(0, cardsPerPlayer);
@@ -300,8 +280,6 @@ function clone(gameState) {
  * Checks for card duplication issues in temp stacks, loose cards, and player hands
  */
 function validateNoDuplicates(gameState) {
-  console.log('[VALIDATION] 🔍 Checking for card duplicates across all game locations...');
-
   const allCards = [];
   const cardLocations = [];
 
@@ -374,8 +352,6 @@ function validateNoDuplicates(gameState) {
     });
     return false;
   }
-
-  console.log('[VALIDATION] ✅ No duplicates found across all game locations');
   return true;
 }
 
@@ -467,22 +443,6 @@ function calculateGameResult(gameState, lastCapturer) {
       player1: player1Cards.map(c => `${c.rank}${c.suit}`)
     }
   };
-
-  console.log('📊 SCORING_CALCULATION:', {
-    player0: {
-      cards: player0Cards.length,
-      score: player0Score,
-      breakdown: details.playerBreakdowns.player0
-    },
-    player1: {
-      cards: player1Cards.length,
-      score: player1Score,
-      breakdown: details.playerBreakdowns.player1
-    },
-    winner: winner,
-    tieBreakerUsed: player0Score === player1Score
-  });
-
   return {
     winner,
     scores,

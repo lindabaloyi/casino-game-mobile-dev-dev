@@ -18,9 +18,7 @@ export default function RootLayout() {
         try {
           await NavigationBar.setVisibilityAsync('hidden');
           await NavigationBar.setBehaviorAsync('inset-touch');
-          console.log('[NAVBAR] System navigation bar hidden programmatically');
         } catch (error) {
-          console.warn('[NAVBAR] Failed to hide navigation bar:', error);
         }
       }
     };
@@ -29,7 +27,6 @@ export default function RootLayout() {
 
     // Listen for orientation changes and re-hide navigation bar
     const orientationSubscription = ScreenOrientation.addOrientationChangeListener(() => {
-      console.log('[NAVBAR] Orientation changed, re-hiding navigation bar');
       hideNavigationBar();
     });
 

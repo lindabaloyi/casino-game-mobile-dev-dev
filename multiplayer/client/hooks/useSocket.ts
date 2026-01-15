@@ -19,39 +19,23 @@ const SOCKET_CONFIG = {
   RECONNECTION_ATTEMPTS: 10,
   RECONNECTION_DELAY: 1500,
 };
-
-console.log("[ENV] SOCKET_URL read from .env:", process.env.EXPO_PUBLIC_SOCKET_URL);
-console.log("[ENV] Final SOCKET_URL used:", SOCKET_CONFIG.URL);
-
 // Utility function to create socket event handlers
 const createSocketEventHandlers = (handlers: SocketEventHandlers) => ({
   connect: (socket: Socket) => {
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}][CLIENT] Connected to server, socket.id: ${socket.id}`);
-    console.log(`[${timestamp}][CLIENT] Connection details:`, {
-      id: socket.id,
-      connected: socket.connected,
-      transport: socket.io.engine.transport.name
-    });
   },
 
   'game-start': (data: { gameState: GameState; playerNumber: number }) => {
-    console.log('[CLIENT] Game started:', data);
     handlers.setGameState(data.gameState);
     handlers.setPlayerNumber(data.playerNumber);
   },
 
   'game-update': (updatedGameState: GameState) => {
-    console.log('[CLIENT] Game state updated:', {
-      currentPlayer: updatedGameState.currentTurn,
-      players: updatedGameState.players?.length || 0
-    });
     handlers.setGameState(updatedGameState);
   },
 
   disconnect: (reason: string) => {
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}][CLIENT] Disconnected from server, reason: ${reason}`);
   },
 
   'connect_error': (error: Error) => {
@@ -61,12 +45,10 @@ const createSocketEventHandlers = (handlers: SocketEventHandlers) => ({
 
   reconnect: (attemptNumber: number) => {
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}][CLIENT] Reconnected after ${attemptNumber} attempts`);
   },
 
   'reconnect_attempt': (attemptNumber: number) => {
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}][CLIENT] Reconnect attempt ${attemptNumber}`);
   },
 
   'reconnect_error': (error: Error) => {
@@ -81,7 +63,6 @@ export const useSocket = () => {
   const [playerNumber, setPlayerNumber] = useState<number | null>(null);
 
   const socketInstance = useMemo(() => {
-    console.log("[SOCKET] Creating connection to:", SOCKET_CONFIG.URL);
     return io(SOCKET_CONFIG.URL, {
       transports: SOCKET_CONFIG.TRANSPORTS,
       reconnection: true,
@@ -112,10 +93,8 @@ export const useSocket = () => {
   const sendAction = (action: any) => {
     const timestamp = new Date().toISOString();
     if (socketInstance) {
-      console.log(`[${timestamp}][CLIENT] Sending game-action: ${action.type || 'unknown'}, data:`, action);
       socketInstance.emit('game-action', action);
     } else {
-      console.warn(`[${timestamp}][CLIENT] Attempted to send action but socket is null:`, action);
     }
   };
 

@@ -30,47 +30,24 @@ export function handleTempStackContact(
   currentPlayer: number,
   source?: string
 ): { type: string; payload: any } | null {
-
-  console.log('[TEMP_HANDLER] Processing contact:', {
-    source: source,
-    card: `${draggedCard.rank}${draggedCard.suit}`,
-    contactType: contact.type,
-    contactId: contact.id,
-    player: currentPlayer
-  });
-
   // SCENARIO 1: Contact with EXISTING TEMP (Addition Flow)
   if (contact.type === 'tempStack') {
     const tempStack = findTempStackById(contact.id, gameState);
 
     if (!tempStack) {
-      console.log('[TEMP_HANDLER] ❌ Temp not found:', contact.id);
       return null;
     }
 
     // Ownership check
     if (tempStack.owner !== currentPlayer) {
-      console.log('[TEMP_HANDLER] ❌ Cannot add to opponent temp:', {
-        player: currentPlayer,
-        owner: tempStack.owner,
-        tempId: tempStack.stackId
-      });
       return null;
     }
 
     // Prevent temp-to-temp
     const draggedFromTemp = isCardInTemp(draggedCard, gameState);
     if (draggedFromTemp) {
-      console.log('[TEMP_HANDLER] ❌ Cannot drag from temp to temp');
       return null;
     }
-
-    console.log('[TEMP_HANDLER] ✅ Adding to own temp:', {
-      tempId: tempStack.stackId,
-      card: `${draggedCard.rank}${draggedCard.suit}`,
-      source: source
-    });
-
     return {
       type: 'addToOwnTemp',
       payload: {
@@ -86,31 +63,24 @@ export function handleTempStackContact(
     const targetCard = findLooseCardById(contact.id, gameState);
 
     if (!targetCard) {
-      console.log('[TEMP_HANDLER] ❌ Loose card not found:', contact.id);
       return null;
     }
 
     // Prevent dragging card onto itself
     if (draggedCard.rank === targetCard.rank &&
         draggedCard.suit === targetCard.suit) {
-      console.log('[TEMP_HANDLER] ❌ Cannot create temp with same card');
       return null;
     }
 
     // Check if player already has active temp
     const existingTemp = findActiveTemp(gameState, currentPlayer);
     if (existingTemp) {
-      console.log('[TEMP_HANDLER] ❌ Player already has active temp:', {
-        tempId: existingTemp.stackId,
-        cards: existingTemp.cards?.length || 0
-      });
       return null;
     }
 
     // Prevent using cards already in temps
     const draggedFromTemp = isCardInTemp(draggedCard, gameState);
     if (draggedFromTemp) {
-      console.log('[TEMP_HANDLER] ❌ Card is already in a temp');
       return null;
     }
 
@@ -141,8 +111,6 @@ export function handleTempStackContact(
       }
     };
   }
-
-  console.log('[TEMP_HANDLER] Ignoring contact type:', contact.type);
   return null;
 }
 

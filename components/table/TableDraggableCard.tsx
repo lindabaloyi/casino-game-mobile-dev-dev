@@ -54,7 +54,6 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
       cardRef.current?.measureInWindow((x, y, width, height) => {
         // Skip invalid measurements
         if (x === 0 && y === 0 && width === 0 && height === 0) {
-          console.log('[TABLE-CARD] Invalid measurement for card:', cardId);
           return;
         }
 
@@ -88,7 +87,6 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
       clearTimeout(initialTimeout);
       clearInterval(intervalId);
       removePosition(cardId);
-      console.log('[TABLE-CARD] 🧹 Cleaned up position for card:', cardId);
     };
   }, [card, index]);
 
@@ -111,9 +109,6 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
 
       if (distance > 8 && !hasStartedDrag) {
         setHasStartedDrag(true);
-        console.log(`[TableDraggableCard] 🏁 STARTED dragging ${card.rank}${card.suit} from table`);
-        console.log(`[TableDraggableCard] 📊 Stack ID: ${stackId}, Index: ${index}`);
-
         if (onDragStart) {
           onDragStart(card);
         }
@@ -160,13 +155,11 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
         dropPosition.contact = contact;
         dropPosition.handled = true;
       } else {
-        console.log(`[TableDraggableCard] ❌ No contact detected at drop position - will trail`);
         // No fallback to old drop zone system - contact detection is the only method
       }
 
       // Snap back if not handled by either system
       if (!dropPosition.handled) {
-        console.log(`[TableDraggableCard] 🏠 Snapping back ${card.rank}${card.suit} to original position`);
         Animated.spring(pan, {
           toValue: { x: 0, y: 0 },
           friction: 7,
@@ -193,7 +186,6 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
     },
 
     onPanResponderTerminate: () => {
-      console.log(`[TableDraggableCard] ⚠️ Drag terminated for ${card.rank}${card.suit}`);
       Animated.spring(pan, {
         toValue: { x: 0, y: 0 },
         useNativeDriver: false,
@@ -206,7 +198,6 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
   // Handle external reset (server validation failures)
   useEffect(() => {
     if (triggerReset) {
-      console.log(`[TableDraggableCard] ⚡ INSTANT RESET triggered for ${card.rank}${card.suit}`);
       pan.stopAnimation();
       pan.setValue({ x: 0, y: 0 });
       pan.flattenOffset();

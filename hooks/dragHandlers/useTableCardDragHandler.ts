@@ -6,8 +6,6 @@
 import { useCallback } from 'react';
 import { GameState } from '../../multiplayer/server/game-logic/game-state';
 
-
-
 interface TableCardDragHandlerProps {
   gameState: GameState;
   playerNumber: number;
@@ -33,14 +31,7 @@ export function useTableCardDragHandler({
     draggedItem: any,
     contact: any
   ): boolean => {
-    console.log(`[BUILD-AUGMENT-DRAG] 🏗️ Build augmentation drag end:`, {
-      stackId: draggedItem.stackId,
-      buildId: contact.id,
-      stackValue: draggedItem.value
-    });
-
     if (!isMyTurn) {
-      console.log(`[BUILD-AUGMENT-DRAG] ❌ Not your turn for build augmentation`);
       return false;
     }
 
@@ -50,34 +41,17 @@ export function useTableCardDragHandler({
     ) as any;
 
     if (!tempStack) {
-      console.log(`[BUILD-AUGMENT-DRAG] ❌ Temp stack not found:`, draggedItem.stackId);
       return false;
     }
 
     if (!tempStack.canAugmentBuilds) {
-      console.log(`[BUILD-AUGMENT-DRAG] ❌ Temp stack cannot augment builds:`, draggedItem.stackId);
       return false;
     }
-
-    console.log(`[BUILD-AUGMENT-DRAG] ✅ Found valid augmentation stack:`, {
-      stackId: tempStack.stackId,
-      stackValue: tempStack.value,
-      canAugmentBuilds: tempStack.canAugmentBuilds
-    });
-
     // Client-side validation: temp stack value must match build value
     const build = contact.data;
     if (!build || tempStack.value !== build.value) {
-      console.log(`[BUILD-AUGMENT-DRAG] ❌ Value validation failed:`, {
-        tempStackValue: tempStack.value,
-        buildValue: build?.value,
-        match: tempStack.value === build?.value
-      });
       return false;
     }
-
-    console.log(`[BUILD-AUGMENT-DRAG] ✅ Validation passed - sending validateBuildAugmentation`);
-
     const action = {
       type: 'validateBuildAugmentation',
       payload: {

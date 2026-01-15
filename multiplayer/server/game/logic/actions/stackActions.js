@@ -13,12 +13,6 @@ const logger = createLogger('StackActions');
  * Checks for table-to-table drops, temporary stack additions, and stack validation
  */
 function determineStackActions(draggedItem, targetInfo, gameState) {
-  console.log('[determineStackActions] entered', {
-    source: draggedItem.source,
-    targetType: targetInfo.type,
-    playerId: gameState.currentPlayer
-  });
-
   const actions = [];
   const draggedCard = draggedItem.card;
   const draggedValue = rankValue(draggedCard.rank);
@@ -185,8 +179,6 @@ function determineStackActions(draggedItem, targetInfo, gameState) {
       timestamp: new Date().toISOString()
     });
   }
-
-
 
   return actions;
 }

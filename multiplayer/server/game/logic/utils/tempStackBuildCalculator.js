@@ -270,7 +270,6 @@ function detectBuildWithSegmentInfo(values) {
  * @returns {object} Updated temp stack with new build state
  */
 function updateBuildCalculator(tempStack, newCardValue) {
-  console.log('[BUILD_CALCULATOR] 🎯 UPDATE_BUILD_CALCULATOR starting');
   console.log('[BUILD_CALCULATOR] 📊 Input parameters:', {
     stackId: tempStack.stackId,
     newCardValue: newCardValue,
@@ -284,42 +283,11 @@ function updateBuildCalculator(tempStack, newCardValue) {
   const B = tempStack.buildValue;
   const S = tempStack.runningSum || 0;
   const C = tempStack.segmentCount || 0;
-
-  console.log('[BUILD_CALCULATOR] 📈 Current state variables:', {
-    B: B, // buildValue
-    S: S, // runningSum
-    C: C  // segmentCount
-  });
-
   // Check if this is a special case build (sum ≤ 10)
-  console.log('[BUILD_CALCULATOR] 🔍 DEBUGGING CARD VALUE EXTRACTION:');
-  console.log('[BUILD_CALCULATOR] 🔍 tempStack.cards array:', tempStack.cards);
-  console.log('[BUILD_CALCULATOR] 🔍 tempStack.cards.length:', tempStack.cards.length);
-
   tempStack.cards.forEach((card, index) => {
-    console.log(`[BUILD_CALCULATOR] 🔍 Card ${index}:`, {
-      fullCard: card,
-      rank: card.rank,
-      suit: card.suit,
-      value: card.value,
-      valueType: typeof card.value,
-      source: card.source
-    });
   });
 
   const cards = tempStack.cards.map(c => c.value);
-  console.log('[BUILD_CALCULATOR] 🔍 After map(c => c.value):', cards);
-  console.log('[BUILD_CALCULATOR] 🔍 cards.length:', cards.length);
-
-  // FIX: Detect if newCardValue is already in the cards array to prevent double-counting
-  const cardAlreadyIncluded = cards.includes(newCardValue);
-  console.log('[BUILD_CALCULATOR] 🔍 Double-counting detection:', {
-    newCardValue: newCardValue,
-    cardAlreadyIncluded: cardAlreadyIncluded,
-    cardsArray: cards
-  });
-
-  const cardsSum = cards.reduce((sum, c) => sum + c, 0);
   const totalSum = cardAlreadyIncluded ? cardsSum : cardsSum + newCardValue;
   console.log('[BUILD_CALCULATOR] 🔍 Corrected sum calculation:', {
     cardsSum: cardsSum,
@@ -330,35 +298,13 @@ function updateBuildCalculator(tempStack, newCardValue) {
   });
 
   const isSpecialCase = totalSum <= 10;
-
-  console.log('[BUILD_CALCULATOR] 🔍 Special case analysis:', {
-    currentCardValues: cards,
-    newCardValue: newCardValue,
-    totalSum: totalSum,
-    isSpecialCase: isSpecialCase,
-    specialCaseRule: 'sum ≤ 10'
-  });
-
   // Add new card to running sum
   const newS = S + newCardValue;
-  console.log('[BUILD_CALCULATOR] ➕ Adding new card to running sum:', {
-    previousRunningSum: S,
-    newCardValue: newCardValue,
-    newRunningSum: newS
-  });
-
   if (!B) {
-    console.log('[BUILD_CALCULATOR] 🆕 NO BUILD VALUE YET - checking if first segment completes');
-
     // No build discovered yet - check if this completes first segment
     // IMPORTANT: Use the current cards array (new card already added to tempStack.cards)
-    console.log('[BUILD_CALCULATOR] 📋 Calling checkFirstCompleteSegment with current cards:', cards);
     const segmentValue = checkFirstCompleteSegment(cards);
-    console.log('[BUILD_CALCULATOR] 📋 checkFirstCompleteSegment result:', segmentValue);
-
     if (segmentValue) {
-      console.log(`[BUILD_CALCULATOR] ✅ FIRST SEGMENT COMPLETE! segmentValue: ${segmentValue}`);
-
       tempStack.buildValue = segmentValue;
       tempStack.runningSum = 0;
       tempStack.segmentCount = 1;
@@ -378,8 +324,6 @@ function updateBuildCalculator(tempStack, newCardValue) {
         isBuilding: tempStack.isBuilding
       });
     } else {
-      console.log('[BUILD_CALCULATOR] 🔄 STILL BUILDING FIRST SEGMENT - no complete segment found');
-
       // Still building first segment
       tempStack.displayValue = cards.reduce((sum, c) => sum + c, 0) + newCardValue;
       tempStack.isValid = true;
@@ -397,7 +341,6 @@ function updateBuildCalculator(tempStack, newCardValue) {
     console.log(`[BUILD_CALCULATOR] ✅ BUILD VALUE EXISTS (${B}) - processing with known build rules`);
 
     // Build value known - check for overflow first
-    console.log('[BUILD_CALCULATOR] 🚨 Checking for overflow...');
     const hasOverflow = newS > B && !isSpecialCase;
     console.log('[BUILD_CALCULATOR] 🚨 Overflow check:', {
       newRunningSum: newS,
@@ -409,27 +352,14 @@ function updateBuildCalculator(tempStack, newCardValue) {
 
     if (hasOverflow) {
       // OVERFLOW: Invalid - breaks consecutive rule (only for non-special cases)
-      console.log('[BUILD_CALCULATOR] ❌ OVERFLOW DETECTED - marking as invalid');
       tempStack.displayValue = 'INVALID';
       tempStack.isValid = false;
       tempStack.isBuilding = false;
-
-      console.log('[BUILD_CALCULATOR] 🚫 Stack marked invalid due to overflow:', {
-        displayValue: tempStack.displayValue,
-        isValid: tempStack.isValid,
-        isBuilding: tempStack.isBuilding
-      });
-
       return tempStack;
     }
 
     // Update running sum and calculate display
     tempStack.runningSum = newS;
-    console.log('[BUILD_CALCULATOR] 🔄 Running sum updated:', {
-      previousRunningSum: S,
-      newRunningSum: newS
-    });
-
     const segmentComplete = newS === B;
     const useSpecialCase = isSpecialCase;
     console.log('[BUILD_CALCULATOR] 📋 Completion check:', {
@@ -440,8 +370,6 @@ function updateBuildCalculator(tempStack, newCardValue) {
     });
 
     if (segmentComplete || useSpecialCase) {
-      console.log('[BUILD_CALCULATOR] ✅ SEGMENT COMPLETE or SPECIAL CASE triggered');
-
       // SEGMENT COMPLETE or SPECIAL CASE: show total sum for special cases
       tempStack.displayValue = isSpecialCase ? totalSum : B;
       tempStack.runningSum = 0;
@@ -458,8 +386,6 @@ function updateBuildCalculator(tempStack, newCardValue) {
         isBuilding: tempStack.isBuilding
       });
     } else {
-      console.log('[BUILD_CALCULATOR] 🔄 BUILDING TOWARD NEXT SEGMENT');
-
       // BUILDING TOWARD SEGMENT (only for complex builds)
       tempStack.displayValue = newS - B; // Negative deficit
       tempStack.isValid = true;
@@ -496,7 +422,6 @@ function updateBuildCalculator(tempStack, newCardValue) {
  * @returns {object} Enhanced temp stack with build calculator fields
  */
 function initializeBuildCalculator(stagingStack) {
-  console.log('[BUILD_CALCULATOR] 🎯 INITIALIZE_BUILD_CALCULATOR starting');
   console.log('[BUILD_CALCULATOR] 📊 Input staging stack:', {
     stackId: stagingStack.stackId,
     cards: stagingStack.cards?.map(c => `${c.rank}${c.suit}(${c.value})`) || [],
@@ -514,66 +439,27 @@ function initializeBuildCalculator(stagingStack) {
     isValid: true,
     isBuilding: true
   };
-
-  console.log('[BUILD_CALCULATOR] 🏗️ Enhanced stack initialized with defaults:', {
-    buildValue: enhancedStack.buildValue,
-    runningSum: enhancedStack.runningSum,
-    segmentCount: enhancedStack.segmentCount,
-    displayValue: enhancedStack.displayValue,
-    isValid: enhancedStack.isValid,
-    isBuilding: enhancedStack.isBuilding
-  });
-
   // Analyze existing cards to see if they form a build
   const cardValues = enhancedStack.cards.map(c => c.value);
-  console.log('[BUILD_CALCULATOR] 🔍 Analyzing card values:', cardValues);
-
-  console.log('[BUILD_CALCULATOR] 📋 Calling detectBuildWithSegmentInfo...');
   const buildResult = detectBuildWithSegmentInfo(cardValues);
-  console.log('[BUILD_CALCULATOR] 📋 detectBuildWithSegmentInfo result:', buildResult);
-
   if (buildResult) {
-    console.log('[BUILD_CALCULATOR] ✅ BUILD DETECTED! Applying build result:', {
-      buildValue: buildResult.buildValue,
-      type: buildResult.type,
-      segmentCount: buildResult.segmentCount,
-      segmentEnd: buildResult.segmentEnd
-    });
-
     // Found a build! Set up the calculator state
     enhancedStack.buildValue = buildResult.buildValue;
     enhancedStack.segmentCount = 1;
     enhancedStack.displayValue = buildResult.buildValue;
     enhancedStack.isBuilding = false;
-
-    console.log('[BUILD_CALCULATOR] 🔄 Initial build state set:', {
-      buildValue: enhancedStack.buildValue,
-      segmentCount: enhancedStack.segmentCount,
-      displayValue: enhancedStack.displayValue,
-      isBuilding: enhancedStack.isBuilding
-    });
-
     // Calculate remaining cards to see current state using proper segmentEnd
     const remainingCards = cardValues.slice(buildResult.segmentEnd);
-    console.log('[BUILD_CALCULATOR] 📊 Analyzing remaining cards after segmentEnd:', {
-      segmentEnd: buildResult.segmentEnd,
-      remainingCards: remainingCards,
-      totalCards: cardValues.length
-    });
-
     let currentSum = 0;
     let segmentsFound = 1;
 
     for (let i = 0; i < remainingCards.length; i++) {
       const value = remainingCards[i];
       currentSum += value;
-      console.log(`[BUILD_CALCULATOR] 🔄 Processing remaining card ${i}: ${value}, currentSum: ${currentSum}, target: ${buildResult.buildValue}`);
-
       if (currentSum === buildResult.buildValue) {
         // Complete segment
         segmentsFound++;
         currentSum = 0;
-        console.log(`[BUILD_CALCULATOR] ✅ Segment ${segmentsFound} completed`);
       } else if (currentSum > buildResult.buildValue) {
         // Invalid - overflow
         console.log(`[BUILD_CALCULATOR] ❌ OVERFLOW DETECTED! currentSum (${currentSum}) > buildValue (${buildResult.buildValue})`);
@@ -585,26 +471,16 @@ function initializeBuildCalculator(stagingStack) {
 
     enhancedStack.segmentCount = segmentsFound;
     enhancedStack.runningSum = currentSum;
-
-    console.log('[BUILD_CALCULATOR] 📈 Final state after remaining card analysis:', {
-      segmentCount: enhancedStack.segmentCount,
-      runningSum: enhancedStack.runningSum,
-      isValid: enhancedStack.isValid
-    });
-
     // Set display value based on current state
     if (!enhancedStack.isValid) {
       enhancedStack.displayValue = 'INVALID';
-      console.log('[BUILD_CALCULATOR] 🚫 Display value set to INVALID due to overflow');
     } else if (currentSum === 0) {
       enhancedStack.displayValue = buildResult.buildValue; // Last segment complete
       console.log(`[BUILD_CALCULATOR] ✅ Display value set to buildValue (${buildResult.buildValue}) - all segments complete`);
     } else {
       enhancedStack.displayValue = currentSum - buildResult.buildValue; // Building toward next
-      console.log(`[BUILD_CALCULATOR] 🔄 Display value set to deficit: ${currentSum} - ${buildResult.buildValue} = ${enhancedStack.displayValue}`);
     }
   } else {
-    console.log('[BUILD_CALCULATOR] ❌ NO BUILD DETECTED - keeping default values');
   }
 
   console.log('[BUILD_CALCULATOR] 🎯 INITIALIZE_BUILD_CALCULATOR complete. Final result:', {

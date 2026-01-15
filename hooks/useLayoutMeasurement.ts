@@ -39,21 +39,17 @@ export const useLayoutMeasurement = (
 
   const measure = useCallback(() => {
     if (!ref.current) {
-      console.log(`[useLayoutMeasurement] No ref available for ${stackId}`);
       return;
     }
 
     ref.current.measureInWindow((pageX, pageY, measuredWidth, measuredHeight) => {
       // Skip invalid measurements (often happen on first render)
       if (pageX === 0 && pageY === 0) {
-        console.log(`[useLayoutMeasurement] Skipping invalid measurement for ${stackId}, will retry`);
-
         // Retry measurement after a short delay
         setTimeout(() => {
           if (ref.current) {
             ref.current.measureInWindow((retryX, retryY, retryWidth, retryHeight) => {
               if (retryX !== 0 || retryY !== 0) {
-                console.log(`[useLayoutMeasurement] Retry measurement successful for ${stackId}`);
                 const expandedBounds = calculateExpandedBounds(
                   retryX, retryY, measuredWidth, measuredHeight, expansionFactor
                 );
@@ -66,7 +62,6 @@ export const useLayoutMeasurement = (
                   totalExpansion: `${((expansionFactor * 2) * 100).toFixed(0)}% wider/taller`
                 });
               } else {
-                console.log(`[useLayoutMeasurement] Retry measurement also invalid for ${stackId}`);
               }
             });
           }
