@@ -44,6 +44,11 @@ export function useBuildDropHandler({
 
     // ✅ VALIDATION: Ownership check
     if (buildItem.owner !== currentPlayer) {
+      console.log('[BUILD_DROP_HANDLER] ❌ Not build owner - rejecting augmentation:', {
+        buildOwner: buildItem.owner,
+        currentPlayer,
+        buildId: buildItem.buildId
+      });
       return false;
     }
 
@@ -56,11 +61,28 @@ export function useBuildDropHandler({
     const isTempStackAugmentation = draggedItem.type === 'tempStack' || draggedItem.stackId;
 
     if (isTempStackAugmentation) {
+      console.log('[BUILD_DROP_HANDLER] 🏗️ TEMP STACK TO BUILD AUGMENTATION DETECTED:', {
+        buildId: buildItem.buildId,
+        buildValue: buildItem.value,
+        tempStackId: draggedItem.stackId,
+        tempStackValue: draggedItem.value,
+        tempStackCards: draggedItem.cards?.length || 0,
+        validationRequired: draggedItem.value !== buildItem.value
+      });
+
       // Client-side validation: temp stack value must match build value for augmentation
       if (draggedItem.value !== buildItem.value) {
+        console.log('[BUILD_DROP_HANDLER] ❌ VALIDATION FAILED - Value mismatch:', {
+          tempStackValue: draggedItem.value,
+          buildValue: buildItem.value,
+          expected: 'values must match for augmentation'
+        });
         // Could show user feedback here
         return false;
       }
+
+      console.log('[BUILD_DROP_HANDLER] ✅ CLIENT VALIDATION PASSED - Sending validateBuildAugmentation action');
+
       // Send validateBuildAugmentation action for temp stack to build augmentation
       sendAction({
         type: 'validateBuildAugmentation',
@@ -74,6 +96,13 @@ export function useBuildDropHandler({
     }
 
     // Create build augmentation staging stack (universal staging system)
+    console.log('[BUILD_DROP_HANDLER] ✅ Creating build augmentation staging stack:', {
+      buildId: buildItem.buildId,
+      draggedCard: draggedItem.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
+      source: draggedItem.source,
+      reason: 'Using universal staging system for better UX'
+    });
+
     // Send createTableToBuildAugmentationStagingStack action
     sendAction({
       type: 'createTableToBuildAugmentationStagingStack',

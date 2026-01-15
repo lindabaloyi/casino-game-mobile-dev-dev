@@ -53,6 +53,9 @@ export function useDragHandlers({
       context: context || {},
       timestamp: new Date().toISOString()
     };
+
+    console.log('🎯 TURN_VALIDATION_DEBUG:', turnState);
+
     if (!isMyTurn) {
       console.error('🚨 TURN_VIOLATION_DETECTED:', {
         ...turnState,
@@ -69,6 +72,8 @@ export function useDragHandlers({
    * Handle drag start with enhanced turn validation
    */
   const handleDragStart = useCallback((card: any) => {
+    console.log(`[CONTACT-DRAG] 🎯 Drag start: ${card?.rank}${card?.suit}`);
+
     if (!validateAndLogTurn('DRAG_START', { card: `${card?.rank}${card?.suit}` })) {
       return;
     }
@@ -136,6 +141,8 @@ export function useDragHandlers({
    * Table card drag start with enhanced turn validation
    */
   const handleTableCardDragStart = useCallback((card: any) => {
+    console.log(`[CONTACT-DRAG] Table drag start: ${card.rank}${card.suit}`);
+
     if (!validateAndLogTurn('TABLE_DRAG_START', { card: `${card.rank}${card.suit}` })) {
       return;
     }
@@ -143,6 +150,8 @@ export function useDragHandlers({
     setDraggedCard(card);
     setIsDragging(true);
   }, [validateAndLogTurn]);
+
+
 
   /**
    * Table card drag end - delegate to separated handler

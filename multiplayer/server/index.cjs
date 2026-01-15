@@ -10,8 +10,17 @@ const ActionRouter = require('./game/ActionRouter.cjs');
 const GameState = require('./game/GameState.cjs');
 
 // Import the new networking layer
+<<<<<<< HEAD:multiplayer/server/index.cjs
 const { startServer } = require('./socket-server.cjs');
+=======
+const { startServer } = require('./socket-server');
+
+console.log('[REFACTOR] Starting server with new modular architecture...');
+
+>>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance):multiplayer/server/index.js
 // Initialize the game system
+console.log('[REFACTOR] Initializing GameManager and ActionRouter...');
+
 try {
   // Dependency injection: ActionRouter gets GameManager
   const gameManager = new GameManager();
@@ -19,8 +28,18 @@ try {
 
   // ActionRouter gets injected into GameManager
   gameManager.actionRouter = actionRouter;
+
+  console.log('[REFACTOR] Game system initialized successfully');
+
   // Start the server with the modular components
+  console.log('[REFACTOR] Starting socket server...');
+
   const serverComponents = startServer(GameManager, ActionRouter);
+
+  console.log('[REFACTOR] ✅ Server started successfully with modular architecture!');
+  console.log('[REFACTOR] ♟️ Game system ready for casino gameplay');
+  console.log('[REFACTOR] 📊 Active games:', gameManager.getActiveGamesCount());
+
   // Export for testing purposes
   module.exports = {
     gameManager,

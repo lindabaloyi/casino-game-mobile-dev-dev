@@ -42,18 +42,24 @@ export function AcceptValidationModal({
   // Validate immediately when modal opens
   useEffect(() => {
     if (visible && tempStack) {
+      console.log('🎯 [MODAL] Modal opened, validating temp stack...');
+
       // First check if temp stack is valid for building
       const validation = validateTempStackDetailed(tempStack, playerHand);
 
       if (!validation.valid) {
         // Invalid - show error message
+        console.log('❌ [MODAL] Temp stack invalid:', validation.error);
         setModalState({
           type: 'invalid',
           error: validation.error
         });
       } else {
         // Valid - show available action options
+        console.log('✅ [MODAL] Temp stack valid, calculating options...');
         const options = calculateConsolidatedOptions(tempStack, playerHand);
+        console.log('🎯 [MODAL] Available options:', options.map(o => o.label));
+
         setModalState({
           type: 'valid',
           options,
@@ -75,13 +81,23 @@ export function AcceptValidationModal({
   const handleAction = async (action: ActionOption) => {
     // Prevent double-clicks
     if (isProcessing.current) {
+      console.log('⚠️ [MODAL] Already processing, ignoring duplicate click');
       return;
     }
 
     if (!modalState) {
+      console.log('❌ [MODAL] No modal state available');
       return;
     }
+
+    console.log('🎯 [MODAL] Action selected:', {
+      type: action.type,
+      label: action.label,
+      value: action.value
+    });
+
     if (!tempStack?.stackId) {
+      console.log('❌ [MODAL] Invalid state, cannot proceed');
       Alert.alert('Error', 'Cannot proceed: Invalid state');
       return;
     }

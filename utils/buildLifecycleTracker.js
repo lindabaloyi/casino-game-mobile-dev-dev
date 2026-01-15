@@ -8,6 +8,7 @@ class BuildLifecycleTracker {
   constructor() {
     this.createdBuilds = new Map();
     this.activeSessions = new Map();
+    console.log('[BUILD_TRACKER] 🔧 Build Lifecycle Tracker initialized');
   }
 
   trackCreation(buildId, context, cards = [], metadata = {}) {
@@ -164,6 +165,7 @@ class BuildLifecycleTracker {
   reset() {
     this.createdBuilds.clear();
     this.activeSessions.clear();
+    console.log('[BUILD_TRACKER] 🔄 Tracker reset');
   }
 }
 

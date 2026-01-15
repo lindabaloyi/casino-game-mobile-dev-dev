@@ -9,7 +9,7 @@ const LOG_LEVELS = {
   DEBUG: 3
 };
 
-const CURRENT_LOG_LEVEL = LOG_LEVELS.ERROR; // Production: minimal logging
+const CURRENT_LOG_LEVEL = LOG_LEVELS.DEBUG; // Change to LOG_LEVELS.INFO in production
 
 function createLogger(moduleName) {
   return {

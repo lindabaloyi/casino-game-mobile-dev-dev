@@ -79,11 +79,21 @@ export const calculateConsolidatedOptions = (stack: any, hand: Card[]): ActionOp
   const cards = stack.cards || [];
   const hasHandCards = cards.some((c: { source?: string }) => c.source === 'hand');
   const totalSum = cards.reduce((s: number, c: { value: number }) => s + c.value, 0);
+
+  console.log('🔍 [VALIDATOR] ======= BUILD VALIDATION START =======');
   console.log('🔍 [VALIDATOR] Input cards:', cards.map(c => `${c.value}(${c.source || 'unknown'})`));
   console.log('🔍 [VALIDATOR] Player hand:', hand.map(c => `${c.value}${c.suit}`));
+  console.log('🔍 [VALIDATOR] Analysis:', {
+    totalSum,
+    hasHandCards,
+    cardCount: cards.length,
+    handCardCount: hand.length
+  });
+
   // 🎯 STEP 1: USE PRE-CALCULATED SAME-VALUE BUILD OPTIONS (if available)
   const sameValueBuildOptions = stack.sameValueBuildOptions;
   if (sameValueBuildOptions && sameValueBuildOptions.length > 0) {
+    console.log('🎯 [VALIDATOR] USING PRE-CALCULATED SAME-VALUE BUILD OPTIONS');
     console.log('🔍 [VALIDATOR] Pre-calculated options:', sameValueBuildOptions.map(o => ({
       type: o.type,
       buildValue: o.buildValue,
@@ -95,6 +105,8 @@ export const calculateConsolidatedOptions = (stack: any, hand: Card[]): ActionOp
     sameValueBuildOptions.forEach((option: any) => {
       // Check if player has the required capture card
       const hasCaptureCard = hand.some(card => card.value === option.captureCard);
+      console.log(`🔍 [VALIDATOR] Checking capture card ${option.captureCard}: ${hasCaptureCard ? '✅' : '❌'}`);
+
       if (hasCaptureCard) {
         options.push({
           type: 'build',
@@ -117,13 +129,17 @@ export const calculateConsolidatedOptions = (stack: any, hand: Card[]): ActionOp
       value: value
     });
     console.log(`✅ [VALIDATOR] Added: Capture ${value} (same-value capture option)`);
+
+    console.log('✅ [VALIDATOR] ======= PRE-CALCULATED OPTIONS COMPLETE =======');
     console.log('✅ [VALIDATOR] Final options from pre-calculated:', options.map(o => `${o.type.toUpperCase()}: ${o.label}`));
     return options;
   }
 
   // 🎯 STEP 2: FALLBACK - CHECK SAME VALUE BUILDS (legacy logic)
   const sameValueCheck = isSameValueBuild(cards);
+  console.log(`🔍 [VALIDATOR] Same-value check: ${sameValueCheck ? '✅ PASS' : '❌ FAIL'}`);
   if (sameValueCheck) {
+    console.log('🎯 [VALIDATOR] DETECTED: Same-value build - using legacy same-value logic');
     const value = cards[0].value;
     options.push({
       type: 'capture',
@@ -146,6 +162,7 @@ export const calculateConsolidatedOptions = (stack: any, hand: Card[]): ActionOp
     console.log(`🔍 [VALIDATOR] Sum build eligibility: ${sumBuildEligible ? '✅' : '❌'} (value≤5: ${value <= 5}, totalSum≤10: ${totalSum <= 10})`);
     if (sumBuildEligible) {
       const hasSumCard = hand.some((c: Card) => c.value === totalSum);
+      console.log(`🔍 [VALIDATOR] Has ${totalSum} in hand: ${hasSumCard ? '✅' : '❌'}`);
       if (hasSumCard) {
         options.push({
           type: 'build',
@@ -164,7 +181,9 @@ export const calculateConsolidatedOptions = (stack: any, hand: Card[]): ActionOp
   else {
     const baseBuildDetails = findBaseBuildDetails(cards);
     const baseBuildCheck = baseBuildDetails !== null;
+    console.log(`🔍 [VALIDATOR] Base build check: ${baseBuildCheck ? '✅ PASS' : '❌ FAIL'}`);
     if (baseBuildCheck && baseBuildDetails) {
+      console.log('🎯 [VALIDATOR] DETECTED: Base build (casino-ordered) - base + supports sum to base');
       const supportsSum = baseBuildDetails.supports.reduce((s: number, c: { value: number }) => s + c.value, 0);
       console.log(`🔍 [VALIDATOR] Base analysis: ${baseBuildDetails.baseValue} = ${baseBuildDetails.supports.map((c: { value: number }) => c.value).join('+')} = ${supportsSum}`);
     // Check if player has the required capture card
@@ -180,15 +199,19 @@ export const calculateConsolidatedOptions = (stack: any, hand: Card[]): ActionOp
       console.log(`❌ [VALIDATOR] Rejected: Build ${baseBuildDetails.baseValue} (player missing ${baseBuildDetails.baseValue} in hand)`);
     }
     } else {
+      console.log('❌ [VALIDATOR] Not a base build - checking further...');
     }
 
     // 🆕 STEP 3: CHECK NORMAL BUILDS (sum-based)
     if (!baseBuildCheck) {
       const normalBuildEligible = hasHandCards && totalSum <= 10 && totalSum >= 2;
+      console.log(`🔍 [VALIDATOR] Normal build eligibility: ${normalBuildEligible ? '✅' : '❌'}`);
+      console.log(`   - Has hand cards: ${hasHandCards ? '✅' : '❌'}`);
       console.log(`   - Total sum ≤ 10: ${totalSum <= 10 ? '✅' : '❌'} (${totalSum})`);
       console.log(`   - Total sum ≥ 2: ${totalSum >= 2 ? '✅' : '❌'} (${totalSum})`);
 
       if (normalBuildEligible) {
+        console.log('🎯 [VALIDATOR] DETECTED: Normal build (sum-based with hand cards)');
         // Check if player has the required capture card
         if (playerHasCaptureCard(totalSum, hand)) {
           options.push({
@@ -202,6 +225,7 @@ export const calculateConsolidatedOptions = (stack: any, hand: Card[]): ActionOp
           console.log(`❌ [VALIDATOR] Rejected: Build ${totalSum} (player missing ${totalSum} in hand)`);
         }
       } else {
+        console.log('❌ [VALIDATOR] Not eligible for normal build');
       }
     }
   }
@@ -219,6 +243,8 @@ export const calculateConsolidatedOptions = (stack: any, hand: Card[]): ActionOp
     });
     console.log(`✅ [VALIDATOR] Added: Capture all (${cards.length} cards) (fallback option)`);
   }
+
+  console.log('✅ [VALIDATOR] ======= BUILD VALIDATION COMPLETE =======');
   console.log('✅ [VALIDATOR] Final options:', options.map(o => `${o.type.toUpperCase()}: ${o.label}`));
   return options;
 };
@@ -230,6 +256,9 @@ export const validateTempStackDetailed = (stack: any, hand: Card[]): ValidationR
   const cards = stack.cards || [];
   const hasHandCards = cards.some((c: { source?: string }) => c.source === 'hand');
   const totalSum = cards.reduce((s: number, c: { value: number }) => s + c.value, 0);
+
+  console.log('🔍 [VALIDATION] ======= DETAILED VALIDATION START =======');
+
   // Check minimum cards
   if (!cards || cards.length < 2) {
     return { valid: false, error: 'Temp stacks must contain at least 2 cards' };
@@ -241,6 +270,7 @@ export const validateTempStackDetailed = (stack: any, hand: Card[]): ValidationR
     // For same-value builds, capture is ALWAYS available (direct capture of the pair)
     // Build options are filtered in calculateConsolidatedOptions based on available cards
     const value = cards[0].value;
+    console.log('🎯 [VALIDATION] Same-value build - capture always available, build options filtered individually');
     return { valid: true, buildType: 'same-value', buildValue: value };
   }
 

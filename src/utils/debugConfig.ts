@@ -4,21 +4,21 @@
  */
 
 export const DEBUG_CONFIG = {
-  // Client-side debugging - DISABLED for production performance
-  CLIENT_DRAG: false,
-  CONTACT_DETECTION: false,
-  CLIENT_ACTIONS: false,
+  // Client-side debugging
+  CLIENT_DRAG: process.env.NODE_ENV === 'development',
+  CONTACT_DETECTION: false, // Too verbose, only enable when debugging contact issues
+  CLIENT_ACTIONS: process.env.NODE_ENV === 'development',
 
-  // Server-side debugging - DISABLED for production performance
-  SERVER_ACTIONS: false,
-  SERVER_GAME_STATE: false,
-  SERVER_VALIDATION: false,
+  // Server-side debugging
+  SERVER_ACTIONS: true,
+  SERVER_GAME_STATE: false, // Only enable when debugging state issues
+  SERVER_VALIDATION: true,
 
-  // Contact system debugging - DISABLED for production performance
-  CONTACT_SYSTEM: false,
-  CONTACT_RULES: false,
+  // Contact system debugging
+  CONTACT_SYSTEM: process.env.NODE_ENV === 'development',
+  CONTACT_RULES: false, // Enable when debugging rule evaluation
 
-  // Performance debugging - DISABLED for production performance
+  // Performance debugging
   PERFORMANCE: false,
 } as const;
 
@@ -39,7 +39,9 @@ export class DebugLogger {
     const logMessage = `[${timestamp}] ${this.prefix} ${message}`;
 
     if (data) {
+      console.log(logMessage, data);
     } else {
+      console.log(logMessage);
     }
   }
 
@@ -48,6 +50,7 @@ export class DebugLogger {
   }
 
   warn(message: string, data?: any) {
+    console.warn(`${this.prefix} ${message}`, data);
   }
 
   error(message: string, data?: any) {

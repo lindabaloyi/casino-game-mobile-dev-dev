@@ -62,6 +62,12 @@ export function handleBuildContact(
   ) as any;
 
   if (draggedStack && build.owner === currentPlayer) {
+    console.log('[BUILD_HANDLER] 🏗️ Draggable staging stack dropped on build for augmentation:', {
+      stagingStackId: draggedStack.stackId,
+      targetBuildId: contact.id,
+      stagingValue: draggedStack.value,
+      buildValue: build.value
+    });
     return {
       type: 'finalizeBuildAugmentation',
       payload: {
@@ -84,6 +90,7 @@ export function handleBuildContact(
 
     if (valuesMatch) {
       // CAPTURE OWN BUILD: Values match, allow capture
+      console.log('[BUILD_HANDLER] ✅ Player capturing own build (value match)');
       return {
         type: 'capture',
         payload: {
@@ -94,6 +101,7 @@ export function handleBuildContact(
       };
     } else {
       // ADD TO OWN BUILD: Values don't match, add to build
+      console.log('[BUILD_HANDLER] ✅ Player adding to own build (value mismatch)');
       return {
         type: 'addToOwnBuild',
         payload: {
@@ -110,6 +118,7 @@ export function handleBuildContact(
 
     if (valuesMatch) {
       // 🎯 EXPLICIT CAPTURE: Card value matches build value
+      console.log('[BUILD_HANDLER] 🎯 Explicit capture: card value matches build value');
       return {
         type: 'capture',
         payload: {
@@ -120,6 +129,8 @@ export function handleBuildContact(
       };
     } else {
       // 🎯 POTENTIAL EXTENSION: Visually add card to build and show overlay
+      console.log('[BUILD_HANDLER] 🎯 Potential extension: values don\'t match, initiating visual build extension');
+
       return {
         type: 'BuildExtension',
         payload: {

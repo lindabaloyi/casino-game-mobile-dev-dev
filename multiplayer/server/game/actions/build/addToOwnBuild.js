@@ -5,6 +5,13 @@
 
 const { createLogger } = require('../../../utils/logger');
 const { buildLifecycleTracker } = require('../../GameState');
+<<<<<<< HEAD
+=======
+const { buildTracker } = require('../../../../../utils/buildLifecycleTracker');
+
+console.log('[MODULE_LOAD] addToOwnBuild.js loaded, buildTracker imported:', !!buildTracker);
+
+>>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
 const logger = createLogger('AddToOwnBuild');
 
 function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter) {
@@ -30,8 +37,15 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
   let buildId, card, source, build;
 
   // CRITICAL DEBUG: Log extension attempt
+<<<<<<< HEAD
   console.log('[BUILD_PENDING] addToOwnBuild debug info:', {
     allBuilds: gameState.tableCards
+=======
+  console.log('[ADD_TO_BUILD_CRITICAL] Extension attempt:', {
+    requestedBuildId: action.payload.buildId || action.payload.buildToAddTo?.buildId,
+    playerIndex,
+    availableBuilds: gameState.tableCards
+>>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
       .filter(item => item.type === 'build')
       .map(b => ({ id: b.buildId, owner: b.owner, cards: b.cards.length })),
     payloadStructure: action.payload.buildId ? 'drop-handler' : 'contact-handler'
@@ -49,6 +63,15 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
     ({ draggedItem: { card, source }, buildToAddTo: build } = action.payload);
     buildId = build.buildId;
   }
+
+  console.log('[BUILD_PENDING] Creating pending build addition:', {
+    buildId,
+    card: card ? `${card.rank}${card.suit}` : 'undefined',
+    source,
+    playerIndex,
+    payloadStructure: action.payload.buildId ? 'drop-handler' : 'contact-handler'
+  });
+
   if (!card) {
     throw new Error('Card is undefined in addToOwnBuild payload');
   }
@@ -63,18 +86,23 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
 
   // 🎯 GUARD RAIL: Prevent multiple hand card additions to builds per turn
   if (source === 'hand') {
+    console.log('[BUILD_GUARD] 🎯 Checking hand card usage for builds this turn');
+
     // Initialize tracking array if it doesn't exist
     if (!gameState.buildHandCardUsedThisTurn) {
       gameState.buildHandCardUsedThisTurn = [false, false];
+      console.log('[BUILD_GUARD] 🆕 Initialized build hand card tracking');
     }
 
     // Check if player has already used a hand card for builds this turn
     if (gameState.buildHandCardUsedThisTurn[playerIndex]) {
+      console.log('[BUILD_GUARD] ❌ BLOCKED: Player already added hand card to build this turn');
       throw new Error('Cannot add multiple hand cards to builds in the same turn. You must resolve your build or wait for your next turn.');
     }
 
     // Mark hand card as used for builds this turn
     gameState.buildHandCardUsedThisTurn[playerIndex] = true;
+    console.log('[BUILD_GUARD] ✅ ALLOWED: Marked hand card usage for build this turn');
   }
 
   // Verify build ownership (for contact handler structure, we already have the build)
@@ -167,6 +195,14 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
   });
 
   // Verify the array reference fix worked
+  console.log('[ARRAY_REFERENCE_FIX] Array reference check:', {
+    oldReference: oldCards,
+    newReference: build.cards,
+    referencesEqual: oldCards === build.cards, // Should be false - React detects!
+    cardsPreserved: oldCardCount === build.cards.length - 1,
+    buildValueSaved: build.value === newValue
+  });
+
   // Add verification logging (matches temp stack behavior)
   console.log('[BUILD_TEMP_COMPARISON]', {
     buildCards: build.cards.map((c, i) => `${c.rank}${c.suit}=${i}`),
@@ -226,12 +262,19 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
  * Remove card from its source location
  */
 function removeCardFromSource(gameState, card, source, playerIndex, action) {
+  console.log('[BUILD_SOURCE_REMOVAL] Removing card from source:', {
+    card: `${card.rank}${card.suit}`,
+    source,
+    playerIndex
+  });
+
   if (source === 'hand') {
     const handIndex = gameState.playerHands[playerIndex].findIndex(c =>
       c.rank === card.rank && c.suit === card.suit
     );
     if (handIndex >= 0) {
       gameState.playerHands[playerIndex].splice(handIndex, 1);
+      console.log('[BUILD_SOURCE_REMOVAL] ✅ Removed from hand at index:', handIndex);
     } else {
       throw new Error(`Card ${card.rank}${card.suit} not found in player's hand`);
     }
@@ -243,6 +286,7 @@ function removeCardFromSource(gameState, card, source, playerIndex, action) {
     );
     if (cardIndex >= 0) {
       gameState.tableCards.splice(cardIndex, 1);
+      console.log('[BUILD_SOURCE_REMOVAL] ✅ Removed from table at index:', cardIndex);
     } else {
       throw new Error(`Card ${card.rank}${card.suit} not found on table`);
     }
@@ -276,6 +320,7 @@ function removeCardFromSource(gameState, card, source, playerIndex, action) {
 
     // Remove the top card from opponent's captures
     gameState.playerCaptures[opponentId].pop();
+    console.log('[BUILD_SOURCE_REMOVAL] ✅ Removed opponent top card from captures');
   } else {
     throw new Error(`Unknown source type: ${source}`);
   }

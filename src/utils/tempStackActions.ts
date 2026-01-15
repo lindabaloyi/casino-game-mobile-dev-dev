@@ -20,6 +20,8 @@ export const createBuildFromTempStack = async (
   payload: TempStackActionPayload,
   sendAction: (action: any) => void
 ): Promise<void> => {
+  console.log('✅ [ACTIONS] Creating build from temp stack:', payload);
+
   // Send the build creation action
   sendAction({
     type: 'createBuildFromTempStack',
@@ -35,6 +37,7 @@ export const createBuildFromTempStack = async (
   try {
     const { removePosition } = await import('./contactDetection');
     removePosition(payload.tempStackId);
+    console.log('✅ [ACTIONS] Temp stack removed from contact registry');
   } catch (error) {
     console.error('❌ [ACTIONS] Failed to remove temp stack from registry:', error);
   }
@@ -47,6 +50,8 @@ export const captureTempStack = (
   payload: TempStackActionPayload,
   sendAction: (action: any) => void
 ): void => {
+  console.log('✅ [ACTIONS] Capturing temp stack:', payload);
+
   sendAction({
     type: 'capture',
     payload: {
@@ -63,6 +68,8 @@ export const validateBuildExtension = (
   payload: { tempStackId: string },
   sendAction: (action: any) => void
 ): void => {
+  console.log('🔄 [ACTIONS] Validating build extension:', payload);
+
   sendAction({
     type: 'validateBuildExtension',
     payload: {
@@ -79,6 +86,8 @@ export const handleTempStackAction = async (
   payload: TempStackActionPayload,
   sendAction: (action: any) => void
 ): Promise<void> => {
+  console.log('🎯 [ACTIONS] Processing temp stack action:', { actionType, payload });
+
   if (actionType === 'build') {
     await createBuildFromTempStack(payload, sendAction);
   } else if (actionType === 'capture') {

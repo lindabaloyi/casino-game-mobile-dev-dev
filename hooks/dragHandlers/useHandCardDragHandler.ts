@@ -53,6 +53,8 @@ export function useHandCardDragHandler({
       gameRound: gameState.round,
       timestamp: new Date().toISOString()
     };
+
+    console.log('🎯 TURN_STATE_DEBUG at drag end:', turnState);
     logger.info('Turn state debug', turnState);
 
     if (!isMyTurn) {

@@ -21,9 +21,19 @@ const { removeCardsBySource } = require('./cardRemovers');
  * Handles auto-capture of same-value cards without affecting existing temp stack logic
  */
 function handleSameValueAutoCapture(gameState, playerIndex, targetCard, draggedCard, targetIndex, source) {
+  console.log('[AUTO_CAPTURE_HANDLER] 🎯 Processing same-value auto-capture', {
+    targetCard: `${targetCard.rank}${targetCard.suit}`,
+    draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+    targetIndex,
+    source,
+    playerIndex
+  });
+
   // ✅ STEP 1: Remove target card from table at targetIndex
   // This is the key fix - target card was being left on table
   gameState.tableCards.splice(targetIndex, 1);
+  console.log('[AUTO_CAPTURE_HANDLER] ✅ Removed target card from table at index', targetIndex);
+
   // ✅ STEP 2: Ensure dragged card is properly handled
   // For hand source, it's already removed above in main function
   // For table source, it should also be removed (table-to-table auto-capture)
@@ -34,6 +44,7 @@ function handleSameValueAutoCapture(gameState, playerIndex, targetCard, draggedC
     );
     if (draggedTableIndex !== -1) {
       gameState.tableCards.splice(draggedTableIndex, 1);
+      console.log('[AUTO_CAPTURE_HANDLER] ✅ Removed dragged table card from table');
     }
   }
 
@@ -42,9 +53,19 @@ function handleSameValueAutoCapture(gameState, playerIndex, targetCard, draggedC
     gameState.playerCaptures[playerIndex] = [];
   }
   gameState.playerCaptures[playerIndex].push(targetCard, draggedCard);
+  console.log('[AUTO_CAPTURE_HANDLER] ✅ Added both cards to captures');
+
   // ✅ STEP 4: Auto-turn switch
   const nextPlayer = (playerIndex + 1) % 2;
   gameState.currentPlayer = nextPlayer;
+  console.log('[AUTO_CAPTURE_HANDLER] ✅ Switched turn to player', nextPlayer);
+
+  console.log('[AUTO_CAPTURE_HANDLER] ✅ Same-value auto-capture complete', {
+    cardsCaptured: [`${targetCard.rank}${targetCard.suit}`, `${draggedCard.rank}${draggedCard.suit}`],
+    tableCardsRemaining: gameState.tableCards.length,
+    nextPlayer
+  });
+
   return gameState;
 }
 
@@ -110,13 +131,29 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
   };
 
   // 🎯 INITIALIZE BUILD CALCULATOR for real-time updates
+  console.log('[DEBUG] 🎯 About to initialize build calculator for new temp stack');
   console.log('[DEBUG] Original staging stack:', {
     stackId: stagingStack.stackId,
     cards: stagingStack.cards.map(c => `${c.rank}${c.suit}(${c.value})`),
     value: stagingStack.value,
     hasBuildValue: 'buildValue' in stagingStack
   });
+  console.log('[DEBUG] initializeBuildCalculator imported:', typeof initializeBuildCalculator);
+
   const enhancedStagingStack = initializeBuildCalculator(stagingStack);
+
+  console.log('[DEBUG] ✅ Build calculator initialization complete');
+  console.log('[DEBUG] Enhanced staging stack:', {
+    stackId: enhancedStagingStack.stackId,
+    cards: enhancedStagingStack.cards?.length || 0,
+    originalValue: stagingStack.value,
+    enhancedValue: enhancedStagingStack.value,
+    displayValue: enhancedStagingStack.displayValue,
+    buildValue: enhancedStagingStack.buildValue,
+    isValid: enhancedStagingStack.isValid,
+    segmentCount: enhancedStagingStack.segmentCount
+  });
+
   // 🎯 CARD REMOVAL PIPELINE (Phase 2)
   const newGameState = removeCardsBySource(
     gameState,
@@ -133,6 +170,8 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
 
   // 🎯 AUTO-CAPTURE CHECK: If this is a same-value stack with no build options, capture immediately
   if (enhancedStagingStack.isSameValueStack) {
+    console.log('[CREATE_TEMP] 🎯 Same-value stack created, checking for auto-capture...');
+
     // Import the build checking function
     const { checkBuildOptionsForStack } = require('../../logic/utils/buildUtils');
 
@@ -141,6 +180,8 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
     const hasBuildOptions = checkBuildOptionsForStack(enhancedStagingStack, playerHand);
 
     if (!hasBuildOptions) {
+      console.log('[CREATE_TEMP] 🚀 NO BUILD OPTIONS - AUTO-CAPTURING SAME-VALUE STACK');
+
       // 🎯 USE DEDICATED HANDLER: Clean separation, proper table cleanup
       return handleSameValueAutoCapture(
         gameState,
@@ -151,6 +192,7 @@ function handleCreateTemp(gameManager, playerIndex, action, gameId) {
         source
       );
     } else {
+      console.log('[CREATE_TEMP] 📋 HAS BUILD OPTIONS - CREATING TEMP STACK FOR MODAL');
     }
   }
 

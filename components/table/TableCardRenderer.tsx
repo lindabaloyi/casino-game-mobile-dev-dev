@@ -39,6 +39,8 @@ export const TableCardRenderer: React.FC<TableCardRendererProps> = ({
   const itemType = getCardType(tableItem);
 
   // Remove console.log spam - keep only critical logs
+  console.log(`[TableCardRenderer] Rendering ${itemType} at position ${index}`);
+
   if (itemType === 'loose') {
     return (
       <TableDraggableCard

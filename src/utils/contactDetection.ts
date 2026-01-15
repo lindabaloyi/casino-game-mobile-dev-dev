@@ -34,6 +34,7 @@ export function reportPosition(id: string, position: ContactPosition): void {
  */
 export function removePosition(id: string): void {
   contactPositions.delete(id);
+  console.log('[CONTACT] 🗑️ Position removed:', id);
 }
 
 /**
@@ -87,6 +88,11 @@ export function findContactAtPoint(
     );
 
     if (playerBuildHit) {
+      console.log('[CONTACT] 🎯 Build extension priority: Player build preferred', {
+        buildId: playerBuildHit.id,
+        player: context.currentPlayer,
+        distance: playerBuildHit.distance
+      });
       return playerBuildHit;
     }
   }
@@ -95,6 +101,7 @@ export function findContactAtPoint(
   return hits.reduce((closest, current) =>
     current.distance < closest.distance ? current : closest, hits[0]);
 }
+
 
 /**
  * Get all registered contacts (for debugging)
@@ -107,7 +114,11 @@ export function getAllContacts(): ContactPosition[] {
  * Debug full contact registry (comprehensive diagnostic)
  */
 export function debugFullContactRegistry() {
+  console.log('🔍 [CONTACT_REGISTRY_FULL_DUMP] ========= START =========');
+
   const contacts = Array.from(contactPositions.entries());
+  console.log(`Total contacts: ${contacts.length}`);
+
   const byType: Record<string, any[]> = {};
   contacts.forEach(([id, contact]) => {
     const type = contact.type;
@@ -123,6 +134,7 @@ export function debugFullContactRegistry() {
 
   // Show builds in detail
   if (byType.build) {
+    console.log('🏗️ BUILDS in registry:');
     byType.build.forEach((build, i) => {
       console.log(`  Build ${i}: ${build.id}`, {
         owner: build.data?.owner,
@@ -135,6 +147,7 @@ export function debugFullContactRegistry() {
 
   // Show temp stacks in detail
   if (byType.tempStack) {
+    console.log('📦 TEMP STACKS in registry:');
     byType.tempStack.forEach((stack, i) => {
       console.log(`  TempStack ${i}: ${stack.id}`, {
         bounds: { x: Math.round(stack.x), y: Math.round(stack.y) },
@@ -145,7 +158,11 @@ export function debugFullContactRegistry() {
 
   // Show loose cards
   if (byType.card) {
+    console.log('🃏 LOOSE CARDS in registry:', byType.card.length);
   }
+
+  console.log('🔍 [CONTACT_REGISTRY_FULL_DUMP] ========= END =========');
+
   return { contacts, byType };
 }
 
@@ -154,4 +171,5 @@ export function debugFullContactRegistry() {
  */
 export function clearAllPositions(): void {
   contactPositions.clear();
+  console.log('[CONTACT] 🧹 Cleared all positions');
 }

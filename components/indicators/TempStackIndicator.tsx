@@ -13,30 +13,62 @@ export const TempStackIndicator: React.FC<TempStackIndicatorProps> = ({
   captureValue,
   totalValue
 }) => {
+  console.log('[DISPLAY_VALUE_PROPAGATION] 📥 CLIENT: TempStackIndicator received values', {
+    captureValue: captureValue,
+    totalValue: totalValue,
+    totalValueType: typeof totalValue,
+    hasTotalValue: totalValue !== undefined,
+    hasCaptureValue: captureValue !== undefined
+  });
+
   // Determine display style based on build calculator value
   const getDisplayStyle = (value: number | string) => {
+    console.log('[INDICATOR_STYLING] 🎨 Determining display style for value:', {
+      value: value,
+      valueType: typeof value,
+      isString: typeof value === 'string',
+      isPositive: typeof value === 'number' && value > 0,
+      isNegative: typeof value === 'number' && value < 0,
+      isZero: typeof value === 'number' && value === 0
+    });
+
     if (typeof value === 'string') {
+      console.log('[INDICATOR_STYLING] 🎨 Style: INVALID (string value)');
       return styles.invalidContainer; // "INVALID"
     }
     if (value > 0) {
+      console.log('[INDICATOR_STYLING] 🎨 Style: SEGMENT COMPLETE (positive number)');
       return styles.segmentCompleteContainer; // Segment complete
     }
     if (value < 0) {
+      console.log('[INDICATOR_STYLING] 🎨 Style: SEGMENT BUILDING (negative number)');
       return styles.segmentBuildingContainer; // Building toward segment
     }
+
+    console.log('[INDICATOR_STYLING] 🎨 Style: NEUTRAL (zero or neutral)');
     return styles.neutralContainer; // Zero or neutral
   };
 
   const getTextStyle = (value: number | string) => {
+    console.log('[INDICATOR_STYLING] 📝 Determining text style for value:', {
+      value: value,
+      valueType: typeof value
+    });
+
     if (typeof value === 'string') {
+      console.log('[INDICATOR_STYLING] 📝 Text style: INVALID');
       return styles.invalidText; // "INVALID"
     }
     if (value > 0) {
+      console.log('[INDICATOR_STYLING] 📝 Text style: SEGMENT COMPLETE');
       return styles.segmentCompleteText; // Segment complete
     }
     if (value < 0) {
+      console.log('[INDICATOR_STYLING] 📝 Text style: SEGMENT BUILDING');
       return styles.segmentBuildingText; // Building toward segment
     }
+
+    console.log('[INDICATOR_STYLING] 📝 Text style: NEUTRAL');
     return styles.neutralText; // Zero or neutral
   };
 

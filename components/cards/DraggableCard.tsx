@@ -64,12 +64,15 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
 
       // Only reset if NO valid contact was made
       if (!result?.validContact) {
+        console.log(`[DraggableCard] ❌ No valid contact - resetting position`);
         resetPosition();
       } else {
+        console.log(`[DraggableCard] ✅ Valid contact - keeping card at drop position`);
         // Card stays where it was dropped - don't reset
       }
     } else {
       // No onDragEnd handler - always reset
+      console.log(`[DraggableCard] ⚠️ No onDragEnd handler - resetting position`);
       resetPosition();
     }
   };
@@ -77,6 +80,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
   // Handle external reset trigger
   useEffect(() => {
     if (triggerReset) {
+      console.log(`[DraggableCard] ⚡ External reset triggered for ${card.rank}${card.suit}`);
       resetPosition();
     }
   }, [triggerReset, resetPosition, card.rank, card.suit]);

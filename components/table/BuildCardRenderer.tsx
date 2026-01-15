@@ -101,7 +101,11 @@ export function BuildCardRenderer({
   // 🔍 DEBUG FUNCTIONS
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const debugTableState = (gameState: any) => {
+    console.log('📋 [TABLE_STATE_DEBUG] ========= CURRENT TABLE =========');
+
     if (!gameState.tableCards || gameState.tableCards.length === 0) {
+      console.log('📋 [TABLE_STATE_DEBUG] Table is empty');
+      console.log('📋 [TABLE_STATE_DEBUG] ========= END =========\n');
       return;
     }
 
@@ -116,9 +120,23 @@ export function BuildCardRenderer({
       console.log(`  ${index}: ${type.toUpperCase()} - ${id} (${cards.join(', ')})`);
     });
 
+<<<<<<< HEAD
     // Summary logging would go here if needed
+=======
+    // Summary
+    const summary = {
+      total: gameState.tableCards.length,
+      builds: gameState.tableCards.filter((item: any) => getCardType(item) === 'build').length,
+      tempStacks: gameState.tableCards.filter((item: any) => getCardType(item) === 'temporary_stack').length,
+      looseCards: gameState.tableCards.filter((item: any) => getCardType(item) === 'loose').length
+    };
+
+    console.log('📊 Summary:', summary);
+    console.log('📋 [TABLE_STATE_DEBUG] ========= END =========\n');
+>>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
   };
 
+   
   const getCardType = (item: any) => {
     if (item.buildId) return 'build';
     if (item.stackId) return 'temporary_stack';
@@ -127,6 +145,8 @@ export function BuildCardRenderer({
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const debugTableVsRegistry = (gameState: any, contactRegistry: any) => {
+    console.log('🔍 [TABLE_VS_REGISTRY] ========= COMPARISON =========');
+
     // What SHOULD be on table (from gameState)
     const tableItems = gameState.tableCards.map((item: any, i: number) => {
       const type = getCardType(item);
@@ -135,12 +155,15 @@ export function BuildCardRenderer({
                  `${item.rank}${item.suit}_${i}`;
       return { type, id, item, index: i };
     });
+
+    console.log('📋 TABLE STATE (should be registered):');
     tableItems.forEach(({ type, id, item, index }: any) => {
       const cards = item.cards?.map((c: any) => `${c.rank}${c.suit}`) || [`${item.rank}${item.suit}`];
       console.log(`  ${index}: ${type} - ${id} (${cards.join(', ')})`);
     });
 
     // What's ACTUALLY registered
+    console.log('📍 CONTACT REGISTRY (actually registered):');
     const registryByType = contactRegistry.byType || {};
 
     Object.keys(registryByType).forEach(type => {
@@ -151,6 +174,8 @@ export function BuildCardRenderer({
     });
 
     // CRITICAL COMPARISON
+    console.log('⚖️ COMPARISON RESULTS:');
+
     // Check builds
     const tableBuilds = tableItems.filter((t: any) => t.type === 'build');
     const registryBuilds = registryByType.build || [];
@@ -184,16 +209,34 @@ export function BuildCardRenderer({
       lingering: extraTempStacks.map((ts: any) => ts.id)
     });
 
+<<<<<<< HEAD
     // Check loose cards - variables removed as they were unused
+=======
+    // Check loose cards
+    const tableLooseCards = tableItems.filter((t: any) => t.type === 'loose');
+    const registryLooseCards = registryByType.card || [];
+
+    console.log('🃏 LOOSE CARDS:', {
+      inGameState: tableLooseCards.length,
+      inRegistry: registryLooseCards.length,
+      match: tableLooseCards.length === registryLooseCards.length
+    });
+
+>>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
     // DIAGNOSIS
     const issues = [];
     if (missingBuilds.length > 0) issues.push(`Missing builds: ${missingBuilds.map((b: any) => b.id).join(', ')}`);
     if (extraTempStacks.length > 0) issues.push(`Lingering temp stacks: ${extraTempStacks.map((ts: any) => ts.id).join(', ')}`);
 
     if (issues.length === 0) {
+      console.log('✅ DIAGNOSIS: Table and registry are synchronized');
     } else {
+      console.log('❌ DIAGNOSIS: Synchronization issues found:');
       issues.forEach(issue => console.log(`   - ${issue}`));
     }
+
+    console.log('🔍 [TABLE_VS_REGISTRY] ========= END =========\n');
+
     return {
       synchronized: issues.length === 0,
       issues,
@@ -205,6 +248,18 @@ export function BuildCardRenderer({
   // 🔍 DEBUG: Verify builds are registered with contact detection
   React.useEffect(() => {
     const debugTimeout = setTimeout(() => {
+<<<<<<< HEAD
+=======
+      console.log('[BUILD_CONTACT_DEBUG] 🔍 Checking if build is registered for contact detection:', {
+        buildId: buildItem.buildId,
+        owner: buildItem.owner,
+        expectedInRegistry: true,
+        registrationHookCalled: true,
+        stackRefValid: !!stackRef.current,
+        timestamp: Date.now()
+      });
+
+>>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
       // Try to access contact registry if available
       try {
         // Use imported getAllContacts function
@@ -224,7 +279,12 @@ export function BuildCardRenderer({
             height: Math.round(thisBuild.height)
           } : 'NOT REGISTERED'
         });
+<<<<<<< HEAD
       } catch {
+=======
+      } catch (error) {
+        console.log('[BUILD_CONTACT_DEBUG] ⚠️ Could not check contact registry:', error instanceof Error ? error.message : String(error));
+>>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
       }
     }, 500); // Check after 500ms to allow registration
 

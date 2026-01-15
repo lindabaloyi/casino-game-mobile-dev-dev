@@ -46,10 +46,12 @@ export const StackRenderer: React.FC<StackRendererProps> = ({
 
   // Stacking context drag event handlers
   const handleCardDragStart = () => {
+    console.log(`[StackRenderer] 🎯 DRAG START: ${stackId} setting z-index to 99999, elevation to 999`);
     setIsDragging(true);
   };
 
   const handleCardDragEnd = () => {
+    console.log(`[StackRenderer] 🛑 DRAG END: ${stackId} resetting z-index to ${baseZIndex}, elevation to ${baseElevation}`);
     setIsDragging(false);
   };
 

@@ -29,6 +29,8 @@ export interface DropZoneConfig {
  */
 export const useDropZoneRegistration = (config: DropZoneConfig) => {
   // NO-OP: Drop zone system completely removed
+  console.warn('[DEPRECATED] useDropZoneRegistration called but drop zones are no longer used. All drop detection now uses contact detection.');
+
   return {
     register: () => {},
     unregister: () => {},

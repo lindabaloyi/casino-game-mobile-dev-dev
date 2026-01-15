@@ -16,6 +16,7 @@ export const useTableLayout = () => {
       tableRef.current.measureInWindow((x: number, y: number, width: number, height: number) => {
         const newBounds = { x, y, width, height };
         setBounds(newBounds);
+        console.log('[useTableLayout] Table bounds updated:', newBounds);
       });
     }
   }, []);

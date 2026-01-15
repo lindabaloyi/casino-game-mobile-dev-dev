@@ -107,6 +107,17 @@ class ActionDeterminationEngine {
    * Evaluate all rules against the context
    */
   evaluateRules(context) {
+    console.log('\n🎯 ========== RULE EVALUATION START ==========');
+    console.log('📦 Context:', {
+      draggedCard: context.draggedItem?.card ? `${context.draggedItem.card.rank}${context.draggedItem.card.suit}=${context.draggedItem.card.value}` : 'none',
+      draggedSource: context.draggedItem?.source,
+      targetType: context.targetInfo?.type,
+      targetCard: context.targetInfo?.card ? `${context.targetInfo.card.rank}${context.targetInfo.card.suit}=${context.targetInfo.card.value}` : 'none',
+      currentPlayer: context.currentPlayer,
+      playerHandSize: context.playerHands?.[context.currentPlayer]?.length || 0
+    });
+
+    console.log('📋 EVALUATING RULES IN PRIORITY ORDER:');
     this.rules.forEach((rule, i) => {
       console.log(`  ${i+1}. ${rule.id.padEnd(35)} (priority: ${rule.priority})`);
     });
@@ -118,22 +129,36 @@ class ActionDeterminationEngine {
         console.log(`\n🔍 EVALUATING RULE: ${rule.id} (priority: ${rule.priority})`);
 
         const conditionResult = rule.condition(context);
+
+        console.log(`   CONDITION RESULT: ${conditionResult ? '✅ TRUE' : '❌ FALSE'}`);
+        console.log(`   Exclusive: ${rule.exclusive}, Requires Modal: ${rule.requiresModal}`);
+
         if (conditionResult) {
           matchingRules.push(rule);
+          console.log(`🎯 RULE MATCHED! ${rule.id}`);
+
           // If rule has exclusive flag, stop evaluating further rules
           if (rule.exclusive) {
+            console.log('🚫 EXCLUSIVE RULE - STOPPING FURTHER EVALUATION');
             break;
           }
         }
       } catch (error) {
+        console.log(`❌ ERROR in rule ${rule.id}: ${error.message}`);
         logger.error(`Error evaluating rule ${rule.id}:`, error.message);
       }
     }
+
+    console.log(`\n📊 EVALUATION COMPLETE: ${matchingRules.length} rules matched`);
     if (matchingRules.length > 0) {
+      console.log('🎯 MATCHING RULES:');
       matchingRules.forEach((rule, i) => {
         console.log(`  ${i+1}. ${rule.id} (priority: ${rule.priority})`);
       });
     }
+
+    console.log('🎯 ========== RULE EVALUATION END ===========\n');
+
     return matchingRules;
   }
 

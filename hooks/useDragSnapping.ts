@@ -63,6 +63,9 @@ export function useDragSnapping({
   // Snap to a specific contact position
   const snapToContact = useCallback((contact: Contact) => {
     if (!isValidSnapTarget(contact)) return;
+
+    console.log(`[DRAG_SNAPPING] 🎯 Snapping to ${contact.type}: ${contact.id}`);
+
     // Calculate center position of the contact
     const centerX = contact.x + contact.width / 2;
     const centerY = contact.y + contact.height / 2;
@@ -89,6 +92,7 @@ export function useDragSnapping({
   // Remove snapping and return to finger-following
   const unsnap = useCallback(() => {
     if (snappedContact) {
+      console.log(`[DRAG_SNAPPING] 🆓 Unsnapping from ${snappedContact.type}: ${snappedContact.id}`);
       setSnappedContact(null);
     }
   }, [snappedContact]);

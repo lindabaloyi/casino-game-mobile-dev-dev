@@ -27,6 +27,13 @@ export class BuildLifecycleTracker {
   private createdBuilds: Map<string, BuildInfo> = new Map();
   private activeSessions: Map<string, string> = new Map();
 
+<<<<<<< HEAD
+=======
+  constructor() {
+    console.log('[BUILD_TRACKER] 🔧 Build Lifecycle Tracker initialized');
+  }
+
+>>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
   trackCreation(buildId: string, context: string, cards: any[] = [], metadata: any = {}): BuildInfo {
     const sessionId = this.getCurrentSession();
     const buildInfo: BuildInfo = {
@@ -179,6 +186,7 @@ export class BuildLifecycleTracker {
   reset() {
     this.createdBuilds.clear();
     this.activeSessions.clear();
+    console.log('[BUILD_TRACKER] 🔄 Tracker reset');
   }
 }
 

@@ -18,6 +18,16 @@ const stagingRules = [
       const isTableSource = draggedItem?.source === 'table';
       const isLooseTarget = targetInfo?.type === 'loose';
       const hasValidCards = draggedItem?.card && targetInfo?.card;
+
+      console.log('[TEMP_RULE] Table-to-table temp creation check:', {
+        source: draggedItem?.source,
+        targetType: targetInfo?.type,
+        isTableSource,
+        isLooseTarget,
+        hasValidCards,
+        result: isTableSource && isLooseTarget && hasValidCards
+      });
+
       return isTableSource && isLooseTarget && hasValidCards;
     },
     action: (context) => {
@@ -28,6 +38,11 @@ const stagingRules = [
       const playerHasBuilds = context.tableCards.some(tc =>
         tc.type === 'build' && tc.owner === draggedItem.player
       );
+
+      console.log('[TEMP_RULE] ✅ Creating table-to-table temp action:', {
+        canAugmentBuilds: playerHasBuilds
+      });
+
       return {
         type: 'createTemp',
         payload: {
@@ -55,6 +70,16 @@ const stagingRules = [
       const isHandSource = draggedItem?.source === 'hand';
       const isLooseTarget = targetInfo?.type === 'loose';
       const hasValidCards = draggedItem?.card && targetInfo?.card;
+
+      console.log('[TEMP_RULE] Hand-to-table temp creation check:', {
+        source: draggedItem?.source,
+        targetType: targetInfo?.type,
+        isHandSource,
+        isLooseTarget,
+        hasValidCards,
+        result: isHandSource && isLooseTarget && hasValidCards
+      });
+
       return isHandSource && isLooseTarget && hasValidCards;
     },
     action: (context) => {
@@ -65,6 +90,11 @@ const stagingRules = [
       const playerHasBuilds = context.tableCards.some(tc =>
         tc.type === 'build' && tc.owner === draggedItem.player
       );
+
+      console.log('[TEMP_RULE] ✅ Creating hand-to-table temp action:', {
+        canAugmentBuilds: playerHasBuilds
+      });
+
       return {
         type: 'createTemp',
         payload: {

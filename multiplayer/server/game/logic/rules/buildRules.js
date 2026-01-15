@@ -9,17 +9,29 @@ const buildRules = [
   {
     id: 'create-own-build',
     condition: (context) => {
+<<<<<<< HEAD
+=======
+      console.log('[BUILD_RULE] Evaluating create own build:', {
+        draggedSource: context.draggedItem?.source,
+        targetType: context.targetInfo?.type,
+        round: context.round,
+        isBuild: isBuild(context.targetInfo?.card)
+      });
+
+>>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
       const currentPlayer = context.currentPlayer;
 
       // Only for hand cards
       if (draggedItem?.source !== 'hand') {
+        console.log('[BUILD_RULE] ❌ Not hand card, rejecting build creation');
         return false;
       }
 
       // Target must be a loose card (not already a build)
       if (targetInfo?.type !== 'loose' || isBuild(targetInfo.card)) {
+        console.log('[BUILD_RULE] ❌ Not loose card or already a build, rejecting build creation');
         return false;
       }
 
@@ -31,9 +43,11 @@ const buildRules = [
       );
 
       const canCreate = round === 1 || hasOwnBuild;
+      console.log('[BUILD_RULE] Build creation check:', { round, hasOwnBuild, canCreate });
       return canCreate;
     },
     action: (context) => {  // ✅ OPTION B: Function returns complete object
+      console.log('[BUILD_RULE] Creating staging stack for build creation');
       const action = {
         type: 'createTemp',
         payload: {
@@ -42,12 +56,16 @@ const buildRules = [
           canAugmentBuilds: true // Allow build augmentation since player can create builds
         }
       };
+      console.log('[BUILD_RULE] Staging stack action created:', JSON.stringify(action, null, 2));
       return action;
     },
     requiresModal: true,
     priority: 35,
     description: 'Create new build from loose card and hand card'
   },
+
+
+
 
 ];
 
