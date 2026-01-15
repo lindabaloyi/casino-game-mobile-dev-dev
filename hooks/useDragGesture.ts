@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
-import { Animated, PanResponder } from 'react-native';
-import { CardType } from '../components/card';
+import { useState } from 'react';
+import { Gesture } from 'react-native-gesture-handler';
+import { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { CardType } from '../components/cards/card';
 
 interface UseDragGestureProps {
   draggable: boolean;
@@ -10,19 +11,18 @@ interface UseDragGestureProps {
   onDragEnd?: (card: CardType, dropPosition: { x: number; y: number }) => void;
   card: CardType;
   dragThreshold?: number;
-  useNativeDriver?: boolean;
 }
 
 interface DragGestureResult {
-  pan: Animated.ValueXY;
-  panResponder: any;
+  gesture: any; // Gesture.Pan() instance
+  animatedStyle: any; // Animated style object
   isDragging: boolean;
   resetPosition: () => void;
 }
 
 /**
- * Hook for pure drag gesture mechanics
- * Handles PanResponder setup and animated position tracking
+ * Hook for pure drag gesture mechanics using Gesture Handler + Reanimated
+ * Handles gesture detection and animated position tracking on UI thread
  * No business logic, drop zones, or game rules - just drag mechanics
  */
 export const useDragGesture = ({
@@ -33,79 +33,55 @@ export const useDragGesture = ({
   onDragEnd,
   card,
   dragThreshold = 8,
-  useNativeDriver = true
 }: UseDragGestureProps): DragGestureResult => {
-
-  const pan = useRef(new Animated.ValueXY()).current;
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const startX = useSharedValue(0);
+  const startY = useSharedValue(0);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Reset position helper
+  const gesture = Gesture.Pan()
+    .enabled(draggable && !disabled)
+    .minDistance(dragThreshold)
+    .onStart(() => {
+      startX.value = translateX.value;
+      startY.value = translateY.value;
+      runOnJS(setIsDragging)(true);
+      if (onDragStart) {
+        runOnJS(onDragStart)(card);
+      }
+    })
+    .onUpdate((event) => {
+      translateX.value = startX.value + event.translationX;
+      translateY.value = startY.value + event.translationY;
+      if (onDragMove) {
+        runOnJS(onDragMove)(card, { x: event.absoluteX, y: event.absoluteY });
+      }
+    })
+    .onEnd((event) => {
+      const dropPosition = { x: event.absoluteX, y: event.absoluteY };
+      runOnJS(setIsDragging)(false);
+      if (onDragEnd) {
+        runOnJS(onDragEnd)(card, dropPosition);
+      }
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+  }));
+
   const resetPosition = () => {
-    Animated.spring(pan, {
-      toValue: { x: 0, y: 0 },
-      useNativeDriver,
-    }).start();
-    pan.flattenOffset();
-    setIsDragging(false);
+    translateX.value = withSpring(0);
+    translateY.value = withSpring(0);
   };
 
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => draggable && !disabled,
-    onMoveShouldSetPanResponder: (event, gestureState) => {
-      if (!draggable || disabled) return false;
-      const distance = Math.sqrt(gestureState.dx * gestureState.dx + gestureState.dy * gestureState.dy);
-      return distance > dragThreshold;
-    },
-
-    onPanResponderGrant: () => {
-      // Set initial offset - get current values
-      const currentX = (pan.x as any)._value || 0;
-      const currentY = (pan.y as any)._value || 0;
-      pan.setOffset({
-        x: currentX,
-        y: currentY,
-      });
-      pan.setValue({ x: 0, y: 0 });
-    },
-
-    onPanResponderMove: (event, gestureState) => {
-      const distance = Math.sqrt(gestureState.dx * gestureState.dx + gestureState.dy * gestureState.dy);
-
-      if (distance > dragThreshold && !isDragging) {
-        setIsDragging(true);
-        onDragStart?.(card);
-      }
-
-      if (isDragging) {
-        // Update animated position using native driver
-        Animated.event([null, { dx: pan.x, dy: pan.y }], {
-          useNativeDriver,
-        })(event, gestureState);
-
-        // Notify parent of position updates
-        onDragMove?.(card, { x: gestureState.moveX, y: gestureState.moveY });
-      }
-    },
-
-    onPanResponderRelease: (event, gestureState) => {
-      const dropPosition = {
-        x: event.nativeEvent.pageX,
-        y: event.nativeEvent.pageY
-      };
-
-      onDragEnd?.(card, dropPosition);
-      setIsDragging(false);
-    },
-
-    onPanResponderTerminate: () => {
-      resetPosition();
-    }
-  });
-
   return {
-    pan,
-    panResponder,
+    gesture, // attach to <GestureDetector gesture={gesture}>...</GestureDetector>
+    animatedStyle, // apply to your <Animated.View style={animatedStyle}>...</Animated.View>
     isDragging,
-    resetPosition
+    resetPosition,
   };
 };

@@ -189,7 +189,7 @@ const tempStackRules = [
         type: 'addToOwnTemp',
         payload: {
           gameId: context.gameId,
-          stackId: context.targetInfo?.card?.stackId,  // ✅ FIXED: stackId is in card object after normalization
+          stackId: context.targetInfo?.stackId,
           card: context.draggedItem.card,
           source: context.draggedItem.source
         }

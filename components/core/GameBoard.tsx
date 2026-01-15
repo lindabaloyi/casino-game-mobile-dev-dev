@@ -48,8 +48,7 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     playerNumber,
     sendAction,
     setCardToReset,
-    setErrorModal: modalManager.setErrorModal,
-    setModalInfo: modalManager.setModalInfo
+    setErrorModal: modalManager.setErrorModal
   });
 
   // Game over state
@@ -76,40 +75,6 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     setCardToReset,
     setGameOverData
   });
-
-  // 🎯 DRAG FAILURE HANDLING: Listen for failed drag actions and reset cards
-  React.useEffect(() => {
-    const handleCardDragFailed = (event: any) => {
-      console.log('[GameBoard] 🚨 Card drag failed - resetting card:', {
-        card: event.detail.card,
-        reason: event.detail.reason,
-        timestamp: new Date().toISOString()
-      });
-
-      // Reset the failed card back to hand
-      setCardToReset(event.detail.card);
-      console.log('[GameBoard] ✅ Set cardToReset called for failed drag');
-
-      // Show error modal for user feedback
-      modalManager.setErrorModal({
-        visible: true,
-        title: 'Action Blocked',
-        message: event.detail.reason
-      });
-      console.log('[GameBoard] ✅ Error modal shown for failed drag');
-    };
-
-    console.log('[GameBoard] 🎯 Setting up cardDragFailed event listener');
-    if (typeof window !== 'undefined') {
-      window.addEventListener('cardDragFailed', handleCardDragFailed);
-      console.log('[GameBoard] ✅ cardDragFailed event listener attached');
-
-      return () => {
-        window.removeEventListener('cardDragFailed', handleCardDragFailed);
-        console.log('[GameBoard] 🧹 cardDragFailed event listener removed');
-      };
-    }
-  }, [setCardToReset, modalManager]);
 
   // Extracted temp stack operations
   const tempStacks = useTempStacks({

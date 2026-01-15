@@ -175,57 +175,6 @@ export function useServerListeners({
     };
   }, []);
 
-  // Handle strategic temp stack capture options
-  useEffect(() => {
-    const socket = (global as any).socket;
-    if (!socket) return;
-
-    const handleTempStackStrategicOptions = (data: any) => {
-      console.log('[CLIENT] Strategic temp stack capture options received:', data);
-
-      // Convert the available options to modal actions
-      const actions = data.availableOptions.map((option: any) => {
-        if (option.actionType === 'captureTempStack') {
-          return {
-            type: 'capture',
-            label: option.label,
-            payload: {
-              tempStackId: data.tempStackId,
-              captureValue: data.tempStackValue,
-              captureType: 'strategic_temp_stack_capture'
-            }
-          };
-        } else if (option.actionType === 'addToTempAndCapture') {
-          return {
-            type: 'addToTempAndCapture',
-            label: option.label,
-            payload: {
-              tempStackId: data.tempStackId,
-              addedCard: option.addedCard,
-              captureCard: option.addedCard, // Use the same card for both operations
-              captureValue: data.newTempStackValue,
-              captureType: 'strategic_temp_stack_build_capture'
-            }
-          };
-        }
-        return option; // Fallback
-      });
-
-      setModalInfo({
-        title: 'Strategic Capture Options',
-        message: `You have ${data.captureCardsAvailable} cards that can capture this temp stack. Choose your strategy:`,
-        actions,
-        requestId: data.requestId
-      });
-    };
-
-    socket.on('temp-stack-strategic-options', handleTempStackStrategicOptions);
-
-    return () => {
-      socket.off('temp-stack-strategic-options', handleTempStackStrategicOptions);
-    };
-  }, [setModalInfo]);
-
   // Handle game over events
   useEffect(() => {
     const socket = (global as any).socket;
