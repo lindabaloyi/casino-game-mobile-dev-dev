@@ -284,12 +284,6 @@ function updateBuildCalculator(tempStack, newCardValue) {
   const B = tempStack.buildValue;
   const S = tempStack.runningSum || 0;
   const C = tempStack.segmentCount || 0;
-<<<<<<< HEAD
-
-  const cards = tempStack.cards.map(c => c.value);
-  const cardsSum = cards.reduce((sum, card) => sum + card, 0);
-  const cardAlreadyIncluded = cards.includes(newCardValue);
-=======
 
   console.log('[BUILD_CALCULATOR] 📈 Current state variables:', {
     B: B, // buildValue
@@ -326,7 +320,6 @@ function updateBuildCalculator(tempStack, newCardValue) {
   });
 
   const cardsSum = cards.reduce((sum, c) => sum + c, 0);
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
   const totalSum = cardAlreadyIncluded ? cardsSum : cardsSum + newCardValue;
   console.log('[BUILD_CALCULATOR] 🔍 Corrected sum calculation:', {
     cardsSum: cardsSum,

@@ -5,13 +5,7 @@
 
 const { createLogger } = require('../../../utils/logger');
 const { buildLifecycleTracker } = require('../../GameState');
-<<<<<<< HEAD
-=======
-const { buildTracker } = require('../../../../../utils/buildLifecycleTracker');
 
-console.log('[MODULE_LOAD] addToOwnBuild.js loaded, buildTracker imported:', !!buildTracker);
-
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
 const logger = createLogger('AddToOwnBuild');
 
 function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter) {
@@ -37,15 +31,8 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
   let buildId, card, source, build;
 
   // CRITICAL DEBUG: Log extension attempt
-<<<<<<< HEAD
   console.log('[BUILD_PENDING] addToOwnBuild debug info:', {
     allBuilds: gameState.tableCards
-=======
-  console.log('[ADD_TO_BUILD_CRITICAL] Extension attempt:', {
-    requestedBuildId: action.payload.buildId || action.payload.buildToAddTo?.buildId,
-    playerIndex,
-    availableBuilds: gameState.tableCards
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
       .filter(item => item.type === 'build')
       .map(b => ({ id: b.buildId, owner: b.owner, cards: b.cards.length })),
     payloadStructure: action.payload.buildId ? 'drop-handler' : 'contact-handler'
@@ -191,25 +178,6 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
     oldState: { cards: oldCardCount, value: oldValue },
     newState: { cards: build.cards.length, value: build.value },
     currentCards: build.cards.map((c, i) => `${i}:${c.rank}${c.suit}`),
-    valueChange: `${oldValue} → ${build.value}`
-  });
-
-  // Verify the array reference fix worked
-  console.log('[ARRAY_REFERENCE_FIX] Array reference check:', {
-    oldReference: oldCards,
-    newReference: build.cards,
-    referencesEqual: oldCards === build.cards, // Should be false - React detects!
-    cardsPreserved: oldCardCount === build.cards.length - 1,
-    buildValueSaved: build.value === newValue
-  });
-
-  // Add verification logging (matches temp stack behavior)
-  console.log('[BUILD_TEMP_COMPARISON]', {
-    buildCards: build.cards.map((c, i) => `${c.rank}${c.suit}=${i}`),
-    method: 'spread',
-    newestAt: 'end',
-    shouldShow: build.cards[build.cards.length - 1]?.rank +
-               build.cards[build.cards.length - 1]?.suit + ' (newest on top like temp stacks)',
     valueChange: `${oldValue} → ${build.value}`
   });
 

@@ -1,14 +1,13 @@
 /**
- * Build Lifecycle Tracker (JavaScript version for server)
- * Tracks the complete lifecycle of builds from creation to extension
- * Critical for debugging build identity and lifecycle issues
+ * Build Lifecycle Tracker - Minimal logging for production performance
+ * Tracks build lifecycle silently for diagnostics, no console output
  */
 
 class BuildLifecycleTracker {
   constructor() {
     this.createdBuilds = new Map();
     this.activeSessions = new Map();
-    console.log('[BUILD_TRACKER] 🔧 Build Lifecycle Tracker initialized');
+    // Removed console.log for production performance
   }
 
   trackCreation(buildId, context, cards = [], metadata = {}) {
@@ -26,15 +25,7 @@ class BuildLifecycleTracker {
 
     this.createdBuilds.set(buildId, buildInfo);
 
-    console.log('[BUILD_TRACKER] 📝 Build CREATED:', {
-      buildId,
-      context,
-      cardCount: cards.length,
-      cards: cards.map(c => `${c.rank}${c.suit}`),
-      sessionId,
-      totalTrackedBuilds: this.createdBuilds.size,
-      metadata
-    });
+    // Removed console.log for production performance
 
     return buildInfo;
   }
@@ -54,26 +45,12 @@ class BuildLifecycleTracker {
       build.extensions.push(extension);
       build.lastSeen = Date.now();
 
-      console.log('[BUILD_TRACKER] 🔧 Build EXTENDED:', {
-        buildId,
-        context,
-        addedCard: `${addedCard.rank}${addedCard.suit}`,
-        totalExtensions: build.extensions.length,
-        sessionConsistent: build.sessionId === this.getCurrentSession(),
-        allExtensions: build.extensions.map(e => e.addedCard),
-        metadata
-      });
+      // Removed console.log for production performance
 
       return extension;
     } else {
-      console.error('[BUILD_TRACKER] ⚠️ UNKNOWN BUILD EXTENSION ATTEMPT:', {
-        buildId,
-        context,
-        addedCard: `${addedCard.rank}${addedCard.suit}`,
-        knownBuilds: Array.from(this.createdBuilds.keys()),
-        currentSession: this.getCurrentSession(),
-        metadata
-      });
+      // Removed console.error for production performance
+      // Keep error handling logic but silent
 
       return null;
     }
@@ -105,25 +82,8 @@ class BuildLifecycleTracker {
   }
 
   debugAllBuilds(gameState, context) {
-    const builds = gameState.tableCards.filter((item) => item.type === 'build');
-    console.log(`[ALL_BUILDS_FIXED:${context}]`, {
-      totalBuilds: builds.length,
-      timestamp: new Date().toISOString(),
-      builds: builds.map((b, i) => ({
-        index: i,
-        id: b.buildId,
-        owner: b.owner,
-        // CRITICAL: Read directly from the UPDATED build in gameState
-        cards: b.cards?.map((c) => `${c.rank}${c.suit}`) || [],
-        cardCount: b.cards?.length || 0, // Should now show correct count!
-        value: b.value || 0,               // Should now show updated value!
-        lifecycle: this.createdBuilds.get(b.buildId) ? {
-          createdAt: this.createdBuilds.get(b.buildId).createdAt,
-          extensions: this.createdBuilds.get(b.buildId).extensions.length,
-          sessionId: this.createdBuilds.get(b.buildId).sessionId
-        } : 'NOT_TRACKED'
-      }))
-    });
+    // Removed console.log for production performance
+    // Debug method kept for potential future use but silenced
   }
 
   // Critical diagnostic method
@@ -165,7 +125,7 @@ class BuildLifecycleTracker {
   reset() {
     this.createdBuilds.clear();
     this.activeSessions.clear();
-    console.log('[BUILD_TRACKER] 🔄 Tracker reset');
+    // Removed console.log for production performance
   }
 }
 

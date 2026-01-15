@@ -4,8 +4,8 @@
  * Replaces procedural logic with rule-based evaluation
  */
 
-const { rankValue, isCard, isBuild, isTemporaryStack, calculateCardSum } = require('../GameState.cjs');
-const { createLogger } = require('../../utils/logger.cjs');
+const { rankValue, isCard, isBuild, isTemporaryStack, calculateCardSum } = require('../GameState.js');
+const { createLogger } = require('../../utils/logger.js');
 
 const logger = createLogger('ActionDetermination');
 
@@ -274,6 +274,9 @@ function determineActions(draggedItem, targetInfo, gameState) {
     }
 
     return result;
+  } catch (error) {
+    logger.error('Error in determineActions:', error);
+    throw error;
   } finally {
     // Restore original rules
     engine.rules = originalRules;

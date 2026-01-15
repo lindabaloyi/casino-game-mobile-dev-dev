@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
-    "server": "node multiplayer/server/index.cjs",
+    "server": "node multiplayer/server/index.js",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -69,6 +69,5 @@
     "ts-node": "^10.9.2",
     "typescript": "~5.9.2"
   },
-  "private": true,
-  "type": "module"
+  "private": true
 }

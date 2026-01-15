@@ -190,14 +190,6 @@ const autoCaptureRules = [
           });
         }
       }
-<<<<<<< HEAD
-=======
-
-      console.log('[MODAL_RULE] ✅ Generated loose card options:', {
-        optionCount: availableOptions.length,
-        options: availableOptions.map(o => o.label)
-      });
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
 
       // Return data packet for modal
       return {

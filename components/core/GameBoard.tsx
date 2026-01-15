@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -134,22 +133,8 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     }
   };
 
-  // DEPRECATED: Trail drop handlers removed - trails now use contact detection
-
-  // DEPRECATED: Trail drop zone registration removed - trails now use contact detection
-  // Table section ref removed - no longer needed for drop zones
-
   // 🎯 NEW: Handle Accept button press - detect stack type and route appropriately
   const handleAcceptClick = (stackId: string) => {
-<<<<<<< HEAD
-=======
-    console.log('[FUNCTION] 🚀 ENTERING handleAcceptClick', {
-      stackId,
-      timestamp: Date.now()
-    });
-    console.log('🎯 [GameBoard] Accept button clicked for stack:', stackId);
-
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
     // Find the temp stack by stackId
     const tempStack = gameState.tableCards.find((card: any) =>
       card.type === 'temporary_stack' && card.stackId === stackId

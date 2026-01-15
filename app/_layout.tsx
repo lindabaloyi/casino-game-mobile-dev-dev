@@ -18,13 +18,8 @@ export default function RootLayout() {
         try {
           await NavigationBar.setVisibilityAsync('hidden');
           await NavigationBar.setBehaviorAsync('inset-touch');
-<<<<<<< HEAD
         } catch {
-=======
-          console.log('[NAVBAR] System navigation bar hidden programmatically');
-        } catch (error) {
-          console.warn('[NAVBAR] Failed to hide navigation bar:', error);
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
+          // Removed console.log for production performance
         }
       }
     };

@@ -9,16 +9,6 @@ const buildRules = [
   {
     id: 'create-own-build',
     condition: (context) => {
-<<<<<<< HEAD
-=======
-      console.log('[BUILD_RULE] Evaluating create own build:', {
-        draggedSource: context.draggedItem?.source,
-        targetType: context.targetInfo?.type,
-        round: context.round,
-        isBuild: isBuild(context.targetInfo?.card)
-      });
-
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
       const currentPlayer = context.currentPlayer;

@@ -65,32 +65,6 @@ const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
       flexibleValidation: true
     });
 
-    // 🎯 FIX 6: IMMEDIATE UI FEEDBACK - Show placement instantly
-    try {
-      // Immediate visual feedback for smooth UX
-      console.log('[UI_FEEDBACK] Showing immediate placement for:', draggedItem.card);
-
-      // Send optimistic update to UI (server will validate)
-      const optimisticUpdate = {
-        type: 'temp_stack_card_added',
-        stackId: tempStack.stackId,
-        card: draggedItem.card,
-        timestamp: Date.now(),
-        optimistic: true  // Mark as optimistic update
-      };
-
-      // Dispatch immediate UI update (if available)
-      if ((global as any).socket) {
-        (global as any).socket.emit('optimistic_update', optimisticUpdate);
-      }
-<<<<<<< HEAD
-    } catch {
-=======
-    } catch (uiError: any) {
-      console.warn('[UI_FEEDBACK] Could not show immediate feedback:', uiError.message);
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
-    }
-
     // Server will handle with flexible validation (no modals)
     return onDropOnCard(draggedItem, {
       type: 'temporary_stack',
@@ -102,27 +76,6 @@ const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
   } else {
     // Dropping on loose card - CREATE NEW TEMP STACK
     console.log('[GAME_APPROPRIATE_DROP] 🎯 Creating new temp stack from loose card');
-
-    // 🎯 FIX 6: IMMEDIATE UI FEEDBACK for new stack creation
-    try {
-      const optimisticNewStack = {
-        type: 'temp_stack_created',
-        baseCard: targetItem,
-        draggedCard: draggedItem.card,
-        timestamp: Date.now(),
-        optimistic: true
-      };
-
-      if ((global as any).socket) {
-        (global as any).socket.emit('optimistic_update', optimisticNewStack);
-      }
-<<<<<<< HEAD
-    } catch {
-=======
-    } catch (uiError: any) {
-      console.warn('[UI_FEEDBACK] Could not show new stack feedback:', uiError.message);
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
-    }
 
     const targetIndex = tableCards.indexOf(targetItem);
 

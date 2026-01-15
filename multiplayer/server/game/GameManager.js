@@ -4,9 +4,9 @@
  * with ActionRouter to execute actions and determineActions logic.
  */
 
-const { initializeGame, validateGameState } = require('./GameState.cjs');
-const { createLogger } = require('../utils/logger.cjs');
-const { determineActions } = require('./logic/actionDetermination.cjs');
+const { initializeGame, validateGameState } = require('./GameState.js');
+const { createLogger } = require('../utils/logger.js');
+const { determineActions } = require('./logic/actionDetermination.js');
 
 const logger = createLogger('GameManager');
 

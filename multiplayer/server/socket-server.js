@@ -37,11 +37,6 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware for logging all connections and data
 io.use((socket, next) => {
-<<<<<<< HEAD:multiplayer/server/socket-server.cjs
-=======
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}][SERVER] Handshake attempt: ${socket.id}`);
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance):multiplayer/server/socket-server.js
   next();
 });
 
@@ -132,49 +127,6 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => handleDisconnect(socket));
   socket.on('game-action', (data) => gameCoordinator.handleGameAction(socket, data));
   socket.on('card-drop', (data) => {
-    // 📡 COMPREHENSIVE SERVER DROP DATA LOGGING
-    console.log('📡 [SERVER_DROP_DATA] ===== SERVER RECEIVED CARD-DROP =====');
-    console.log('📡 [SERVER_DROP_DATA] Raw data:', data);
-
-    // Deep analysis
-    console.log('📡 [SERVER_DROP_DATA] Data type:', typeof data);
-    console.log('📡 [SERVER_DROP_DATA] Data keys:', Object.keys(data));
-
-    if (data.draggedItem) {
-      console.log('📡 [SERVER_DROP_DATA] DraggedItem analysis:', {
-        // Structure
-        isObject: typeof data.draggedItem === 'object',
-        isArray: Array.isArray(data.draggedItem),
-
-        // Content
-        hasCardProperty: !!data.draggedItem.card,
-        cardDataType: typeof data.draggedItem.card,
-        cardProperties: data.draggedItem.card ? Object.keys(data.draggedItem.card) : [],
-
-        // Source info
-        source: data.draggedItem.source,
-        hasSource: !!data.draggedItem.source,
-
-        // All other properties
-        allProperties: Object.keys(data.draggedItem).reduce((acc, key) => {
-          acc[key] = {
-            value: data.draggedItem[key],
-            type: typeof data.draggedItem[key]
-          };
-          return acc;
-        }, {})
-      });
-    }
-
-    if (data.targetInfo) {
-      console.log('📡 [SERVER_DROP_DATA] TargetInfo analysis:', {
-        ...data.targetInfo,
-        cardType: data.targetInfo.card ? typeof data.targetInfo.card : 'none'
-      });
-    }
-
-    console.log('📡 [SERVER_DROP_DATA] ===== END =====\n');
-
     // Continue with normal processing
     gameCoordinator.handleCardDrop(socket, data);
   });

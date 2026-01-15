@@ -73,16 +73,6 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
     );
 
     if (tempStack && card.value === tempStack.value) {
-<<<<<<< HEAD
-=======
-      console.log('[DIRECT_CAPTURE] 🎯 Hand card matches temp stack value - executing direct capture:', {
-        cardValue: card.value,
-        stackValue: tempStack.value,
-        stackId: tempStack.stackId,
-        tempStackCards: tempStack.cards.map(c => `${c.rank}${c.suit}`)
-      });
-
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
       // Execute capture instead of adding to stack
       // Include capturing card in the captured set (like build captures)
       return handleCapture(gameManager, playerIndex, {
@@ -113,18 +103,11 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
     throw error;
   }
 
-  // 🎯 COMPLETE FREEDOM: No validation for temp stack building
-  // All validation deferred to finalizeStagingStack
-<<<<<<< HEAD
-=======
-  console.log('[VALIDATION] 🎯 Skipping validation for temp stack (player freedom)');
-
   // Basic sanity checks only (no game rule validation)
   if (!card || !card.rank || !card.suit) {
     console.error('[VALIDATION_ERROR] Invalid card data');
     throw new Error('Invalid card data');
   }
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
 
   if (!source) {
     console.error('[VALIDATION_ERROR] Card source not specified');
@@ -182,18 +165,6 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
     source: source || 'unknown'
   });
 
-  // 🎯 REAL-TIME BUILD CALCULATOR: Update build state as cards are added (ALWAYS RUNS)
-  console.log('[DEBUG] 🎯 About to call build calculator - THIS SHOULD ALWAYS APPEAR');
-  console.log('[DEBUG] Source check - source:', source, 'card.value:', card.value, 'tempStack.value:', tempStack.value);
-  console.log('[DEBUG] Direct capture check result:', source === 'hand' && card.value === tempStack.value);
-  console.log('[DEBUG] updateBuildCalculator imported:', typeof updateBuildCalculator);
-  console.log('[DEBUG] tempStack before build calc:', {
-    stackId: tempStack.stackId,
-    cards: tempStack.cards.map(c => `${c.rank}${c.suit}(${c.value})`),
-    value: tempStack.value,
-    hasBuildValue: 'buildValue' in tempStack
-  });
-
   try {
     console.log('[BUILD_CALCULATOR] 🎯 Updating real-time build calculator:', {
       stackId: tempStack.stackId,
@@ -234,28 +205,13 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
     throw error;
   }
 
-  // 🎯 COMPLEX BUILD CHECK: After adding card, check if we now have complex build options
-<<<<<<< HEAD
-=======
-  console.log('[COMPLEX_BUILD_CHECK] Checking for complex build options after adding card:', {
-    stackId: tempStack.stackId,
-    cardCount: tempStack.cards.length,
-    isSameValueStack: tempStack.isSameValueStack,
-    cardValues: tempStack.cards.map(c => c.value)
-  });
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
-
   // Check if this is now a complex stack (3+ cards, not same-value)
   const isComplexStack = tempStack.cards.length >= 3 && !tempStack.isSameValueStack;
 
   if (isComplexStack) {
-<<<<<<< HEAD
-    const { detectNormalBuildCombinations } = require('../../logic/utils/tempStackBuildCalculator');
-=======
     console.log('[COMPLEX_BUILD_CHECK] ✅ Complex stack detected - checking for build options');
 
     const { detectNormalBuildCombinations, detectBaseBuild } = require('../../logic/utils/tempStackBuildCalculator');
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
     const playerHand = gameState.playerHands[playerIndex];
     const cardValues = tempStack.cards.map(c => c.value);
 

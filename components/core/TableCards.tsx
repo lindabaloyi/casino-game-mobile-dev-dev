@@ -6,8 +6,6 @@ import TableDraggableCard from '../table/TableDraggableCard';
 import { useTableInteractionManager } from '../table/TableInteractionManager';
 import { TempStackRenderer } from '../table/TempStackRenderer';
 
-// Removed unused screenWidth variable
-
 interface TableCardsProps {
   tableCards?: TableCard[];
   onDropOnCard?: (draggedItem: any, targetInfo: any) => boolean;
@@ -18,23 +16,18 @@ interface TableCardsProps {
   onTableCardDragEnd?: (draggedItem: any, dropPosition: any) => void;
   onTempAccept?: (tempId: string) => void;
   onTempReject?: (tempId: string) => void;
-  sendAction?: (action: any) => void; // For build augmentation
-  // Build overlay support
-  gameState?: any; // To check pending build additions
+  sendAction?: (action: any) => void;
+  gameState?: any;
   onAcceptBuildAddition?: (buildId: string) => void;
   onRejectBuildAddition?: () => void;
-  // Build extension overlay support
   onAcceptBuildExtension?: (buildId: string) => void;
   onCancelBuildExtension?: (buildId: string) => void;
 }
 
-// Helper function to get card type from union types
 function getCardType(card: TableCard): 'loose' | 'temporary_stack' | 'build' {
   if ('type' in card) return card.type;
-  return 'loose';  // Card objects are implicitly loose cards without type property
+  return 'loose';
 }
-
-// Removed unused lastDropPosition variable
 
 const TableCards: React.FC<TableCardsProps> = ({
   tableCards = [],
@@ -47,171 +40,68 @@ const TableCards: React.FC<TableCardsProps> = ({
   onTempAccept,
   onTempReject,
   sendAction,
-  // Build overlay props
   gameState,
   onAcceptBuildAddition,
   onRejectBuildAddition,
-  // Build extension overlay props
   onAcceptBuildExtension,
   onCancelBuildExtension
 }) => {
   const tableRef = useRef<View>(null);
-  const tableBoundsRef = useRef<any>(null);  // 🎯 NEW: Store table bounds for overlap detection
+  const tableBoundsRef = useRef<any>(null);
 
-  // 🔬 ONE-TIME LOG ON COMPONENT MOUNT
-  React.useEffect(() => {
-    console.log('🔬 [INITIAL_DATA_STRUCTURE] TableCards mounted with:', {
-      tableCardsCount: tableCards.length,
-      tableCardsStructure: tableCards.map((card, idx) => ({
-        index: idx,
-        type: getCardType(card),
-        isObject: typeof card === 'object',
-        keys: typeof card === 'object' ? Object.keys(card) : [],
-        sample: card && typeof card === 'object' ?
-          JSON.parse(JSON.stringify(card)) : card
-      })),
-      propsStructure: {
-        hasOnDropOnCard: !!onDropOnCard,
-        hasCurrentPlayer: currentPlayer !== undefined,
-        allProps: Object.keys({tableCards, onDropOnCard, currentPlayer, onFinalizeStack, onCancelStack, onTableCardDragStart, onTableCardDragEnd, onTempAccept, onTempReject})
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency - only run once
-
-  // 🎯 NEW: Track drag state for overlap detection
   const [isDragging, setIsDragging] = React.useState(false);
 
-  // 🎯 NEW: Enhanced drag handlers to track position
   const handleTableCardDragStartWithPosition = React.useCallback((card: any) => {
-    console.log(`[DRAG-TRACK] Table card drag started:`, card);
     setIsDragging(true);
     onTableCardDragStart?.(card);
   }, [onTableCardDragStart]);
 
   const handleTableCardDragEndWithPosition = React.useCallback((draggedItem: any, dropPosition: any) => {
-    console.log(`[DRAG-TRACK] Table card drag ended`);
     setIsDragging(false);
     onTableCardDragEnd?.(draggedItem, dropPosition);
   }, [onTableCardDragEnd]);
 
-  // Removed unused updateDragPosition function
-
-  // Use table interaction manager for drop handling
   const { handleDropOnStack } = useTableInteractionManager({
     tableCards,
     onDropOnCard: onDropOnCard || (() => false)
   });
 
-  // Track locally cancelled staging stacks for immediate UI updates
   const [cancelledStacks] = React.useState<Set<string>>(new Set());
 
-  // Simplified temp reject handler - just call server-side cancel
   const handleTempRejectWithLocalState = React.useCallback((tempId: string) => {
-    console.log(`[TableCards] ❌ CANCEL TEMP - CALLING SERVER-SIDE CANCEL:`, {
-      tempId,
-      action: 'server-side-cancelTemp',
-      timestamp: Date.now(),
-      expectedOutcome: 'server-will-restore-cards-to-original-positions'
-    });
-
-    // Call the server-side cancel handler - let server handle all restoration
     onTempReject?.(tempId);
-
-    console.log(`[TableCards] ✅ CANCEL REQUEST SENT TO SERVER:`, {
-      tempId,
-      serverWillHandle: 'position-aware-card-restoration',
-      clientWillReceive: 'updated-game-state-with-restored-cards'
-    });
   }, [onTempReject]);
 
-  // FIXED: Preserve original positions when expanding cancelled stacks
   const visibleTableCards = React.useMemo(() => {
-<<<<<<< HEAD
-=======
-    console.log(`[TableCards] 🔄 POSITION-PRESERVING EXPANSION:`, {
-      totalTableCards: tableCards.length,
-      cancelledStacksCount: cancelledStacks.size,
-      cancelledStacksList: Array.from(cancelledStacks)
-    });
-
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
-    // Use flatMap to expand cancelled temp stacks into individual cards
-    // while maintaining original array structure and positions
     const transformedCards = tableCards.flatMap((tableItem, originalIndex) => {
-      // Handle null/undefined items
       if (!tableItem) {
-        console.warn(`[TableCards] ⚠️ Found null table item at index ${originalIndex}`);
         return [];
       }
 
       const itemType = getCardType(tableItem);
 
-      // Check if this is a cancelled temp stack
       if (itemType === 'temporary_stack') {
         const stackId = (tableItem as any).stackId;
         const isCancelled = cancelledStacks.has(stackId);
 
         if (isCancelled) {
-          console.log(`[TableCards] 🔄 EXPANDING CANCELLED STACK IN-PLACE:`, {
-            stackId,
-            originalIndex,
-            cardsCount: (tableItem as any).cards?.length || 0,
-            action: 'replace-with-individual-cards-at-same-position'
-          });
-
-          // Return the individual cards from the stack
           const stackCards = (tableItem as any).cards || [];
-
-          // Handle edge case: empty cards array
           if (stackCards.length === 0) {
-            console.warn(`[TableCards] ⚠️ Cancelled stack ${stackId} has no cards`);
-            return []; // Remove from array entirely
+            return [];
           }
 
-          // Add position metadata to track original location
           return stackCards.map((card: any, cardIndex: number) => ({
             ...card,
-            // Simplified metadata names
             _cancelledStackId: stackId,
-            _pos: originalIndex, // Original stack position
-            _inStackIdx: cardIndex // Index within the original stack
+            _pos: originalIndex,
+            _inStackIdx: cardIndex
           }));
         }
 
-        // Not cancelled - keep the temp stack as-is
-        console.log(`[TableCards] ✅ PRESERVING ACTIVE TEMP STACK:`, {
-          stackId,
-          originalIndex,
-          cardsCount: (tableItem as any).cards?.length || 0
-        });
         return [tableItem];
       }
 
-      // Not a temp stack - keep as-is
       return [tableItem];
-    });
-
-    console.log(`[TableCards] ✅ POSITION PRESERVATION COMPLETE:`, {
-      originalCount: tableCards.length,
-      transformedCount: transformedCards.length,
-      expansionCount: transformedCards.length - tableCards.length,
-
-      // Detailed transformation tracking
-      transformationMap: {
-        originalItems: tableCards.map((item, i) => ({
-          index: i,
-          type: item ? getCardType(item) : 'null',
-          stackId: item && getCardType(item) === 'temporary_stack' ? (item as any).stackId : null,
-          cancelled: item && getCardType(item) === 'temporary_stack' ? cancelledStacks.has((item as any).stackId) : false
-        })),
-        transformedItems: transformedCards.map((item, i) => ({
-          index: i,
-          type: item ? getCardType(item) : 'null',
-          fromCancelledStack: !!(item as any)._cancelledStackId,
-          originalPosition: (item as any)._pos || null
-        }))
-      }
     });
 
     return transformedCards;
@@ -221,10 +111,9 @@ const TableCards: React.FC<TableCardsProps> = ({
     <View
       ref={tableRef}
       style={styles.tableContainer}
-      onLayout={() => {  // 🎯 FIX 1: Use measureInWindow for proper coordinates
+      onLayout={() => {
         tableRef.current?.measureInWindow((x, y, width, height) => {
           tableBoundsRef.current = { x, y, width, height };
-          console.log('[TABLE-BOUNDS] Captured via measureInWindow:', tableBoundsRef.current);
         });
       }}
     >
@@ -236,26 +125,13 @@ const TableCards: React.FC<TableCardsProps> = ({
         ) : (
           <View style={styles.cardsContainer}>
             {visibleTableCards.map((tableItem, visibleIndex) => {
-              // Find the original position for this card using metadata
               const originalPosition = (tableItem as any)._pos !== undefined
                 ? (tableItem as any)._pos
-                : visibleIndex; // Fallback for non-expanded cards
+                : visibleIndex;
 
-              // Calculate z-index hierarchy: later cards stack higher
               const baseZIndex = visibleIndex + 1;
               const dragZIndex = 100000;
-
-
-
               const itemType = getCardType(tableItem);
-
-              // 🎯 NEW: Simple table overlap detection (no useMemo needed)
-              // Removed unused isOverTable variable
-
-              // Simplified z-index: drag z-index guarantees layering priority
-              // Removed unused dynamicZIndex variable
-
-
 
               if (itemType === 'loose') {
                 return (
@@ -271,7 +147,6 @@ const TableCards: React.FC<TableCardsProps> = ({
                   />
                 );
               } else if (itemType === 'build') {
-                // Check if this build has pending addition or extension
                 const buildId = (tableItem as any).buildId;
                 const hasPendingAddition = gameState?.pendingBuildAdditions?.[buildId];
 
@@ -284,11 +159,9 @@ const TableCards: React.FC<TableCardsProps> = ({
                     dragZIndex={dragZIndex}
                     currentPlayer={currentPlayer}
                     sendAction={sendAction}
-                    // Overlay props
                     showOverlay={!!hasPendingAddition}
                     onAcceptBuildAddition={onAcceptBuildAddition}
                     onRejectBuildAddition={onRejectBuildAddition}
-                    // Extension overlay props
                     onAcceptBuildExtension={onAcceptBuildExtension}
                     onCancelBuildExtension={onCancelBuildExtension}
                   />
@@ -328,7 +201,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1B5E20', // Main board color
+    backgroundColor: '#1B5E20',
     padding: 10,
   },
   tableArea: {
@@ -336,7 +209,7 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 20, // Less padding to center cards better
+    paddingTop: 20,
   },
   emptyTable: {
     flex: 1,
@@ -349,19 +222,19 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 180,
     flexDirection: 'row',
-    justifyContent: 'center', // Center cards in each row
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 5,
-    flexWrap: 'wrap', // Allows cards to wrap to new row
-    gap: 30, // Smaller gap to fit 5 cards naturally on mobile screens
-    alignSelf: 'center', // Center the container itself
-    overflow: 'visible', // Allow dragged cards to visually escape container bounds
+    flexWrap: 'wrap',
+    gap: 30,
+    alignSelf: 'center',
+    overflow: 'visible',
   },
   looseCardContainer: {
-    margin: 4, // 4px margin on all sides for loose cards
+    margin: 4,
   },
   stagingStackContainer: {
-    position: 'relative', // Container for overlay positioning
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center'
   },

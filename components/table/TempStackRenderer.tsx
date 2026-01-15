@@ -49,108 +49,6 @@ export function TempStackRenderer({
   // Check if this player has any builds they can augment (contextual capability)
   const canAugmentBuilds = tempStackItem.canAugmentBuilds || false;
 
-  // 🔍 CLIENT-SIDE DEBUGGING: Log when component receives new props
-  console.log('[CLIENT_DEBUG] 🎯 TempStackRenderer RENDER TRIGGERED:', {
-    stackId: tempStackItem.stackId || `temp-${index}`,
-    renderTimestamp: Date.now(),
-    propsChanged: {
-      displayValue: tempStackItem.displayValue,
-      buildValue: tempStackItem.buildValue,
-      segmentCount: tempStackItem.segmentCount,
-      isValid: tempStackItem.isValid,
-      isBuilding: tempStackItem.isBuilding,
-      cardsCount: tempStackCards.length,
-      tableItemKeys: Object.keys(tempStackItem)
-    },
-    componentState: {
-      isCurrentPlayerOwner,
-      canAugmentBuilds,
-      isDragging
-    }
-  });
-
-  console.log(`[TEMP_STACK_RENDERER] 🎴 Rendering TEMPORARY STACKING STACK:`, {
-    stackId: tempStackItem.stackId || stackId,
-    owner: tempStackItem.owner,
-    currentPlayer,
-    isCurrentPlayerOwner,
-    cardCount: tempStackCards.length,
-    captureValue: tempStackItem.captureValue,
-    stackValue: tempStackItem.value,
-    buildCalculatorFields: {
-      displayValue: tempStackItem.displayValue,
-      buildValue: tempStackItem.buildValue,
-      runningSum: tempStackItem.runningSum,
-      segmentCount: tempStackItem.segmentCount,
-      isValid: tempStackItem.isValid,
-      isBuilding: tempStackItem.isBuilding
-    },
-    cards: tempStackCards.map((c: any) => `${c.rank}${c.suit}(${c.source})`),
-    index,
-    baseZIndex,
-    hasTempCallbacks: !!(onTempAccept && onTempReject),
-    hasLegacyCallbacks: !!(onFinalizeStack && onCancelStack),
-    unlimitedStagingEnabled: true,
-    canAugmentBuilds
-  });
-
-  // Log display value propagation
-  const totalValueForIndicator = tempStackItem.displayValue || tempStackItem.value;
-  console.log(`[DISPLAY_VALUE_PROPAGATION] 📤 SERVER → CLIENT: TempStackRenderer passing totalValue to TempStackIndicator`, {
-    stackId: tempStackItem.stackId || stackId,
-    serverDisplayValue: tempStackItem.displayValue,
-    serverValue: tempStackItem.value,
-    totalValuePassed: totalValueForIndicator,
-    passedFrom: tempStackItem.displayValue !== undefined ? 'displayValue' : 'value (fallback)',
-    buildCalculatorUsed: tempStackItem.displayValue !== undefined
-  });
-
-  // Contextual logging based on player's build augmentation capability
-  if (canAugmentBuilds && isCurrentPlayerOwner) {
-    console.log(`[UNIVERSAL_STAGING_UI] 🏗️ RENDERING ENHANCED STAGING STACK (with augmentation):`, {
-      stackId: tempStackItem.stackId || stackId,
-      player: currentPlayer,
-      owner: tempStackItem.owner,
-      value: tempStackItem.value,
-      cards: tempStackCards.map((c: any) => `${c.rank}${c.suit}(${c.value})`),
-      isDraggable: true,
-      showsAcceptCancel: true,
-      stagingType: 'enhanced',
-      dragInstruction: 'Accept to capture, or drag onto your build to augment'
-    });
-  } else if (isCurrentPlayerOwner) {
-    console.log(`[UNIVERSAL_STAGING_UI] 📦 RENDERING BASIC STAGING STACK (capture only):`, {
-      stackId: tempStackItem.stackId || stackId,
-      player: currentPlayer,
-      owner: tempStackItem.owner,
-      value: tempStackItem.value,
-      cards: tempStackCards.map((c: any) => `${c.rank}${c.suit}(${c.value})`),
-      isDraggable: false,
-      showsAcceptCancel: true,
-      stagingType: 'basic',
-      instruction: 'Accept to capture combination'
-    });
-  }
-  console.log(`🎯 [STAGING_DEBUG] TEMP STACK ${index} READY: Can accept unlimited loose card drops`);
-
-  if (isCurrentPlayerOwner) {
-    console.log(`[TEMP_STACK_RENDERER] 👑 Player owns this stack - showing STAGING OVERLAY with Accept/Cancel buttons`, {
-      stackId,
-      player: currentPlayer,
-      overlayEnabled: true,
-      stackCards: tempStackCards.length,
-      stagingSource: tempStackCards.length > 1 ? 'table-to-loose-drop' : 'unknown'
-    });
-    console.log(`🎯 [STAGING_DEBUG] STAGING OVERLAY SHOULD APPEAR for stack ${stackId} - Accept/Cancel buttons visible`);
-  } else {
-    console.log(`[TEMP_STACK_RENDERER] 👀 Player does NOT own this stack - NO overlay shown`, {
-      stackId,
-      owner: tempStackItem.owner,
-      currentPlayer,
-      overlayEnabled: false
-    });
-  }
-
   return (
     <View key={`staging-container-${index}`} style={styles.stagingStackContainer}>
       <CardStack
@@ -181,36 +79,9 @@ export function TempStackRenderer({
           isVisible={!isDragging}
           tempId={tempStackItem.stackId || stackId}
           onAccept={() => {
-<<<<<<< HEAD
             onTempAccept?.(stackId);
           }}
           onReject={() => {
-=======
-            console.log(`[UNIVERSAL_TEMP_UI] 📨 ACCEPT callback triggered for temp ${stackId}`, {
-              tempId: stackId,
-              callingOnTempAccept: !!onTempAccept,
-              callbackType: 'onTempAccept',
-              canAugmentBuilds,
-              tempType: canAugmentBuilds ? 'enhanced' : 'basic',
-              action: 'capture_combination',
-              timestamp: Date.now()
-            });
-
-            onTempAccept?.(stackId);
-          }}
-          onReject={() => {
-            console.log(`[UNIVERSAL_TEMP_UI] 📨 CANCEL callback triggered for temp ${stackId}`, {
-              tempId: stackId,
-              callingOnTempReject: !!onTempReject,
-              callbackType: 'onTempReject',
-              canAugmentBuilds,
-              tempType: canAugmentBuilds ? 'enhanced' : 'basic',
-              action: 'cancel_temp',
-              cardsReturned: tempStackCards.length,
-              timestamp: Date.now()
-            });
-
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
             onTempReject?.(stackId);
           }}
         />

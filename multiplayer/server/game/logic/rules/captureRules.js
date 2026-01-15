@@ -9,17 +9,6 @@ const captureRules = [
   {
     id: 'single-card-capture',
     condition: (context) => {
-<<<<<<< HEAD
-=======
-      console.log('[CAPTURE_RULE] 🔍 Evaluating single card capture:', {
-        draggedCard: context.draggedItem?.card ? `${context.draggedItem.card.rank}${context.draggedItem.card.suit}` : 'none',
-        draggedSource: context.draggedItem?.source,
-        targetType: context.targetInfo?.type,
-        targetCard: context.targetInfo?.card ? `${context.targetInfo.card.rank}${context.targetInfo.card.suit}` : 'none',
-        isCard: isCard(context.targetInfo?.card)
-      });
-
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
@@ -68,18 +57,6 @@ const captureRules = [
   {
     id: 'build-capture',
     condition: (context) => {
-<<<<<<< HEAD
-=======
-      console.log('[CAPTURE_RULE] 🔍 Evaluating build capture:', {
-        draggedCard: context.draggedItem?.card ? `${context.draggedItem.card.rank}${context.draggedItem.card.suit}` : 'none',
-        draggedSource: context.draggedItem?.source,
-        targetType: context.targetInfo?.type,
-        buildId: context.targetInfo?.card?.buildId,
-        buildOwner: context.targetInfo?.card?.owner,
-        isBuild: isBuild(context.targetInfo?.card)
-      });
-
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
@@ -130,17 +107,6 @@ const captureRules = [
   {
     id: 'temp-stack-capture',
     condition: (context) => {
-<<<<<<< HEAD
-=======
-      console.log('[CAPTURE_RULE] 🔍 Evaluating temp stack capture:', {
-        draggedCard: context.draggedItem?.card ? `${context.draggedItem.card.rank}${context.draggedItem.card.suit}` : 'none',
-        draggedSource: context.draggedItem?.source,
-        targetType: context.targetInfo?.type,
-        stackId: context.targetInfo?.card?.stackId,
-        isTempStack: isTemporaryStack(context.targetInfo?.card)
-      });
-
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 

@@ -1,6 +1,6 @@
 /**
- * ActionLogger - Context-rich logging for game actions
- * Provides structured, debuggable logs with full game state context
+ * ActionLogger - Minimal logging for production performance
+ * Only logs critical errors to maintain game stability monitoring
  */
 
 class ActionLogger {
@@ -12,105 +12,37 @@ class ActionLogger {
   }
 
   /**
-   * Log action start with full context
+   * Log action start - minimal logging for production
    */
   logActionStart(actionType, context) {
-    console.log(`[ACTION_START:${actionType.toUpperCase()}]`, JSON.stringify({
-      gameId: this.gameId,
-      playerId: this.playerId,
-      requestId: this.requestId,
-      timestamp: new Date().toISOString(),
-      action: actionType,
-      context: {
-        ...context,
-        // Include relevant game state summaries
-        handSize: context.hand?.length || 0,
-        tableState: this.summarizeTable(context.table || []),
-        playerSituation: this.getPlayerSituation(context.player || {})
-      }
-    }, null, 2));
+    // Removed expensive JSON.stringify and detailed context logging
+    // Keep silent for production performance
   }
 
   /**
-   * Log decision points in action execution
+   * Log decision points - minimal logging for production
    */
   logDecision(phase, decision, details) {
-    console.log(`[DECISION:${phase.toUpperCase()}]`, JSON.stringify({
-      requestId: this.requestId,
-      phase,
-      decision,
-      timestamp: new Date().toISOString(),
-      details
-    }));
+    // Removed expensive JSON.stringify logging
+    // Keep silent for production performance
   }
 
   /**
-   * Log state transitions with before/after changes
+   * Log state transitions - minimal logging for production
    */
   logStateTransition(changes) {
-    console.log(`[STATE_TRANSITION]`, JSON.stringify({
-      requestId: this.requestId,
-      actionDuration: Date.now() - this.actionStartTime,
-      timestamp: new Date().toISOString(),
-      changes
-    }));
+    // Removed expensive JSON.stringify logging
+    // Keep silent for production performance
   }
 
   /**
-   * Log errors with full context
+   * Log errors - minimal logging for production
    */
   logError(phase, error, recovery = null) {
-    console.error(`[ACTION_ERROR:${phase.toUpperCase()}]`, JSON.stringify({
-      requestId: this.requestId,
-      gameId: this.gameId,
-      playerId: this.playerId,
-      phase,
-      error: error.message,
-      stack: error.stack,
-      recoveryAttempted: recovery,
-      timestamp: new Date().toISOString()
-    }));
+    console.error(`[ERROR:${phase}] ${error.message} (Game:${this.gameId})`);
   }
 
-  /**
-   * Summarize table state for logging
-   */
-  summarizeTable(tableCards) {
-    const stacks = tableCards.filter(card => card.type === 'temporary_stack');
-    const looseCards = tableCards.filter(card => !card.type || card.type === 'loose');
-    const builds = tableCards.filter(card => card.type === 'build');
 
-    return {
-      totalCards: tableCards.length,
-      stacks: stacks.length,
-      looseCards: looseCards.length,
-      builds: builds.length,
-      stackSummaries: stacks.map(stack => ({
-        id: stack.stackId,
-        cards: stack.cards.length,
-        owner: stack.owner,
-        value: stack.value
-      })),
-      buildSummaries: builds.map(build => ({
-        id: build.buildId,
-        cards: build.cards.length,
-        owner: build.owner,
-        value: build.value,
-        extendable: build.isExtendable
-      }))
-    };
-  }
-
-  /**
-   * Get player situation summary
-   */
-  getPlayerSituation(player) {
-    return {
-      handSize: player.handSize || player.hand?.length || 0,
-      captures: player.captures || 0,
-      score: player.score || 0
-    };
-  }
 
   /**
    * Get the request ID for correlation

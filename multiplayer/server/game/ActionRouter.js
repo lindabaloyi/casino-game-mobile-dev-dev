@@ -145,15 +145,6 @@ class ActionRouter {
 
             // Award remaining table cards to the last player who moved
             if (finalGameState.tableCards.length > 0) {
-<<<<<<< HEAD:multiplayer/server/game/ActionRouter.cjs
-=======
-              console.log('🎁 AWARDING_REMAINING_CARDS: All table cards go to last player', {
-                lastPlayer: playerIndex,
-                cardsAwarded: finalGameState.tableCards.length,
-                cardList: finalGameState.tableCards.map(c => `${c.rank}${c.suit}`)
-              });
-
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance):multiplayer/server/game/ActionRouter.js
               // Add remaining cards to last player's captures
               if (!finalGameState.playerCaptures[playerIndex]) {
                 finalGameState.playerCaptures[playerIndex] = [];
