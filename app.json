@@ -4,7 +4,11 @@
     "slug": "casino-mobile",
     "version": "1.0.0",
     "orientation": "landscape",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "icon": "./assets/images/icon.png",
     "scheme": "casinomobile",
     "userInterfaceStyle": "automatic",
@@ -20,7 +24,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.casinomobile"
     },
     "web": {
       "output": "static",
@@ -50,7 +55,8 @@
           "barStyle": "dark-content",
           "behavior": "overlay"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

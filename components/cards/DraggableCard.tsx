@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
-import { Animated, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
 import { useDragGesture } from '../../hooks/useDragGesture';
 import Card, { CardType } from './card';
 
@@ -37,7 +39,7 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
   triggerReset = false
 }) => {
   // Use drag gesture hook - simplified for contact-based system
-  const { pan, panResponder, isDragging, resetPosition } = useDragGesture({
+  const { gesture, animatedStyle, isDragging, resetPosition } = useDragGesture({
     draggable,
     disabled,
     onDragStart,
@@ -84,27 +86,25 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
   }, [triggerReset, resetPosition, card.rank, card.suit]);
 
   return (
-    <Animated.View
-      style={[
-        styles.draggableContainer,
-        {
-          transform: [
-            { translateX: pan.x },
-            { translateY: pan.y }
-          ],
-          zIndex: isDragging ? dragZIndex : 1,
-        },
-        isDragging && styles.dragging
-      ]}
-      {...panResponder.panHandlers}
-    >
-      <Card
-        card={card}
-        size={size}
-        disabled={disabled}
-        draggable={draggable}
-      />
-    </Animated.View>
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        style={[
+          styles.draggableContainer,
+          animatedStyle,
+          {
+            zIndex: isDragging ? dragZIndex : 1,
+          },
+          isDragging && styles.dragging
+        ]}
+      >
+        <Card
+          card={card}
+          size={size}
+          disabled={disabled}
+          draggable={draggable}
+        />
+      </Animated.View>
+    </GestureDetector>
   );
 };
 
