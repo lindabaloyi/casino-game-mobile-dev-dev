@@ -41,7 +41,6 @@ global.buildSortDetector = createSortingDetector();
 const handleTrail = require('./trail/index');
 const handleCreateTemp = require('./temp/createTemp');
 const handleAddToOwnTemp = require('./temp/addToOwnTemp');
-const handleAddToTempAndCapture = require('./temp/addToTempAndCapture'); // 🎯 NEW: Strategic temp stack capture
 const handleCancelTemp = require('./temp/cancelTemp');
 const handleCapture = require('./capture/capture');
 const handleCreateBuildFromTempStack = require('./build/createBuildFromTempStack');
@@ -54,11 +53,10 @@ const handleTableToTableDrop = require('./card-drop/tableToTableDrop');
 const handleHandToTableDrop = require('./card-drop/handToTableDrop');
 
 module.exports = {
-  // 🎯 CORE 13 ACTIONS - Build Extension System + Strategic Temp Stack
+  // 🎯 CORE 12 ACTIONS - Build Extension System
   handleTrail,
   handleCreateTemp,
   handleAddToOwnTemp,
-  handleAddToTempAndCapture,  // 🎯 NEW: Strategic temp stack capture
   handleCancelTemp,
   handleCapture,
   handleCreateBuildFromTempStack,

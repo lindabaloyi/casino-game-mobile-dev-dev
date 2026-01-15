@@ -190,7 +190,7 @@ class ActionDeterminationEngine {
         // 🎯 SPECIAL HANDLING: Check if result is a data packet (not an action)
         if (result && typeof result === 'object' && result.type && result.payload) {
           // Check if it's a data packet by looking for known data packet types
-          const dataPacketTypes = ['showTempStackOptions', 'showLooseCardOptions', 'showTempStackStrategicOptions'];
+          const dataPacketTypes = ['showTempStackOptions', 'showLooseCardOptions'];
 
           if (dataPacketTypes.includes(result.type)) {
             logger.debug(`Data packet detected: ${result.type} from rule ${rule.id}`);

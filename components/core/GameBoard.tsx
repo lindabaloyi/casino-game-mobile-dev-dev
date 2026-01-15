@@ -48,8 +48,7 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     playerNumber,
     sendAction,
     setCardToReset,
-    setErrorModal: modalManager.setErrorModal,
-    setModalInfo: modalManager.setModalInfo
+    setErrorModal: modalManager.setErrorModal
   });
 
   // Game over state
