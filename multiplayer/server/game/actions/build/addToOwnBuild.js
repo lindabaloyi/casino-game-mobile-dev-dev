@@ -5,7 +5,6 @@
 
 const { createLogger } = require('../../../utils/logger');
 const { buildLifecycleTracker } = require('../../GameState');
-const { buildTracker } = require('../../../../../utils/buildLifecycleTracker');
 const logger = createLogger('AddToOwnBuild');
 
 function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter) {
@@ -31,6 +30,9 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
   let buildId, card, source, build;
 
   // CRITICAL DEBUG: Log extension attempt
+  console.log('[BUILD_PENDING] addToOwnBuild debug info:', {
+    allBuilds: gameState.tableCards
+      .filter(item => item.type === 'build')
       .map(b => ({ id: b.buildId, owner: b.owner, cards: b.cards.length })),
     payloadStructure: action.payload.buildId ? 'drop-handler' : 'contact-handler'
   });
@@ -137,7 +139,6 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
 
   // CRITICAL FIX: Save old state BEFORE any changes
   const oldCardCount = gameStateBuild.cards.length;
-  const oldCards = [...gameStateBuild.cards]; // Copy for comparison
   const oldValue = gameStateBuild.value;
 
   // FIX: Update the build IN gameState.tableCards directly

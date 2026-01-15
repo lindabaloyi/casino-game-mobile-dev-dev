@@ -114,8 +114,6 @@ class ActionRouter {
           if (bothPlayersEmpty) {
             // Award remaining table cards to the last player who moved
             if (finalGameState.tableCards.length > 0) {
-              });
-
               // Add remaining cards to last player's captures
               if (!finalGameState.playerCaptures[playerIndex]) {
                 finalGameState.playerCaptures[playerIndex] = [];

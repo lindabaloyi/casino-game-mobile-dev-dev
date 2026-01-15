@@ -37,13 +37,11 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware for logging all connections and data
 io.use((socket, next) => {
-  const timestamp = new Date().toISOString();
   next();
 });
 
 io.engine.on('connection_error', (err) => {
-  const timestamp = new Date().toISOString();
-  console.error(`[${timestamp}][SERVER] Connection error:`, err);
+  console.error(`[SERVER] Connection error:`, err);
 });
 
 // Initialize services and game system (dependency injection)

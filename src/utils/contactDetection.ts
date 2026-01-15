@@ -16,7 +16,7 @@ export interface ContactPosition {
 }
 
 // Global registry of positions - simple Map
-const contactPositions = new Map<string, ContactPosition>();
+export const contactPositions = new Map<string, ContactPosition>();
 
 /**
  * Report a card/build position to the contact system

@@ -67,7 +67,6 @@ async function testTempStackCaptureFix() {
     const captures = result.playerCaptures[0].length;
     const currentPlayer = result.currentPlayer;
     const capturingCardRemoved = !result.playerHands[0].some(c => c.rank === '8' && c.suit === '♦');
-    const allCardsCaptured = result.playerCaptures[0].length === 3; // 2 temp stack + 1 capturing
 
     console.log('\n✅ Verification:');
     console.log('- Hand size should be 1 (8♦ removed):', handSize === 1 ? '✓' : '✗');

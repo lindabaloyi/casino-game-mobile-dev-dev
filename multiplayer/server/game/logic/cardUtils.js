@@ -5,8 +5,6 @@
  */
 
 const { rankValue } = require('../GameState');
-const { createLogger } = require('../../utils/logger');
-const logger = createLogger('CardUtils');
 
 /**
  * Check if two cards are identical

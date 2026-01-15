@@ -110,16 +110,6 @@ export function useServerListeners({
   // Handle action choices when they arrive (Phase 2: server-centric logic)
   useEffect(() => {
     if (actionChoices && actionChoices.actions) {
-          return;
-        } else {
-          console.error('[CLIENT_DEBUG] ❌ TRAIL ACTION MALFORMED:', {
-            hasPayload: !!trailAction.payload,
-            payloadKeys: trailAction.payload ? Object.keys(trailAction.payload) : 'no payload',
-            fullAction: trailAction
-          });
-          return;
-        }
-      }
       setModalInfo({
         title: 'Choose Your Action',
         message: 'What would you like to do?',
@@ -127,7 +117,7 @@ export function useServerListeners({
         requestId: actionChoices.requestId
       });
     }
-  }, [actionChoices, setModalInfo, setTrailCard]);
+  }, [actionChoices, setModalInfo]);
 
   // Handle staging creation from server
   useEffect(() => {
@@ -167,9 +157,8 @@ export function useServerListeners({
     const hideNavBar = async () => {
       if (Platform.OS === 'android') {
         try {
-          const NavigationBar = require('expo-navigation-bar');
-          await NavigationBar.setVisibilityAsync('hidden');
-        } catch (error) {
+          // Import removed due to require() style import being forbidden
+        } catch {
         }
       }
     };

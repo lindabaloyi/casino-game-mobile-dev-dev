@@ -80,7 +80,7 @@ export const TempStack: React.FC<TempStackProps> = ({
     return () => {
       removeCardPosition(stackId);
     };
-  }, [stackId, bounds, reportCardPosition, removeCardPosition, totalValue, displayValue, buildValue, canAugmentBuilds, cards]);
+  }, [stackId, bounds, reportCardPosition, removeCardPosition, totalValue, displayValue, buildValue, captureValue, canAugmentBuilds, cards]);
 
   return (
     <View ref={ref} onLayout={measure} style={{

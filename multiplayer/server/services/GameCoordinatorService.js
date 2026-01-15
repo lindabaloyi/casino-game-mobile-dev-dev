@@ -159,7 +159,6 @@ class GameCoordinatorService {
 
       // Use GameManager's determineActions (which will delegate to logic module)
       const result = this.gameManager.determineActions(gameId, data.draggedItem, data.targetInfo);
-      });
 
       this.logger.info('[STAGING_DEBUG] 📋 determineActions RESULT:', {
         gameId,

@@ -18,7 +18,7 @@ export default function RootLayout() {
         try {
           await NavigationBar.setVisibilityAsync('hidden');
           await NavigationBar.setBehaviorAsync('inset-touch');
-        } catch (error) {
+        } catch {
         }
       }
     };

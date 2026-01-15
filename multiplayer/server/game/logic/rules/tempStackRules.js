@@ -3,9 +3,7 @@
  * Rules for handling temp stack interactions and modifications
  * Priorities: 188-100
  */
-
 const { checkBuildOptionsForStack } = require('../utils/buildUtils');
-
 const tempStackRules = [
   {
     id: 'same-value-modal-options',
@@ -20,15 +18,12 @@ const tempStackRules = [
         targetInfoStackId: context.targetInfo?.stackId,
         currentPlayer: context.currentPlayer
       });
-
       const targetInfo = context.targetInfo;
-
       // ✅ CONDITION: Target is temp stack marked as same-value
       const isTempStack = targetInfo?.type === 'temporary_stack';
       if (!isTempStack) {
         return false;
       }
-
       // Use the flag set by client during temp stack creation
       const isSameValueStack = targetInfo.isSameValueStack === true;
       const finalResult = isSameValueStack;
@@ -37,16 +32,13 @@ const tempStackRules = [
     action: (context) => {
       const tempStack = context.targetInfo; // targetInfo has the stack data directly
       const playerHand = context.playerHands[context.currentPlayer];
-
       console.log('[SAME_VALUE_RULE] Stack details:', {
         stackId: tempStack.stackId,
         cards: tempStack.cards?.map(c => `${c.rank}${c.suit}=${c.value}`),
         playerHand: playerHand.map(c => `${c.rank}${c.suit}=${c.value}`)
       });
-
       // Check if player has build options for this same-value stack
       const hasBuildOptions = checkBuildOptionsForStack(tempStack, playerHand);
-
       if (!hasBuildOptions) {
         // ⚡ AUTO-CAPTURE: No build options available
         return {
@@ -63,9 +55,7 @@ const tempStackRules = [
         const cards = tempStack.cards || [];
         const stackValue = cards[0]?.value;
         const stackSum = cards.reduce((sum, card) => sum + card.value, 0);
-
         const availableOptions = [];
-
         // 1. CAPTURE: ALWAYS available (card already in temp stack)
         availableOptions.push({
           type: 'capture',
@@ -73,7 +63,6 @@ const tempStackRules = [
           value: stackValue,
           actionType: 'captureTempStack'
         });
-
         // 2. BUILD: Same rank value (if player has that card)
         const hasSameValueCard = playerHand.some(card => card.value === stackValue);
         if (hasSameValueCard) {
@@ -84,11 +73,9 @@ const tempStackRules = [
             actionType: 'createBuildFromTempStack'
           });
         }
-
         // 3. BUILD: Sum total (only if all cards ≤ 5 AND player has sum card)
         const allCardsFiveOrLess = cards.every((card) => card.value <= 5);
         const hasSumCard = playerHand.some(card => card.value === stackSum);
-
         if (allCardsFiveOrLess && hasSumCard) {
           availableOptions.push({
             type: 'build',
@@ -97,8 +84,6 @@ const tempStackRules = [
             actionType: 'createBuildFromTempStack'
           });
         }
-        });
-
         // Return DATA PACKET for modal
         return {
           type: 'showTempStackOptions',
@@ -124,10 +109,8 @@ const tempStackRules = [
         targetInfoStackId: context.targetInfo?.stackId,
         currentPlayer: context.currentPlayer
       });
-
       const targetInfo = context.targetInfo;
       const draggedItem = context.draggedItem;
-
       // ✅ PRIMARY CONDITION: Target must be an existing temp stack
       const isTempStackTarget = targetInfo?.type === 'temporary_stack';
       const hasValidCard = draggedItem?.card;
@@ -136,7 +119,6 @@ const tempStackRules = [
         result: hasValidCard,
         card: hasValidCard ? `${draggedItem.card.rank}${draggedItem.card.suit}(${draggedItem.card.value})` : null
       });
-
       const finalResult = isTempStackTarget && hasValidCard;
       return finalResult;
     },
@@ -154,5 +136,4 @@ const tempStackRules = [
     description: 'Add card to existing temporary stack (highest priority, exclusive)'
   }
 ];
-
-module.exports = tempStackRules;
+module.exports = tempStackRules;

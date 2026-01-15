@@ -31,7 +31,6 @@ const validateBuildExtension = (build, extensionCard) => {
 const createExtendedBuild = (build, extensionCard, newOwner, newValue) => {
   // Re-analyze for extension eligibility with new card
   const cards = [...build.cards, extensionCard];
-  const totalSum = cards.reduce((sum, card) => sum + card.value, 0);
 
   // Check for base structure (one card that supports = total - supports)
   let hasBase = false;

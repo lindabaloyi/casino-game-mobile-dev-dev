@@ -4,8 +4,7 @@
  * Shows overlay for user acceptance - no auto-resolution
  */
 
-const { createLogger } = require('../../../utils/logger');
-const logger = createLogger('BuildExtendRules');
+
 
 /**
  * Check if a build can be extended (basic eligibility)

@@ -29,7 +29,6 @@ export function GameOverModal({
   onReturnToMenu
 }: GameOverModalProps) {
   const winnerName = winner === 0 ? 'Player 1' : 'Player 2';
-  const loserName = winner === 0 ? 'Player 2' : 'Player 1';
 
   return (
     <Modal

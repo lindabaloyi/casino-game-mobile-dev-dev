@@ -17,7 +17,6 @@ function calculateAllBuildOptions(draggedCard: Card, touchedCard: Card, playerHa
   description: string;
 }[] {
   const value = draggedCard.value;
-  });
 
   const options: {
     buildValue: number;
@@ -39,7 +38,6 @@ function calculateAllBuildOptions(draggedCard: Card, touchedCard: Card, playerHa
       type: 'spare',
       description: `Build ${value} (captured by spare ${value})`
     });
-    });
   }
 
   // Option 2: Sum build (only for low cards 1-5, sum = value + value)
@@ -60,7 +58,6 @@ function calculateAllBuildOptions(draggedCard: Card, touchedCard: Card, playerHa
         availableCards: playerHand.map(c => c.value).sort()
       });
     }
-  } else {
   }
 
   console.log('[BUILD_OPTIONS_CALC] Final build options:', {
@@ -76,14 +73,7 @@ function calculateAllBuildOptions(draggedCard: Card, touchedCard: Card, playerHa
   return options;
 }
 
-/**
- * Legacy function - kept for backward compatibility
- * Now delegates to calculateAllBuildOptions and returns boolean
- */
-function checkBuildOptionsForSameValue(handCard: Card, playerHand: Card[]): boolean {
-  const options = calculateAllBuildOptions(handCard, handCard, playerHand);
-  return options.length > 0;
-}
+
 
 interface Contact {
   id: string;

@@ -13,7 +13,7 @@ const { rankValue, calculateCardSum, isCard, isBuild, isTemporaryStack } = requi
 function determineCaptureActions(draggedItem, gameState) {
   const actions = [];
   const draggedValue = rankValue(draggedItem.card.rank);
-  const { tableCards, playerHands, playerCaptures, currentPlayer } = gameState;
+  const { tableCards } = gameState;
 
   // Check for captures on table cards
   tableCards.forEach((tableCard) => {

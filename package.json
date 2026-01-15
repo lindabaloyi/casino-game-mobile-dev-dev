@@ -4,15 +4,23 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
-    "server": "node multiplayer/server/index.js",
+    "server": "node multiplayer/server/index.cjs",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:check": "eslint . --quiet",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:server": "jest --config jest.config.server.js",
+    "test:client": "jest",
+    "test:all": "npm run test:server && npm run test:client",
+    "syntax-check": "bash check-syntax-enhanced.sh",
+    "type-check": "tsc --noEmit --skipLibCheck",
+    "lint:check": "eslint . --ext .js,.ts,.tsx"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -61,5 +69,6 @@
     "ts-node": "^10.9.2",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "type": "module"
 }

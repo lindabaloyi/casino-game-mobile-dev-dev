@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 
 interface GameState {
   players: string[];
@@ -21,8 +21,8 @@ const SOCKET_CONFIG = {
 };
 // Utility function to create socket event handlers
 const createSocketEventHandlers = (handlers: SocketEventHandlers) => ({
-  connect: (socket: Socket) => {
-    const timestamp = new Date().toISOString();
+  connect: () => {
+    // Connect handler - socket parameter removed as unused
   },
 
   'game-start': (data: { gameState: GameState; playerNumber: number }) => {
@@ -35,30 +35,24 @@ const createSocketEventHandlers = (handlers: SocketEventHandlers) => ({
   },
 
   disconnect: (reason: string) => {
-    const timestamp = new Date().toISOString();
   },
 
   'connect_error': (error: Error) => {
-    const timestamp = new Date().toISOString();
-    console.error(`[${timestamp}][CLIENT] Connection error:`, error.message || error);
+    console.error(`[CLIENT] Connection error:`, error.message || error);
   },
 
   reconnect: (attemptNumber: number) => {
-    const timestamp = new Date().toISOString();
   },
 
   'reconnect_attempt': (attemptNumber: number) => {
-    const timestamp = new Date().toISOString();
   },
 
   'reconnect_error': (error: Error) => {
-    const timestamp = new Date().toISOString();
-    console.error(`[${timestamp}][CLIENT] Reconnect error:`, error.message || error);
+    console.error(`[CLIENT] Reconnect error:`, error.message || error);
   }
 });
 
 export const useSocket = () => {
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [playerNumber, setPlayerNumber] = useState<number | null>(null);
 
@@ -72,8 +66,6 @@ export const useSocket = () => {
   }, []);
 
   useEffect(() => {
-    setSocket(socketInstance);
-
     // Create event handlers using the factory function
     const handlers = createSocketEventHandlers({
       setGameState,
@@ -91,7 +83,6 @@ export const useSocket = () => {
   }, [socketInstance, setGameState, setPlayerNumber]);
 
   const sendAction = (action: any) => {
-    const timestamp = new Date().toISOString();
     if (socketInstance) {
       socketInstance.emit('game-action', action);
     } else {

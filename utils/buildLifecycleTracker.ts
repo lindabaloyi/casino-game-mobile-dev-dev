@@ -27,9 +27,6 @@ export class BuildLifecycleTracker {
   private createdBuilds: Map<string, BuildInfo> = new Map();
   private activeSessions: Map<string, string> = new Map();
 
-  constructor() {
-  }
-
   trackCreation(buildId: string, context: string, cards: any[] = [], metadata: any = {}): BuildInfo {
     const sessionId = this.getCurrentSession();
     const buildInfo: BuildInfo = {

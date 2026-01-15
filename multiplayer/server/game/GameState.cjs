@@ -4,7 +4,7 @@
  * No networking or external dependencies
  */
 
-const { createLogger } = require('../utils/logger');
+const { createLogger } = require('../utils/logger.cjs');
 const logger = createLogger('GameState');
 
 // Global build lifecycle tracker for debugging build creation/extension flow

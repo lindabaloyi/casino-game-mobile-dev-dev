@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -133,7 +133,6 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
 
   // 🎯 NEW: Handle Accept button press - detect stack type and route appropriately
   const handleAcceptClick = (stackId: string) => {
-    });
     // Find the temp stack by stackId
     const tempStack = gameState.tableCards.find((card: any) =>
       card.type === 'temporary_stack' && card.stackId === stackId

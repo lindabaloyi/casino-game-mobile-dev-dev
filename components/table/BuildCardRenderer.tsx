@@ -116,13 +116,7 @@ export function BuildCardRenderer({
       console.log(`  ${index}: ${type.toUpperCase()} - ${id} (${cards.join(', ')})`);
     });
 
-    // Summary
-    const summary = {
-      total: gameState.tableCards.length,
-      builds: gameState.tableCards.filter((item: any) => getCardType(item) === 'build').length,
-      tempStacks: gameState.tableCards.filter((item: any) => getCardType(item) === 'temporary_stack').length,
-      looseCards: gameState.tableCards.filter((item: any) => getCardType(item) === 'loose').length
-    };
+    // Summary logging would go here if needed
   };
 
   const getCardType = (item: any) => {
@@ -190,9 +184,7 @@ export function BuildCardRenderer({
       lingering: extraTempStacks.map((ts: any) => ts.id)
     });
 
-    // Check loose cards
-    const tableLooseCards = tableItems.filter((t: any) => t.type === 'loose');
-    const registryLooseCards = registryByType.card || [];
+    // Check loose cards - variables removed as they were unused
     // DIAGNOSIS
     const issues = [];
     if (missingBuilds.length > 0) issues.push(`Missing builds: ${missingBuilds.map((b: any) => b.id).join(', ')}`);
@@ -213,8 +205,6 @@ export function BuildCardRenderer({
   // 🔍 DEBUG: Verify builds are registered with contact detection
   React.useEffect(() => {
     const debugTimeout = setTimeout(() => {
-      });
-
       // Try to access contact registry if available
       try {
         // Use imported getAllContacts function
@@ -234,7 +224,7 @@ export function BuildCardRenderer({
             height: Math.round(thisBuild.height)
           } : 'NOT REGISTERED'
         });
-      } catch (error) {
+      } catch {
       }
     }, 500); // Check after 500ms to allow registration
 

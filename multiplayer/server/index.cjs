@@ -5,11 +5,12 @@
  */
 
 // Import the new modular system
-const GameManager = require('./game/GameManager');
-const ActionRouter = require('./game/ActionRouter');
+const GameManager = require('./game/GameManager.cjs');
+const ActionRouter = require('./game/ActionRouter.cjs');
+const GameState = require('./game/GameState.cjs');
 
 // Import the new networking layer
-const { startServer } = require('./socket-server');
+const { startServer } = require('./socket-server.cjs');
 // Initialize the game system
 try {
   // Dependency injection: ActionRouter gets GameManager

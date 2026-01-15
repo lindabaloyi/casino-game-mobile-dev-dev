@@ -77,7 +77,7 @@ const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
       if ((global as any).socket) {
         (global as any).socket.emit('optimistic_update', optimisticUpdate);
       }
-    } catch (uiError: any) {
+    } catch {
     }
 
     // Server will handle with flexible validation (no modals)
@@ -103,7 +103,7 @@ const handleDropOnStack = useCallback((draggedItem: any, stackId: string) => {
       if ((global as any).socket) {
         (global as any).socket.emit('optimistic_update', optimisticNewStack);
       }
-    } catch (uiError: any) {
+    } catch {
     }
 
     const targetIndex = tableCards.indexOf(targetItem);

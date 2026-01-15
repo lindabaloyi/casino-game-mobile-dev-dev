@@ -4,14 +4,9 @@
  * Replaces procedural logic with rule-based evaluation
  */
 
-const { rankValue, isCard, isBuild, isTemporaryStack, calculateCardSum } = require('../GameState');
-const { createLogger } = require('../../utils/logger');
+const { rankValue, isCard, isBuild, isTemporaryStack, calculateCardSum } = require('../GameState.cjs');
+const { createLogger } = require('../../utils/logger.cjs');
 
-// Helper function to get card type from union types (same as in TableCards.tsx)
-function getCardType(card) {
-  if ('type' in card) return card.type;
-  return 'loose';  // Card objects are implicitly loose cards without type property
-}
 const logger = createLogger('ActionDetermination');
 
 // 🎯 RULE USAGE TRACKING - Minimal but comprehensive

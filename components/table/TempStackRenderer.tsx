@@ -165,13 +165,9 @@ export function TempStackRenderer({
           isVisible={!isDragging}
           tempId={tempStackItem.stackId || stackId}
           onAccept={() => {
-            });
-
             onTempAccept?.(stackId);
           }}
           onReject={() => {
-            });
-
             onTempReject?.(stackId);
           }}
         />

@@ -4,7 +4,7 @@
  * Priorities: 210-205
  */
 
-const { hasSpareSameValue, hasSumCard, canBuildWithCards } = require('../utils/buildUtils');
+const { hasSpareSameValue, canBuildWithCards } = require('../utils/buildUtils');
 
 const autoCaptureRules = [
   // NEW: Auto-capture rule for same-value when no build options exist
@@ -151,7 +151,6 @@ const autoCaptureRules = [
           });
         }
       }
-      });
 
       // Return data packet for modal
       return {

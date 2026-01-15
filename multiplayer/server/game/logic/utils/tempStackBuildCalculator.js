@@ -283,11 +283,10 @@ function updateBuildCalculator(tempStack, newCardValue) {
   const B = tempStack.buildValue;
   const S = tempStack.runningSum || 0;
   const C = tempStack.segmentCount || 0;
-  // Check if this is a special case build (sum ≤ 10)
-  tempStack.cards.forEach((card, index) => {
-  });
 
   const cards = tempStack.cards.map(c => c.value);
+  const cardsSum = cards.reduce((sum, card) => sum + card, 0);
+  const cardAlreadyIncluded = cards.includes(newCardValue);
   const totalSum = cardAlreadyIncluded ? cardsSum : cardsSum + newCardValue;
   console.log('[BUILD_CALCULATOR] 🔍 Corrected sum calculation:', {
     cardsSum: cardsSum,

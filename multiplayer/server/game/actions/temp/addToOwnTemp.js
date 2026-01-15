@@ -43,8 +43,6 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
     );
 
     if (tempStack && card.value === tempStack.value) {
-      });
-
       // Execute capture instead of adding to stack
       // Include capturing card in the captured set (like build captures)
       return handleCapture(gameManager, playerIndex, {
@@ -77,7 +75,6 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
 
   // 🎯 COMPLETE FREEDOM: No validation for temp stack building
   // All validation deferred to finalizeStagingStack
-  }
 
   if (!source) {
     console.error('[VALIDATION_ERROR] Card source not specified');
@@ -164,13 +161,12 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
   }
 
   // 🎯 COMPLEX BUILD CHECK: After adding card, check if we now have complex build options
-  });
 
   // Check if this is now a complex stack (3+ cards, not same-value)
   const isComplexStack = tempStack.cards.length >= 3 && !tempStack.isSameValueStack;
 
   if (isComplexStack) {
-    const { detectNormalBuildCombinations, detectBaseBuild } = require('../../logic/utils/tempStackBuildCalculator');
+    const { detectNormalBuildCombinations } = require('../../logic/utils/tempStackBuildCalculator');
     const playerHand = gameState.playerHands[playerIndex];
     const cardValues = tempStack.cards.map(c => c.value);
 

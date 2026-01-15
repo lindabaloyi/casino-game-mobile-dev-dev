@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 
 interface GameState {
   deck: any[];
@@ -17,7 +17,6 @@ interface GameState {
 
 const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || "http://localhost:3001";
 export const useSocket = () => {
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [playerNumber, setPlayerNumber] = useState<number | null>(null);
   const [buildOptions, setBuildOptions] = useState<any>(null);
@@ -34,10 +33,8 @@ export const useSocket = () => {
   }, []);
 
   useEffect(() => {
-    setSocket(socketInstance);
-
     socketInstance.on('connect', () => {
-      const timestamp = new Date().toISOString();
+      // Connect handler - socket parameter removed as unused
     });
 
     socketInstance.on('game-start', (data: { gameState: GameState; playerNumber: number }) => {
@@ -47,7 +44,6 @@ export const useSocket = () => {
 
     socketInstance.on('game-update', (updatedGameState: GameState) => {
       console.log('[CLIENT_DEBUG] 📡 GAME-UPDATE RECEIVED:', {
-        timestamp: new Date().toISOString(),
         tableCardsCount: updatedGameState.tableCards?.length || 0,
         tempStacks: updatedGameState.tableCards?.filter(card => (card as any).type === 'temporary_stack').map(stack => ({
           stackId: (stack as any).stackId,
@@ -64,25 +60,20 @@ export const useSocket = () => {
     });
 
     socketInstance.on('disconnect', (reason) => {
-      const timestamp = new Date().toISOString();
     });
 
     socketInstance.on('connect_error', (error) => {
-      const timestamp = new Date().toISOString();
-      console.error(`[${timestamp}][CLIENT] Connection error:`, error.message || error);
+      console.error(`[CLIENT] Connection error:`, error.message || error);
     });
 
     socketInstance.on('reconnect', (attemptNumber) => {
-      const timestamp = new Date().toISOString();
     });
 
     socketInstance.on('reconnect_attempt', (attemptNumber) => {
-      const timestamp = new Date().toISOString();
     });
 
     socketInstance.on('reconnect_error', (error) => {
-      const timestamp = new Date().toISOString();
-      console.error(`[${timestamp}][CLIENT] Reconnect error:`, error.message || error);
+      console.error(`[CLIENT] Reconnect error:`, error.message || error);
     });
 
     socketInstance.on('build-options', (options: any) => {
@@ -110,8 +101,7 @@ export const useSocket = () => {
       console.log('[CLIENT] 🚨 Action failed - resetting dragged card:', {
         actionType: data.actionType,
         error: data.error,
-        resetCard: data.resetCard,
-        timestamp: new Date().toISOString()
+        resetCard: data.resetCard
       });
 
       // Trigger card reset for failed drag actions
@@ -133,7 +123,6 @@ export const useSocket = () => {
   }, [socketInstance]);
 
   const sendAction = (action: any) => {
-    const timestamp = new Date().toISOString();
     if (!socketInstance) {
       return;
     }

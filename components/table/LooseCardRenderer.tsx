@@ -40,61 +40,13 @@ export function LooseCardRenderer({
     // Get ALL available data from the tableItem
     const tableItemData = tableItem as any;
 
-    const dragData = {
+    // Removed unused dragData variable - keeping debug structure for future use
+    console.log('🎯 [LOOSE_CARD_DRAG] Starting drag:', {
       timestamp: new Date().toISOString(),
-
-      // 1. CARD DATA (what we're dragging)
-      card: {
-        rank: tableItemData.rank,
-        suit: tableItemData.suit,
-        full: `${tableItemData.rank}${tableItemData.suit}`,
-        // Check for any additional card properties
-        allProperties: Object.keys(tableItemData).reduce((acc, key) => {
-          acc[key] = tableItemData[key];
-          return acc;
-        }, {} as any)
-      },
-
-      // 2. SOURCE METADATA (where it's from)
-      source: {
-        type: 'loose', // Explicit - this is what we're setting in dragSource
-        location: 'table',
-        index: index,
-        isHandCard: false,
-        isTableCard: true,
-        isBuildCard: false,
-        isTempStack: false
-      },
-
-      // 3. ORIGINAL POSITION INFO
-      position: {
-        tableIndex: index,
-        // Check for any position metadata
-        x: tableItemData.x,
-        y: tableItemData.y,
-        zIndex: tableItemData.zIndex,
-        hasOriginalPosition: !!tableItemData._originalPosition
-      },
-
-      // 4. STACK/BUILD INFO (if part of something)
-      container: {
-        isInStack: !!tableItemData.stackId,
-        stackId: tableItemData.stackId,
-        isInBuild: !!tableItemData.buildId,
-        buildId: tableItemData.buildId,
-        owner: tableItemData.owner,
-        player: tableItemData.player
-      },
-
-      // 5. GAME STATE METADATA
-      gameContext: {
-        currentPlayer: currentPlayer,
-        // Check for any game-specific flags
-        canBuild: tableItemData.canBuild,
-        canCapture: tableItemData.canCapture,
-        isCapturable: tableItemData.isCapturable
-      }
-    };
+      card: `${tableItemData.rank}${tableItemData.suit}`,
+      index,
+      currentPlayer
+    });
   };
 
   // Store card bounds globally for contact validation (this is a technical debt item)

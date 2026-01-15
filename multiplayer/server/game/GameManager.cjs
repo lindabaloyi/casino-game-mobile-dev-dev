@@ -4,9 +4,9 @@
  * with ActionRouter to execute actions and determineActions logic.
  */
 
-const { initializeGame, validateGameState } = require('./GameState');
-const { createLogger } = require('../utils/logger');
-const { determineActions } = require('./logic/actionDetermination');
+const { initializeGame, validateGameState } = require('./GameState.cjs');
+const { createLogger } = require('../utils/logger.cjs');
+const { determineActions } = require('./logic/actionDetermination.cjs');
 
 const logger = createLogger('GameManager');
 
@@ -199,4 +199,3 @@ class GameManager {
 }
 
 module.exports = GameManager;
-

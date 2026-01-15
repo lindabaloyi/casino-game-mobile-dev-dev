@@ -9,7 +9,7 @@
  * This file is kept for backwards compatibility but should not be used.
  */
 
-import { CardType } from '../components/card';
+import { CardType } from '../components/cards/card';
 
 interface DropPosition {
   x: number;

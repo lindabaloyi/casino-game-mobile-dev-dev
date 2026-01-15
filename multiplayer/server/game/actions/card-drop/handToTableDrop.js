@@ -31,12 +31,6 @@ function handleHandToTableDrop(gameManager, playerIndex, action) {
   }
 
   return newGameState;
-  } catch (error) {
-    console.error('[SERVER_CRASH_DEBUG] ❌ CRASH IN handToTableDrop:');
-    console.error('[SERVER_CRASH_DEBUG] Error:', error.message);
-    console.error('[SERVER_CRASH_DEBUG] Stack:', error.stack);
-    throw error;
-  }
 }
 
 module.exports = handleHandToTableDrop;

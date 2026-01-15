@@ -119,8 +119,6 @@ const TableCards: React.FC<TableCardsProps> = ({
 
   // FIXED: Preserve original positions when expanding cancelled stacks
   const visibleTableCards = React.useMemo(() => {
-    });
-
     // Use flatMap to expand cancelled temp stacks into individual cards
     // while maintaining original array structure and positions
     const transformedCards = tableCards.flatMap((tableItem, originalIndex) => {
@@ -252,7 +250,6 @@ const TableCards: React.FC<TableCardsProps> = ({
                 // Check if this build has pending addition or extension
                 const buildId = (tableItem as any).buildId;
                 const hasPendingAddition = gameState?.pendingBuildAdditions?.[buildId];
-                const isPendingExtension = (tableItem as any).isPendingExtension;
 
                 return (
                   <BuildCardRenderer

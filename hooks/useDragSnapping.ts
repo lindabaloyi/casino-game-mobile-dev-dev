@@ -5,7 +5,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { Animated, Easing } from 'react-native';
-import { findContactAtPoint } from '../src/utils/contactDetection';
+import { contactPositions, findContactAtPoint } from '../src/utils/contactDetection';
 
 interface Contact {
   id: string;
@@ -104,8 +104,6 @@ export function useDragSnapping({
 
     if (basicContact) {
       // Get full position data from contactPositions
-      // Import the positions map dynamically to avoid circular imports
-      const { contactPositions } = require('../src/utils/contactDetection');
       const fullPosition = contactPositions.get(basicContact.id);
 
       if (fullPosition) {

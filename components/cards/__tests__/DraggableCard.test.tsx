@@ -28,7 +28,7 @@ describe('DraggableCard', () => {
   });
 
   it('passes draggable and disabled props to gesture hook', () => {
-    const { rerender, getByTestId } = render(
+    const { getByTestId, rerender } = render(
       <DraggableCard
         card={mockCard}
         currentPlayer={mockCurrentPlayer}
@@ -52,7 +52,7 @@ describe('DraggableCard', () => {
   });
 
   it('applies correct zIndex when dragging', () => {
-    const { getByTestId, rerender } = render(
+    const { getByTestId } = render(
       <DraggableCard
         card={mockCard}
         currentPlayer={mockCurrentPlayer}

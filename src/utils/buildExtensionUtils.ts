@@ -62,8 +62,6 @@ export function analyzeBuildForExtension(cards: Card[]): {
   isSingleCombination: boolean;
   isExtendable: boolean;
 } {
-  const totalSum = cards.reduce((sum, card) => sum + card.value, 0);
-
   // Check for base structure (one card that supports = total - supports)
   let hasBase = false;
   for (let baseIndex = 0; baseIndex < cards.length; baseIndex++) {

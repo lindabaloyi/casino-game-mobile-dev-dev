@@ -83,7 +83,6 @@ class MatchmakingService {
     this.logger.info(`Disconnect: ${socket.id}`);
 
     // Remove from waiting queue
-    const wasWaiting = this.waitingPlayers.some(p => p.id === socket.id);
     this.waitingPlayers = this.waitingPlayers.filter(p => p.id !== socket.id);
 
     // Get game they were in (if any)

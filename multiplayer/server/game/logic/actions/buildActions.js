@@ -4,7 +4,7 @@
  * Extracted from determineActions.js for better separation of concerns
  */
 
-const { rankValue, isBuild } = require('../../GameState');
+const { rankValue } = require('../../GameState');
 
 /**
  * Determine build actions available when dropping a card

@@ -3,68 +3,12 @@
  * Rules for determining build actions (creating and extending builds)
  */
 
-const { rankValue, isBuild } = require('../../GameState');
-// Build extension utilities - inline implementation to avoid module resolution issues
-const canBuildBeExtended = (build, currentPlayer) => {
-  // Must not be owned by current player
-  if (build.owner === currentPlayer) {
-    return false;
-  }
-
-  // Must have less than 5 cards
-  if (build.cards.length >= 5) {
-    return false;
-  }
-
-  // Must not have base structure (pure sum-based builds only)
-  // Default to false if undefined (assume no base for backward compatibility)
-  const hasBase = build.hasBase || false;
-  if (hasBase) {
-    return false;
-  }
-
-  // Must have single combination only (unambiguous)
-  // Default to true if undefined (assume single combination for backward compatibility)
-  const isSingleCombination = build.isSingleCombination !== false; // true if undefined or true
-  if (!isSingleCombination) {
-    return false;
-  }
-
-  // Must be marked as extendable
-  // Default to false if undefined (require explicit marking)
-  const isExtendable = build.isExtendable || false;
-  if (!isExtendable) {
-    return false;
-  }
-
-  return true;
-};
-
-const createExtensionTempStack = (extensionCard, targetBuild, playerIndex) => {
-  return {
-    type: 'temporary_stack',
-    stackId: `extension-${playerIndex}-${Date.now()}`,
-    cards: [extensionCard],
-    owner: playerIndex,
-    value: extensionCard.value,
-    combinedValue: extensionCard.value,
-    possibleBuilds: [],
-    isTableToTable: false,
-    canAugmentBuilds: false,
-    // Special markers for build extension
-    isBuildExtension: true,
-    targetBuildId: targetBuild.buildId,
-    extensionCard: extensionCard,
-    expectedNewValue: targetBuild.value + extensionCard.value
-  };
-};
+const { isBuild } = require('../../GameState');
 
 const buildRules = [
   {
     id: 'create-own-build',
     condition: (context) => {
-      });
-
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
       const currentPlayer = context.currentPlayer;

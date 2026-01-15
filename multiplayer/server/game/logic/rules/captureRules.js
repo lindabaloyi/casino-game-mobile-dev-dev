@@ -3,14 +3,12 @@
  * Rules for determining capture actions
  */
 
-const { rankValue, isCard, isBuild, isTemporaryStack, calculateCardSum } = require('../../GameState');
+const { rankValue, isCard, isTemporaryStack } = require('../../GameState');
 
 const captureRules = [
   {
     id: 'single-card-capture',
     condition: (context) => {
-      });
-
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
@@ -48,8 +46,6 @@ const captureRules = [
   {
     id: 'build-capture',
     condition: (context) => {
-      });
-
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
@@ -96,8 +92,6 @@ const captureRules = [
   {
     id: 'temp-stack-capture',
     condition: (context) => {
-      });
-
       const draggedItem = context.draggedItem;
       const targetInfo = context.targetInfo;
 
