@@ -2,7 +2,7 @@ import { render } from '@testing-library/react-native';
 import { CardType } from '../card';
 import DraggableCard from '../DraggableCard';
 
-// Mock card for testings
+// Mock card for testingss
 const mockCard: CardType = {
   rank: 'A',
   suit: 'H',
