@@ -6,6 +6,67 @@
 
 const { createLogger } = require('../utils/logger');
 
+// ============================================================================
+// MESSAGE DELIVERY TRACKING - Monitor WebSocket message reliability
+// ============================================================================
+const MESSAGE_HISTORY = new Map(); // gameId -> last messages
+
+const broadcastWithConfirmation = (broadcaster, gameId, event, data) => {
+  const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const message = {
+    ...data,
+    _meta: {
+      id: messageId,
+      timestamp: Date.now(),
+      event: event
+    }
+  };
+
+  // Store for debugging
+  if (!MESSAGE_HISTORY.has(gameId)) {
+    MESSAGE_HISTORY.set(gameId, []);
+  }
+  MESSAGE_HISTORY.get(gameId).push({
+    id: messageId,
+    event,
+    timestamp: message._meta.timestamp,
+    dataSize: JSON.stringify(data).length
+  });
+
+  // Keep only last 20 messages per game
+  const history = MESSAGE_HISTORY.get(gameId);
+  if (history.length > 20) {
+    MESSAGE_HISTORY.set(gameId, history.slice(-20));
+  }
+
+  // Safe data size calculation (handles circular references)
+  let dataSize = 'unknown';
+  try {
+    const serialized = JSON.stringify(data);
+    dataSize = serialized ? `${serialized.length} chars` : 'circular';
+  } catch (e) {
+    dataSize = 'non-serializable';
+  }
+
+  console.log(`📤 [WS-SEND] ${event} to game ${gameId}:`, {
+    messageId,
+    dataSummary: dataSize,
+    players: data.players?.length || 'unknown',
+    timestamp: new Date().toISOString()
+  });
+
+  // Actually broadcast based on event type
+  if (event === 'game-update') {
+    broadcaster.broadcastGameUpdate(gameId, message);
+  } else if (event === 'game-over') {
+    broadcaster.broadcastGameOver(gameId, data); // Don't modify game-over data structure
+  } else {
+    console.warn(`⚠️ [WS-SEND] Unknown event type: ${event}`);
+  }
+
+  return messageId;
+};
+
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, matchmaking, broadcaster) {
     this.logger = createLogger('GameCoordinatorService');
@@ -58,25 +119,56 @@ class GameCoordinatorService {
 
       // Check if game just ended
       if (newGameState.gameOver) {
-        // Broadcast game-over event with final results
-        this.broadcaster.broadcastGameOver(gameId, {
-          winner: newGameState.winner,
-          scores: newGameState.finalScores,
-          winnerScore: Math.max(...newGameState.finalScores),
-          loserScore: Math.min(...newGameState.finalScores),
-          lastCapturer: newGameState.lastCapturer,
-          finalCaptures: newGameState.scoreDetails?.finalCaptures || { player0: [], player1: [] }
-        });
+        // 🎯 DELAY GAME OVER FOR CAPTURE ACTIONS - Allow client to show capture animation
+        const shouldDelayGameOver = data.type === 'capture' || data.type === 'execute-action';
 
-        console.log('[GAME-OVER] 🎉 Game ended! Broadcasting final results:', {
-          gameId,
-          winner: newGameState.winner,
-          scores: newGameState.finalScores,
-          timestamp: new Date().toISOString()
-        });
+        if (shouldDelayGameOver) {
+          console.log('[GAME-OVER] 🎯 Delaying game over broadcast for 3 seconds (capture animation)...');
+
+          setTimeout(() => {
+            console.log('[GAME-OVER] ⏰ Delay complete, now broadcasting game over');
+
+            const gameOverData = {
+              winner: newGameState.winner,
+              scores: newGameState.finalScores,
+              winnerScore: Math.max(...newGameState.finalScores),
+              loserScore: Math.min(...newGameState.finalScores),
+              lastCapturer: newGameState.lastCapturer,
+              finalCaptures: newGameState.scoreDetails?.finalCaptures || { player0: [], player1: [] }
+            };
+
+            broadcastWithConfirmation(this.broadcaster, gameId, 'game-over', gameOverData);
+
+            console.log('[GAME-OVER] 🎉 Game ended! Broadcasting final results:', {
+              gameId,
+              winner: newGameState.winner,
+              scores: newGameState.finalScores,
+              timestamp: new Date().toISOString()
+            });
+          }, 3000); // 3 second delay for capture animations
+        } else {
+          // Immediate game over for non-capture actions (like trails that end round 1)
+          const gameOverData = {
+            winner: newGameState.winner,
+            scores: newGameState.finalScores,
+            winnerScore: Math.max(...newGameState.finalScores),
+            loserScore: Math.min(...newGameState.finalScores),
+            lastCapturer: newGameState.lastCapturer,
+            finalCaptures: newGameState.scoreDetails?.finalCaptures || { player0: [], player1: [] }
+          };
+
+          broadcastWithConfirmation(this.broadcaster, gameId, 'game-over', gameOverData);
+
+          console.log('[GAME-OVER] 🎉 Game ended! Broadcasting final results:', {
+            gameId,
+            winner: newGameState.winner,
+            scores: newGameState.finalScores,
+            timestamp: new Date().toISOString()
+          });
+        }
       } else {
         // Broadcast normal game state update
-        this.broadcaster.broadcastGameUpdate(gameId, newGameState);
+        broadcastWithConfirmation(this.broadcaster, gameId, 'game-update', newGameState);
       }
 
     } catch (error) {
@@ -261,7 +353,7 @@ class GameCoordinatorService {
         });
 
         // Broadcast to all game players
-        this.broadcaster.broadcastGameUpdate(gameId, newGameState);
+        broadcastWithConfirmation(this.broadcaster, gameId, 'game-update', newGameState);
 
       } else if (result.actions.length > 0) {
         // Send action choices to client for modal selection
@@ -375,7 +467,7 @@ class GameCoordinatorService {
       });
 
       // Broadcast to all game players
-      this.broadcaster.broadcastGameUpdate(gameId, newGameState);
+      broadcastWithConfirmation(this.broadcaster, gameId, 'game-update', newGameState);
 
     } catch (error) {
       // 🚨 [DEBUG] Log full error details for debugging

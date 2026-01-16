@@ -23,6 +23,7 @@ export const useSocket = () => {
   const [buildOptions, setBuildOptions] = useState<any>(null);
   const [actionChoices, setActionChoices] = useState<any>(null);
   const [error, setError] = useState<{ message: string } | null>(null);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
 
   const socketInstance = useMemo(() => {
     return io(SOCKET_URL, {
@@ -34,8 +35,32 @@ export const useSocket = () => {
   }, []);
 
   useEffect(() => {
+    // ============================================================================
+    // WEBSOCKET MESSAGE RECEIPT LOGGING - Track client-side reception
+    // ============================================================================
+
+    socketInstance.onAny((eventName, ...args) => {
+      // Safe data length calculation (handles circular references)
+      let dataLength = 'unknown';
+      try {
+        const serialized = JSON.stringify(args[0]);
+        dataLength = serialized ? `${serialized.length} chars` : 'circular';
+      } catch (e) {
+        dataLength = 'non-serializable';
+      }
+
+      console.log(`📨 [WS-RECEIVE] ${eventName}:`, {
+        timestamp: new Date().toISOString(),
+        dataLength,
+        hasGameState: !!args[0]?.gameState,
+        hasMeta: !!args[0]?._meta,
+        messageId: args[0]?._meta?.id || 'none'
+      });
+    });
+
     socketInstance.on('connect', () => {
-      // Connect handler - optimized for production
+      console.log('✅ [WS] Connected to server');
+      setIsConnected(true);
     });
 
     socketInstance.on('game-start', (data: { gameState: GameState; playerNumber: number }) => {
@@ -43,9 +68,85 @@ export const useSocket = () => {
       setPlayerNumber(data.playerNumber);
     });
 
-    socketInstance.on('game-update', (updatedGameState: GameState) => {
-      setGameState(updatedGameState);
+    // ============================================================================
+    // GAME UPDATE HANDLING - Support both old and new message formats
+    // ============================================================================
+    let lastServerUpdate = 0;
+
+    socketInstance.on('game-update', (data: any) => {
+      const now = Date.now();
+      const serverTime = data._meta?.timestamp || now;
+
+      // Handle both message formats:
+      // - Old format: data = gameState directly
+      // - New format: data = { ...gameState, _meta: {...} }
+      const gameStateUpdate = data._meta ? data : data;
+
+      // Detect stale updates
+      if (serverTime < lastServerUpdate) {
+        console.warn('⚠️ [WS] Received stale update:', {
+          serverTime,
+          lastUpdate: lastServerUpdate,
+          difference: lastServerUpdate - serverTime
+        });
+      }
+
+      lastServerUpdate = serverTime;
+
+      // Check if this update makes sense
+      const isConsistent = checkStateConsistency(gameStateUpdate, gameState);
+      if (!isConsistent) {
+        console.error('🚨 [WS] Inconsistent state detected! Requesting sync...');
+        socketInstance.emit('request-sync', {
+          playerNumber,
+          reason: 'state_inconsistency',
+          clientState: gameState
+        });
+      } else {
+        setGameState(gameStateUpdate);
+      }
     });
+
+    // Handle sync responses
+    socketInstance.on('game-state-sync', (data: any) => {
+      console.log('🔄 [SYNC] Received full state sync:', {
+        reason: data.reason,
+        differences: data.differences,
+        serverTime: data.serverTime
+      });
+
+      // Always update to server state on sync
+      setGameState(data.gameState);
+    });
+
+    socketInstance.on('sync-error', (error: any) => {
+      console.error('❌ [SYNC] Sync error:', error);
+    });
+
+    function checkStateConsistency(newState: GameState, currentState: GameState | null) {
+      if (!currentState) return true;
+
+      // Basic sanity checks
+      const issues = [];
+
+      // Shouldn't lose cards magically
+      currentState.playerHands?.forEach((hand, idx) => {
+        const newHand = newState.playerHands?.[idx];
+        if (hand.length > 0 && newHand?.length === 0 && currentState.currentPlayer === idx) {
+          // Player had cards, now has none - could be valid (they played them)
+          // But log it for debugging
+          console.log(`📝 Player ${idx} emptied hand`);
+        }
+      });
+
+      // Turn should only advance by 1 or stay same
+      const turnDiff = Math.abs(newState.currentPlayer - currentState.currentPlayer);
+      if (turnDiff > 1 && turnDiff !== 1) { // Allow 0 (same) or 1 (next)
+        issues.push(`Turn jumped from ${currentState.currentPlayer} to ${newState.currentPlayer}`);
+      }
+
+      return issues.length === 0;
+    }
 
     socketInstance.on('error', (error: { message: string }) => {
       setError(error);
@@ -124,5 +225,5 @@ export const useSocket = () => {
     setError(null);
   };
 
-  return { gameState, playerNumber, sendAction, buildOptions, clearBuildOptions, actionChoices, error, clearError };
+  return { gameState, playerNumber, sendAction, buildOptions, clearBuildOptions, actionChoices, error, clearError, socket: socketInstance };
 };

@@ -9,6 +9,75 @@ const { canPlayerMove } = require('./logic/actionDetermination');
 
 const logger = createLogger('ActionRouter');
 
+// ============================================================================
+// GAME STATE CHECKS - Centralized state validation and transitions
+// ============================================================================
+
+class GameStateChecks {
+  static isGameOver(gameState) {
+    // RULE: Both players have empty hands in round 2
+    const bothHandsEmpty = gameState.playerHands[0].length === 0 &&
+                          gameState.playerHands[1].length === 0;
+    return (gameState.round === 2 && bothHandsEmpty) || gameState.gameOver;
+  }
+
+  static shouldSwitchToRound2(gameState) {
+    return gameState.round === 1 &&
+           gameState.playerHands[0].length === 0 &&
+           gameState.playerHands[1].length === 0;
+  }
+
+  static getTransitionMessage(gameState, actionType) {
+    if (this.shouldSwitchToRound2(gameState)) {
+      return `🎯 ROUND 1 → ROUND 2: Both players emptied hands (action: ${actionType})`;
+    }
+    if (this.isGameOver(gameState)) {
+      return `🏆 GAME OVER: Round 2 complete (action: ${actionType})`;
+    }
+    return null;
+  }
+}
+
+// ============================================================================
+// GAME OVER HANDLER - Centralized game over logic
+// ============================================================================
+
+const handleGameOver = (gameState, lastPlayerIndex) => {
+  console.log('🏆 HANDLING GAME OVER:', {
+    round: gameState.round,
+    tableCards: gameState.tableCards.length,
+    lastPlayer: lastPlayerIndex
+  });
+
+  const updatedState = { ...gameState };
+
+  // Award remaining table cards to last player
+  if (updatedState.tableCards.length > 0) {
+    if (!updatedState.playerCaptures[lastPlayerIndex]) {
+      updatedState.playerCaptures[lastPlayerIndex] = [];
+    }
+    updatedState.playerCaptures[lastPlayerIndex].push(...updatedState.tableCards);
+    updatedState.tableCards = [];
+  }
+
+  // Calculate final scores
+  const { calculateGameResult } = require('./GameState');
+  const gameResult = calculateGameResult(updatedState, lastPlayerIndex);
+
+  // Update state
+  updatedState.gameOver = true;
+  updatedState.winner = gameResult.winner;
+  updatedState.finalScores = gameResult.scores;
+  updatedState.scoreDetails = gameResult.details;
+
+  console.log('Game over finalized:', {
+    winner: gameResult.winner,
+    scores: gameResult.scores
+  });
+
+  return updatedState;
+};
+
 class ActionRouter {
   constructor(gameManager) {
     this.gameManager = gameManager;
@@ -70,6 +139,16 @@ class ActionRouter {
 
       const newGameState = await this.actionHandlers[actionType](this.gameManager, playerIndex, action, gameId);
 
+      // 🎯 DEBUG: Log state changes from action execution
+      console.log('🎯 ACTION EXECUTED:', {
+        actionType,
+        playerIndex,
+        playerHandsBefore: gameState.playerHands.map(h => h.length),
+        playerHandsAfter: newGameState.playerHands.map(h => h.length),
+        tableCardsChange: newGameState.tableCards.length - gameState.tableCards.length,
+        round: newGameState.round
+      });
+
       // Get updated state (in case action modified it)
       const updatedGameState = this.gameManager.getGameState(gameId);
 
@@ -80,134 +159,56 @@ class ActionRouter {
         logger.warn(`No game state after ${actionType} execution for game ${gameId}`);
       }
 
-      // ✅ TURN MANAGEMENT
+      // ✅ TURN AND ROUND MANAGEMENT (Simplified)
       let finalGameState = { ...newGameState };
-      const currentPlayerCanMove = canPlayerMove(finalGameState);
-      const forceTurnSwitch = (actionType === 'trail' || actionType === 'confirmTrail' || actionType === 'createBuildFromTempStack');
 
-      const phase = (currentPlayerCanMove && !forceTurnSwitch) ? 'continue' : 'switch';
-      logger.info(`Turn management: P${finalGameState.currentPlayer + 1} -> ${phase}`, {
+      // 1. Check for round/game transitions FIRST
+      console.log('🔍 CHECKING FOR TRANSITIONS:', {
         actionType,
-        currentPlayerCanMove,
-        forceTurnSwitch
+        round: finalGameState.round,
+        player0HandSize: finalGameState.playerHands[0].length,
+        player1HandSize: finalGameState.playerHands[1].length,
+        bothEmpty: finalGameState.playerHands[0].length === 0 && finalGameState.playerHands[1].length === 0,
+        isGameOver: GameStateChecks.isGameOver(finalGameState),
+        shouldSwitchToRound2: GameStateChecks.shouldSwitchToRound2(finalGameState)
       });
 
-      if (!currentPlayerCanMove || forceTurnSwitch) {
-        // 🔄 BEFORE TURN SWITCH - Check for round/phase transitions
+      const transitionMessage = GameStateChecks.getTransitionMessage(finalGameState, actionType);
+      if (transitionMessage) {
+        console.log(transitionMessage);
 
-        if (finalGameState.round === 1) {
-          // 🎯 ROUND 1 → ROUND 2: Wait for BOTH players to empty their hands
-          const bothPlayersEmpty = finalGameState.playerHands[0].length === 0 &&
-                                  finalGameState.playerHands[1].length === 0;
-
-          if (bothPlayersEmpty) {
-            console.log('🎯 ROUND_TRANSITION_TRIGGERED: Round 1 complete - BOTH players have empty hands, initializing Round 2', {
-              gameId,
-              triggerAction: actionType,
-              playerWhoJustMoved: playerIndex,
-              round1FinalState: {
-                player0HandSize: finalGameState.playerHands[0].length,
-                player1HandSize: finalGameState.playerHands[1].length,
-                bothPlayersFinished: bothPlayersEmpty
-              }
-            });
-
-            const { initializeRound2 } = require('./GameState');
-            finalGameState = initializeRound2(finalGameState);
-          } else {
-            console.log('⏳ ROUND_1_WAITING: Player finished their hand, waiting for opponent', {
-              gameId,
-              playerWhoJustFinished: playerIndex,
-              currentHandSizes: {
-                player0HandSize: finalGameState.playerHands[0].length,
-                player1HandSize: finalGameState.playerHands[1].length
-              },
-              bothPlayersFinished: bothPlayersEmpty
-            });
-          }
-
-        } else if (finalGameState.round === 2) {
-          // 🏆 ROUND 2 → GAME OVER: End when BOTH players empty their hands in round 2
-          const bothPlayersEmpty = finalGameState.playerHands[0].length === 0 &&
-                                  finalGameState.playerHands[1].length === 0;
-
-          if (bothPlayersEmpty) {
-            console.log('🏆 GAME_OVER_TRIGGERED: Round 2 complete - player emptied hand, finalizing game with scoring', {
-              gameId,
-              triggerAction: actionType,
-              lastPlayer: playerIndex,
-              finalHandSizes: {
-                player0HandSize: finalGameState.playerHands[0].length,
-                player1HandSize: finalGameState.playerHands[1].length
-              },
-              remainingTableCards: finalGameState.tableCards.length
-            });
-
-            // Award remaining table cards to the last player who moved
-            if (finalGameState.tableCards.length > 0) {
-              // Add remaining cards to last player's captures
-              if (!finalGameState.playerCaptures[playerIndex]) {
-                finalGameState.playerCaptures[playerIndex] = [];
-              }
-              finalGameState.playerCaptures[playerIndex].push(...finalGameState.tableCards);
-
-              // Clear table
-              finalGameState.tableCards = [];
-            }
-
-            // Calculate final scores and determine winner
-            const { calculateGameResult } = require('./GameState');
-            const gameResult = calculateGameResult(finalGameState, playerIndex);
-
-            // Set game over state
-            finalGameState.gameOver = true;
-            finalGameState.winner = gameResult.winner;
-            finalGameState.finalScores = gameResult.scores;
-            finalGameState.scoreDetails = gameResult.details;
-
-            console.log('🏆 GAME_FINALIZED:', {
-              winner: gameResult.winner,
-              scores: gameResult.scores,
-              lastCapturer: playerIndex,
-              totalCardsCaptured: gameResult.details.totalCardsCaptured
-            });
-
-            // Broadcast game over to clients (will be handled by caller)
-          }
+        if (GameStateChecks.shouldSwitchToRound2(finalGameState)) {
+          const { initializeRound2 } = require('./GameState');
+          finalGameState = initializeRound2(finalGameState);
         }
+        else if (GameStateChecks.isGameOver(finalGameState)) {
+          finalGameState = handleGameOver(finalGameState, playerIndex);
+          // Return early - no turn switching needed for game over
+          this.gameManager.activeGames.set(gameId, finalGameState);
+          return finalGameState;
+        }
+      }
 
-        // Switch to next player
+      // 2. Handle turn switching
+      const forceTurnSwitch = (actionType === 'trail' || actionType === 'confirmTrail' || actionType === 'createBuildFromTempStack');
+      const currentPlayerCanMove = canPlayerMove(finalGameState);
+
+      if (!currentPlayerCanMove || forceTurnSwitch) {
         const nextPlayer = (finalGameState.currentPlayer + 1) % 2;
         finalGameState.currentPlayer = nextPlayer;
 
-        // 🎯 RESET TEMP STACK AND BUILD HAND CARD TRACKING on turn switch
+        // Reset turn trackers
         if (finalGameState.tempStackHandCardUsedThisTurn) {
           finalGameState.tempStackHandCardUsedThisTurn = [false, false];
-          console.log('[TURN_RESET] 🎯 Reset temp stack hand card tracking for new turn', {
-            newCurrentPlayer: nextPlayer,
-            resetTracking: finalGameState.tempStackHandCardUsedThisTurn
-          });
         }
-
         if (finalGameState.buildHandCardUsedThisTurn) {
           finalGameState.buildHandCardUsedThisTurn = [false, false];
-          console.log('[TURN_RESET] 🎯 Reset build hand card tracking for new turn', {
-            newCurrentPlayer: nextPlayer,
-            resetTracking: finalGameState.buildHandCardUsedThisTurn
-          });
         }
 
-        const fromPlayer = newGameState.currentPlayer;
-        logger.info(`Turn switched: P${fromPlayer + 1} -> P${nextPlayer + 1}`, {
+        logger.info(`Turn switched: P${finalGameState.currentPlayer} -> P${nextPlayer + 1}`, {
           actionType,
           reason: forceTurnSwitch ? 'forced' : 'no_moves'
         });
-
-        // Check if next player can move (but don't end game here - game over is handled above)
-        const nextPlayerCanMove = canPlayerMove(finalGameState);
-        if (!nextPlayerCanMove && !finalGameState.gameOver) {
-          logger.warn('Game end condition: Neither player can move', { gameId });
-        }
       }
 
       // Update GameManager's state with final game state (after turn logic)

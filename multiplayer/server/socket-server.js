@@ -131,6 +131,77 @@ io.on('connection', (socket) => {
     gameCoordinator.handleCardDrop(socket, data);
   });
   socket.on('execute-action', (data) => gameCoordinator.handleExecuteAction(socket, data));
+
+  // ============================================================================
+  // STATE SYNC ENDPOINT - Allow clients to request state synchronization
+  // ============================================================================
+  socket.on('request-sync', (data) => {
+    const { playerNumber, reason, clientState } = data;
+    console.log(`🔄 [SYNC] Player ${playerNumber} requesting state sync (reason: ${reason})`);
+
+    // Find the player's game
+    const gameId = matchmaking.getGameId(socket.id);
+    if (!gameId) {
+      console.log(`❌ [SYNC] No game found for socket ${socket.id}`);
+      socket.emit('sync-error', { error: 'Not in active game' });
+      return;
+    }
+
+    const serverState = gameManager.getGameState(gameId);
+    if (!serverState) {
+      console.log(`❌ [SYNC] No state found for game ${gameId}`);
+      socket.emit('sync-error', { error: 'Game state not found' });
+      return;
+    }
+
+    // Compare states and log differences
+    const differences = [];
+    if (clientState) {
+      if (clientState.currentPlayer !== serverState.currentPlayer) {
+        differences.push(`Turn: client=${clientState.currentPlayer}, server=${serverState.currentPlayer}`);
+      }
+
+      // Compare hand sizes
+      clientState.playerHands?.forEach((hand, idx) => {
+        const serverHand = serverState.playerHands?.[idx];
+        if (hand.length !== serverHand?.length) {
+          differences.push(`Player ${idx} hand: client=${hand.length}, server=${serverHand?.length}`);
+        }
+      });
+
+      if (clientState.tableCards?.length !== serverState.tableCards?.length) {
+        differences.push(`Table cards: client=${clientState.tableCards?.length}, server=${serverState.tableCards?.length}`);
+      }
+    }
+
+    console.log(`🔄 [SYNC] State comparison for game ${gameId}:`, {
+      serverState: {
+        turn: serverState.currentPlayer,
+        handSizes: serverState.playerHands.map(h => h.length),
+        tableCards: serverState.tableCards.length,
+        round: serverState.round,
+        gameOver: serverState.gameOver
+      },
+      clientState: clientState ? {
+        turn: clientState.currentPlayer,
+        handSizes: clientState.playerHands?.map(h => h.length),
+        tableCards: clientState.tableCards?.length,
+        round: clientState.round,
+        gameOver: clientState.gameOver
+      } : 'not provided',
+      differences: differences.length > 0 ? differences : ['States match']
+    });
+
+    // Send current server state back to client
+    socket.emit('game-state-sync', {
+      gameState: serverState,
+      serverTime: Date.now(),
+      differences: differences.length > 0 ? differences : null,
+      reason: 'sync_request'
+    });
+
+    console.log(`✅ [SYNC] Sent state sync to player ${playerNumber} in game ${gameId}`);
+  });
 });
 
 // Server control functions

@@ -171,13 +171,13 @@ async function testBothPlayersEmptyRoundTransition() {
 
   // Validate round transition occurred because BOTH players now have empty hands
   if (result.round === 2 &&
-      result.playerHands[0].length === 0 &&
-      result.playerHands[1].length === 0) {
+      result.playerHands[0].length === 10 &&
+      result.playerHands[1].length === 10) {
 
     return {
       success: true,
       message: 'Round transition correctly triggered when BOTH players have empty hands',
-      details: `Round: 1→2, Both players empty: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
+      details: `Round: 1→2, New hands dealt: [${result.playerHands[0].length}, ${result.playerHands[1].length}]`
     };
   }
 

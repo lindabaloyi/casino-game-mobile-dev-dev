@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
  * Consolidates server-side event handling for cleaner component separation
  */
 export function useServerListeners({
+  socket,
   serverError,
   buildOptions,
   actionChoices,
@@ -15,6 +16,7 @@ export function useServerListeners({
   setCardToReset,
   setGameOverData
 }: {
+  socket: any;
   serverError: { message: string } | null;
   buildOptions?: any;
   actionChoices?: any;
@@ -129,7 +131,6 @@ export function useServerListeners({
 
   // Handle staging creation from server
   useEffect(() => {
-    const socket = (global as any).socket;
     if (!socket) return;
 
     const handleStagingCreated = (data: any) => {
@@ -143,16 +144,24 @@ export function useServerListeners({
     return () => {
       socket.off('staging-created', handleStagingCreated);
     };
-  }, []);
+  }, [socket]);
 
   // Handle game over events
   useEffect(() => {
-    const socket = (global as any).socket;
     if (!socket || !setGameOverData) return;
 
     const handleGameOver = (data: any) => {
-      console.log('[CLIENT] Game over event received:', data);
+      console.log('[CLIENT] 🎉 GAME OVER EVENT RECEIVED:', {
+        winner: data.winner,
+        scores: data.scores,
+        winnerScore: data.winnerScore,
+        loserScore: data.loserScore,
+        lastCapturer: data.lastCapturer,
+        finalCaptures: data.finalCaptures,
+        fullData: data
+      });
       setGameOverData(data);
+      console.log('[CLIENT] ✅ Game over data set in state');
     };
 
     socket.on('game-over', handleGameOver);
@@ -160,7 +169,7 @@ export function useServerListeners({
     return () => {
       socket.off('game-over', handleGameOver);
     };
-  }, [setGameOverData]);
+  }, [socket, setGameOverData]);
 
   // Hide navigation bar when entering game (Platform/OS specific)
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Card, GameState } from '../multiplayer/server/game-logic/game-state';
 import { useHandCardDragHandler, useOppTopCardDragHandler, useTableCardDragHandler } from './dragHandlers';
 
@@ -36,7 +36,10 @@ export function useDragHandlers({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [dragTurnState, setDragTurnState] = useState<DragTurnState | null>(null);
 
-  const isMyTurn = gameState.currentPlayer === playerNumber;
+  const isMyTurn = useMemo(
+    () => gameState.currentPlayer === playerNumber,
+    [gameState.currentPlayer, playerNumber]
+  );
 
   /**
    * Enhanced turn validation with comprehensive logging and debugging

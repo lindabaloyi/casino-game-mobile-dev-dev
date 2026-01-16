@@ -78,6 +78,14 @@ export function useHandCardDragHandler({
     logger.info(`Checking contact at position: (${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)})`);
     const contact = findContactAtPoint(dropPosition.x, dropPosition.y, 80);
 
+    logger.info(`Contact detection result:`, {
+      contactFound: !!contact,
+      contactId: contact?.id,
+      contactType: contact?.type,
+      contactDistance: contact?.distance?.toFixed(1),
+      dropPosition: `${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)}`
+    });
+
     if (contact) {
       logger.info(`✅ Found contact: ${contact.id} (${contact.type}) at ${contact.distance.toFixed(1)}px`);
 

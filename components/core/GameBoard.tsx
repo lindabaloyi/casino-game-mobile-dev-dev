@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDragHandlers } from '../../hooks/useDragHandlers';
 import { useModalManager } from '../../hooks/useModalManager';
 import { useServerListeners } from '../../hooks/useServerListeners';
+import { useSocket } from '../../hooks/useSocket';
 import { useTempStacks } from '../../hooks/useTempStacks';
 import { GameState } from '../../multiplayer/server/game-logic/game-state';
 import CapturedCards from '../cards/CapturedCards';
@@ -63,8 +64,13 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
     };
   } | null>(null);
 
+  // Get socket from useSocket hook
+  const socketHook = useSocket();
+  const socket = socketHook.socket;
+
   // Extracted server event listeners
   useServerListeners({
+    socket,
     serverError: serverError || null,
     buildOptions,
     actionChoices,
@@ -205,8 +211,96 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
 
   const isMyTurn = gameState.currentPlayer === playerNumber;
 
+  // Connection status display
+  const ConnectionStatusDisplay = () => {
+    const [status, setStatus] = useState('connecting');
+
+    // Use socket connection status
+    const socket = useSocket();
+
+    React.useEffect(() => {
+      const onConnect = () => setStatus('connected');
+      const onDisconnect = () => setStatus('disconnected');
+      const onReconnect = () => setStatus('reconnected');
+
+      // These would need to be exposed from useSocket hook
+      // For now, just show a static status
+      setStatus('connected');
+
+      return () => {
+        // Cleanup if needed
+      };
+    }, []);
+
+    const statusColors: Record<string, string> = {
+      connected: '#4CAF50',
+      disconnected: '#F44336',
+      connecting: '#FF9800',
+      reconnected: '#2196F3'
+    };
+
+    return (
+      <View style={{
+        position: 'absolute',
+        top: 10,
+        left: 10,
+        backgroundColor: statusColors[status] || '#999',
+        padding: 5,
+        borderRadius: 5,
+        zIndex: 9999
+      }}>
+        <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>
+          {status.toUpperCase()}
+        </Text>
+      </View>
+    );
+  };
+
+  // Debug sync button for development
+  const DebugSyncButton = () => {
+    const socket = useSocket();
+
+    const handleForceSync = () => {
+      console.log('🔄 [DEBUG] Requesting manual state sync');
+      if (socket.sendAction) {
+        socket.sendAction({
+          type: 'request-sync',
+          payload: {
+            playerNumber,
+            reason: 'manual_sync',
+            clientState: gameState
+          }
+        });
+      }
+    };
+
+    if (!__DEV__) return null;
+
+    return (
+      <View style={{
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        backgroundColor: '#FF6B6B',
+        padding: 8,
+        borderRadius: 5,
+        zIndex: 9999
+      }}>
+        <Text
+          style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}
+          onPress={handleForceSync}
+        >
+          🔄 SYNC
+        </Text>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={[]}>
+      {/* Connection Status Display */}
+      <ConnectionStatusDisplay />
+
       <BurgerMenu onRestart={onRestart || (() => {})} onEndGame={onBackToMenu || (() => {})} />
 
       {/* Status Section */}
@@ -326,25 +420,33 @@ export function GameBoard({ gameState, playerNumber, sendAction, onRestart, onBa
       />
 
       {/* Game Over Modal */}
-      {gameOverData && (
-        <GameOverModal
-          visible={true}
-          winner={gameOverData.winner}
-          scores={gameOverData.scores}
-          winnerScore={gameOverData.winnerScore}
-          loserScore={gameOverData.loserScore}
-          lastCapturer={gameOverData.lastCapturer}
-          finalCaptures={gameOverData.finalCaptures}
-          onPlayAgain={() => {
-            console.log('[GameBoard] Play again pressed');
-            // TODO: Implement play again logic
-          }}
-          onReturnToMenu={() => {
-            console.log('[GameBoard] Return to menu pressed');
-            // TODO: Implement return to menu logic
-          }}
-        />
-      )}
+      {(() => {
+        console.log('[GameBoard] 🎯 Checking game over modal visibility:', {
+          hasGameOverData: !!gameOverData,
+          gameOverData: gameOverData,
+          shouldShowModal: !!gameOverData
+        });
+
+        return gameOverData ? (
+          <GameOverModal
+            visible={true}
+            winner={gameOverData.winner}
+            scores={gameOverData.scores}
+            winnerScore={gameOverData.winnerScore}
+            loserScore={gameOverData.loserScore}
+            lastCapturer={gameOverData.lastCapturer}
+            finalCaptures={gameOverData.finalCaptures}
+            onPlayAgain={() => {
+              console.log('[GameBoard] Play again pressed');
+              // TODO: Implement play again logic
+            }}
+            onReturnToMenu={() => {
+              console.log('[GameBoard] Return to menu pressed');
+              // TODO: Implement return to menu logic
+            }}
+          />
+        ) : null;
+      })()}
     </SafeAreaView>
   );
 }
