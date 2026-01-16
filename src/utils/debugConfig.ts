@@ -35,14 +35,7 @@ export class DebugLogger {
   log(level: keyof typeof DEBUG_CONFIG, message: string, data?: any) {
     if (!DEBUG_CONFIG[level]) return;
 
-    const timestamp = new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
-    const logMessage = `[${timestamp}] ${this.prefix} ${message}`;
-
-    if (data) {
-      console.log(logMessage, data);
-    } else {
-      console.log(logMessage);
-    }
+    // Debug logging disabled for performance
   }
 
   info(message: string, data?: any) {

@@ -70,18 +70,6 @@ export function handleBuildExtensionContact(
   // Create extension temp stack
   const tempStack = createExtensionTempStack(draggedCard, targetBuild, currentPlayer);
 
-  console.log('[BUILD_EXTENSION] 🎯 Build extension detected:', {
-    player: currentPlayer,
-    extensionCard: `${draggedCard.rank}${draggedCard.suit}`,
-    targetBuild: {
-      id: targetBuild.buildId,
-      owner: targetBuild.owner,
-      value: targetBuild.value,
-      cards: targetBuild.cards.length
-    },
-    newValue: tempStack.expectedNewValue
-  });
-
   return {
     shouldHandle: true,
     tempStack,

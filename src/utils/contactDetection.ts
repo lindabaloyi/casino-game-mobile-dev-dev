@@ -3,7 +3,6 @@
  * Replaces the complex drop zone system
  */
 
-import { DEBUG_CONFIG } from './debugConfig';
 
 export interface ContactPosition {
   id: string;              // Unique identifier: "5♦" for cards, buildId for builds
@@ -23,10 +22,6 @@ export const contactPositions = new Map<string, ContactPosition>();
  */
 export function reportPosition(id: string, position: ContactPosition): void {
   contactPositions.set(id, position);
-
-  if (DEBUG_CONFIG.CONTACT_DETECTION) {
-    console.log(`[CONTACT] 📍 Position reported: ${id} (${position.type})`);
-  }
 }
 
 /**
@@ -34,7 +29,6 @@ export function reportPosition(id: string, position: ContactPosition): void {
  */
 export function removePosition(id: string): void {
   contactPositions.delete(id);
-  console.log('[CONTACT] 🗑️ Position removed:', id);
 }
 
 /**
@@ -88,11 +82,6 @@ export function findContactAtPoint(
     );
 
     if (playerBuildHit) {
-      console.log('[CONTACT] 🎯 Build extension priority: Player build preferred', {
-        buildId: playerBuildHit.id,
-        player: context.currentPlayer,
-        distance: playerBuildHit.distance
-      });
       return playerBuildHit;
     }
   }
@@ -114,10 +103,7 @@ export function getAllContacts(): ContactPosition[] {
  * Debug full contact registry (comprehensive diagnostic)
  */
 export function debugFullContactRegistry() {
-  console.log('🔍 [CONTACT_REGISTRY_FULL_DUMP] ========= START =========');
-
   const contacts = Array.from(contactPositions.entries());
-  console.log(`Total contacts: ${contacts.length}`);
 
   const byType: Record<string, any[]> = {};
   contacts.forEach(([id, contact]) => {
@@ -125,43 +111,6 @@ export function debugFullContactRegistry() {
     if (!byType[type]) byType[type] = [];
     byType[type].push({ ...contact });
   });
-
-  console.log('📊 Contacts by type:', Object.keys(byType).map(type => ({
-    type,
-    count: byType[type].length,
-    ids: byType[type].map(c => c.id)
-  })));
-
-  // Show builds in detail
-  if (byType.build) {
-    console.log('🏗️ BUILDS in registry:');
-    byType.build.forEach((build, i) => {
-      console.log(`  Build ${i}: ${build.id}`, {
-        owner: build.data?.owner,
-        bounds: { x: Math.round(build.x), y: Math.round(build.y),
-                 width: Math.round(build.width), height: Math.round(build.height) },
-        cards: build.data?.cards?.length || 0
-      });
-    });
-  }
-
-  // Show temp stacks in detail
-  if (byType.tempStack) {
-    console.log('📦 TEMP STACKS in registry:');
-    byType.tempStack.forEach((stack, i) => {
-      console.log(`  TempStack ${i}: ${stack.id}`, {
-        bounds: { x: Math.round(stack.x), y: Math.round(stack.y) },
-        isUniversalStaging: stack.id.includes('universal-staging')
-      });
-    });
-  }
-
-  // Show loose cards
-  if (byType.card) {
-    console.log('🃏 LOOSE CARDS in registry:', byType.card.length);
-  }
-
-  console.log('🔍 [CONTACT_REGISTRY_FULL_DUMP] ========= END =========');
 
   return { contacts, byType };
 }
@@ -171,5 +120,4 @@ export function debugFullContactRegistry() {
  */
 export function clearAllPositions(): void {
   contactPositions.clear();
-  console.log('[CONTACT] 🧹 Cleared all positions');
 }

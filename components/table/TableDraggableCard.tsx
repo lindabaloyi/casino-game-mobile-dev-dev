@@ -6,10 +6,15 @@
  * - Handles table-to-table drag interactions
  * - Uses priority-based zone selection
  * - Provides clean separation from hand card logic
+ * - Uses Reanimated + Gesture Handler for snappy drag/drop
  */
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, PanResponder, StyleSheet, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated, { runOnJS } from 'react-native-reanimated';
+
+import { useDragGesture } from '../../hooks/useDragGesture';
 import { findContactAtPoint, removePosition, reportPosition } from '../../src/utils/contactDetection';
 import Card, { CardType } from '../cards/card';
 
@@ -18,7 +23,7 @@ interface TableDraggableCardProps {
   stackId: string;  // e.g., "loose-0", "loose-1"
   index: number;    // Position in table array
   onDragStart?: (card: CardType) => void;
-  onDragEnd?: (draggedItem: any, dropPosition: any) => void;
+  onDragEnd?: (draggedItem: any, dropPosition: any) => { validContact: boolean } | void;
   onDragMove?: (card: CardType, position: { x: number; y: number }) => void;
   disabled?: boolean;
   size?: "normal" | "small" | "large";
@@ -40,9 +45,74 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
   dragZIndex = 9999,
   triggerReset = false
 }) => {
-  const pan = useRef(new Animated.ValueXY()).current;
-  const [hasStartedDrag, setHasStartedDrag] = useState(false);
   const cardRef = useRef<View>(null);
+
+  // Use the shared drag gesture hook for consistent behavior
+  const { gesture, animatedStyle, isDragging, resetPosition } = useDragGesture({
+    draggable: !disabled,
+    disabled,
+    onDragStart,
+    onDragMove,
+    onDragEnd: (card, dropPosition) => handleDragEnd(card, dropPosition),
+    card
+  });
+
+  // Drag end handler - contact detection and position management
+  const handleDragEnd = (card: CardType, dropPosition: { x: number; y: number }) => {
+    console.log(`[TableDraggableCard] 🎯 Processing drop for ${card.rank}${card.suit} at (${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)})`);
+
+    // Calculate this card's ID to exclude it from contact detection
+    const thisCardId = `${card.rank}${card.suit}_${index}`;
+
+    // PERFORMANCE: Run contact detection on UI thread for instant response
+    runOnJS(() => {
+      // PURE CONTACT DETECTION: Find contact at drop position
+      const contact = findContactAtPoint(dropPosition.x, dropPosition.y, 80, {
+        excludeId: thisCardId
+      });
+
+      const enhancedDropPosition: any = {
+        ...dropPosition,
+        contactDetected: !!contact,
+        contact,
+        handled: false,
+        attempted: true
+      };
+
+      if (contact) {
+        console.log(`[TableDraggableCard] ✅ Contact detected: ${contact.id} (${contact.type}) at ${contact.distance.toFixed(1)}px`);
+        enhancedDropPosition.handled = true;
+      } else {
+        console.log(`[TableDraggableCard] ❌ No contact detected at drop position`);
+      }
+
+      // Notify parent - let drag handler determine if valid contact was made
+      if (onDragEnd) {
+        const draggedItem = {
+          card,
+          source: 'table',
+          player: currentPlayer,
+          stackId,
+          originalIndex: index
+        };
+
+        const result = onDragEnd(draggedItem, enhancedDropPosition);
+
+        // Only reset position if NO valid contact was made
+        if (!result?.validContact) {
+          console.log(`[TableDraggableCard] ❌ No valid contact - resetting position`);
+          resetPosition();
+        } else {
+          console.log(`[TableDraggableCard] ✅ Valid contact - keeping card at drop position`);
+          // Card stays where it was dropped - don't reset
+        }
+      } else {
+        // No onDragEnd handler - always reset
+        console.log(`[TableDraggableCard] ⚠️ No onDragEnd handler - resetting position`);
+        resetPosition();
+      }
+    })();
+  };
 
   // ✅ CONTACT-BASED: Report position to contact system
   useEffect(() => {
@@ -57,14 +127,6 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
           console.log('[TABLE-CARD] Invalid measurement for card:', cardId);
           return;
         }
-
-        console.log('[TABLE-CARD] 📍 Reporting position for card:', {
-          id: cardId,
-          x: Math.round(x),
-          y: Math.round(y),
-          width: Math.round(width),
-          height: Math.round(height)
-        });
 
         reportPosition(cardId, {
           id: cardId,
@@ -92,151 +154,35 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
     };
   }, [card, index]);
 
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => !disabled,
-    onMoveShouldSetPanResponder: (event, gestureState) => {
-      const distance = Math.sqrt(gestureState.dx * gestureState.dx + gestureState.dy * gestureState.dy);
-      return distance > 8;
-    },
-
-    onPanResponderGrant: () => {
-      const currentX = (pan.x as any)._value || 0;
-      const currentY = (pan.y as any)._value || 0;
-      pan.setOffset({ x: currentX, y: currentY });
-      pan.setValue({ x: 0, y: 0 });
-    },
-
-    onPanResponderMove: (event, gestureState) => {
-      const distance = Math.sqrt(gestureState.dx * gestureState.dx + gestureState.dy * gestureState.dy);
-
-      if (distance > 8 && !hasStartedDrag) {
-        setHasStartedDrag(true);
-        console.log(`[TableDraggableCard] 🏁 STARTED dragging ${card.rank}${card.suit} from table`);
-        console.log(`[TableDraggableCard] 📊 Stack ID: ${stackId}, Index: ${index}`);
-
-        if (onDragStart) {
-          onDragStart(card);
-        }
-      }
-
-      if (hasStartedDrag) {
-        Animated.event([null, { dx: pan.x, dy: pan.y }], {
-          useNativeDriver: false,
-        })(event, gestureState);
-
-        // Optional: Log position occasionally
-        if (Math.floor(Date.now() / 100) % 10 === 0) {
-          console.log(`[TableDraggableCard] 📍 Drag position: (${gestureState.moveX.toFixed(1)}, ${gestureState.moveY.toFixed(1)})`);
-        }
-
-        if (onDragMove) {
-          onDragMove(card, { x: gestureState.moveX, y: gestureState.moveY });
-        }
-      }
-    },
-
-    onPanResponderRelease: (event, gestureState) => {
-      const dropPosition: any = {
-        x: event.nativeEvent.pageX,
-        y: event.nativeEvent.pageY,
-        handled: false,
-        attempted: false
-      };
-
-      console.log(`[TableDraggableCard] 🎯 Drop position: ${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)}`);
-
-      // Calculate this card's ID to exclude it from contact detection
-      const thisCardId = `${card.rank}${card.suit}_${index}`;
-
-      // PURE CONTACT DETECTION: No fallbacks, no old drop zone system
-      // Exclude this dragged card from contact detection to prevent self-contact
-      const contact = findContactAtPoint(dropPosition.x, dropPosition.y, 80, {
-        excludeId: thisCardId
-      });
-
-      if (contact) {
-        console.log(`[TableDraggableCard] ✅ Contact detected: ${contact.id} (${contact.type}) at ${contact.distance.toFixed(1)}px`);
-        dropPosition.contactDetected = true;
-        dropPosition.contact = contact;
-        dropPosition.handled = true;
-      } else {
-        console.log(`[TableDraggableCard] ❌ No contact detected at drop position - will trail`);
-        // No fallback to old drop zone system - contact detection is the only method
-      }
-
-      // Snap back if not handled by either system
-      if (!dropPosition.handled) {
-        console.log(`[TableDraggableCard] 🏠 Snapping back ${card.rank}${card.suit} to original position`);
-        Animated.spring(pan, {
-          toValue: { x: 0, y: 0 },
-          friction: 7,
-          tension: 40,
-          useNativeDriver: false,
-        }).start();
-      }
-
-      pan.flattenOffset();
-
-      if (onDragEnd) {
-        const draggedItem = {
-          card,
-          source: 'table',
-          player: currentPlayer,
-          stackId,
-          originalIndex: index
-        };
-        // Pass the entire dropPosition object, which now contains contact info
-        onDragEnd(draggedItem, dropPosition);
-      }
-
-      setHasStartedDrag(false);
-    },
-
-    onPanResponderTerminate: () => {
-      console.log(`[TableDraggableCard] ⚠️ Drag terminated for ${card.rank}${card.suit}`);
-      Animated.spring(pan, {
-        toValue: { x: 0, y: 0 },
-        useNativeDriver: false,
-      }).start();
-      pan.flattenOffset();
-      setHasStartedDrag(false);
-    }
-  });
-
   // Handle external reset (server validation failures)
   useEffect(() => {
     if (triggerReset) {
-      console.log(`[TableDraggableCard] ⚡ INSTANT RESET triggered for ${card.rank}${card.suit}`);
-      pan.stopAnimation();
-      pan.setValue({ x: 0, y: 0 });
-      pan.flattenOffset();
-      setHasStartedDrag(false);
+      console.log(`[TableDraggableCard] ⚡ External reset triggered for ${card.rank}${card.suit}`);
+      resetPosition();
     }
-  }, [triggerReset, pan, card.rank, card.suit]);
+  }, [triggerReset, resetPosition, card.rank, card.suit]);
 
   return (
-    <Animated.View
-      ref={cardRef}
-      style={[
-        styles.container,
-        {
-          transform: [
-            { translateX: pan.x },
-            { translateY: pan.y }
-          ],
-          zIndex: hasStartedDrag ? dragZIndex : 1,
-        },
-        hasStartedDrag && styles.dragging
-      ]}
-      {...panResponder.panHandlers}
-    >
-      <Card
-        card={card}
-        size={size}
-        disabled={disabled}
-        draggable={true}
-      />
-    </Animated.View>
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        ref={cardRef}
+        style={[
+          styles.container,
+          animatedStyle,
+          {
+            zIndex: isDragging ? dragZIndex : 1,
+          },
+          isDragging && styles.dragging
+        ]}
+      >
+        <Card
+          card={card}
+          size={size}
+          disabled={disabled}
+          draggable={true}
+        />
+      </Animated.View>
+    </GestureDetector>
   );
 };
 

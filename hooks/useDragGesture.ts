@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
-import { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { CardType } from '../components/cards/card';
 
 interface UseDragGestureProps {
@@ -74,8 +74,8 @@ export const useDragGesture = ({
   }));
 
   const resetPosition = () => {
-    translateX.value = withSpring(0);
-    translateY.value = withSpring(0);
+    translateX.value = 0;
+    translateY.value = 0;
   };
 
   return {

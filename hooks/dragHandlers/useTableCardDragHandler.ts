@@ -92,11 +92,12 @@ export function useTableCardDragHandler({
 
   /**
    * Handle table card drag end with contact detection
+   * Returns whether a valid contact was made (for UI positioning)
    */
   const handleTableCardDragEnd = useCallback((
     draggedItem: any,
     dropPosition: { x: number; y: number; handled?: boolean; contactDetected?: boolean; contact?: any }
-  ) => {
+  ): { validContact: boolean } => {
     // === FRONTEND DRAG DEBUG ===
     console.log('[FRONTEND] Table card drag end:', {
       draggedItem: {
@@ -131,10 +132,10 @@ export function useTableCardDragHandler({
     }
 
     if (!allowAction) {
-      return;
+      return { validContact: false };
     }
     if (!contact && dropPosition.contactDetected) {
-      return;
+      return { validContact: false };
     }
 
     if (contact) {
@@ -145,7 +146,7 @@ export function useTableCardDragHandler({
         if (isLooseCard) {
           const build = contact.data;
           if (build && build.owner !== playerNumber) {
-            return;
+            return { validContact: false };
           }
           const action = {
             type: 'addToOwnBuild',
@@ -155,17 +156,17 @@ export function useTableCardDragHandler({
             }
           };
           sendAction(action);
-          return;
+          return { validContact: true };
         } else if (isTempStack) {
-          handleBuildAugmentationDragEnd(draggedItem, contact);
-          return;
+          const success = handleBuildAugmentationDragEnd(draggedItem, contact);
+          return { validContact: success };
         }
       }
 
       if (contact.type === 'tempStack') {
         // Use our enhanced temp stack contact detection
         // Note: handleTempStackContact import removed due to unused import
-        return;
+        return { validContact: false };
       }
 
       if (contact.type === 'card') {
@@ -183,10 +184,13 @@ export function useTableCardDragHandler({
             }
           };
           sendAction(action);
-          return;
+          return { validContact: true };
         }
       }
     }
+
+    // Default fallback - no valid contact made
+    return { validContact: false };
   }, [sendAction, isMyTurn, handleBuildAugmentationDragEnd, playerNumber, gameState]);
 
   return {

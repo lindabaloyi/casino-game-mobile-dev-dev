@@ -24,35 +24,11 @@ export function handleBuildContact(
   source?: string
 ): { type: string; payload: any } | null {
 
-  console.log('[BUILD_HANDLER] 🎯 Handling build contact:', {
-    draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
-    contactId: contact.id,
-    currentPlayer,
-    timestamp: new Date().toISOString()
-  });
-
   const build = findBuildById(contact.id, gameState);
 
   if (!build) {
-    console.log('[BUILD_HANDLER] ❌ Build not found in game state:', {
-      contactId: contact.id,
-      availableBuilds: gameState.tableCards.filter(c => (c as any).type === 'build').map(b => (b as any).buildId),
-      allTableCards: gameState.tableCards.map(c => {
-        const card = c as any;
-        return `${card.type || 'card'}:${card.buildId || `${card.rank || '?'}${card.suit || '?'}`}`;
-      })
-    });
     return null;
   }
-
-  console.log('[BUILD_HANDLER] 🔍 Found build:', {
-    buildId: build.buildId,
-    owner: build.owner,
-    value: build.value,
-    cardsCount: build.cards?.length || 0,
-    cards: build.cards?.map(c => `${c.rank}${c.suit}`) || [],
-    isMyBuild: build.owner === currentPlayer
-  });
 
   // Check if this is a draggable staging stack being dropped on a build
   const draggedStack = gameState.tableCards.find(tc =>
@@ -62,12 +38,6 @@ export function handleBuildContact(
   ) as any;
 
   if (draggedStack && build.owner === currentPlayer) {
-    console.log('[BUILD_HANDLER] 🏗️ Draggable staging stack dropped on build for augmentation:', {
-      stagingStackId: draggedStack.stackId,
-      targetBuildId: contact.id,
-      stagingValue: draggedStack.value,
-      buildValue: build.value
-    });
     return {
       type: 'finalizeBuildAugmentation',
       payload: {
@@ -81,16 +51,8 @@ export function handleBuildContact(
     const buildValue = build.value;
     const valuesMatch = draggedValue === buildValue;
 
-    console.log('[BUILD_HANDLER] 🎯 Owned build interaction:', {
-      draggedValue,
-      buildValue,
-      valuesMatch,
-      buildCards: build.cards?.map(c => `${c.rank}${c.suit}`) || []
-    });
-
     if (valuesMatch) {
       // CAPTURE OWN BUILD: Values match, allow capture
-      console.log('[BUILD_HANDLER] ✅ Player capturing own build (value match)');
       return {
         type: 'capture',
         payload: {
@@ -101,7 +63,6 @@ export function handleBuildContact(
       };
     } else {
       // ADD TO OWN BUILD: Values don't match, add to build
-      console.log('[BUILD_HANDLER] ✅ Player adding to own build (value mismatch)');
       return {
         type: 'addToOwnBuild',
         payload: {
@@ -118,7 +79,6 @@ export function handleBuildContact(
 
     if (valuesMatch) {
       // 🎯 EXPLICIT CAPTURE: Card value matches build value
-      console.log('[BUILD_HANDLER] 🎯 Explicit capture: card value matches build value');
       return {
         type: 'capture',
         payload: {
@@ -129,8 +89,6 @@ export function handleBuildContact(
       };
     } else {
       // 🎯 POTENTIAL EXTENSION: Visually add card to build and show overlay
-      console.log('[BUILD_HANDLER] 🎯 Potential extension: values don\'t match, initiating visual build extension');
-
       return {
         type: 'BuildExtension',
         payload: {

@@ -27,13 +27,6 @@ export class BuildLifecycleTracker {
   private createdBuilds: Map<string, BuildInfo> = new Map();
   private activeSessions: Map<string, string> = new Map();
 
-<<<<<<< HEAD
-=======
-  constructor() {
-    console.log('[BUILD_TRACKER] 🔧 Build Lifecycle Tracker initialized');
-  }
-
->>>>>>> parent of e2b4bbc (perf: remove all console.log statements for optimal performance)
   trackCreation(buildId: string, context: string, cards: any[] = [], metadata: any = {}): BuildInfo {
     const sessionId = this.getCurrentSession();
     const buildInfo: BuildInfo = {
@@ -48,16 +41,6 @@ export class BuildLifecycleTracker {
     };
 
     this.createdBuilds.set(buildId, buildInfo);
-
-    console.log('[BUILD_TRACKER] 📝 Build CREATED:', {
-      buildId,
-      context,
-      cardCount: cards.length,
-      cards: cards.map(c => `${c.rank}${c.suit}`),
-      sessionId,
-      totalTrackedBuilds: this.createdBuilds.size,
-      metadata
-    });
 
     return buildInfo;
   }
@@ -77,27 +60,8 @@ export class BuildLifecycleTracker {
       build.extensions.push(extension);
       build.lastSeen = Date.now();
 
-      console.log('[BUILD_TRACKER] 🔧 Build EXTENDED:', {
-        buildId,
-        context,
-        addedCard: `${addedCard.rank}${addedCard.suit}`,
-        totalExtensions: build.extensions.length,
-        sessionConsistent: build.sessionId === this.getCurrentSession(),
-        allExtensions: build.extensions.map(e => e.addedCard),
-        metadata
-      });
-
       return extension;
     } else {
-      console.error('[BUILD_TRACKER] ⚠️ UNKNOWN BUILD EXTENSION ATTEMPT:', {
-        buildId,
-        context,
-        addedCard: `${addedCard.rank}${addedCard.suit}`,
-        knownBuilds: Array.from(this.createdBuilds.keys()),
-        currentSession: this.getCurrentSession(),
-        metadata
-      });
-
       return null;
     }
   }
@@ -129,22 +93,6 @@ export class BuildLifecycleTracker {
 
   debugAllBuilds(gameState: any, context: string) {
     const builds = gameState.tableCards.filter((item: any) => item.type === 'build');
-    console.log(`[ALL_BUILDS:${context}]`, {
-      totalBuilds: builds.length,
-      builds: builds.map((b: any, i: number) => ({
-        index: i,
-        id: b.buildId,
-        owner: b.owner,
-        cards: Array.isArray(b.cards) ? b.cards.map((c: any) => `${c.rank}${c.suit}`) : [],
-        cardCount: Array.isArray(b.cards) ? b.cards.length : 0,
-        value: b.value,
-        lifecycle: this.createdBuilds.get(b.buildId) ? {
-          createdAt: this.createdBuilds.get(b.buildId)!.createdAt,
-          extensions: this.createdBuilds.get(b.buildId)!.extensions.length,
-          sessionId: this.createdBuilds.get(b.buildId)!.sessionId
-        } : 'NOT_TRACKED'
-      }))
-    });
   }
 
   // Critical diagnostic method
@@ -186,7 +134,6 @@ export class BuildLifecycleTracker {
   reset() {
     this.createdBuilds.clear();
     this.activeSessions.clear();
-    console.log('[BUILD_TRACKER] 🔄 Tracker reset');
   }
 }
 

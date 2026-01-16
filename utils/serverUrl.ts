@@ -44,17 +44,13 @@ export class ServerUrlResolver {
    * Priority: Manual Override > Auto-detection > Fallback
    */
   async getOptimalUrl(): Promise<string> {
-    console.log('[ServerURL] Resolving optimal server URL...');
-
     // Check for manual override in environment
     const manualUrl = this.getManualOverrideUrl();
     if (manualUrl) {
-      console.log('[ServerURL] Using manual override:', manualUrl);
       return manualUrl;
     }
 
     if (!this.config.enableAutoDetect) {
-      console.log('[ServerURL] Auto-detection disabled, using local URL');
       return this.config.localUrl;
     }
 
@@ -82,8 +78,6 @@ export class ServerUrlResolver {
    * Auto-detection algorithm: tests connectivity to find best URL
    */
   private async detectBestUrl(): Promise<string> {
-    console.log('[ServerURL] Running auto-detection...');
-
     const candidates = [
       { url: this.config.localUrl, priority: 1, label: 'LOCAL' },
       { url: this.config.lanUrl, priority: 2, label: 'LAN' },
@@ -94,7 +88,6 @@ export class ServerUrlResolver {
     const tests = candidates.map(async (candidate) => {
       if (!candidate.url) return null;
       const result = await this.testUrlConnectivity(candidate.url);
-      console.log(`[ServerURL] ${candidate.label} (${candidate.url}): ${result.accessible ? '✓' : '✗'} (${result.responseTime}ms)`);
       return {
         ...candidate,
         ...result
@@ -108,12 +101,10 @@ export class ServerUrlResolver {
     const accessibleResults = validResults.filter((r: any) => r.accessible);
     if (accessibleResults.length > 0) {
       const best = accessibleResults.sort((a: any, b: any) => a.priority - b.priority)[0];
-      console.log(`[ServerURL] Selected: ${best.label} (${best.url})`);
       return best.url;
     }
 
     // Fallback to configured default
-    console.log(`[ServerURL] No accessible URLs found, using fallback: ${this.config.fallbackUrl}`);
     return this.config.fallbackUrl!;
   }
 

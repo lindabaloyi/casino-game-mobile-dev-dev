@@ -50,8 +50,6 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
 
   // Drag end handler - conditionally reset based on contact validity
   const handleDragEnd = (card: CardType, dropPosition: { x: number; y: number }) => {
-    console.log(`[DraggableCard] 🎯 Processing drop for ${card.rank}${card.suit} at (${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)})`);
-
     // Notify parent - contact detection will happen in useDragHandlers
     if (onDragEnd) {
       const draggedItem = {
@@ -64,15 +62,11 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
 
       // Only reset if NO valid contact was made
       if (!result?.validContact) {
-        console.log(`[DraggableCard] ❌ No valid contact - resetting position`);
         resetPosition();
-      } else {
-        console.log(`[DraggableCard] ✅ Valid contact - keeping card at drop position`);
-        // Card stays where it was dropped - don't reset
       }
+      // Card stays where it was dropped if valid contact - don't reset
     } else {
       // No onDragEnd handler - always reset
-      console.log(`[DraggableCard] ⚠️ No onDragEnd handler - resetting position`);
       resetPosition();
     }
   };
@@ -80,10 +74,9 @@ const DraggableCard: React.FC<DraggableCardProps> = ({
   // Handle external reset trigger
   useEffect(() => {
     if (triggerReset) {
-      console.log(`[DraggableCard] ⚡ External reset triggered for ${card.rank}${card.suit}`);
       resetPosition();
     }
-  }, [triggerReset, resetPosition, card.rank, card.suit]);
+  }, [triggerReset, resetPosition]);
 
   return (
     <GestureDetector gesture={gesture}>
