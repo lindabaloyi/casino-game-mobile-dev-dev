@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { useEffect } from "react";
+import { Platform } from "react-native";
 
 /**
  * Custom hook to manage all server event listeners and socket interactions
@@ -14,7 +14,6 @@ export function useServerListeners({
   setTrailCard,
   setErrorModal,
   setCardToReset,
-  setGameOverData
 }: {
   socket: any;
   serverError: { message: string } | null;
@@ -22,28 +21,33 @@ export function useServerListeners({
   actionChoices?: any;
   setModalInfo: (modal: any) => void;
   setTrailCard: (card: { rank: string; suit: string } | null) => void;
-  setErrorModal: (modal: { visible: boolean; title: string; message: string } | null) => void;
+  setErrorModal: (
+    modal: { visible: boolean; title: string; message: string } | null,
+  ) => void;
   setCardToReset: (card: { rank: string; suit: string } | null) => void;
-  setGameOverData?: (data: any) => void;
 }) {
   // Handle server errors (Game-Appropriate Version)
   useEffect(() => {
     if (serverError) {
-      console.log('[GameBoard] Received server error:', serverError.message);
+      console.log("[GameBoard] Received server error:", serverError.message);
 
       // 🎯 FIX 7: GRACEFUL ERROR HANDLING - Don't interrupt temp stack building
-      const isTempStackError = serverError.message?.includes('staging') ||
-                              serverError.message?.includes('temp') ||
-                              serverError.message?.includes('stack');
+      const isTempStackError =
+        serverError.message?.includes("staging") ||
+        serverError.message?.includes("temp") ||
+        serverError.message?.includes("stack");
 
       if (isTempStackError) {
-        console.log('[GRACEFUL_ERROR] Temp stack error - showing warning but continuing gameplay:', serverError.message);
+        console.log(
+          "[GRACEFUL_ERROR] Temp stack error - showing warning but continuing gameplay:",
+          serverError.message,
+        );
 
         // For temp stack errors, show brief warning but don't reset cards or interrupt flow
         setErrorModal({
           visible: true,
-          title: 'Stack Building Note',
-          message: serverError.message + ' (Continuing with flexible stacking)'
+          title: "Stack Building Note",
+          message: serverError.message + " (Continuing with flexible stacking)",
         });
 
         // Auto-hide after 2 seconds (don't wait for user interaction)
@@ -56,12 +60,15 @@ export function useServerListeners({
       }
 
       // For critical errors (not temp stack related), use original behavior
-      console.log('[CRITICAL_ERROR] Non-temp-stack error - full interruption:', serverError.message);
+      console.log(
+        "[CRITICAL_ERROR] Non-temp-stack error - full interruption:",
+        serverError.message,
+      );
 
       setErrorModal({
         visible: true,
-        title: 'Invalid Move',
-        message: serverError.message
+        title: "Invalid Move",
+        message: serverError.message,
       });
 
       // Clear card reset state after animation completes
@@ -74,45 +81,45 @@ export function useServerListeners({
   // Handle build options when they arrive
   useEffect(() => {
     if (buildOptions && buildOptions.options) {
-      console.log('[GameBoard] Build options received:', buildOptions);
+      console.log("[GameBoard] Build options received:", buildOptions);
 
       // Handle different types of options (builds, captures, etc.)
       const actions = buildOptions.options.map((option: any) => {
-        if (option.type === 'build') {
+        if (option.type === "build") {
           return {
-            type: 'createBuildWithValue',
+            type: "createBuildWithValue",
             label: option.label,
             payload: {
               stack: buildOptions.stack,
-              buildValue: option.payload.value
-            }
+              buildValue: option.payload.value,
+            },
           };
-        } else if (option.type === 'capture') {
+        } else if (option.type === "capture") {
           return {
-            type: 'executeCaptureFromStack',
+            type: "executeCaptureFromStack",
             label: option.label,
             payload: {
               stack: buildOptions.stack,
               targetCard: option.payload.targetCard,
-              captureValue: option.payload.value
-            }
+              captureValue: option.payload.value,
+            },
           };
         }
         // Fallback for unknown types
         return {
-          type: 'createBuildWithValue',
+          type: "createBuildWithValue",
           label: option.label,
           payload: {
             stack: buildOptions.stack,
-            buildValue: option.payload?.value || option
-          }
+            buildValue: option.payload?.value || option,
+          },
         };
       });
 
       setModalInfo({
-        title: 'Choose Action',
-        message: 'What would you like to do with this stack?',
-        actions
+        title: "Choose Action",
+        message: "What would you like to do with this stack?",
+        actions,
       });
     }
   }, [buildOptions, setModalInfo]);
@@ -121,10 +128,10 @@ export function useServerListeners({
   useEffect(() => {
     if (actionChoices && actionChoices.actions) {
       setModalInfo({
-        title: 'Choose Your Action',
-        message: 'What would you like to do?',
+        title: "Choose Your Action",
+        message: "What would you like to do?",
         actions: actionChoices.actions,
-        requestId: actionChoices.requestId
+        requestId: actionChoices.requestId,
       });
     }
   }, [actionChoices, setModalInfo]);
@@ -139,42 +146,17 @@ export function useServerListeners({
       // The game state update will show the staging stack
     };
 
-    socket.on('staging-created', handleStagingCreated);
+    socket.on("staging-created", handleStagingCreated);
 
     return () => {
-      socket.off('staging-created', handleStagingCreated);
+      socket.off("staging-created", handleStagingCreated);
     };
   }, [socket]);
-
-  // Handle game over events
-  useEffect(() => {
-    if (!socket || !setGameOverData) return;
-
-    const handleGameOver = (data: any) => {
-      console.log('[CLIENT] 🎉 GAME OVER EVENT RECEIVED:', {
-        winner: data.winner,
-        scores: data.scores,
-        winnerScore: data.winnerScore,
-        loserScore: data.loserScore,
-        lastCapturer: data.lastCapturer,
-        finalCaptures: data.finalCaptures,
-        fullData: data
-      });
-      setGameOverData(data);
-      console.log('[CLIENT] ✅ Game over data set in state');
-    };
-
-    socket.on('game-over', handleGameOver);
-
-    return () => {
-      socket.off('game-over', handleGameOver);
-    };
-  }, [socket, setGameOverData]);
 
   // Hide navigation bar when entering game (Platform/OS specific)
   useEffect(() => {
     const hideNavBar = async () => {
-      if (Platform.OS === 'android') {
+      if (Platform.OS === "android") {
         try {
           // Import removed due to require() style import being forbidden
         } catch {

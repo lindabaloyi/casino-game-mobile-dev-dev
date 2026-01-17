@@ -4,8 +4,8 @@
  * No networking or external dependencies
  */
 
-const { createLogger } = require('../utils/logger.js');
-const logger = createLogger('GameState');
+const { createLogger } = require("../utils/logger.js");
+const logger = createLogger("GameState");
 
 // Global build lifecycle tracker for debugging build creation/extension flow
 const buildLifecycleTracker = {
@@ -16,23 +16,31 @@ const buildLifecycleTracker = {
       createdAt: Date.now(),
       context,
       extensions: [],
-      metadata
+      metadata,
     });
-    console.log('[BUILD_LIFECYCLE] Build created:', { buildId, context, metadata });
+    console.log("[BUILD_LIFECYCLE] Build created:", {
+      buildId,
+      context,
+      metadata,
+    });
   },
 
   trackExtension(buildId, context, metadata = {}) {
     const build = this.createdBuilds.get(buildId);
     if (build) {
       build.extensions.push({ timestamp: Date.now(), context, metadata });
-      console.log('[BUILD_LIFECYCLE] Build extended:', {
+      console.log("[BUILD_LIFECYCLE] Build extended:", {
         buildId,
         extensionCount: build.extensions.length,
         context,
-        metadata
+        metadata,
       });
     } else {
-      console.warn('[BUILD_LIFECYCLE] Attempting to extend unknown build:', { buildId, context, metadata });
+      console.warn("[BUILD_LIFECYCLE] Attempting to extend unknown build:", {
+        buildId,
+        context,
+        metadata,
+      });
     }
   },
 
@@ -41,37 +49,44 @@ const buildLifecycleTracker = {
   },
 
   debugAllBuilds(gameState, context) {
-    const builds = gameState.tableCards.filter(item => item.type === 'build');
+    const builds = gameState.tableCards.filter((item) => item.type === "build");
     console.log(`[ALL_BUILDS:${context}]`, {
       totalBuilds: builds.length,
       builds: builds.map((b, i) => ({
         index: i,
         id: b.buildId,
         owner: b.owner,
-        cards: b.cards.map(c => `${c.rank}${c.suit}`),
+        cards: b.cards.map((c) => `${c.rank}${c.suit}`),
         cardCount: b.cards.length,
         value: b.value,
-        lifecycle: this.createdBuilds.get(b.buildId) ? {
-          createdAt: this.createdBuilds.get(b.buildId).createdAt,
-          extensions: this.createdBuilds.get(b.buildId).extensions.length
-        } : 'NOT_TRACKED'
-      }))
+        lifecycle: this.createdBuilds.get(b.buildId)
+          ? {
+              createdAt: this.createdBuilds.get(b.buildId).createdAt,
+              extensions: this.createdBuilds.get(b.buildId).extensions.length,
+            }
+          : "NOT_TRACKED",
+      })),
     });
-  }
+  },
 };
 
 // Game configuration constants
 const GAME_CONFIG = {
   MAX_PLAYERS: 2,
-  INITIAL_CARDS_PER_PLAYER: 10,  // 10 cards per player for round 1 (total 20 cards)
-  MAX_BUILD_VALUE: 10
+  INITIAL_CARDS_PER_PLAYER: 10, // 10 cards per player for round 1 (total 20 cards)
+  MAX_BUILD_VALUE: 10,
 };
 
 // Validation rules for game state
 const VALIDATION_RULES = {
-  playerHands: (hands) => Array.isArray(hands) && hands.length === GAME_CONFIG.MAX_PLAYERS,
-  playerCaptures: (captures) => Array.isArray(captures) && captures.length === GAME_CONFIG.MAX_PLAYERS,
-  currentPlayer: (player) => typeof player === 'number' && player >= 0 && player < GAME_CONFIG.MAX_PLAYERS
+  playerHands: (hands) =>
+    Array.isArray(hands) && hands.length === GAME_CONFIG.MAX_PLAYERS,
+  playerCaptures: (captures) =>
+    Array.isArray(captures) && captures.length === GAME_CONFIG.MAX_PLAYERS,
+  currentPlayer: (player) =>
+    typeof player === "number" &&
+    player >= 0 &&
+    player < GAME_CONFIG.MAX_PLAYERS,
 };
 
 // ============================================================================
@@ -82,24 +97,25 @@ const VALIDATION_RULES = {
  * Initialize a new game state
  */
 function initializeGame() {
-  logger.debug('Initializing new game state...');
+  logger.debug("Initializing new game state...");
 
-  const suits = ['♠', '♥', '♦', '♣'];
-  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+  const suits = ["♠", "♥", "♦", "♣"];
+  const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
   let deck = [];
 
   // Create casino deck (A-10 only, no face cards)
   for (const suit of suits) {
     for (const rank of ranks) {
       let value;
-      if (rank === 'A') value = 1;
-      else if (rank === '10') value = 10; // 10 equals 10
+      if (rank === "A") value = 1;
+      else if (rank === "10")
+        value = 10; // 10 equals 10
       else value = parseInt(rank, 10);
 
       deck.push({
         suit,
         rank,
-        value
+        value,
       });
     }
   }
@@ -111,8 +127,11 @@ function initializeGame() {
   }
 
   // Deal cards
-  const playerHands = Array(GAME_CONFIG.MAX_PLAYERS).fill(null).map(() => []);
-  const totalCardsToDeal = GAME_CONFIG.INITIAL_CARDS_PER_PLAYER * GAME_CONFIG.MAX_PLAYERS;
+  const playerHands = Array(GAME_CONFIG.MAX_PLAYERS)
+    .fill(null)
+    .map(() => []);
+  const totalCardsToDeal =
+    GAME_CONFIG.INITIAL_CARDS_PER_PLAYER * GAME_CONFIG.MAX_PLAYERS;
 
   for (let i = 0; i < totalCardsToDeal; i++) {
     const playerIndex = i % GAME_CONFIG.MAX_PLAYERS;
@@ -127,10 +146,8 @@ function initializeGame() {
     currentPlayer: 0,
     round: 1,
     scores: [0, 0],
-    gameOver: false,
-    winner: null,
+    turnCounter: 1,
     lastCapturer: null,
-    scoreDetails: null,
   };
 }
 
@@ -139,13 +156,16 @@ function initializeGame() {
  * Deals 10 new cards to each player while preserving table state
  */
 function initializeRound2(gameState) {
-  console.log('🏁 ROUND_2_INIT_STARTED: Beginning round 2 initialization', {
+  console.log("🏁 ROUND_2_INIT_STARTED: Beginning round 2 initialization", {
     fromRound: gameState.round,
     tableCardsCount: gameState.tableCards.length,
-    buildsCount: gameState.tableCards.filter(tc => tc.type === 'build').length,
-    playerCaptures: gameState.playerCaptures.map((captures, idx) => `${idx}:${captures.length} cards`),
+    buildsCount: gameState.tableCards.filter((tc) => tc.type === "build")
+      .length,
+    playerCaptures: gameState.playerCaptures.map(
+      (captures, idx) => `${idx}:${captures.length} cards`,
+    ),
     deckSize: gameState.deck.length,
-    scores: gameState.scores
+    scores: gameState.scores,
   });
 
   const newGameState = { ...gameState };
@@ -161,15 +181,19 @@ function initializeRound2(gameState) {
   const cardsPerPlayer = 10;
   const totalCardsNeeded = cardsPerPlayer * GAME_CONFIG.MAX_PLAYERS;
 
-  console.log('🃏 CARD_DEALING_START: Dealing fresh hands for round 2', {
+  console.log("🃏 CARD_DEALING_START: Dealing fresh hands for round 2", {
     deckSizeBefore: newGameState.deck.length,
     cardsPerPlayer,
     players: GAME_CONFIG.MAX_PLAYERS,
     totalCardsNeeded,
-    deckHasEnoughCards: newGameState.deck.length >= totalCardsNeeded
+    deckHasEnoughCards: newGameState.deck.length >= totalCardsNeeded,
   });
 
-  for (let playerIndex = 0; playerIndex < GAME_CONFIG.MAX_PLAYERS; playerIndex++) {
+  for (
+    let playerIndex = 0;
+    playerIndex < GAME_CONFIG.MAX_PLAYERS;
+    playerIndex++
+  ) {
     const oldHandSize = newGameState.playerHands[playerIndex].length;
     const newCards = newGameState.deck.splice(0, cardsPerPlayer);
     newGameState.playerHands[playerIndex] = newCards;
@@ -178,23 +202,32 @@ function initializeRound2(gameState) {
       oldHandSize,
       newHandSize: newCards.length,
       cardsReceived: newCards.length,
-      firstFewCards: newCards.slice(0, 3).map(c => `${c.rank}${c.suit}`),
-      handComplete: newCards.length === cardsPerPlayer
+      firstFewCards: newCards.slice(0, 3).map((c) => `${c.rank}${c.suit}`),
+      handComplete: newCards.length === cardsPerPlayer,
     });
   }
 
-  console.log('🎯 ROUND_2_INIT_COMPLETE: Round 2 initialization finished', {
+  console.log("🎯 ROUND_2_INIT_COMPLETE: Round 2 initialization finished", {
     roundTransition: `${oldRound} → ${newGameState.round}`,
-    finalHandSizes: newGameState.playerHands.map((hand, idx) => `P${idx}:${hand.length}`),
+    finalHandSizes: newGameState.playerHands.map(
+      (hand, idx) => `P${idx}:${hand.length}`,
+    ),
     remainingDeckSize: newGameState.deck.length,
     cardsUsed: totalCardsNeeded,
     statePreservation: {
-      tableCards: newGameState.tableCards.length > 0 ? 'PRESERVED' : 'EMPTY',
-      builds: newGameState.tableCards.filter(tc => tc.type === 'build').length > 0 ? 'PRESERVED' : 'NONE',
-      captures: newGameState.playerCaptures.some(c => c.length > 0) ? 'PRESERVED' : 'EMPTY',
-      scores: newGameState.scores.some(s => s > 0) ? 'PRESERVED' : 'ZERO'
+      tableCards: newGameState.tableCards.length > 0 ? "PRESERVED" : "EMPTY",
+      builds:
+        newGameState.tableCards.filter((tc) => tc.type === "build").length > 0
+          ? "PRESERVED"
+          : "NONE",
+      captures: newGameState.playerCaptures.some((c) => c.length > 0)
+        ? "PRESERVED"
+        : "EMPTY",
+      scores: newGameState.scores.some((s) => s > 0) ? "PRESERVED" : "ZERO",
     },
-    gameReady: newGameState.playerHands.every(hand => hand.length === cardsPerPlayer)
+    gameReady: newGameState.playerHands.every(
+      (hand) => hand.length === cardsPerPlayer,
+    ),
   });
 
   return newGameState;
@@ -207,25 +240,31 @@ function validateGameState(gameState) {
   const errors = [];
 
   if (!gameState) {
-    errors.push('Game state is null or undefined');
+    errors.push("Game state is null or undefined");
     return { valid: false, errors };
   }
 
   // Use centralized validation rules
   if (!VALIDATION_RULES.playerHands(gameState.playerHands)) {
-    errors.push(`playerHands must be an array of ${GAME_CONFIG.MAX_PLAYERS} elements`);
+    errors.push(
+      `playerHands must be an array of ${GAME_CONFIG.MAX_PLAYERS} elements`,
+    );
   }
 
   if (!Array.isArray(gameState.tableCards)) {
-    errors.push('tableCards must be an array');
+    errors.push("tableCards must be an array");
   }
 
   if (!VALIDATION_RULES.playerCaptures(gameState.playerCaptures)) {
-    errors.push(`playerCaptures must be an array of ${GAME_CONFIG.MAX_PLAYERS} elements`);
+    errors.push(
+      `playerCaptures must be an array of ${GAME_CONFIG.MAX_PLAYERS} elements`,
+    );
   }
 
   if (!VALIDATION_RULES.currentPlayer(gameState.currentPlayer)) {
-    errors.push(`currentPlayer must be a number between 0 and ${GAME_CONFIG.MAX_PLAYERS - 1}`);
+    errors.push(
+      `currentPlayer must be a number between 0 and ${GAME_CONFIG.MAX_PLAYERS - 1}`,
+    );
   }
 
   return { valid: errors.length === 0, errors };
@@ -235,9 +274,9 @@ function validateGameState(gameState) {
  * Get card rank value (A=1, 2-10=face value)
  */
 function rankValue(rank) {
-  if (rank === 'A') return 1;
-  if (typeof rank === 'number') return rank;
-  if (typeof rank === 'string') {
+  if (rank === "A") return 1;
+  if (typeof rank === "number") return rank;
+  if (typeof rank === "string") {
     const parsed = parseInt(rank, 10);
     return isNaN(parsed) ? 0 : parsed;
   }
@@ -256,8 +295,8 @@ function orderCardsBigToSmall(card1, card2) {
   // Bigger value card = bottom (index 0)
   // Smaller value card = top (index 1)
   return (card1.value || 0) >= (card2.value || 0)
-    ? [card1, card2]   // card1 bigger or equal = bottom
-    : [card2, card1];  // card2 bigger = bottom
+    ? [card1, card2] // card1 bigger or equal = bottom
+    : [card2, card1]; // card2 bigger = bottom
 }
 
 /**
@@ -271,21 +310,21 @@ function calculateCardSum(cards) {
  * Check if card is a loose table card (not part of build or stack)
  */
 function isCard(obj) {
-  return obj && typeof obj === 'object' && !obj.type;
+  return obj && typeof obj === "object" && !obj.type;
 }
 
 /**
  * Check if object is a build
  */
 function isBuild(obj) {
-  return obj && typeof obj === 'object' && obj.type === 'build';
+  return obj && typeof obj === "object" && obj.type === "build";
 }
 
 /**
  * Check if object is a temporary stack
  */
 function isTemporaryStack(obj) {
-  return obj && typeof obj === 'object' && obj.type === 'temporary_stack';
+  return obj && typeof obj === "object" && obj.type === "temporary_stack";
 }
 
 /**
@@ -300,14 +339,16 @@ function clone(gameState) {
  * Checks for card duplication issues in temp stacks, loose cards, and player hands
  */
 function validateNoDuplicates(gameState) {
-  console.log('[VALIDATION] 🔍 Checking for card duplicates across all game locations...');
+  console.log(
+    "[VALIDATION] 🔍 Checking for card duplicates across all game locations...",
+  );
 
   const allCards = [];
   const cardLocations = [];
 
   // Collect all cards from table (loose + temp stacks)
   gameState.tableCards.forEach((item, tableIndex) => {
-    if (item.type === 'temporary_stack' && item.cards) {
+    if (item.type === "temporary_stack" && item.cards) {
       // Add all cards from temp stacks
       item.cards.forEach((card, stackIndex) => {
         const cardId = `${card.rank}${card.suit}`;
@@ -355,139 +396,28 @@ function validateNoDuplicates(gameState) {
       locationMap[cardId].push(cardLocations[index]);
 
       // Count occurrences
-      const occurrences = allCards.filter(c => c === cardId).length;
+      const occurrences = allCards.filter((c) => c === cardId).length;
       if (occurrences > 1 && !duplicateCards.includes(cardId)) {
         duplicateCards.push(cardId);
       }
     });
 
-    console.error('[VALIDATION] ❌ DUPLICATES FOUND:', {
+    console.error("[VALIDATION] ❌ DUPLICATES FOUND:", {
       totalCards: allCards.length,
       uniqueCards: uniqueCards.length,
       duplicateCards: duplicateCards,
       duplicateCount: duplicateCards.length,
-      detailedLocations: duplicateCards.map(cardId => ({
+      detailedLocations: duplicateCards.map((cardId) => ({
         card: cardId,
         locations: locationMap[cardId],
-        occurrenceCount: locationMap[cardId].length
-      }))
+        occurrenceCount: locationMap[cardId].length,
+      })),
     });
     return false;
   }
 
-  console.log('[VALIDATION] ✅ No duplicates found across all game locations');
+  console.log("[VALIDATION] ✅ No duplicates found across all game locations");
   return true;
-}
-
-// ============================================================================
-// SCORING AND WINNER DETERMINATION
-// ============================================================================
-
-/**
- * Calculate score for a single player's captured cards
- */
-function calculatePlayerScore(capturedCards) {
-  let score = 0;
-
-  capturedCards.forEach(card => {
-    // Scoring cards only
-    if (card.rank === 'A') score += 1;                    // Aces = 1 point each
-    if (card.rank === '2' && card.suit === '♠') score += 1; // 2♠ = 1 point
-    if (card.rank === '10' && card.suit === '♦') score += 2; // 10♦ = 2 points
-  });
-
-  // Bonus conditions
-  const spadeCount = capturedCards.filter(c => c.suit === '♠').length;
-  if (spadeCount === 6) score += 2; // 6 Spades bonus
-
-  if (capturedCards.length >= 21) score += 2; // 21+ Cards bonus
-
-  return score;
-}
-
-/**
- * Calculate final game result with scoring and winner determination
- */
-function calculateGameResult(gameState, lastCapturer) {
-  const player0Cards = gameState.playerCaptures[0] || [];
-  const player1Cards = gameState.playerCaptures[1] || [];
-
-  const player0Score = calculatePlayerScore(player0Cards);
-  const player1Score = calculatePlayerScore(player1Cards);
-
-  const scores = [player0Score, player1Score];
-
-  // Determine winner
-  let winner;
-  if (player0Score > player1Score) {
-    winner = 0;
-  } else if (player1Score > player0Score) {
-    winner = 1;
-  } else {
-    // Tie: Last capturer wins
-    winner = lastCapturer;
-  }
-
-  // Create detailed breakdown
-  const details = {
-    scores: [player0Score, player1Score],
-    winner: winner,
-    lastCapturer: lastCapturer,
-    totalCardsCaptured: player0Cards.length + player1Cards.length,
-    playerBreakdowns: {
-      player0: {
-        cards: player0Cards.length,
-        score: player0Score,
-        scoringCards: {
-          aces: player0Cards.filter(c => c.rank === 'A').length,
-          twoSpades: player0Cards.filter(c => c.rank === '2' && c.suit === '♠').length,
-          tenDiamonds: player0Cards.filter(c => c.rank === '10' && c.suit === '♦').length
-        },
-        bonuses: {
-          sixSpades: player0Cards.filter(c => c.suit === '♠').length === 6 ? 2 : 0,
-          twentyOneCards: player0Cards.length >= 21 ? 2 : 0
-        }
-      },
-      player1: {
-        cards: player1Cards.length,
-        score: player1Score,
-        scoringCards: {
-          aces: player1Cards.filter(c => c.rank === 'A').length,
-          twoSpades: player1Cards.filter(c => c.rank === '2' && c.suit === '♠').length,
-          tenDiamonds: player1Cards.filter(c => c.rank === '10' && c.suit === '♦').length
-        },
-        bonuses: {
-          sixSpades: player1Cards.filter(c => c.suit === '♠').length === 6 ? 2 : 0,
-          twentyOneCards: player1Cards.length >= 21 ? 2 : 0
-        }
-      }
-    },
-    finalCaptures: {
-      player0: player0Cards.map(c => `${c.rank}${c.suit}`),
-      player1: player1Cards.map(c => `${c.rank}${c.suit}`)
-    }
-  };
-
-  console.log('📊 SCORING_CALCULATION:', {
-    player0: {
-      cards: player0Cards.length,
-      score: player0Score,
-      breakdown: details.playerBreakdowns.player0
-    },
-    player1: {
-      cards: player1Cards.length,
-      score: player1Score,
-      breakdown: details.playerBreakdowns.player1
-    },
-    winner: winner,
-    tieBreakerUsed: player0Score === player1Score
-  });
-
-  return {
-    winner,
-    scores,
-    details
-  };
 }
 
 // ============================================================================
@@ -507,6 +437,4 @@ module.exports = {
   isTemporaryStack,
   orderCardsBigToSmall,
   buildLifecycleTracker,
-  calculateGameResult,
-  calculatePlayerScore
 };

@@ -4,7 +4,7 @@
  * Extracted from socket-server.js for better separation of concerns
  */
 
-const { createLogger } = require('../utils/logger');
+const { createLogger } = require("../utils/logger");
 
 // ============================================================================
 // MESSAGE DELIVERY TRACKING - Monitor WebSocket message reliability
@@ -18,8 +18,8 @@ const broadcastWithConfirmation = (broadcaster, gameId, event, data) => {
     _meta: {
       id: messageId,
       timestamp: Date.now(),
-      event: event
-    }
+      event: event,
+    },
   };
 
   // Store for debugging
@@ -30,7 +30,7 @@ const broadcastWithConfirmation = (broadcaster, gameId, event, data) => {
     id: messageId,
     event,
     timestamp: message._meta.timestamp,
-    dataSize: JSON.stringify(data).length
+    dataSize: JSON.stringify(data).length,
   });
 
   // Keep only last 20 messages per game
@@ -40,26 +40,24 @@ const broadcastWithConfirmation = (broadcaster, gameId, event, data) => {
   }
 
   // Safe data size calculation (handles circular references)
-  let dataSize = 'unknown';
+  let dataSize = "unknown";
   try {
     const serialized = JSON.stringify(data);
-    dataSize = serialized ? `${serialized.length} chars` : 'circular';
+    dataSize = serialized ? `${serialized.length} chars` : "circular";
   } catch (e) {
-    dataSize = 'non-serializable';
+    dataSize = "non-serializable";
   }
 
   console.log(`📤 [WS-SEND] ${event} to game ${gameId}:`, {
     messageId,
     dataSummary: dataSize,
-    players: data.players?.length || 'unknown',
-    timestamp: new Date().toISOString()
+    players: data.players?.length || "unknown",
+    timestamp: new Date().toISOString(),
   });
 
   // Actually broadcast based on event type
-  if (event === 'game-update') {
+  if (event === "game-update") {
     broadcaster.broadcastGameUpdate(gameId, message);
-  } else if (event === 'game-over') {
-    broadcaster.broadcastGameOver(gameId, data); // Don't modify game-over data structure
   } else {
     console.warn(`⚠️ [WS-SEND] Unknown event type: ${event}`);
   }
@@ -69,7 +67,7 @@ const broadcastWithConfirmation = (broadcaster, gameId, event, data) => {
 
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, matchmaking, broadcaster) {
-    this.logger = createLogger('GameCoordinatorService');
+    this.logger = createLogger("GameCoordinatorService");
     this.gameManager = gameManager;
     this.actionRouter = actionRouter;
     this.matchmaking = matchmaking;
@@ -82,95 +80,55 @@ class GameCoordinatorService {
   async handleGameAction(socket, data) {
     const gameId = this.matchmaking.getGameId(socket.id);
     if (!gameId) {
-      this.broadcaster.sendError(socket, 'Not in an active game');
+      this.broadcaster.sendError(socket, "Not in an active game");
       return;
     }
 
     // Find player's index in the game
     const playerIndex = this.gameManager.getPlayerIndex(gameId, socket.id);
     if (playerIndex === null) {
-      this.broadcaster.sendError(socket, 'Player not found in game');
+      this.broadcaster.sendError(socket, "Player not found in game");
       return;
     }
 
     try {
-      this.logger.info(`Routing action ${data.type} from Player ${playerIndex} in game ${gameId}`);
+      this.logger.info(
+        `Routing action ${data.type} from Player ${playerIndex} in game ${gameId}`,
+      );
 
       // Route through ActionRouter
-      console.log('[DEBUG-SERVER] Executing action via ActionRouter:', {
+      console.log("[DEBUG-SERVER] Executing action via ActionRouter:", {
         gameId,
         playerIndex,
         actionType: data.type,
         payloadKeys: Object.keys(data.payload || {}),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
-      const newGameState = await this.actionRouter.executeAction(gameId, playerIndex, data);
+      const newGameState = await this.actionRouter.executeAction(
+        gameId,
+        playerIndex,
+        data,
+      );
 
-      console.log('[DEBUG-SERVER] Action executed successfully:', {
+      console.log("[DEBUG-SERVER] Action executed successfully:", {
         gameId,
         actionType: data.type,
-        tableCardsBefore: this.gameManager.getGameState(gameId)?.tableCards?.length || 0,
+        tableCardsBefore:
+          this.gameManager.getGameState(gameId)?.tableCards?.length || 0,
         tableCardsAfter: newGameState.tableCards?.length || 0,
         broadcastingToClients: true,
         gameOver: newGameState.gameOver || false,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
-      // Check if game just ended
-      if (newGameState.gameOver) {
-        // 🎯 DELAY GAME OVER FOR CAPTURE ACTIONS - Allow client to show capture animation
-        const shouldDelayGameOver = data.type === 'capture' || data.type === 'execute-action';
-
-        if (shouldDelayGameOver) {
-          console.log('[GAME-OVER] 🎯 Delaying game over broadcast for 3 seconds (capture animation)...');
-
-          setTimeout(() => {
-            console.log('[GAME-OVER] ⏰ Delay complete, now broadcasting game over');
-
-            const gameOverData = {
-              winner: newGameState.winner,
-              scores: newGameState.finalScores,
-              winnerScore: Math.max(...newGameState.finalScores),
-              loserScore: Math.min(...newGameState.finalScores),
-              lastCapturer: newGameState.lastCapturer,
-              finalCaptures: newGameState.scoreDetails?.finalCaptures || { player0: [], player1: [] }
-            };
-
-            broadcastWithConfirmation(this.broadcaster, gameId, 'game-over', gameOverData);
-
-            console.log('[GAME-OVER] 🎉 Game ended! Broadcasting final results:', {
-              gameId,
-              winner: newGameState.winner,
-              scores: newGameState.finalScores,
-              timestamp: new Date().toISOString()
-            });
-          }, 3000); // 3 second delay for capture animations
-        } else {
-          // Immediate game over for non-capture actions (like trails that end round 1)
-          const gameOverData = {
-            winner: newGameState.winner,
-            scores: newGameState.finalScores,
-            winnerScore: Math.max(...newGameState.finalScores),
-            loserScore: Math.min(...newGameState.finalScores),
-            lastCapturer: newGameState.lastCapturer,
-            finalCaptures: newGameState.scoreDetails?.finalCaptures || { player0: [], player1: [] }
-          };
-
-          broadcastWithConfirmation(this.broadcaster, gameId, 'game-over', gameOverData);
-
-          console.log('[GAME-OVER] 🎉 Game ended! Broadcasting final results:', {
-            gameId,
-            winner: newGameState.winner,
-            scores: newGameState.finalScores,
-            timestamp: new Date().toISOString()
-          });
-        }
-      } else {
-        // Broadcast normal game state update
-        broadcastWithConfirmation(this.broadcaster, gameId, 'game-update', newGameState);
-      }
-
+      // Broadcast normal game state update
+      broadcastWithConfirmation(
+        this.broadcaster,
+        gameId,
+        "game-update",
+        newGameState,
+      );
     } catch (error) {
       this.logger.error(`Action failed:`, error);
       this.broadcaster.sendError(socket, error.message);
@@ -181,106 +139,137 @@ class GameCoordinatorService {
    * Handle card drop action coordination
    */
   async handleCardDrop(socket, data) {
-    console.log('[SERVER] card-drop received', {
+    console.log("[SERVER] card-drop received", {
       playerId: data.draggedItem.player,
       draggedSource: data.draggedItem.source,
       targetType: data.targetInfo.type,
       draggedCardId: data.draggedItem.card.id,
-      targetCardId: data.targetInfo.card?.id
+      targetCardId: data.targetInfo.card?.id,
     });
 
     const gameId = this.matchmaking.getGameId(socket.id);
     if (!gameId) {
-      this.logger.error('[STAGING_DEBUG] ❌ CARD_DROP: Not in active game', {
+      this.logger.error("[STAGING_DEBUG] ❌ CARD_DROP: Not in active game", {
         socketId: socket.id,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-      this.broadcaster.sendError(socket, 'Not in an active game');
+      this.broadcaster.sendError(socket, "Not in an active game");
       return;
     }
 
     // 🔍 [DEBUG] Log incoming client data
-    this.logger.info('[STAGING_DEBUG] 📨 CLIENT PAYLOAD RECEIVED - card-drop:', {
-      socketId: socket.id,
-      gameId: gameId,
-      requestId: data.requestId,
-      draggedItem: {
-        card: data.draggedItem.card ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit} (val:${data.draggedItem.card.value})` : 'no card',
-        source: data.draggedItem.source,
-        player: data.draggedItem.player
+    this.logger.info(
+      "[STAGING_DEBUG] 📨 CLIENT PAYLOAD RECEIVED - card-drop:",
+      {
+        socketId: socket.id,
+        gameId: gameId,
+        requestId: data.requestId,
+        draggedItem: {
+          card: data.draggedItem.card
+            ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit} (val:${data.draggedItem.card.value})`
+            : "no card",
+          source: data.draggedItem.source,
+          player: data.draggedItem.player,
+        },
+        targetInfo: {
+          type: data.targetInfo.type,
+          card: data.targetInfo.card
+            ? `${data.targetInfo.card.rank}${data.targetInfo.card.suit} (val:${data.targetInfo.card.value})`
+            : "no card",
+          index: data.targetInfo.index,
+          draggedSource: data.targetInfo.draggedSource,
+        },
+        isStagingCandidate:
+          data.draggedItem.source === "hand" &&
+          data.targetInfo.type === "loose",
+        timestamp: new Date().toISOString(),
       },
-      targetInfo: {
-        type: data.targetInfo.type,
-        card: data.targetInfo.card ? `${data.targetInfo.card.rank}${data.targetInfo.card.suit} (val:${data.targetInfo.card.value})` : 'no card',
-        index: data.targetInfo.index,
-        draggedSource: data.targetInfo.draggedSource
-      },
-      isStagingCandidate: (data.draggedItem.source === 'hand' && data.targetInfo.type === 'loose'),
-      timestamp: new Date().toISOString()
-    });
+    );
 
     // Find player's index in the game
     const playerIndex = this.gameManager.getPlayerIndex(gameId, socket.id);
     if (playerIndex === null) {
-      this.logger.error('[STAGING_DEBUG] ❌ CARD_DROP: Player not found in game', {
-        socketId: socket.id,
-        gameId: gameId,
-        timestamp: new Date().toISOString()
-      });
-      this.broadcaster.sendError(socket, 'Player not found in game');
+      this.logger.error(
+        "[STAGING_DEBUG] ❌ CARD_DROP: Player not found in game",
+        {
+          socketId: socket.id,
+          gameId: gameId,
+          timestamp: new Date().toISOString(),
+        },
+      );
+      this.broadcaster.sendError(socket, "Player not found in game");
       return;
     }
 
-    this.logger.info('[STAGING_DEBUG] 👤 PLAYER VALIDATED:', {
+    this.logger.info("[STAGING_DEBUG] 👤 PLAYER VALIDATED:", {
       socketId: socket.id,
       gameId: gameId,
       playerIndex: playerIndex,
-      proceedingToDetermineActions: true
+      proceedingToDetermineActions: true,
     });
 
     try {
       // 🔍 DEBUG: Log what we're sending to determineActions
-      this.logger.info('[STAGING_DEBUG] 🎯 CALLING determineActions with:', {
+      this.logger.info("[STAGING_DEBUG] 🎯 CALLING determineActions with:", {
         gameId,
         playerIndex,
         draggedItem: {
-          card: data.draggedItem.card ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit}` : 'no card',
+          card: data.draggedItem.card
+            ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit}`
+            : "no card",
           source: data.draggedItem.source,
-          player: data.draggedItem.player
+          player: data.draggedItem.player,
         },
         targetInfo: {
           type: data.targetInfo.type,
-          card: data.targetInfo.card ? `${data.targetInfo.card.rank}${data.targetInfo.card.suit}` : 'no card',
+          card: data.targetInfo.card
+            ? `${data.targetInfo.card.rank}${data.targetInfo.card.suit}`
+            : "no card",
           index: data.targetInfo.index,
-          draggedSource: data.targetInfo.draggedSource
+          draggedSource: data.targetInfo.draggedSource,
         },
-        stagingExpected: (data.draggedItem.source === 'hand' && data.targetInfo.type === 'loose')
+        stagingExpected:
+          data.draggedItem.source === "hand" &&
+          data.targetInfo.type === "loose",
       });
 
       // Use GameManager's determineActions (which will delegate to logic module)
-      const result = this.gameManager.determineActions(gameId, data.draggedItem, data.targetInfo);
+      const result = this.gameManager.determineActions(
+        gameId,
+        data.draggedItem,
+        data.targetInfo,
+      );
 
-      this.logger.info('[STAGING_DEBUG] 📋 determineActions RESULT:', {
+      this.logger.info("[STAGING_DEBUG] 📋 determineActions RESULT:", {
         gameId,
         playerIndex,
         hasActions: result.actions?.length > 0,
         actionCount: result.actions?.length || 0,
         requiresModal: result.requiresModal,
         errorMessage: result.errorMessage,
-        actionTypes: result.actions?.map(a => a.type) || [],
-        isStagingAction: result.actions?.some(a => a.type === 'tableCardDrop'),
-        timestamp: new Date().toISOString()
+        actionTypes: result.actions?.map((a) => a.type) || [],
+        isStagingAction: result.actions?.some(
+          (a) => a.type === "tableCardDrop",
+        ),
+        timestamp: new Date().toISOString(),
       });
 
       if (result.errorMessage) {
-        this.logger.error('[STAGING_DEBUG] ❌ CARD_DROP BLOCKED by determineActions:', {
-          gameId,
-          playerIndex,
-          errorMessage: result.errorMessage,
-          draggedCard: data.draggedItem.card ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit}` : 'no card',
-          targetCard: data.targetInfo.card ? `${data.targetInfo.card.rank}${data.targetInfo.card.suit}` : 'no card',
-          timestamp: new Date().toISOString()
-        });
+        this.logger.error(
+          "[STAGING_DEBUG] ❌ CARD_DROP BLOCKED by determineActions:",
+          {
+            gameId,
+            playerIndex,
+            errorMessage: result.errorMessage,
+            draggedCard: data.draggedItem.card
+              ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit}`
+              : "no card",
+            targetCard: data.targetInfo.card
+              ? `${data.targetInfo.card.rank}${data.targetInfo.card.suit}`
+              : "no card",
+            timestamp: new Date().toISOString(),
+          },
+        );
         this.broadcaster.sendError(socket, result.errorMessage);
         return;
       }
@@ -288,119 +277,147 @@ class GameCoordinatorService {
       // 🎯 NEW: Check for data packets first (like showTempStackOptions)
       if (result.dataPackets && result.dataPackets.length > 0) {
         // Send data packets to frontend instead of executing as actions
-        this.logger.info('[STAGING_DEBUG] 📦 SENDING DATA PACKETS TO CLIENT:', {
+        this.logger.info("[STAGING_DEBUG] 📦 SENDING DATA PACKETS TO CLIENT:", {
           gameId,
           playerIndex,
           dataPacketCount: result.dataPackets.length,
-          dataPacketTypes: result.dataPackets.map(dp => dp.type),
+          dataPacketTypes: result.dataPackets.map((dp) => dp.type),
           requestId: data.requestId,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
 
         // Send each data packet to the client
-        result.dataPackets.forEach(dataPacket => {
-          if (dataPacket.type === 'showTempStackOptions') {
+        result.dataPackets.forEach((dataPacket) => {
+          if (dataPacket.type === "showTempStackOptions") {
             // Send temp stack options for modal display
-            this.broadcaster.sendTempStackOptions(socket, dataPacket.payload, data.requestId);
+            this.broadcaster.sendTempStackOptions(
+              socket,
+              dataPacket.payload,
+              data.requestId,
+            );
           }
         });
-
       } else if (result.actions.length === 1 && !result.requiresModal) {
         // Auto-execute single action
         const actionToExecute = result.actions[0];
-        this.logger.info('[STAGING_DEBUG] ⚡ AUTO-EXECUTING SINGLE ACTION:', {
+        this.logger.info("[STAGING_DEBUG] ⚡ AUTO-EXECUTING SINGLE ACTION:", {
           gameId,
           playerIndex,
           actionType: actionToExecute.type,
-          isStagingAction: actionToExecute.type === 'tableCardDrop',
-          draggedCard: data.draggedItem.card ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit}` : 'no card',
-          targetCard: data.targetInfo.card ? `${data.targetInfo.card.rank}${data.targetInfo.card.suit}` : 'no card',
-          proceedingToActionRouter: true
+          isStagingAction: actionToExecute.type === "tableCardDrop",
+          draggedCard: data.draggedItem.card
+            ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit}`
+            : "no card",
+          targetCard: data.targetInfo.card
+            ? `${data.targetInfo.card.rank}${data.targetInfo.card.suit}`
+            : "no card",
+          proceedingToActionRouter: true,
         });
 
         // ✅ FIX: Inject gameId into action payload before execution
         // Remove undefined gameId from client payload first
-        const { gameId: undefinedGameId, ...cleanPayload } = actionToExecute.payload;
+        const { gameId: undefinedGameId, ...cleanPayload } =
+          actionToExecute.payload;
 
         const finalActionToExecute = {
           type: actionToExecute.type,
           payload: {
-            ...cleanPayload,  // Clean payload without undefined gameId
-            gameId  // 🔧 Add the correct gameId
-          }
+            ...cleanPayload, // Clean payload without undefined gameId
+            gameId, // 🔧 Add the correct gameId
+          },
         };
 
-        this.logger.info('[STAGING_DEBUG] 🚀 EXECUTING ACTION VIA ActionRouter:', {
+        this.logger.info(
+          "[STAGING_DEBUG] 🚀 EXECUTING ACTION VIA ActionRouter:",
+          {
+            gameId,
+            playerIndex,
+            actionType: finalActionToExecute.type,
+            payloadKeys: Object.keys(finalActionToExecute.payload),
+            hasGameId: !!finalActionToExecute.payload.gameId,
+            timestamp: new Date().toISOString(),
+          },
+        );
+
+        const newGameState = await this.actionRouter.executeAction(
           gameId,
           playerIndex,
-          actionType: finalActionToExecute.type,
-          payloadKeys: Object.keys(finalActionToExecute.payload),
-          hasGameId: !!finalActionToExecute.payload.gameId,
-          timestamp: new Date().toISOString()
-        });
+          finalActionToExecute,
+        );
 
-        const newGameState = await this.actionRouter.executeAction(gameId, playerIndex, finalActionToExecute);
-
-        this.logger.info('[STAGING_DEBUG] ✅ ACTION EXECUTED SUCCESSFULLY:', {
+        this.logger.info("[STAGING_DEBUG] ✅ ACTION EXECUTED SUCCESSFULLY:", {
           gameId,
           playerIndex,
           actionType: finalActionToExecute.type,
           newCurrentPlayer: newGameState.currentPlayer,
-          tableCardCountBefore: this.gameManager.getGameState(gameId).tableCards.length,
+          tableCardCountBefore:
+            this.gameManager.getGameState(gameId).tableCards.length,
           tableCardCountAfter: newGameState.tableCards.length,
           broadcastingToClients: true,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
 
         // Broadcast to all game players
-        broadcastWithConfirmation(this.broadcaster, gameId, 'game-update', newGameState);
-
+        broadcastWithConfirmation(
+          this.broadcaster,
+          gameId,
+          "game-update",
+          newGameState,
+        );
       } else if (result.actions.length > 0) {
         // Send action choices to client for modal selection
-        this.logger.info('[STAGING_DEBUG] 📤 SENDING ACTION CHOICES TO CLIENT:', {
-          gameId,
-          playerIndex,
-          actionCount: result.actions.length,
-          actionTypes: result.actions.map(a => a.type),
-          requestId: data.requestId,
-          requiresModal: true,
-          timestamp: new Date().toISOString()
-        });
-        this.broadcaster.sendActionChoices(socket, result.actions, data.requestId);
+        this.logger.info(
+          "[STAGING_DEBUG] 📤 SENDING ACTION CHOICES TO CLIENT:",
+          {
+            gameId,
+            playerIndex,
+            actionCount: result.actions.length,
+            actionTypes: result.actions.map((a) => a.type),
+            requestId: data.requestId,
+            requiresModal: true,
+            timestamp: new Date().toISOString(),
+          },
+        );
+        this.broadcaster.sendActionChoices(
+          socket,
+          result.actions,
+          data.requestId,
+        );
       } else {
-        this.logger.warn('[STAGING_DEBUG] ⚠️ NO VALID ACTIONS FOUND:', {
+        this.logger.warn("[STAGING_DEBUG] ⚠️ NO VALID ACTIONS FOUND:", {
           gameId,
           playerIndex,
-          draggedCard: data.draggedItem.card ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit}` : 'no card',
+          draggedCard: data.draggedItem.card
+            ? `${data.draggedItem.card.rank}${data.draggedItem.card.suit}`
+            : "no card",
           targetType: data.targetInfo.type,
           sendingErrorToClient: true,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
-
     } catch (error) {
       // 🚨 [DEBUG] Log full error details for debugging
-      this.logger.error('FULL ERROR DETAILS - card-drop:', {
-        event: 'card-drop',
+      this.logger.error("FULL ERROR DETAILS - card-drop:", {
+        event: "card-drop",
         gameId,
         playerIndex,
         socketId: socket.id,
         input: {
           draggedItem: data.draggedItem,
           targetInfo: data.targetInfo,
-          requestId: data.requestId
+          requestId: data.requestId,
         },
         error: {
           message: error.message,
           stack: error.stack,
-          type: error.type || 'UNKNOWN_ERROR',
-          originalError: error.originalError
+          type: error.type || "UNKNOWN_ERROR",
+          originalError: error.originalError,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       this.logger.error(`Card drop failed:`, error);
-      this.broadcaster.sendError(socket, 'Invalid move');
+      this.broadcaster.sendError(socket, "Invalid move");
     }
   }
 
@@ -410,87 +427,108 @@ class GameCoordinatorService {
   async handleExecuteAction(socket, data) {
     const gameId = this.matchmaking.getGameId(socket.id);
     if (!gameId) {
-      this.broadcaster.sendError(socket, 'Not in an active game');
+      this.broadcaster.sendError(socket, "Not in an active game");
       return;
     }
 
     // Find player's index in the game
     const playerIndex = this.gameManager.getPlayerIndex(gameId, socket.id);
     if (playerIndex === null) {
-      this.broadcaster.sendError(socket, 'Player not found in game');
+      this.broadcaster.sendError(socket, "Player not found in game");
       return;
     }
 
     // 🔍 [DEBUG] Log incoming client data for manual action selections
-    this.logger.info('EXECUTE-ACTION RECEIVED:', {
+    this.logger.info("EXECUTE-ACTION RECEIVED:", {
       socketId: socket.id,
       gameId: gameId,
       playerIndex: playerIndex,
       actionType: data.action?.type,
       payloadKeys: data.action?.payload ? Object.keys(data.action.payload) : [],
-      cardInfo: data.action?.payload?.card ? `${data.action.payload.card.rank}${data.action.payload.card.suit}` : 'no card',
-      timestamp: new Date().toISOString()
+      cardInfo: data.action?.payload?.card
+        ? `${data.action.payload.card.rank}${data.action.payload.card.suit}`
+        : "no card",
+      timestamp: new Date().toISOString(),
     });
 
-    this.logger.debug('CLIENT PAYLOAD - execute-action:', JSON.stringify({
-      socketId: socket.id,
-      gameId: gameId,
-      action: data.action,
-      timestamp: new Date().toISOString()
-    }, null, 2));
+    this.logger.debug(
+      "CLIENT PAYLOAD - execute-action:",
+      JSON.stringify(
+        {
+          socketId: socket.id,
+          gameId: gameId,
+          action: data.action,
+          timestamp: new Date().toISOString(),
+        },
+        null,
+        2,
+      ),
+    );
 
     try {
       // ✅ FIX: Inject gameId into action payload for manual selections
       const actionToExecute = {
         type: data.action.type,
         payload: {
-          gameId,  // 🔧 Add gameId for manual action selections
-          ...data.action.payload
-        }
+          gameId, // 🔧 Add gameId for manual action selections
+          ...data.action.payload,
+        },
       };
 
-      this.logger.info('EXECUTE-ACTION PROCESSED:', {
+      this.logger.info("EXECUTE-ACTION PROCESSED:", {
         gameId: gameId,
         playerIndex: playerIndex,
         finalActionType: actionToExecute.type,
         payloadKeys: Object.keys(actionToExecute.payload),
-        cardInfo: actionToExecute.payload?.card ? `${actionToExecute.payload.card.rank}${actionToExecute.payload.card.suit}` : 'no card'
+        cardInfo: actionToExecute.payload?.card
+          ? `${actionToExecute.payload.card.rank}${actionToExecute.payload.card.suit}`
+          : "no card",
       });
 
-      const newGameState = await this.actionRouter.executeAction(gameId, playerIndex, actionToExecute);
+      const newGameState = await this.actionRouter.executeAction(
+        gameId,
+        playerIndex,
+        actionToExecute,
+      );
 
-      this.logger.info('EXECUTE-ACTION COMPLETED SUCCESSFULLY:', {
+      this.logger.info("EXECUTE-ACTION COMPLETED SUCCESSFULLY:", {
         gameId: gameId,
         actionType: actionToExecute.type,
         currentPlayer: newGameState.currentPlayer,
-        tableCardCount: newGameState.tableCards?.length || 0
+        tableCardCount: newGameState.tableCards?.length || 0,
       });
 
       // Broadcast to all game players
-      broadcastWithConfirmation(this.broadcaster, gameId, 'game-update', newGameState);
-
+      broadcastWithConfirmation(
+        this.broadcaster,
+        gameId,
+        "game-update",
+        newGameState,
+      );
     } catch (error) {
       // 🚨 [DEBUG] Log full error details for debugging
-      this.logger.error('FULL ERROR DETAILS - execute-action:', {
-        event: 'execute-action',
+      this.logger.error("FULL ERROR DETAILS - execute-action:", {
+        event: "execute-action",
         gameId,
         playerIndex,
         socketId: socket.id,
         input: {
           actionType: data.action?.type,
-          payloadKeys: data.action?.payload ? Object.keys(data.action.payload) : []
+          payloadKeys: data.action?.payload
+            ? Object.keys(data.action.payload)
+            : [],
         },
         error: {
           message: error.message,
           stack: error.stack,
-          type: error.type || 'UNKNOWN_ERROR',
-          originalError: error.originalError
+          type: error.type || "UNKNOWN_ERROR",
+          originalError: error.originalError,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       this.logger.error(`Execute action failed:`, error);
-      this.broadcaster.sendError(socket, 'Action failed');
+      this.broadcaster.sendError(socket, "Action failed");
     }
   }
 
@@ -500,12 +538,12 @@ class GameCoordinatorService {
   validatePlayerInGame(socket) {
     const gameId = this.matchmaking.getGameId(socket.id);
     if (!gameId) {
-      return { valid: false, error: 'Not in an active game' };
+      return { valid: false, error: "Not in an active game" };
     }
 
     const playerIndex = this.gameManager.getPlayerIndex(gameId, socket.id);
     if (playerIndex === null) {
-      return { valid: false, error: 'Player not found in game' };
+      return { valid: false, error: "Player not found in game" };
     }
 
     return { valid: true, gameId, playerIndex };

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { io } from 'socket.io-client';
+import { useEffect, useMemo, useState } from "react";
+import { io } from "socket.io-client";
 
 interface GameState {
   deck: any[];
@@ -9,13 +9,19 @@ interface GameState {
   currentPlayer: number;
   round: number;
   scores: number[];
-  gameOver: boolean;
-  winner: number | null;
+  turnCounter: number;
   lastCapturer: number | null;
-  scoreDetails: any;
+  turn40Analysis?: {
+    turnCounter: number;
+    tableCardsCount: number;
+    lastCapturer: number | null;
+    currentPlayer: number;
+    playerCaptures: { player: number; cards: number }[];
+  };
 }
 
-const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || "http://localhost:3001";
+const SOCKET_URL =
+  process.env.EXPO_PUBLIC_SOCKET_URL || "http://localhost:3001";
 
 export const useSocket = () => {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -41,12 +47,12 @@ export const useSocket = () => {
 
     socketInstance.onAny((eventName, ...args) => {
       // Safe data length calculation (handles circular references)
-      let dataLength = 'unknown';
+      let dataLength = "unknown";
       try {
         const serialized = JSON.stringify(args[0]);
-        dataLength = serialized ? `${serialized.length} chars` : 'circular';
+        dataLength = serialized ? `${serialized.length} chars` : "circular";
       } catch (e) {
-        dataLength = 'non-serializable';
+        dataLength = "non-serializable";
       }
 
       console.log(`📨 [WS-RECEIVE] ${eventName}:`, {
@@ -54,26 +60,29 @@ export const useSocket = () => {
         dataLength,
         hasGameState: !!args[0]?.gameState,
         hasMeta: !!args[0]?._meta,
-        messageId: args[0]?._meta?.id || 'none'
+        messageId: args[0]?._meta?.id || "none",
       });
     });
 
-    socketInstance.on('connect', () => {
-      console.log('✅ [WS] Connected to server');
+    socketInstance.on("connect", () => {
+      console.log("✅ [WS] Connected to server");
       setIsConnected(true);
     });
 
-    socketInstance.on('game-start', (data: { gameState: GameState; playerNumber: number }) => {
-      setGameState(data.gameState);
-      setPlayerNumber(data.playerNumber);
-    });
+    socketInstance.on(
+      "game-start",
+      (data: { gameState: GameState; playerNumber: number }) => {
+        setGameState(data.gameState);
+        setPlayerNumber(data.playerNumber);
+      },
+    );
 
     // ============================================================================
     // GAME UPDATE HANDLING - Support both old and new message formats
     // ============================================================================
     let lastServerUpdate = 0;
 
-    socketInstance.on('game-update', (data: any) => {
+    socketInstance.on("game-update", (data: any) => {
       const now = Date.now();
       const serverTime = data._meta?.timestamp || now;
 
@@ -84,10 +93,10 @@ export const useSocket = () => {
 
       // Detect stale updates
       if (serverTime < lastServerUpdate) {
-        console.warn('⚠️ [WS] Received stale update:', {
+        console.warn("⚠️ [WS] Received stale update:", {
           serverTime,
           lastUpdate: lastServerUpdate,
-          difference: lastServerUpdate - serverTime
+          difference: lastServerUpdate - serverTime,
         });
       }
 
@@ -96,34 +105,46 @@ export const useSocket = () => {
       // Check if this update makes sense
       const isConsistent = checkStateConsistency(gameStateUpdate, gameState);
       if (!isConsistent) {
-        console.error('🚨 [WS] Inconsistent state detected! Requesting sync...');
-        socketInstance.emit('request-sync', {
+        console.error(
+          "🚨 [WS] Inconsistent state detected! Requesting sync...",
+        );
+        socketInstance.emit("request-sync", {
           playerNumber,
-          reason: 'state_inconsistency',
-          clientState: gameState
+          reason: "state_inconsistency",
+          clientState: gameState,
         });
       } else {
         setGameState(gameStateUpdate);
+
+        // Log turn counter information (delayed to appear last)
+        setTimeout(() => {
+          console.log(
+            `🎯 TURN COUNTER: ${gameStateUpdate.turnCounter} - Current Player: P${gameStateUpdate.currentPlayer + 1} (${gameStateUpdate.currentPlayer})`,
+          );
+        }, 0);
       }
     });
 
     // Handle sync responses
-    socketInstance.on('game-state-sync', (data: any) => {
-      console.log('🔄 [SYNC] Received full state sync:', {
+    socketInstance.on("game-state-sync", (data: any) => {
+      console.log("🔄 [SYNC] Received full state sync:", {
         reason: data.reason,
         differences: data.differences,
-        serverTime: data.serverTime
+        serverTime: data.serverTime,
       });
 
       // Always update to server state on sync
       setGameState(data.gameState);
     });
 
-    socketInstance.on('sync-error', (error: any) => {
-      console.error('❌ [SYNC] Sync error:', error);
+    socketInstance.on("sync-error", (error: any) => {
+      console.error("❌ [SYNC] Sync error:", error);
     });
 
-    function checkStateConsistency(newState: GameState, currentState: GameState | null) {
+    function checkStateConsistency(
+      newState: GameState,
+      currentState: GameState | null,
+    ) {
       if (!currentState) return true;
 
       // Basic sanity checks
@@ -132,7 +153,11 @@ export const useSocket = () => {
       // Shouldn't lose cards magically
       currentState.playerHands?.forEach((hand, idx) => {
         const newHand = newState.playerHands?.[idx];
-        if (hand.length > 0 && newHand?.length === 0 && currentState.currentPlayer === idx) {
+        if (
+          hand.length > 0 &&
+          newHand?.length === 0 &&
+          currentState.currentPlayer === idx
+        ) {
           // Player had cards, now has none - could be valid (they played them)
           // But log it for debugging
           console.log(`📝 Player ${idx} emptied hand`);
@@ -140,61 +165,68 @@ export const useSocket = () => {
       });
 
       // Turn should only advance by 1 or stay same
-      const turnDiff = Math.abs(newState.currentPlayer - currentState.currentPlayer);
-      if (turnDiff > 1 && turnDiff !== 1) { // Allow 0 (same) or 1 (next)
-        issues.push(`Turn jumped from ${currentState.currentPlayer} to ${newState.currentPlayer}`);
+      const turnDiff = Math.abs(
+        newState.currentPlayer - currentState.currentPlayer,
+      );
+      if (turnDiff > 1 && turnDiff !== 1) {
+        // Allow 0 (same) or 1 (next)
+        issues.push(
+          `Turn jumped from ${currentState.currentPlayer} to ${newState.currentPlayer}`,
+        );
       }
 
       return issues.length === 0;
     }
 
-    socketInstance.on('error', (error: { message: string }) => {
+    socketInstance.on("error", (error: { message: string }) => {
       setError(error);
     });
 
-    socketInstance.on('disconnect', (reason) => {
+    socketInstance.on("disconnect", (reason) => {
       // Disconnect handler - optimized for production
     });
 
-    socketInstance.on('connect_error', (error) => {
+    socketInstance.on("connect_error", (error) => {
       console.error(`Connection error:`, error.message || error);
     });
 
-    socketInstance.on('reconnect', (attemptNumber) => {
+    socketInstance.on("reconnect", (attemptNumber) => {
       // Reconnect handler - optimized for production
     });
 
-    socketInstance.on('reconnect_attempt', (attemptNumber) => {
+    socketInstance.on("reconnect_attempt", (attemptNumber) => {
       // Reconnect attempt handler - optimized for production
     });
 
-    socketInstance.on('reconnect_error', (error) => {
+    socketInstance.on("reconnect_error", (error) => {
       console.error(`Reconnect error:`, error.message || error);
     });
 
-    socketInstance.on('build-options', (options: any) => {
+    socketInstance.on("build-options", (options: any) => {
       setBuildOptions(options);
     });
 
-    socketInstance.on('action-choices', (data: any) => {
+    socketInstance.on("action-choices", (data: any) => {
       setActionChoices({
         requestId: data.requestId,
         actions: data.actions.map((action: any) => ({
           type: action.type,
           label: action.label,
-          payload: action.payload
-        }))
+          payload: action.payload,
+        })),
       });
     });
 
-    socketInstance.on('action-failed', (data: any) => {
-      if (data.resetCard && typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('cardDragFailed', {
-          detail: {
-            card: data.resetCard,
-            reason: data.error
-          }
-        }));
+    socketInstance.on("action-failed", (data: any) => {
+      if (data.resetCard && typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("cardDragFailed", {
+            detail: {
+              card: data.resetCard,
+              reason: data.error,
+            },
+          }),
+        );
       }
     });
 
@@ -208,12 +240,12 @@ export const useSocket = () => {
       return;
     }
 
-    if (action.type === 'card-drop') {
-      socketInstance.emit('card-drop', action.payload);
-    } else if (action.type === 'execute-action') {
-      socketInstance.emit('execute-action', { action: action.payload });
+    if (action.type === "card-drop") {
+      socketInstance.emit("card-drop", action.payload);
+    } else if (action.type === "execute-action") {
+      socketInstance.emit("execute-action", { action: action.payload });
     } else {
-      socketInstance.emit('game-action', action);
+      socketInstance.emit("game-action", action);
     }
   };
 
@@ -225,5 +257,15 @@ export const useSocket = () => {
     setError(null);
   };
 
-  return { gameState, playerNumber, sendAction, buildOptions, clearBuildOptions, actionChoices, error, clearError, socket: socketInstance };
+  return {
+    gameState,
+    playerNumber,
+    sendAction,
+    buildOptions,
+    clearBuildOptions,
+    actionChoices,
+    error,
+    clearError,
+    socket: socketInstance,
+  };
 };
