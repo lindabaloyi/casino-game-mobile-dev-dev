@@ -147,6 +147,7 @@ function initializeGame() {
     round: 1,
     scores: [0, 0],
     turnCounter: 1,
+    turnCompletionFlags: [], // Array tracking completion status for each turn (index 0 = turn 1, etc.)
     lastCapturer: null,
   };
 }

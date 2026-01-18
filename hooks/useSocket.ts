@@ -10,6 +10,7 @@ interface GameState {
   round: number;
   scores: number[];
   turnCounter: number;
+  turnCompletionFlags: boolean[];
   lastCapturer: number | null;
   turn40Analysis?: {
     turnCounter: number;
@@ -17,6 +18,19 @@ interface GameState {
     lastCapturer: number | null;
     currentPlayer: number;
     playerCaptures: { player: number; cards: number }[];
+    turnCompletionStats?: {
+      totalTurnsTracked: number;
+      completedTurns: number;
+      incompleteTurns: number;
+      completionRate: string;
+      turnCompletionFlags: boolean[];
+    };
+  };
+  cleanupAction?: {
+    type: string;
+    cardsAwarded: number;
+    awardedToPlayer: number;
+    timestamp: number;
   };
 }
 
@@ -74,6 +88,16 @@ export const useSocket = () => {
       (data: { gameState: GameState; playerNumber: number }) => {
         setGameState(data.gameState);
         setPlayerNumber(data.playerNumber);
+
+        // Initialize turn tracking for game start
+        lastTurnCounter = data.gameState.turnCounter;
+        lastTurnCompleted = false;
+
+        // Log initial turn 1 start when game begins
+        console.log(
+          `🎯 TURN COUNTER: ${data.gameState.turnCounter} - Current Player: P${data.gameState.currentPlayer + 1} (${data.gameState.currentPlayer})`,
+        );
+        console.log(`TurnCompletion : False - shows start of turn`);
       },
     );
 
@@ -81,6 +105,8 @@ export const useSocket = () => {
     // GAME UPDATE HANDLING - Support both old and new message formats
     // ============================================================================
     let lastServerUpdate = 0;
+    let lastTurnCounter = 0;
+    let lastTurnCompleted: boolean | null = null;
 
     socketInstance.on("game-update", (data: any) => {
       const now = Date.now();
@@ -116,12 +142,109 @@ export const useSocket = () => {
       } else {
         setGameState(gameStateUpdate);
 
-        // Log turn counter information (delayed to appear last)
-        setTimeout(() => {
+        // Check for cleanup action and provide visual feedback
+        if (gameStateUpdate.cleanupAction) {
+          const cleanup = gameStateUpdate.cleanupAction;
+          console.log(`🧹 CLEANUP ACTION DETECTED:`, {
+            type: cleanup.type,
+            cardsAwarded: cleanup.cardsAwarded,
+            awardedToPlayer: cleanup.awardedToPlayer,
+            timestamp: new Date(cleanup.timestamp).toISOString(),
+          });
+
+          // Trigger visual feedback for cleanup (custom event for UI)
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("cleanupAction", {
+                detail: {
+                  type: cleanup.type,
+                  cardsAwarded: cleanup.cardsAwarded,
+                  awardedToPlayer: cleanup.awardedToPlayer,
+                  timestamp: cleanup.timestamp,
+                },
+              }),
+            );
+          }
+        }
+
+        // Log turn counter and completion status
+        const turnCompletionFlags = gameStateUpdate.turnCompletionFlags || [];
+        const currentTurnIndex = gameStateUpdate.turnCounter - 1; // turnCounter starts at 1
+        const currentTurnCompleted = turnCompletionFlags[currentTurnIndex];
+
+        // Check if turn counter changed (new turn started)
+        if (gameStateUpdate.turnCounter !== lastTurnCounter) {
+          // First, check if the previous turn was completed
+          const previousTurnIndex = lastTurnCounter - 1; // turnCounter starts at 1
+          const previousTurnCompleted = turnCompletionFlags[previousTurnIndex];
+
+          if (previousTurnCompleted === true) {
+            console.log(
+              `🎯 TURN COUNTER: ${lastTurnCounter} - Current Player: P${gameStateUpdate.currentPlayer + 1} (${gameStateUpdate.currentPlayer})`,
+            );
+            console.log(`TurnCompletion : True - shows end of turn`);
+          }
+
+          // Then log the new turn start
           console.log(
             `🎯 TURN COUNTER: ${gameStateUpdate.turnCounter} - Current Player: P${gameStateUpdate.currentPlayer + 1} (${gameStateUpdate.currentPlayer})`,
           );
-        }, 0);
+          console.log(`TurnCompletion : False - shows start of turn`);
+          lastTurnCounter = gameStateUpdate.turnCounter;
+          lastTurnCompleted = false;
+        }
+        // Check if turn completion status changed within the same turn
+        else if (
+          currentTurnCompleted !== lastTurnCompleted &&
+          currentTurnCompleted === true
+        ) {
+          console.log(
+            `🎯 TURN COUNTER: ${gameStateUpdate.turnCounter} - Current Player: P${gameStateUpdate.currentPlayer + 1} (${gameStateUpdate.currentPlayer})`,
+          );
+          console.log(`TurnCompletion : True - shows end of turn`);
+          lastTurnCompleted = currentTurnCompleted;
+        }
+
+        // 🧹 CLIENT-SIDE CLEANUP TRIGGER: Check if turn 40 is reached
+        if (gameStateUpdate.turnCounter === 40) {
+          console.log(
+            "🎯 TURN 40 DETECTED - Checking for cleanup conditions...",
+          );
+
+          // Check cleanup conditions on client-side
+          const hasTableCards = gameStateUpdate.tableCards.length > 0;
+          const bothPlayersFinished =
+            gameStateUpdate.playerHands[0].length === 0 &&
+            gameStateUpdate.playerHands[1].length === 0;
+
+          console.log("🧹 Cleanup conditions:", {
+            hasTableCards,
+            bothPlayersFinished,
+            tableCardCount: gameStateUpdate.tableCards.length,
+            player0Cards: gameStateUpdate.playerHands[0].length,
+            player1Cards: gameStateUpdate.playerHands[1].length,
+          });
+
+          if (hasTableCards && bothPlayersFinished) {
+            console.log(
+              "🧹 Cleanup conditions met - Triggering cleanup action",
+            );
+
+            // Send cleanup action to server
+            setTimeout(() => {
+              socketInstance.emit("game-action", {
+                type: "cleanup",
+                payload: {},
+              });
+            }, 100); // Small delay to ensure UI updates first
+          } else if (!bothPlayersFinished) {
+            console.log(
+              "🧹 Cleanup conditions not met - players still have cards",
+            );
+          } else {
+            console.log("🧹 Cleanup not needed - no cards on table");
+          }
+        }
       }
     });
 

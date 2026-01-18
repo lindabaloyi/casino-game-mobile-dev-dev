@@ -170,6 +170,20 @@ class ActionRouter {
       const currentPlayerCanMove = canPlayerMove(finalGameState);
 
       if (!currentPlayerCanMove || forceTurnSwitch) {
+        // Determine if the current turn was completed
+        // - If player chose to switch (forceTurnSwitch), turn was completed
+        // - If player had no moves, turn was incomplete
+        const turnCompleted = forceTurnSwitch;
+
+        // Initialize turnCompletionFlags array if it doesn't exist (for backward compatibility)
+        if (!finalGameState.turnCompletionFlags) {
+          finalGameState.turnCompletionFlags = [];
+        }
+
+        // Record completion status for the current turn (turnCounter represents the turn that just ended)
+        const currentTurnIndex = finalGameState.turnCounter - 1; // turnCounter starts at 1, array index starts at 0
+        finalGameState.turnCompletionFlags[currentTurnIndex] = turnCompleted;
+
         const nextPlayer = (finalGameState.currentPlayer + 1) % 2;
         finalGameState.currentPlayer = nextPlayer;
 
@@ -186,6 +200,8 @@ class ActionRouter {
           {
             actionType,
             reason: forceTurnSwitch ? "forced" : "no_moves",
+            turnCompleted,
+            turnCounter: finalGameState.turnCounter,
           },
         );
       }
@@ -203,24 +219,49 @@ class ActionRouter {
           },
         );
 
-        // 4. Check for turn 40 analysis
+        // 4. Check for turn 40 analysis (cleanup now handled client-side)
         if (finalGameState.turnCounter === 40) {
+          // Get the most current game state for accurate analysis
+          const currentGameState = this.gameManager.getGameState(gameId);
+
+          // Calculate turn completion statistics
+          const turnCompletionFlags =
+            currentGameState.turnCompletionFlags || [];
+          const completedTurns = turnCompletionFlags.filter(
+            (flag) => flag === true,
+          ).length;
+          const incompleteTurns = turnCompletionFlags.filter(
+            (flag) => flag === false,
+          ).length;
+          const totalTurnsTracked = turnCompletionFlags.length;
+
           const turn40Analysis = {
             turnCounter: finalGameState.turnCounter,
-            tableCardsCount: finalGameState.tableCards.length,
-            lastCapturer: finalGameState.lastCapturer,
-            currentPlayer: finalGameState.currentPlayer,
-            playerCaptures: finalGameState.playerCaptures.map(
+            tableCardsCount: currentGameState.tableCards.length,
+            lastCapturer: currentGameState.lastCapturer,
+            currentPlayer: currentGameState.currentPlayer,
+            playerCaptures: currentGameState.playerCaptures.map(
               (captures, idx) => ({
                 player: idx,
                 cards: captures.length,
               }),
             ),
+            turnCompletionStats: {
+              totalTurnsTracked,
+              completedTurns,
+              incompleteTurns,
+              completionRate:
+                totalTurnsTracked > 0
+                  ? ((completedTurns / totalTurnsTracked) * 100).toFixed(1) +
+                    "%"
+                  : "N/A",
+              turnCompletionFlags: turnCompletionFlags.slice(0, 10), // First 10 turns for detailed logging
+            },
           };
 
           logger.info("🎯 TURN 40 GAME ANALYSIS:", turn40Analysis);
 
-          // Send analysis to client for logging
+          // Send analysis to client for logging and client-side cleanup trigger
           finalGameState.turn40Analysis = turn40Analysis;
         }
       }
