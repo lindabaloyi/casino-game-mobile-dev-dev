@@ -56,6 +56,14 @@ export const useSocket = () => {
 
   useEffect(() => {
     // ============================================================================
+    // SHARED TURN TRACKING VARIABLES - Used across both game-start and game-update
+    // ============================================================================
+    let lastTurnCounter = 0;
+    let lastTurnCompleted: boolean | null = null;
+    let lastServerUpdate = 0;
+    let loggedTurnCompletions = new Set(); // Track which turn completions we've already logged
+
+    // ============================================================================
     // WEBSOCKET MESSAGE RECEIPT LOGGING - Track client-side reception
     // ============================================================================
 
@@ -104,9 +112,6 @@ export const useSocket = () => {
     // ============================================================================
     // GAME UPDATE HANDLING - Support both old and new message formats
     // ============================================================================
-    let lastServerUpdate = 0;
-    let lastTurnCounter = 0;
-    let lastTurnCompleted: boolean | null = null;
 
     socketInstance.on("game-update", (data: any) => {
       const now = Date.now();
@@ -174,15 +179,19 @@ export const useSocket = () => {
 
         // Check if turn counter changed (new turn started)
         if (gameStateUpdate.turnCounter !== lastTurnCounter) {
-          // First, check if the previous turn was completed
+          // First, check if the previous turn was completed and not already logged
           const previousTurnIndex = lastTurnCounter - 1; // turnCounter starts at 1
           const previousTurnCompleted = turnCompletionFlags[previousTurnIndex];
 
-          if (previousTurnCompleted === true) {
+          if (
+            previousTurnCompleted === true &&
+            !loggedTurnCompletions.has(lastTurnCounter)
+          ) {
             console.log(
               `🎯 TURN COUNTER: ${lastTurnCounter} - Current Player: P${gameStateUpdate.currentPlayer + 1} (${gameStateUpdate.currentPlayer})`,
             );
             console.log(`TurnCompletion : True - shows end of turn`);
+            loggedTurnCompletions.add(lastTurnCounter);
           }
 
           // Then log the new turn start
@@ -205,10 +214,14 @@ export const useSocket = () => {
           lastTurnCompleted = currentTurnCompleted;
         }
 
-        // 🧹 CLIENT-SIDE CLEANUP TRIGGER: Check if turn 40 is reached
-        if (gameStateUpdate.turnCounter === 40) {
+        // 🧹 CLIENT-SIDE CLEANUP TRIGGER: Check if turn 40 has been completed
+        if (
+          gameStateUpdate.turnCompletionFlags &&
+          gameStateUpdate.turnCompletionFlags.length === 40 &&
+          gameStateUpdate.turnCompletionFlags[39] === true
+        ) {
           console.log(
-            "🎯 TURN 40 DETECTED - Checking for cleanup conditions...",
+            "🎯 TURN 40 COMPLETED - Checking for cleanup conditions...",
           );
 
           // Check cleanup conditions on client-side
