@@ -202,16 +202,11 @@ async function handleCapture(gameManager, playerIndex, action, gameId) {
   // 4. Track last capturer
   gameState.lastCapturer = playerIndex;
 
-  // 4. Auto-turn switch
-  const nextPlayer = (playerIndex + 1) % 2;
-  gameState.currentPlayer = nextPlayer;
-
   logger.info("Capture complete", {
     player: playerIndex,
     cardsCaptured: cardsToCapture.length,
     cards: cardsToCapture.map((c) => `${c.rank}${c.suit}`),
     captureType: tempStackId ? "tempStack" : buildId ? "build" : "direct",
-    nextPlayer: nextPlayer,
   });
 
   return gameState;

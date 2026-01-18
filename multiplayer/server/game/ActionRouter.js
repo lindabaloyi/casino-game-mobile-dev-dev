@@ -163,17 +163,21 @@ class ActionRouter {
       }
 
       // 2. Handle turn switching
-      const forceTurnSwitch =
-        actionType === "trail" ||
-        actionType === "confirmTrail" ||
-        actionType === "createBuildFromTempStack";
+      const actionsThatCompleteTurns = [
+        "trail",
+        "confirmTrail",
+        "createBuildFromTempStack",
+        "capture", // Captures complete turns
+      ];
+
+      const shouldCompleteTurn = actionsThatCompleteTurns.includes(actionType);
       const currentPlayerCanMove = canPlayerMove(finalGameState);
 
-      if (!currentPlayerCanMove || forceTurnSwitch) {
+      if (!currentPlayerCanMove || shouldCompleteTurn) {
         // Determine if the current turn was completed
-        // - If player chose to switch (forceTurnSwitch), turn was completed
+        // - If player performed an action that completes turns, turn was completed
         // - If player had no moves, turn was incomplete
-        const turnCompleted = forceTurnSwitch;
+        const turnCompleted = shouldCompleteTurn;
 
         // Initialize turnCompletionFlags array if it doesn't exist (for backward compatibility)
         if (!finalGameState.turnCompletionFlags) {
@@ -199,7 +203,7 @@ class ActionRouter {
           `Turn switched: P${finalGameState.currentPlayer} -> P${nextPlayer + 1}`,
           {
             actionType,
-            reason: forceTurnSwitch ? "forced" : "no_moves",
+            reason: shouldCompleteTurn ? "action_completed" : "no_moves",
             turnCompleted,
             turnCounter: finalGameState.turnCounter,
           },
