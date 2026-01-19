@@ -48,6 +48,8 @@ export function GameBoard({
   } | null>(null);
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [selectedTempStack, setSelectedTempStack] = useState<any>(null);
+  const [strategicModalOptions, setStrategicModalOptions] = useState<any[]>([]);
+  const [showStrategicModal, setShowStrategicModal] = useState(false);
 
   // Extracted modal management
   const modalManager = useModalManager({
@@ -62,6 +64,14 @@ export function GameBoard({
     sendAction,
     setCardToReset,
     setErrorModal: modalManager.setErrorModal,
+    setStrategicModal: (options: any[]) => {
+      console.log(
+        "🎯 [GameBoard] Strategic modal triggered with options:",
+        options,
+      );
+      setStrategicModalOptions(options);
+      setShowStrategicModal(true);
+    },
   });
 
   // Get socket from useSocket hook
@@ -456,6 +466,18 @@ export function GameBoard({
         playerHand={gameState.playerHands?.[playerNumber] || []}
         sendAction={sendAction} // REQUIRED for auto-capture
         // onCapture prop removed - now optional
+      />
+
+      {/* Strategic Capture Modal */}
+      <AcceptValidationModal
+        visible={showStrategicModal}
+        onClose={() => {
+          console.log("🔒 [GameBoard] Strategic modal closing");
+          setShowStrategicModal(false);
+          setStrategicModalOptions([]);
+        }}
+        availableOptions={strategicModalOptions}
+        sendAction={sendAction}
       />
     </SafeAreaView>
   );

@@ -1,6 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Card, GameState } from '../multiplayer/server/game-logic/game-state';
-import { useHandCardDragHandler, useOppTopCardDragHandler, useTableCardDragHandler } from './dragHandlers';
+import { useCallback, useMemo, useState } from "react";
+import { Card, GameState } from "../multiplayer/server/game-logic/game-state";
+import {
+  useHandCardDragHandler,
+  useOppTopCardDragHandler,
+  useTableCardDragHandler,
+} from "./dragHandlers";
 
 // Simplified type definitions
 interface ModalInfo {
@@ -23,68 +27,92 @@ export function useDragHandlers({
   playerNumber,
   sendAction,
   setCardToReset,
-  setErrorModal
+  setErrorModal,
+  setStrategicModal,
 }: {
   gameState: GameState;
   playerNumber: number;
   sendAction: (action: any) => void;
   setCardToReset: (card: { rank: string; suit: string } | null) => void;
   setErrorModal: (modal: ModalInfo | null) => void;
+  setStrategicModal: (options: any[]) => void;
 }) {
   // Base drag state management
   const [draggedCard, setDraggedCard] = useState<Card | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [dragTurnState, setDragTurnState] = useState<DragTurnState | null>(null);
+  const [dragTurnState, setDragTurnState] = useState<DragTurnState | null>(
+    null,
+  );
 
   const isMyTurn = useMemo(
     () => gameState.currentPlayer === playerNumber,
-    [gameState.currentPlayer, playerNumber]
+    [gameState.currentPlayer, playerNumber],
   );
 
   /**
    * Enhanced turn validation with comprehensive logging and debugging
    */
-  const validateAndLogTurn = useCallback((action: string, context?: any) => {
-    const turnState = {
+  const validateAndLogTurn = useCallback(
+    (action: string, context?: any) => {
+      const turnState = {
+        isMyTurn,
+        gameState_currentPlayer: gameState.currentPlayer,
+        playerNumber,
+        playerHandSize: gameState.playerHands[playerNumber]?.length || 0,
+        opponentHandSize:
+          gameState.playerHands[(playerNumber + 1) % 2]?.length || 0,
+        gameRound: gameState.round,
+        action,
+        context: context || {},
+        timestamp: new Date().toISOString(),
+      };
+
+      console.log("🎯 TURN_VALIDATION_DEBUG:", turnState);
+
+      if (!isMyTurn) {
+        console.error("🚨 TURN_VIOLATION_DETECTED:", {
+          ...turnState,
+          reason: "Client attempted action when not player turn",
+          serverExpectedPlayer: gameState.currentPlayer,
+          clientPlayer: playerNumber,
+        });
+      }
+
+      return isMyTurn;
+    },
+    [
       isMyTurn,
-      gameState_currentPlayer: gameState.currentPlayer,
+      gameState.currentPlayer,
+      gameState.playerHands,
+      gameState.round,
       playerNumber,
-      playerHandSize: gameState.playerHands[playerNumber]?.length || 0,
-      opponentHandSize: gameState.playerHands[(playerNumber + 1) % 2]?.length || 0,
-      gameRound: gameState.round,
-      action,
-      context: context || {},
-      timestamp: new Date().toISOString()
-    };
-
-    console.log('🎯 TURN_VALIDATION_DEBUG:', turnState);
-
-    if (!isMyTurn) {
-      console.error('🚨 TURN_VIOLATION_DETECTED:', {
-        ...turnState,
-        reason: 'Client attempted action when not player turn',
-        serverExpectedPlayer: gameState.currentPlayer,
-        clientPlayer: playerNumber
-      });
-    }
-
-    return isMyTurn;
-  }, [isMyTurn, gameState.currentPlayer, gameState.playerHands, gameState.round, playerNumber]);
+    ],
+  );
 
   /**
    * Handle drag start with enhanced turn validation
    */
-  const handleDragStart = useCallback((card: any) => {
-    console.log(`[CONTACT-DRAG] 🎯 Drag start: ${card?.rank}${card?.suit}`);
+  const handleDragStart = useCallback(
+    (card: any) => {
+      console.log(`[CONTACT-DRAG] 🎯 Drag start: ${card?.rank}${card?.suit}`);
 
-    if (!validateAndLogTurn('DRAG_START', { card: `${card?.rank}${card?.suit}` })) {
-      return;
-    }
+      if (
+        !validateAndLogTurn("DRAG_START", {
+          card: `${card?.rank}${card?.suit}`,
+        })
+      ) {
+        return;
+      }
 
-    setDragTurnState({ isMyTurn: true, currentPlayer: gameState.currentPlayer });
-    setDraggedCard(card);
-    setIsDragging(true);
-  }, [validateAndLogTurn, gameState.currentPlayer]);
+      setDragTurnState({
+        isMyTurn: true,
+        currentPlayer: gameState.currentPlayer,
+      });
+      setDraggedCard(card);
+      setIsDragging(true);
+    },
+    [validateAndLogTurn, gameState.currentPlayer],
+  );
 
   // Separated drag handlers for different card types
   const handHandler = useHandCardDragHandler({
@@ -93,14 +121,15 @@ export function useDragHandlers({
     sendAction,
     setCardToReset,
     setErrorModal,
-    isMyTurn
+    setStrategicModal,
+    isMyTurn,
   });
 
   const tableHandler = useTableCardDragHandler({
     gameState,
     playerNumber,
     isMyTurn,
-    sendAction
+    sendAction,
   });
 
   const opponentHandler = useOppTopCardDragHandler({
@@ -108,7 +137,7 @@ export function useDragHandlers({
     playerNumber,
     isMyTurn,
     sendAction,
-    handleDragStart
+    handleDragStart,
   });
 
   /**
@@ -122,39 +151,49 @@ export function useDragHandlers({
   /**
    * Hand card drag end - delegate to separated handler with debug logging
    */
-  const handleHandCardDragEnd = useCallback((draggedItem: any, dropPosition: any) => {
-    console.log('[DEBUG-DRAG] 🎯 handleHandCardDragEnd called:', {
-      card: draggedItem.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'no card',
-      source: draggedItem.source,
-      dropPosition: `${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)}`,
-      timestamp: new Date().toISOString()
-    });
+  const handleHandCardDragEnd = useCallback(
+    (draggedItem: any, dropPosition: any) => {
+      console.log("[DEBUG-DRAG] 🎯 handleHandCardDragEnd called:", {
+        card: draggedItem.card
+          ? `${draggedItem.card.rank}${draggedItem.card.suit}`
+          : "no card",
+        source: draggedItem.source,
+        dropPosition: `${dropPosition.x.toFixed(1)}, ${dropPosition.y.toFixed(1)}`,
+        timestamp: new Date().toISOString(),
+      });
 
-    const result = handHandler.handleDragEnd(draggedItem, dropPosition);
+      const result = handHandler.handleDragEnd(draggedItem, dropPosition);
 
-    console.log('[DEBUG-DRAG] 🎯 handleHandCardDragEnd result:', {
-      validContact: result?.validContact,
-      timestamp: new Date().toISOString()
-    });
+      console.log("[DEBUG-DRAG] 🎯 handleHandCardDragEnd result:", {
+        validContact: result?.validContact,
+        timestamp: new Date().toISOString(),
+      });
 
-    return result;
-  }, [handHandler]);
+      return result;
+    },
+    [handHandler],
+  );
 
   /**
    * Table card drag start with enhanced turn validation
    */
-  const handleTableCardDragStart = useCallback((card: any) => {
-    console.log(`[CONTACT-DRAG] Table drag start: ${card.rank}${card.suit}`);
+  const handleTableCardDragStart = useCallback(
+    (card: any) => {
+      console.log(`[CONTACT-DRAG] Table drag start: ${card.rank}${card.suit}`);
 
-    if (!validateAndLogTurn('TABLE_DRAG_START', { card: `${card.rank}${card.suit}` })) {
-      return;
-    }
+      if (
+        !validateAndLogTurn("TABLE_DRAG_START", {
+          card: `${card.rank}${card.suit}`,
+        })
+      ) {
+        return;
+      }
 
-    setDraggedCard(card);
-    setIsDragging(true);
-  }, [validateAndLogTurn]);
-
-
+      setDraggedCard(card);
+      setIsDragging(true);
+    },
+    [validateAndLogTurn],
+  );
 
   /**
    * Table card drag end - delegate to separated handler
@@ -181,6 +220,6 @@ export function useDragHandlers({
     handleTableCardDragStart,
     handleTableCardDragEnd,
     handleOppTopCardDragStart,
-    handleOppTopCardDragEnd
+    handleOppTopCardDragEnd,
   };
 }

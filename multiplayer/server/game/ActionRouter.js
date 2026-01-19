@@ -114,6 +114,11 @@ class ActionRouter {
         tableCardsChange:
           newGameState.tableCards.length - gameState.tableCards.length,
         round: newGameState.round,
+        ...(actionType === "game-over" && {
+          gameOver: newGameState.gameOver,
+          tableCardsCount: newGameState.tableCards.length,
+          scores: newGameState.scores,
+        }),
       });
 
       // Get updated state (in case action modified it)

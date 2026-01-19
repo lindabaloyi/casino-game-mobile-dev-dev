@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSocket } from "./useSocket";
 
 interface CleanupAction {
   type: string;
@@ -12,6 +13,7 @@ export const useCleanupAction = () => {
     null,
   );
   const [isShowingCleanup, setIsShowingCleanup] = useState(false);
+  const { sendAction } = useSocket();
 
   useEffect(() => {
     const handleCleanupAction = (event: CustomEvent<CleanupAction>) => {
@@ -25,8 +27,19 @@ export const useCleanupAction = () => {
       setCleanupAction(action);
       setIsShowingCleanup(true);
 
-      // Auto-hide after animation completes (adjust timing as needed)
+      // Auto-trigger game over after cleanup animation completes
       setTimeout(() => {
+        console.log(
+          "🎮 [CLIENT] Cleanup animation complete - triggering game over",
+        );
+        console.log("🎮 [CLIENT] Sending game-over action to server");
+
+        sendAction({
+          type: "game-over",
+          payload: {},
+        });
+
+        console.log("🎮 [CLIENT] Game-over action sent, hiding cleanup UI");
         setIsShowingCleanup(false);
         setCleanupAction(null);
       }, 3000); // 3 seconds for visual feedback
@@ -45,7 +58,7 @@ export const useCleanupAction = () => {
         );
       };
     }
-  }, []);
+  }, [sendAction]);
 
   return {
     cleanupAction,

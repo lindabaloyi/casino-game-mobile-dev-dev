@@ -60,9 +60,10 @@ const handleCancelBuildExtension = require("./build/cancelBuildExtension");
 const handleTableToTableDrop = require("./card-drop/tableToTableDrop");
 const handleHandToTableDrop = require("./card-drop/handToTableDrop");
 const handleCleanup = require("./cleanup");
+const handleGameOver = require("./game-over");
 
 module.exports = {
-  // 🎯 CORE 13 ACTIONS - Build Extension System + Cleanup
+  // 🎯 CORE 14 ACTIONS - Build Extension System + Cleanup + Game Over
   handleTrail,
   handleCreateTemp,
   handleAddToOwnTemp,
@@ -76,4 +77,5 @@ module.exports = {
   handleTableToTableDrop,
   handleHandToTableDrop,
   handleCleanup, // 🧹 NEW: Turn 40 cleanup action
+  handleGameOver, // 🎮 NEW: Game over point display action
 };

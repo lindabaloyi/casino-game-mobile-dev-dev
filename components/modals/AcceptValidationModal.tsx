@@ -1,17 +1,24 @@
-import { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 // Import separated concerns
 import {
   ActionOption,
   calculateConsolidatedOptions,
   Card,
-  validateTempStackDetailed
-} from '../../src/utils/buildValidators';
-import { handleTempStackAction } from '../../src/utils/tempStackActions';
+  validateTempStackDetailed,
+} from "../../src/utils/buildValidators";
+import { handleTempStackAction } from "../../src/utils/tempStackActions";
 
 interface ModalState {
-  type: 'valid' | 'invalid';
+  type: "valid" | "invalid";
   options?: ActionOption[];
   error?: string;
   validation?: any;
@@ -20,11 +27,11 @@ interface ModalState {
 interface AcceptValidationModalProps {
   visible: boolean;
   onClose: () => void;
-  tempStack: any;
-  playerHand: Card[];
+  tempStack?: any; // Optional for strategic capture mode
+  playerHand?: Card[]; // Optional for strategic capture mode
   onCapture?: (validation: any) => void;
   sendAction: (action: any) => void;
-  availableOptions?: ActionOption[];
+  availableOptions?: ActionOption[]; // For strategic capture mode
 }
 
 export function AcceptValidationModal({
@@ -34,40 +41,54 @@ export function AcceptValidationModal({
   playerHand,
   onCapture,
   sendAction,
-  availableOptions
+  availableOptions,
 }: AcceptValidationModalProps) {
   const [modalState, setModalState] = useState<ModalState | null>(null);
   const isProcessing = useRef(false);
 
   // Validate immediately when modal opens
   useEffect(() => {
-    if (visible && tempStack) {
-      console.log('🎯 [MODAL] Modal opened, validating temp stack...');
-
-      // First check if temp stack is valid for building
-      const validation = validateTempStackDetailed(tempStack, playerHand);
-
-      if (!validation.valid) {
-        // Invalid - show error message
-        console.log('❌ [MODAL] Temp stack invalid:', validation.error);
+    if (visible) {
+      // Check if this is strategic capture mode (no tempStack/playerHand validation needed)
+      if (availableOptions) {
+        console.log(
+          "🎯 [MODAL] Strategic capture mode - using provided options",
+        );
         setModalState({
-          type: 'invalid',
-          error: validation.error
+          type: "valid",
+          options: availableOptions,
         });
-      } else {
-        // Valid - show available action options
-        console.log('✅ [MODAL] Temp stack valid, calculating options...');
-        const options = calculateConsolidatedOptions(tempStack, playerHand);
-        console.log('🎯 [MODAL] Available options:', options.map(o => o.label));
+      } else if (tempStack && playerHand) {
+        console.log("🎯 [MODAL] Modal opened, validating temp stack...");
 
-        setModalState({
-          type: 'valid',
-          options,
-          validation
-        });
+        // First check if temp stack is valid for building
+        const validation = validateTempStackDetailed(tempStack, playerHand);
+
+        if (!validation.valid) {
+          // Invalid - show error message
+          console.log("❌ [MODAL] Temp stack invalid:", validation.error);
+          setModalState({
+            type: "invalid",
+            error: validation.error,
+          });
+        } else {
+          // Valid - show available action options
+          console.log("✅ [MODAL] Temp stack valid, calculating options...");
+          const options = calculateConsolidatedOptions(tempStack, playerHand);
+          console.log(
+            "🎯 [MODAL] Available options:",
+            options.map((o) => o.label),
+          );
+
+          setModalState({
+            type: "valid",
+            options,
+            validation,
+          });
+        }
       }
     }
-  }, [visible, tempStack, playerHand]);
+  }, [visible, tempStack, playerHand, availableOptions]);
 
   // Reset processing flag when modal closes
   useEffect(() => {
@@ -81,26 +102,20 @@ export function AcceptValidationModal({
   const handleAction = async (action: ActionOption) => {
     // Prevent double-clicks
     if (isProcessing.current) {
-      console.log('⚠️ [MODAL] Already processing, ignoring duplicate click');
+      console.log("⚠️ [MODAL] Already processing, ignoring duplicate click");
       return;
     }
 
     if (!modalState) {
-      console.log('❌ [MODAL] No modal state available');
+      console.log("❌ [MODAL] No modal state available");
       return;
     }
 
-    console.log('🎯 [MODAL] Action selected:', {
+    console.log("🎯 [MODAL] Action selected:", {
       type: action.type,
       label: action.label,
-      value: action.value
+      value: action.value,
     });
-
-    if (!tempStack?.stackId) {
-      console.log('❌ [MODAL] Invalid state, cannot proceed');
-      Alert.alert('Error', 'Cannot proceed: Invalid state');
-      return;
-    }
 
     isProcessing.current = true;
 
@@ -108,44 +123,77 @@ export function AcceptValidationModal({
     onClose();
 
     try {
-      // Use the action service to handle the action
-      if (action.type === 'build') {
-        await handleTempStackAction('build', {
-          tempStackId: tempStack.stackId,
-          buildValue: modalState.validation.buildValue,
-          buildType: modalState.validation.buildType,
-          buildCard: action.card
-        }, sendAction);
-
-        // Show success alert
-        Alert.alert(
-          'Build Created!',
-          `Successfully created ${modalState.validation.buildType} build of ${modalState.validation.buildValue}`,
-          [{ text: 'OK' }]
+      // Check if this is strategic capture mode (action has payload with server action data)
+      if (action.payload) {
+        // Strategic capture mode - send the action directly to server
+        console.log(
+          "🎯 [MODAL] Strategic capture mode - sending action to server",
         );
+        sendAction(action.payload);
 
-      } else if (action.type === 'capture') {
-        await handleTempStackAction('capture', {
-          tempStackId: tempStack.stackId,
-          captureValue: action.value
-        }, sendAction);
+        // Show success feedback for strategic actions
+        if (action.type === "capture") {
+          Alert.alert(
+            "Cards Captured!",
+            `Successfully captured with strategic play`,
+            [{ text: "OK" }],
+          );
+        } else if (action.type === "extendBuild") {
+          Alert.alert(
+            "Build Extended!",
+            `Successfully extended build with strategic play`,
+            [{ text: "OK" }],
+          );
+        }
+      } else if (tempStack?.stackId) {
+        // Traditional build mode - use action service
+        if (action.type === "build") {
+          await handleTempStackAction(
+            "build",
+            {
+              tempStackId: tempStack.stackId,
+              buildValue: modalState.validation.buildValue,
+              buildType: modalState.validation.buildType,
+              buildCard: action.card,
+            },
+            sendAction,
+          );
 
-        // Show success alert
-        Alert.alert(
-          'Cards Captured!',
-          `Successfully captured ${action.value}`,
-          [{ text: 'OK' }]
-        );
+          // Show success alert
+          Alert.alert(
+            "Build Created!",
+            `Successfully created ${modalState.validation.buildType} build of ${modalState.validation.buildValue}`,
+            [{ text: "OK" }],
+          );
+        } else if (action.type === "capture") {
+          await handleTempStackAction(
+            "capture",
+            {
+              tempStackId: tempStack.stackId,
+              captureValue: action.value,
+            },
+            sendAction,
+          );
+
+          // Show success alert
+          Alert.alert(
+            "Cards Captured!",
+            `Successfully captured ${action.value}`,
+            [{ text: "OK" }],
+          );
+        }
+
+        // Keep backward compatibility
+        if (onCapture) {
+          onCapture({ tempStack, validation: modalState.validation, action });
+        }
+      } else {
+        console.log("❌ [MODAL] Invalid state for action processing");
+        Alert.alert("Error", "Cannot proceed: Invalid state");
       }
-
-      // Keep backward compatibility
-      if (onCapture) {
-        onCapture({ tempStack, validation: modalState.validation, action });
-      }
-
     } catch (error) {
-      console.error('❌ [MODAL] Action failed:', error);
-      Alert.alert('Action Failed', 'Please try again');
+      console.error("❌ [MODAL] Action failed:", error);
+      Alert.alert("Action Failed", "Please try again");
     } finally {
       // Reset processing flag after a delay
       setTimeout(() => {
@@ -164,7 +212,7 @@ export function AcceptValidationModal({
     }
 
     // Invalid temp stack - show error message
-    if (modalState.type === 'invalid') {
+    if (modalState.type === "invalid") {
       return (
         <>
           <Text style={styles.title}>Cannot Create Build</Text>
@@ -180,12 +228,21 @@ export function AcceptValidationModal({
     }
 
     // Valid temp stack - show available action options
-    if (modalState.type === 'valid' && modalState.options) {
+    if (modalState.type === "valid" && modalState.options) {
+      // Check if this is strategic capture mode (has options with payload)
+      const isStrategicCapture = modalState.options.some(
+        (option) => option.payload,
+      );
+
       return (
         <>
-          <Text style={styles.title}>Build Options</Text>
+          <Text style={styles.title}>
+            {isStrategicCapture ? "Strategic Capture Options" : "Build Options"}
+          </Text>
           <Text style={styles.message}>
-            Choose what to do with this temp stack:
+            {isStrategicCapture
+              ? "You have multiple cards that can capture this temp stack. Choose your strategy:"
+              : "Choose what to do with this temp stack:"}
           </Text>
 
           <View style={styles.buttonContainer}>
@@ -194,7 +251,7 @@ export function AcceptValidationModal({
                 key={index}
                 style={[
                   styles.actionButton,
-                  option.type === 'build' && styles.buildButton
+                  option.type === "build" && styles.buildButton,
                 ]}
                 onPress={() => handleAction(option)}
               >
@@ -222,11 +279,14 @@ export function AcceptValidationModal({
   };
 
   return (
-    <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <View style={styles.overlay}>
-        <View style={styles.modalContent}>
-          {renderContent()}
-        </View>
+        <View style={styles.modalContent}>{renderContent()}</View>
       </View>
     </Modal>
   );
@@ -235,18 +295,18 @@ export function AcceptValidationModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
-    backgroundColor: '#2E7D32',
+    backgroundColor: "#2E7D32",
     borderRadius: 15,
     borderWidth: 2,
-    borderColor: '#4CAF50',
+    borderColor: "#4CAF50",
     padding: 20,
     minWidth: 300,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -254,46 +314,46 @@ const styles = StyleSheet.create({
   },
   centered: {
     padding: 30,
-    alignItems: 'center',
+    alignItems: "center",
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    textAlign: 'center',
+    fontWeight: "bold",
+    color: "#FFD700",
+    textAlign: "center",
     marginBottom: 10,
   },
   message: {
     fontSize: 16,
-    color: '#FFFFFF',
-    textAlign: 'center',
+    color: "#FFFFFF",
+    textAlign: "center",
     marginBottom: 20,
   },
   buttonContainer: {
     gap: 10,
   },
   actionButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
     borderRadius: 10,
     padding: 15,
-    alignItems: 'center',
+    alignItems: "center",
   },
   buildButton: {
-    backgroundColor: '#FF9800', // Orange for build actions
+    backgroundColor: "#FF9800", // Orange for build actions
   },
   actionButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   cancelButton: {
-    backgroundColor: '#666',
+    backgroundColor: "#666",
     borderRadius: 10,
     padding: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   cancelButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
   },
 });

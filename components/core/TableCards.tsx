@@ -1,10 +1,13 @@
-import React, { useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Card, TableCard } from '../../multiplayer/server/game-logic/game-state';
-import { BuildCardRenderer } from '../table/BuildCardRenderer';
-import TableDraggableCard from '../table/TableDraggableCard';
-import { useTableInteractionManager } from '../table/TableInteractionManager';
-import { TempStackRenderer } from '../table/TempStackRenderer';
+import React, { useRef } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import {
+  Card,
+  TableCard,
+} from "../../multiplayer/server/game-logic/game-state";
+import { BuildCardRenderer } from "../table/BuildCardRenderer";
+import TableDraggableCard from "../table/TableDraggableCard";
+import { useTableInteractionManager } from "../table/TableInteractionManager";
+import { TempStackRenderer } from "../table/TempStackRenderer";
 
 interface TableCardsProps {
   tableCards?: TableCard[];
@@ -24,9 +27,17 @@ interface TableCardsProps {
   onCancelBuildExtension?: (buildId: string) => void;
 }
 
-function getCardType(card: TableCard): 'loose' | 'temporary_stack' | 'build' {
-  if ('type' in card) return card.type;
-  return 'loose';
+function getCardType(
+  card: TableCard,
+):
+  | "loose"
+  | "temporary_stack"
+  | "build"
+  | "game-over-point-card"
+  | "game-over-bonus"
+  | "game-over-separator" {
+  if ("type" in card) return card.type;
+  return "loose";
 }
 
 const TableCards: React.FC<TableCardsProps> = ({
@@ -44,33 +55,42 @@ const TableCards: React.FC<TableCardsProps> = ({
   onAcceptBuildAddition,
   onRejectBuildAddition,
   onAcceptBuildExtension,
-  onCancelBuildExtension
+  onCancelBuildExtension,
 }) => {
   const tableRef = useRef<View>(null);
   const tableBoundsRef = useRef<any>(null);
 
   const [isDragging, setIsDragging] = React.useState(false);
 
-  const handleTableCardDragStartWithPosition = React.useCallback((card: any) => {
-    setIsDragging(true);
-    onTableCardDragStart?.(card);
-  }, [onTableCardDragStart]);
+  const handleTableCardDragStartWithPosition = React.useCallback(
+    (card: any) => {
+      setIsDragging(true);
+      onTableCardDragStart?.(card);
+    },
+    [onTableCardDragStart],
+  );
 
-  const handleTableCardDragEndWithPosition = React.useCallback((draggedItem: any, dropPosition: any) => {
-    setIsDragging(false);
-    onTableCardDragEnd?.(draggedItem, dropPosition);
-  }, [onTableCardDragEnd]);
+  const handleTableCardDragEndWithPosition = React.useCallback(
+    (draggedItem: any, dropPosition: any) => {
+      setIsDragging(false);
+      onTableCardDragEnd?.(draggedItem, dropPosition);
+    },
+    [onTableCardDragEnd],
+  );
 
   const { handleDropOnStack } = useTableInteractionManager({
     tableCards,
-    onDropOnCard: onDropOnCard || (() => false)
+    onDropOnCard: onDropOnCard || (() => false),
   });
 
   const [cancelledStacks] = React.useState<Set<string>>(new Set());
 
-  const handleTempRejectWithLocalState = React.useCallback((tempId: string) => {
-    onTempReject?.(tempId);
-  }, [onTempReject]);
+  const handleTempRejectWithLocalState = React.useCallback(
+    (tempId: string) => {
+      onTempReject?.(tempId);
+    },
+    [onTempReject],
+  );
 
   const visibleTableCards = React.useMemo(() => {
     const transformedCards = tableCards.flatMap((tableItem, originalIndex) => {
@@ -80,7 +100,7 @@ const TableCards: React.FC<TableCardsProps> = ({
 
       const itemType = getCardType(tableItem);
 
-      if (itemType === 'temporary_stack') {
+      if (itemType === "temporary_stack") {
         const stackId = (tableItem as any).stackId;
         const isCancelled = cancelledStacks.has(stackId);
 
@@ -94,7 +114,7 @@ const TableCards: React.FC<TableCardsProps> = ({
             ...card,
             _cancelledStackId: stackId,
             _pos: originalIndex,
-            _inStackIdx: cardIndex
+            _inStackIdx: cardIndex,
           }));
         }
 
@@ -125,15 +145,16 @@ const TableCards: React.FC<TableCardsProps> = ({
         ) : (
           <View style={styles.cardsContainer}>
             {visibleTableCards.map((tableItem, visibleIndex) => {
-              const originalPosition = (tableItem as any)._pos !== undefined
-                ? (tableItem as any)._pos
-                : visibleIndex;
+              const originalPosition =
+                (tableItem as any)._pos !== undefined
+                  ? (tableItem as any)._pos
+                  : visibleIndex;
 
               const baseZIndex = visibleIndex + 1;
               const dragZIndex = 100000;
               const itemType = getCardType(tableItem);
 
-              if (itemType === 'loose') {
+              if (itemType === "loose") {
                 return (
                   <TableDraggableCard
                     key={`loose-${originalPosition}-${(tableItem as Card).rank}-${(tableItem as Card).suit}`}
@@ -146,9 +167,10 @@ const TableCards: React.FC<TableCardsProps> = ({
                     currentPlayer={currentPlayer}
                   />
                 );
-              } else if (itemType === 'build') {
+              } else if (itemType === "build") {
                 const buildId = (tableItem as any).buildId;
-                const hasPendingAddition = gameState?.pendingBuildAdditions?.[buildId];
+                const hasPendingAddition =
+                  gameState?.pendingBuildAdditions?.[buildId];
 
                 return (
                   <BuildCardRenderer
@@ -166,7 +188,7 @@ const TableCards: React.FC<TableCardsProps> = ({
                     onCancelBuildExtension={onCancelBuildExtension}
                   />
                 );
-              } else if (itemType === 'temporary_stack') {
+              } else if (itemType === "temporary_stack") {
                 return (
                   <TempStackRenderer
                     key={`temp-container-${originalPosition}`}
@@ -175,7 +197,13 @@ const TableCards: React.FC<TableCardsProps> = ({
                     baseZIndex={baseZIndex}
                     dragZIndex={dragZIndex}
                     currentPlayer={currentPlayer}
-                    onDropStack={(draggedItem) => handleDropOnStack(draggedItem, (tableItem as any).stackId || `temp-${originalPosition}`)}
+                    onDropStack={(draggedItem) =>
+                      handleDropOnStack(
+                        draggedItem,
+                        (tableItem as any).stackId ||
+                          `temp-${originalPosition}`,
+                      )
+                    }
                     onFinalizeStack={onFinalizeStack}
                     onCancelStack={onCancelStack}
                     onTempAccept={onTempAccept}
@@ -183,6 +211,33 @@ const TableCards: React.FC<TableCardsProps> = ({
                     isDragging={isDragging}
                     onDragStart={handleTableCardDragStartWithPosition}
                     onDragEnd={handleTableCardDragEndWithPosition}
+                  />
+                );
+              } else if (itemType === "game-over-point-card") {
+                // Render individual point cards (10♦, 2♠, Aces)
+                return (
+                  <GameOverPointCard
+                    key={`game-over-point-${originalPosition}`}
+                    card={tableItem}
+                    index={originalPosition}
+                  />
+                );
+              } else if (itemType === "game-over-bonus") {
+                // Render bonus cards (*21 cards, spades count)
+                return (
+                  <GameOverBonusCard
+                    key={`game-over-bonus-${originalPosition}`}
+                    bonusCard={tableItem}
+                    index={originalPosition}
+                  />
+                );
+              } else if (itemType === "game-over-separator") {
+                // Render player separators
+                return (
+                  <GameOverSeparator
+                    key={`game-over-separator-${originalPosition}`}
+                    separator={tableItem}
+                    index={originalPosition}
                   />
                 );
               }
@@ -199,45 +254,146 @@ const TableCards: React.FC<TableCardsProps> = ({
 const styles = StyleSheet.create({
   tableContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1B5E20',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#1B5E20",
     padding: 10,
   },
   tableArea: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
     paddingTop: 20,
   },
   emptyTable: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     minHeight: 100,
     minWidth: 200,
   },
   cardsContainer: {
     flex: 1,
     minHeight: 180,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 5,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
     gap: 30,
-    alignSelf: 'center',
-    overflow: 'visible',
+    alignSelf: "center",
+    overflow: "visible",
   },
   looseCardContainer: {
     margin: 4,
   },
   stagingStackContainer: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center'
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gameOverPointCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 8,
+    padding: 12,
+    margin: 4,
+    minWidth: 80,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  gameOverCardText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#000",
+    marginBottom: 4,
+  },
+  gameOverCardPoints: {
+    fontSize: 14,
+    color: "#4CAF50",
+    fontWeight: "bold",
+  },
+  gameOverBonusCard: {
+    backgroundColor: "#FFD700",
+    borderRadius: 8,
+    padding: 12,
+    margin: 4,
+    minWidth: 120,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  gameOverBonusText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#000",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  gameOverBonusPoints: {
+    fontSize: 16,
+    color: "#FF6B35",
+    fontWeight: "bold",
+  },
+  gameOverSeparator: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gameOverSeparatorText: {
+    fontSize: 16,
+    color: "#FFF",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 2,
   },
 });
+
+// Game Over Components
+const GameOverPointCard: React.FC<{ card: any; index: number }> = ({
+  card,
+  index,
+}) => {
+  return (
+    <View style={styles.gameOverPointCard}>
+      <Text style={styles.gameOverCardText}>
+        {card.rank}
+        {card.suit}
+      </Text>
+      <Text style={styles.gameOverCardPoints}>+{card.pointValue}</Text>
+    </View>
+  );
+};
+
+const GameOverBonusCard: React.FC<{ bonusCard: any; index: number }> = ({
+  bonusCard,
+  index,
+}) => {
+  return (
+    <View style={styles.gameOverBonusCard}>
+      <Text style={styles.gameOverBonusText}>{bonusCard.description}</Text>
+      <Text style={styles.gameOverBonusPoints}>+{bonusCard.points}</Text>
+    </View>
+  );
+};
+
+const GameOverSeparator: React.FC<{ separator: any; index: number }> = ({
+  separator,
+  index,
+}) => {
+  return (
+    <View style={styles.gameOverSeparator}>
+      <Text style={styles.gameOverSeparatorText}>{separator.separator}</Text>
+    </View>
+  );
+};
 
 export default TableCards;

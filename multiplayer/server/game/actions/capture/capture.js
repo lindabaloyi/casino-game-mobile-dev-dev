@@ -199,7 +199,11 @@ async function handleCapture(gameManager, playerIndex, action, gameId) {
 
   gameState.playerCaptures[playerIndex].push(...cardsToCapture);
 
-  // 4. Track last capturer
+  // 4. Update scores after capture
+  const { calculateFinalScores } = require("../../scoring");
+  gameState.scores = calculateFinalScores(gameState.playerCaptures);
+
+  // 5. Track last capturer
   gameState.lastCapturer = playerIndex;
 
   logger.info("Capture complete", {
