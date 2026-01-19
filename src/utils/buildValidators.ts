@@ -14,6 +14,7 @@ export interface ActionOption {
   label: string;
   card?: Card | null;
   value?: number;
+  hasBase?: boolean; // NEW: Build classification flag
   payload?: any; // For strategic capture actions
 }
 
@@ -149,6 +150,7 @@ export const calculateConsolidatedOptions = (
       label: `Build ${value}`,
       card: null,
       value: value,
+      hasBase: true, // BASE: Same-value matching cards
     });
 
     // Sum build for low cards - check if player has card with SUM value
@@ -161,6 +163,7 @@ export const calculateConsolidatedOptions = (
           label: `Build ${totalSum}`,
           card: null,
           value: totalSum,
+          hasBase: false, // NORMAL: Simple sum build
         });
       }
     }
@@ -178,6 +181,7 @@ export const calculateConsolidatedOptions = (
           label: `Build ${baseBuildDetails.baseValue}`,
           card: null,
           value: baseBuildDetails.baseValue,
+          hasBase: true, // BASE: Complex build with base structure
         });
       }
     }
@@ -195,6 +199,7 @@ export const calculateConsolidatedOptions = (
           label: `Build ${totalSum}`,
           card: null,
           value: totalSum,
+          hasBase: false, // NORMAL: Simple sum build
         });
       }
     }

@@ -182,6 +182,7 @@ export function AcceptValidationModal({
               tempStackId: tempStack.stackId,
               buildValue: action.value, // ✅ Use selected option value instead of validation default
               buildType: modalState.validation.buildType,
+              hasBase: action.hasBase, // ✅ Pass hasBase flag to server
               buildCard: action.card,
             },
             sendAction,

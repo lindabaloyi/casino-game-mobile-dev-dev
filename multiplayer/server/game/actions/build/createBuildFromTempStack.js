@@ -3,8 +3,8 @@
  * Player creates a permanent build from temp stack (ends turn)
  */
 
-const { createLogger } = require('../../../utils/logger');
-const { buildLifecycleTracker } = require('../../GameState');
+const { createLogger } = require("../../../utils/logger");
+const { buildLifecycleTracker } = require("../../GameState");
 
 // Inline build extension utilities to avoid module resolution issues
 const analyzeBuildForExtension = (cards) => {
@@ -31,30 +31,43 @@ const analyzeBuildForExtension = (cards) => {
   return {
     hasBase,
     isSingleCombination,
-    isExtendable
+    isExtendable,
   };
 };
 
-const logger = createLogger('CreateBuildFromTempStack');
+const logger = createLogger("CreateBuildFromTempStack");
 
-function handleCreateBuildFromTempStack(gameManager, playerIndex, action, gameId) {
-  const { tempStackId, buildValue } = action.payload;
+function handleCreateBuildFromTempStack(
+  gameManager,
+  playerIndex,
+  action,
+  gameId,
+) {
+  const { tempStackId, buildValue, hasBase } = action.payload;
 
-  logger.info('Creating build from temp stack', {
+  console.log("[CREATE_BUILD_DEBUG] Received payload:", {
     tempStackId,
     buildValue,
-    playerIndex
+    hasBase, // ✅ DEBUG: Show received hasBase value
+    playerIndex,
+  });
+
+  logger.info("Creating build from temp stack", {
+    tempStackId,
+    buildValue,
+    hasBase, // ✅ DEBUG: Include hasBase in logger
+    playerIndex,
   });
 
   const gameState = gameManager.getGameState(gameId);
 
   // Find temp stack
-  const tempStackIndex = gameState.tableCards.findIndex(card =>
-    card.stackId === tempStackId
+  const tempStackIndex = gameState.tableCards.findIndex(
+    (card) => card.stackId === tempStackId,
   );
 
   if (tempStackIndex === -1) {
-    logger.warn('Temp stack not found', { tempStackId });
+    logger.warn("Temp stack not found", { tempStackId });
     return gameState; // Return unchanged state
   }
 
@@ -71,41 +84,48 @@ function handleCreateBuildFromTempStack(gameManager, playerIndex, action, gameId
   const extensionAnalysis = analyzeBuildForExtension(buildCards);
 
   const build = {
-    type: 'build',
-    buildId: `build-${playerIndex}`,  // ✅ SIMPLE: Same pattern as temp stacks (players can only have 1 build)
+    type: "build",
+    buildId: `build-${playerIndex}`, // ✅ SIMPLE: Same pattern as temp stacks (players can only have 1 build)
     cards: buildCards,
     value: buildValue,
+    hasBase: hasBase !== undefined ? hasBase : extensionAnalysis.hasBase,
     owner: playerIndex,
     // Extension eligibility flags
-    ...extensionAnalysis
+    ...extensionAnalysis,
   };
 
   // CRITICAL DEBUG: Log build creation with full details
-  console.log('[CREATE_BUILD_CRITICAL] Creating permanent build:', {
+  console.log("[CREATE_BUILD_CRITICAL] Creating permanent build:", {
     tempStackId,
     newBuildId: build.buildId,
     buildCards: build.cards.map((c, i) => `${i}:${c.rank}${c.suit}`),
     buildValue,
+    hasBase: build.hasBase, // ✅ VALIDATE hasBase flag
+    buildType: build.hasBase ? "BASE_BUILD" : "NORMAL_BUILD", // ✅ VALIDATE build type
     owner: playerIndex,
-    tempStackCards: tempStackCards.map(c => `${c.rank}${c.suit}`),
-    lifecycleTracking: 'CREATED'
+    tempStackCards: tempStackCards.map((c) => `${c.rank}${c.suit}`),
+    lifecycleTracking: "CREATED",
   });
 
   // Track build creation
-  buildLifecycleTracker.trackCreation(build.buildId, 'createBuildFromTempStack', {
-    tempStackId,
-    buildValue,
-    owner: playerIndex,
-    cardCount: build.cards.length
-  });
+  buildLifecycleTracker.trackCreation(
+    build.buildId,
+    "createBuildFromTempStack",
+    {
+      tempStackId,
+      buildValue,
+      owner: playerIndex,
+      cardCount: build.cards.length,
+    },
+  );
 
   // Add build to table
   gameState.tableCards.push(build);
 
   // Debug all builds after creation
-  buildLifecycleTracker.debugAllBuilds(gameState, 'AfterCreateBuild');
+  buildLifecycleTracker.debugAllBuilds(gameState, "AfterCreateBuild");
 
-  logger.info('Build created from temp stack', {
+  logger.info("Build created from temp stack", {
     buildId: build.buildId,
     value: buildValue,
     cardCount: build.cards.length,
