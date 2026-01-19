@@ -180,7 +180,7 @@ export function AcceptValidationModal({
             "build",
             {
               tempStackId: tempStack.stackId,
-              buildValue: modalState.validation.buildValue,
+              buildValue: action.value, // ✅ Use selected option value instead of validation default
               buildType: modalState.validation.buildType,
               buildCard: action.card,
             },
@@ -190,7 +190,7 @@ export function AcceptValidationModal({
           // Show success alert
           Alert.alert(
             "Build Created!",
-            `Successfully created ${modalState.validation.buildType} build of ${modalState.validation.buildValue}`,
+            `Successfully created build of ${action.value}`,
             [{ text: "OK" }],
           );
         } else if (action.type === "capture") {

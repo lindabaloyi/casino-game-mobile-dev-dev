@@ -77,23 +77,22 @@ export function analyzeStrategicCaptureOptions(
     },
   });
 
-  // Option 2+: Extend build with additional cards (if beneficial)
-  // Find other cards of same value that could extend the build
-  const extensionCards = captureCards.filter(
+  // Option 2: Single Reinforce option (regardless of how many cards are available)
+  const hasReinforceCards = captureCards.some(
     (card) => card.rank !== draggedCard.rank || card.suit !== draggedCard.suit,
   );
 
-  extensionCards.forEach((card, index) => {
+  if (hasReinforceCards) {
     options.push({
       type: "ReinforceBuild",
       label: "REINFORCE",
       payload: {
         buildId: build.buildId,
-        card: card, // Pass the full card object
+        card: draggedCard, // Use the dragged card for reinforcement
         extensionType: "strategic_build_reinforcement",
       },
     });
-  });
+  }
 
   console.log(`🎯 [STRATEGIC] Generated ${options.length} strategic options`);
   return options.length > 1 ? options : null;

@@ -187,7 +187,7 @@ describe("AcceptValidationModal", () => {
         );
         expect(Alert.alert).toHaveBeenCalledWith(
           "Build Created!",
-          "Successfully created normal build of 5",
+          "Successfully created build of 5",
           [{ text: "OK" }],
         );
         expect(mockOnClose).toHaveBeenCalled();

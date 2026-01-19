@@ -126,13 +126,13 @@ describe("Strategic Build Capture Integration", () => {
         },
       });
 
-      // Check reinforce option
+      // Check single reinforce option
       expect(strategicOptions[1]).toEqual({
         type: "ReinforceBuild",
         label: "REINFORCE",
         payload: {
           buildId: "build-0",
-          card: { rank: "5", suit: "♦", value: 5 },
+          card: draggedCard,
           extensionType: "strategic_build_reinforcement",
         },
       });
@@ -345,7 +345,7 @@ describe("Strategic Build Capture Integration", () => {
         type: "ReinforceBuild",
         payload: {
           buildId: "build-0",
-          card: { rank: "5", suit: "♦", value: 5 },
+          card: draggedCard,
           extensionType: "strategic_build_reinforcement",
         },
       });
