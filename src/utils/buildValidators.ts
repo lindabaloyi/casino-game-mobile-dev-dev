@@ -10,7 +10,7 @@ export interface Card {
 }
 
 export interface ActionOption {
-  type: "capture" | "build" | "extendBuild";
+  type: "capture" | "build" | "ReinforceBuild";
   label: string;
   card?: Card | null;
   value?: number;

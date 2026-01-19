@@ -61,9 +61,10 @@ const handleTableToTableDrop = require("./card-drop/tableToTableDrop");
 const handleHandToTableDrop = require("./card-drop/handToTableDrop");
 const handleCleanup = require("./cleanup");
 const handleGameOver = require("./game-over");
+const handleReinforceBuild = require("./build/reinforceBuild");
 
 module.exports = {
-  // 🎯 CORE 14 ACTIONS - Build Extension System + Cleanup + Game Over
+  // 🎯 CORE 15 ACTIONS - Build Extension System + Reinforce Build + Cleanup + Game Over
   handleTrail,
   handleCreateTemp,
   handleAddToOwnTemp,
@@ -74,6 +75,7 @@ module.exports = {
   handleBuildExtension, // 🎯 NEW: Direct Build Extension
   handleAcceptBuildExtension, // 🎯 NEW: Accept Build Extension
   handleCancelBuildExtension, // 🎯 NEW: Cancel Build Extension
+  handleReinforceBuild, // 🏗️ NEW: Reinforce Build action
   handleTableToTableDrop,
   handleHandToTableDrop,
   handleCleanup, // 🧹 NEW: Turn 40 cleanup action

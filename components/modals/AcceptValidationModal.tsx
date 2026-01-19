@@ -129,7 +129,11 @@ export function AcceptValidationModal({
         console.log(
           "🎯 [MODAL] Strategic capture mode - sending action to server",
         );
-        sendAction(action.payload);
+        // Send the complete action object with type and payload
+        sendAction({
+          type: action.type,
+          payload: action.payload,
+        });
 
         // Show success feedback for strategic actions
         if (action.type === "capture") {
@@ -138,10 +142,10 @@ export function AcceptValidationModal({
             `Successfully captured with strategic play`,
             [{ text: "OK" }],
           );
-        } else if (action.type === "extendBuild") {
+        } else if (action.type === "ReinforceBuild") {
           Alert.alert(
-            "Build Extended!",
-            `Successfully extended build with strategic play`,
+            "Build Reinforced!",
+            `Successfully reinforced build with strategic play`,
             [{ text: "OK" }],
           );
         }
@@ -237,13 +241,13 @@ export function AcceptValidationModal({
       return (
         <>
           <Text style={styles.title}>
-            {isStrategicCapture ? "Strategic Capture Options" : "Build Options"}
+            {isStrategicCapture ? "Play Options" : "Build Options"}
           </Text>
-          <Text style={styles.message}>
-            {isStrategicCapture
-              ? "You have multiple cards that can capture this temp stack. Choose your strategy:"
-              : "Choose what to do with this temp stack:"}
-          </Text>
+          {!isStrategicCapture && (
+            <Text style={styles.message}>
+              Choose what to do with this temp stack:
+            </Text>
+          )}
 
           <View style={styles.buttonContainer}>
             {modalState.options.map((option: ActionOption, index: number) => (

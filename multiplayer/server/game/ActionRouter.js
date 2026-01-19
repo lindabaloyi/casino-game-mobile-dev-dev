@@ -173,6 +173,7 @@ class ActionRouter {
         "confirmTrail",
         "createBuildFromTempStack",
         "capture", // Captures complete turns
+        "ReinforceBuild", // Build reinforcement completes turns
       ];
 
       const shouldCompleteTurn = actionsThatCompleteTurns.includes(actionType);
@@ -313,6 +314,7 @@ class ActionRouter {
         "addToOwnBuild",
         "trail",
         "capture",
+        "ReinforceBuild",
       ];
       if (dragRelatedActions.includes(actionType)) {
         console.log(

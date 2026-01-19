@@ -78,6 +78,31 @@ class GameCoordinatorService {
    * Handle game action submission
    */
   async handleGameAction(socket, data) {
+    // 🚨 CRITICAL: Server-side validation to prevent undefined actionType errors
+    if (
+      !data ||
+      !data.type ||
+      data.type === "undefined" ||
+      data.type === undefined
+    ) {
+      console.error(
+        "🚨 SERVER VALIDATION ERROR: Received action with undefined/invalid type:",
+        {
+          socketId: socket.id,
+          receivedData: data,
+          type: data?.type,
+          typeOfType: typeof data?.type,
+          hasPayload: !!data?.payload,
+          timestamp: new Date().toISOString(),
+        },
+      );
+      this.broadcaster.sendError(
+        socket,
+        "Invalid action: missing or undefined actionType",
+      );
+      return;
+    }
+
     const gameId = this.matchmaking.getGameId(socket.id);
     if (!gameId) {
       this.broadcaster.sendError(socket, "Not in an active game");

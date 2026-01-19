@@ -89,13 +89,12 @@ describe("AcceptValidationModal", () => {
       });
       mockCalculateConsolidatedOptions.mockReturnValue([
         {
-          type: "extendBuild",
-          label: "Add 3♣ for bigger capture (8)",
+          type: "ReinforceBuild",
+          label: "Reinforce with 3♣",
           payload: {
             buildId: "test-build",
-            addedCard: { rank: "3", suit: "C", value: 3 },
-            newBuildValue: 8,
-            extensionType: "strategic_build_extension",
+            card: { rank: "3", suit: "C", value: 3 },
+            extensionType: "strategic_build_reinforcement",
           },
         },
       ]);
@@ -251,7 +250,7 @@ describe("AcceptValidationModal", () => {
       const availableOptions = [
         {
           type: "capture" as const,
-          label: "Capture with 5♠",
+          label: "CAPTURE",
           payload: {
             tempStackId: "test-stack",
             captureValue: 5,
@@ -259,13 +258,12 @@ describe("AcceptValidationModal", () => {
           },
         },
         {
-          type: "extendBuild" as const,
-          label: "Add 3♣ for bigger capture (8)",
+          type: "ReinforceBuild" as const,
+          label: "REINFORCE",
           payload: {
             buildId: "test-build",
-            addedCard: { rank: "3", suit: "C", value: 3 },
-            newBuildValue: 8,
-            extensionType: "strategic_build_extension",
+            card: { rank: "3", suit: "C", value: 3 },
+            extensionType: "strategic_build_reinforcement",
           },
         },
       ];
@@ -277,14 +275,9 @@ describe("AcceptValidationModal", () => {
         />,
       );
 
-      expect(screen.getByText("Strategic Capture Options")).toBeTruthy();
-      expect(
-        screen.getByText(
-          "You have multiple cards that can capture this temp stack. Choose your strategy:",
-        ),
-      ).toBeTruthy();
-      expect(screen.getByText("CAPTURE WITH 5♠")).toBeTruthy();
-      expect(screen.getByText("ADD 3♣ FOR BIGGER CAPTURE (8)")).toBeTruthy();
+      expect(screen.getByText("Play Options")).toBeTruthy();
+      expect(screen.getByText("CAPTURE")).toBeTruthy();
+      expect(screen.getByText("REINFORCE")).toBeTruthy();
       expect(screen.getByText("Cancel")).toBeTruthy();
     });
 
@@ -292,7 +285,7 @@ describe("AcceptValidationModal", () => {
       const availableOptions = [
         {
           type: "capture" as const,
-          label: "Capture with 5♠",
+          label: "CAPTURE",
           payload: {
             tempStackId: "test-stack",
             captureValue: 5,
@@ -308,12 +301,15 @@ describe("AcceptValidationModal", () => {
         />,
       );
 
-      fireEvent.press(screen.getByText("CAPTURE WITH 5♠"));
+      fireEvent.press(screen.getByText("CAPTURE"));
 
       expect(mockSendAction).toHaveBeenCalledWith({
-        tempStackId: "test-stack",
-        captureValue: 5,
-        captureType: "strategic_temp_stack_capture",
+        type: "capture",
+        payload: {
+          tempStackId: "test-stack",
+          captureValue: 5,
+          captureType: "strategic_temp_stack_capture",
+        },
       });
       expect(Alert.alert).toHaveBeenCalledWith(
         "Cards Captured!",
@@ -323,16 +319,15 @@ describe("AcceptValidationModal", () => {
       expect(mockOnClose).toHaveBeenCalled();
     });
 
-    test("handles strategic extend-build action correctly", () => {
+    test("handles strategic reinforce-build action correctly", () => {
       const availableOptions = [
         {
-          type: "extendBuild" as const,
-          label: "Add 3♣ to build (16 total)",
+          type: "ReinforceBuild" as const,
+          label: "REINFORCE",
           payload: {
             buildId: "test-build",
-            addedCard: { rank: "3", suit: "C", value: 3 },
-            newBuildValue: 16,
-            extensionType: "strategic_build_extension",
+            card: { rank: "3", suit: "C", value: 3 },
+            extensionType: "strategic_build_reinforcement",
           },
         },
       ];
@@ -344,17 +339,19 @@ describe("AcceptValidationModal", () => {
         />,
       );
 
-      fireEvent.press(screen.getByText("ADD 3♣ TO BUILD (16 TOTAL)"));
+      fireEvent.press(screen.getByText("REINFORCE"));
 
       expect(mockSendAction).toHaveBeenCalledWith({
-        buildId: "test-build",
-        addedCard: { rank: "3", suit: "C", value: 3 },
-        newBuildValue: 16,
-        extensionType: "strategic_build_extension",
+        type: "ReinforceBuild",
+        payload: {
+          buildId: "test-build",
+          card: { rank: "3", suit: "C", value: 3 },
+          extensionType: "strategic_build_reinforcement",
+        },
       });
       expect(Alert.alert).toHaveBeenCalledWith(
-        "Build Extended!",
-        `Successfully extended build with strategic play`,
+        "Build Reinforced!",
+        `Successfully reinforced build with strategic play`,
         [{ text: "OK" }],
       );
       expect(mockOnClose).toHaveBeenCalled();
@@ -390,7 +387,7 @@ describe("AcceptValidationModal", () => {
       const availableOptions = [
         {
           type: "capture" as const,
-          label: "Capture with 5♠",
+          label: "CAPTURE",
           payload: {},
         },
       ];
@@ -410,7 +407,7 @@ describe("AcceptValidationModal", () => {
       const availableOptions = [
         {
           type: "capture" as const,
-          label: "Capture with 5♠",
+          label: "CAPTURE",
           payload: {
             tempStackId: "test-stack",
             captureValue: 5,
@@ -427,11 +424,11 @@ describe("AcceptValidationModal", () => {
       );
 
       // First click
-      fireEvent.press(screen.getByText("CAPTURE WITH 5♠"));
+      fireEvent.press(screen.getByText("CAPTURE"));
       expect(mockSendAction).toHaveBeenCalledTimes(1);
 
       // Second click should be ignored
-      fireEvent.press(screen.getByText("CAPTURE WITH 5♠"));
+      fireEvent.press(screen.getByText("CAPTURE"));
       expect(mockSendAction).toHaveBeenCalledTimes(1);
     });
 
@@ -439,7 +436,7 @@ describe("AcceptValidationModal", () => {
       const availableOptions = [
         {
           type: "capture" as const,
-          label: "Capture with 5♠",
+          label: "CAPTURE",
           payload: {
             tempStackId: "test-stack",
             captureValue: 5,
@@ -455,13 +452,13 @@ describe("AcceptValidationModal", () => {
         />,
       );
 
-      fireEvent.press(screen.getByText("CAPTURE WITH 5♠"));
+      fireEvent.press(screen.getByText("CAPTURE"));
 
       // Wait for the timeout that resets processing flag
       await new Promise((resolve) => setTimeout(resolve, 1100));
 
       // Should be able to click again after reset
-      fireEvent.press(screen.getByText("CAPTURE WITH 5♠"));
+      fireEvent.press(screen.getByText("CAPTURE"));
       expect(mockSendAction).toHaveBeenCalledTimes(2);
     });
   });

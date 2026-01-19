@@ -376,11 +376,36 @@ export const useSocket = () => {
       return;
     }
 
+    // 🚨 CRITICAL: Validate action before sending to prevent undefined actionType errors
+    if (
+      !action ||
+      !action.type ||
+      action.type === "undefined" ||
+      action.type === undefined
+    ) {
+      console.error(
+        "🚨 CLIENT VALIDATION ERROR: Attempted to send action with invalid type:",
+        {
+          action,
+          type: action?.type,
+          typeOfType: typeof action?.type,
+          timestamp: new Date().toISOString(),
+        },
+      );
+      return; // Don't send invalid actions
+    }
+
     if (action.type === "card-drop") {
       socketInstance.emit("card-drop", action.payload);
     } else if (action.type === "execute-action") {
       socketInstance.emit("execute-action", { action: action.payload });
     } else {
+      console.log("📤 CLIENT: Sending validated game action:", {
+        type: action.type,
+        hasPayload: !!action.payload,
+        payloadKeys: action.payload ? Object.keys(action.payload) : [],
+        timestamp: new Date().toISOString(),
+      });
       socketInstance.emit("game-action", action);
     }
   };

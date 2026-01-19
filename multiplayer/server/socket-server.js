@@ -76,6 +76,7 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
     cancelBuildExtension: actionHandlers.handleCancelBuildExtension, // 🎯 NEW: Cancel Build Extension
     tableToTableDrop: actionHandlers.handleTableToTableDrop,
     handToTableDrop: actionHandlers.handleHandToTableDrop,
+    ReinforceBuild: actionHandlers.handleReinforceBuild, // 🏗️ NEW: Reinforce Build action
     cleanup: actionHandlers.handleCleanup, // 🧹 NEW: Turn 40 cleanup action
   };
 

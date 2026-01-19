@@ -13,7 +13,7 @@ export interface Build {
 }
 
 export interface StrategicCaptureOption {
-  type: "capture" | "extendBuild";
+  type: "capture" | "ReinforceBuild";
   label: string;
   payload: any;
 }
@@ -68,7 +68,7 @@ export function analyzeStrategicCaptureOptions(
   // Option 1: Direct capture with the dragged card
   options.push({
     type: "capture",
-    label: `Capture with ${draggedCard.rank}${draggedCard.suit}`,
+    label: "CAPTURE",
     payload: {
       buildId: build.buildId,
       captureValue: build.value,
@@ -83,15 +83,13 @@ export function analyzeStrategicCaptureOptions(
   );
 
   extensionCards.forEach((card, index) => {
-    const newBuildValue = build.value + card.value; // Same value, so doubles it
     options.push({
-      type: "extendBuild",
-      label: `Add ${card.rank}${card.suit} to build (${newBuildValue} total)`,
+      type: "ReinforceBuild",
+      label: "REINFORCE",
       payload: {
         buildId: build.buildId,
-        addedCard: card,
-        newBuildValue: newBuildValue,
-        extensionType: "strategic_build_extension",
+        card: card, // Pass the full card object
+        extensionType: "strategic_build_reinforcement",
       },
     });
   });
