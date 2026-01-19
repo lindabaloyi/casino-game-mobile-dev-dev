@@ -3,14 +3,14 @@
  * Finalizes the build extension after player confirmation
  */
 
-const { createLogger } = require('../../../utils/logger');
+const { createLogger } = require("../../../utils/logger");
 
-const logger = createLogger('AcceptBuildExtension');
+const logger = createLogger("AcceptBuildExtension");
 
 function handleAcceptBuildExtension(gameManager, playerIndex, action, gameId) {
   const { buildId } = action.payload;
 
-  logger.info('Accepting build extension', { buildId, playerIndex });
+  logger.info("Accepting build extension", { buildId, playerIndex });
 
   const gameState = gameManager.getGameState(gameId);
 
@@ -19,16 +19,62 @@ function handleAcceptBuildExtension(gameManager, playerIndex, action, gameId) {
   }
 
   // Find the build with pending extension
-  const buildIndex = gameState.tableCards.findIndex(card =>
-    card.type === 'build' && card.buildId === buildId && card.isPendingExtension
+  const buildIndex = gameState.tableCards.findIndex(
+    (card) =>
+      card.type === "build" &&
+      card.buildId === buildId &&
+      card.isPendingExtension,
   );
 
   if (buildIndex === -1) {
-    logger.warn('Build with pending extension not found', { buildId });
+    logger.warn("Build with pending extension not found", { buildId });
     return gameState;
   }
 
   const pendingBuild = gameState.tableCards[buildIndex];
+
+  // 🔐 SAFETY VALIDATION: Ensure player still has the extension card
+  // (This is a safety check in case the initial BuildExtension validation was bypassed)
+  const playerHand = gameState.playerHands[playerIndex];
+  const hasExtensionCard = playerHand.some(
+    (card) =>
+      card.rank === pendingBuild.pendingExtensionCard.rank &&
+      card.suit === pendingBuild.pendingExtensionCard.suit,
+  );
+
+  if (!hasExtensionCard) {
+    logger.warn(
+      "Build extension validation failed - player missing extension card",
+      {
+        buildId,
+        playerIndex,
+        missingCard: `${pendingBuild.pendingExtensionCard.rank}${pendingBuild.pendingExtensionCard.suit}`,
+        playerHand: playerHand.map((c) => `${c.rank}${c.suit}`),
+      },
+    );
+
+    // 🚨 THROW ERROR - Extension card not found
+    // GameCoordinatorService will catch this and send error to client
+    throw new Error(
+      "You don't have the required card in your hand to complete this build extension",
+    );
+  }
+
+  // Remove the extension card from player's hand (final safety removal)
+  const cardIndex = playerHand.findIndex(
+    (card) =>
+      card.rank === pendingBuild.pendingExtensionCard.rank &&
+      card.suit === pendingBuild.pendingExtensionCard.suit,
+  );
+
+  if (cardIndex >= 0) {
+    playerHand.splice(cardIndex, 1);
+    logger.debug("Extension card removed from hand during finalization", {
+      buildId,
+      playerIndex,
+      card: `${pendingBuild.pendingExtensionCard.rank}${pendingBuild.pendingExtensionCard.suit}`,
+    });
+  }
 
   // Create the finalized extended build
   const extendedBuild = {
@@ -42,7 +88,7 @@ function handleAcceptBuildExtension(gameManager, playerIndex, action, gameId) {
     value: pendingBuild.previewValue,
     owner: pendingBuild.previewOwner,
     // Recalculate extension eligibility
-    isExtendable: pendingBuild.previewCards.length < 5
+    isExtendable: pendingBuild.previewCards.length < 5,
   };
 
   // Note: Extension card was already removed from hand in BuildExtension action
@@ -54,13 +100,13 @@ function handleAcceptBuildExtension(gameManager, playerIndex, action, gameId) {
   const nextPlayer = (playerIndex + 1) % 2;
   gameState.currentPlayer = nextPlayer;
 
-  logger.info('Build extension accepted - finalized', {
+  logger.info("Build extension accepted - finalized", {
     buildId,
     previousOwner: pendingBuild.owner,
     newOwner: playerIndex,
     nextPlayer,
     finalValue: extendedBuild.value,
-    cardCount: extendedBuild.cards.length
+    cardCount: extendedBuild.cards.length,
   });
 
   return gameState;
