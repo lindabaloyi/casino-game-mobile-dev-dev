@@ -72,7 +72,8 @@ export function analyzeStrategicCaptureOptions(
     payload: {
       buildId: build.buildId,
       captureValue: build.value,
-      captureType: "strategic_build_capture",
+      draggedCard: draggedCard, // Include dragged card for proper payload construction
+      selectedTableCards: build.cards, // Include build cards for capture payload
     },
   });
 
@@ -121,10 +122,18 @@ export function shouldAnalyzeStrategicCapture(
   }
 
   // Only analyze player's own builds
+  console.log(
+    `🎯 [STRATEGIC] Owner check: build.owner (${build.owner}) === playerNumber (${playerNumber}) = ${build.owner === playerNumber}`,
+  );
   if (build.owner !== playerNumber) {
-    console.log(`🎯 [STRATEGIC] Build not owned by player - skipping`);
+    console.log(
+      `🎯 [STRATEGIC] ❌ Build not owned by player - BLOCKING strategic analysis`,
+    );
     return false;
   }
+  console.log(
+    `🎯 [STRATEGIC] ✅ Build owned by player - allowing strategic analysis`,
+  );
 
   // Check if dragged card can capture this build
   if (draggedCard.value !== build.value) {

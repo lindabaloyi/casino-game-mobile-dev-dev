@@ -112,6 +112,7 @@ export function useHandCardDragHandler({
         );
 
         // 🎯 STRATEGIC CAPTURE ANALYSIS: Check for multiple capture options on builds
+
         if (
           shouldAnalyzeStrategicCapture(
             contact.type,

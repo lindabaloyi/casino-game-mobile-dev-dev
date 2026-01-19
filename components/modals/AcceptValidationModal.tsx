@@ -125,15 +125,39 @@ export function AcceptValidationModal({
     try {
       // Check if this is strategic capture mode (action has payload with server action data)
       if (action.payload) {
-        // Strategic capture mode - send the action directly to server
-        console.log(
-          "🎯 [MODAL] Strategic capture mode - sending action to server",
-        );
-        // Send the complete action object with type and payload
-        sendAction({
-          type: action.type,
-          payload: action.payload,
-        });
+        // Special handling for capture actions in strategic mode - use regular capture logic
+        if (action.type === "capture") {
+          console.log(
+            "🎯 [MODAL] Strategic capture - using regular capture logic",
+          );
+          // Use the same payload structure as direct build captures
+          // Calculate the correct capture value from build cards
+          const buildCards = action.payload.selectedTableCards || [];
+          const correctCaptureValue = buildCards.reduce(
+            (sum: number, card: any) => sum + (card.value || 0),
+            0,
+          );
+
+          sendAction({
+            type: "capture",
+            payload: {
+              tempStackId: null,
+              captureValue: correctCaptureValue, // ✅ Correct build value
+              targetCards: [...buildCards, action.payload.draggedCard], // ✅ Include all cards to capture
+              capturingCard: action.payload.draggedCard, // ✅ Card used for capture
+              buildId: action.payload.buildId, // ✅ Build identifier
+            },
+          });
+        } else {
+          // Other strategic actions (like ReinforceBuild) - send directly to server
+          console.log(
+            "🎯 [MODAL] Strategic action - sending directly to server",
+          );
+          sendAction({
+            type: action.type,
+            payload: action.payload,
+          });
+        }
 
         // Show success feedback for strategic actions
         if (action.type === "capture") {

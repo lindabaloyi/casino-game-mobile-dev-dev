@@ -7,6 +7,13 @@ const {
   shouldAnalyzeStrategicCapture,
 } = require("../src/utils/strategicCaptureAnalysis");
 
+// Mock React Native Alert
+jest.mock("react-native", () => ({
+  Alert: {
+    alert: jest.fn(),
+  },
+}));
+
 describe("Strategic Capture Analysis", () => {
   describe("shouldAnalyzeStrategicCapture", () => {
     test("should return true for temp stack contacts with multiple capture cards", () => {

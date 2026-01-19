@@ -252,9 +252,17 @@ describe("AcceptValidationModal", () => {
           type: "capture" as const,
           label: "CAPTURE",
           payload: {
-            tempStackId: "test-stack",
+            buildId: "test-stack",
             captureValue: 5,
-            captureType: "strategic_temp_stack_capture",
+            draggedCard: {
+              rank: "5",
+              suit: "♠",
+              value: 5,
+            },
+            selectedTableCards: [
+              { rank: "5", suit: "♥", value: 5 },
+              { rank: "5", suit: "♦", value: 5 },
+            ],
           },
         },
         {
@@ -287,9 +295,17 @@ describe("AcceptValidationModal", () => {
           type: "capture" as const,
           label: "CAPTURE",
           payload: {
-            tempStackId: "test-stack",
+            buildId: "test-stack",
             captureValue: 5,
-            captureType: "strategic_temp_stack_capture",
+            draggedCard: {
+              rank: "5",
+              suit: "♠",
+              value: 5,
+            },
+            selectedTableCards: [
+              { rank: "5", suit: "♥", value: 5 },
+              { rank: "5", suit: "♦", value: 5 },
+            ],
           },
         },
       ];
@@ -306,9 +322,23 @@ describe("AcceptValidationModal", () => {
       expect(mockSendAction).toHaveBeenCalledWith({
         type: "capture",
         payload: {
-          tempStackId: "test-stack",
-          captureValue: 5,
-          captureType: "strategic_temp_stack_capture",
+          tempStackId: null,
+          captureValue: 5, // Sum of build cards (3 + 2)
+          targetCards: [
+            { rank: "3", suit: "♠", value: 3 },
+            { rank: "2", suit: "♥", value: 2 },
+            {
+              rank: "5",
+              suit: "♠",
+              value: 5,
+            },
+          ],
+          capturingCard: {
+            rank: "5",
+            suit: "♠",
+            value: 5,
+          },
+          buildId: "test-stack",
         },
       });
       expect(Alert.alert).toHaveBeenCalledWith(
@@ -409,9 +439,17 @@ describe("AcceptValidationModal", () => {
           type: "capture" as const,
           label: "CAPTURE",
           payload: {
-            tempStackId: "test-stack",
+            buildId: "test-stack",
             captureValue: 5,
-            captureType: "strategic_temp_stack_capture",
+            draggedCard: {
+              rank: "5",
+              suit: "♠",
+              value: 5,
+            },
+            selectedTableCards: [
+              { rank: "5", suit: "♥", value: 5 },
+              { rank: "5", suit: "♦", value: 5 },
+            ],
           },
         },
       ];
@@ -438,9 +476,17 @@ describe("AcceptValidationModal", () => {
           type: "capture" as const,
           label: "CAPTURE",
           payload: {
-            tempStackId: "test-stack",
+            buildId: "test-stack",
             captureValue: 5,
-            captureType: "strategic_temp_stack_capture",
+            draggedCard: {
+              rank: "5",
+              suit: "♠",
+              value: 5,
+            },
+            selectedTableCards: [
+              { rank: "5", suit: "♥", value: 5 },
+              { rank: "5", suit: "♦", value: 5 },
+            ],
           },
         },
       ];
