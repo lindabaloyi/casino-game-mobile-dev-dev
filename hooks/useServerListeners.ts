@@ -153,6 +153,38 @@ export function useServerListeners({
     };
   }, [socket]);
 
+  // Handle build extension failures (when opponents try to extend base builds)
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleBuildExtensionFailed = (data: any) => {
+      console.log("[CLIENT] Build extension failed:", data);
+
+      const { error, reason, targetBuildId, extensionCard } = data.payload;
+
+      // Show error modal for build extension failure
+      setErrorModal({
+        visible: true,
+        title: "Build Extension Blocked",
+        message:
+          reason === "base_build_not_extendable"
+            ? `Cannot extend base build. Base builds are not extendable by opponents.`
+            : `Build extension failed: ${error}`,
+      });
+
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setErrorModal(null);
+      }, 3000);
+    };
+
+    socket.on("buildExtensionFailed", handleBuildExtensionFailed);
+
+    return () => {
+      socket.off("buildExtensionFailed", handleBuildExtensionFailed);
+    };
+  }, [socket, setErrorModal]);
+
   // Hide navigation bar when entering game (Platform/OS specific)
   useEffect(() => {
     const hideNavBar = async () => {

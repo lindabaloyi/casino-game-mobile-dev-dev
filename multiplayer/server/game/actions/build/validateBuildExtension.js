@@ -3,10 +3,18 @@
  * Server-side validation and processing of build extensions
  */
 
-const { createLogger } = require('../../../utils/logger');
+const { createLogger } = require("../../../utils/logger");
 
 // Inline build extension utilities to avoid module resolution issues
 const validateBuildExtension = (build, extensionCard) => {
+  // 🚫 BLOCK EXTENSIONS ON BASE BUILDS (hasBase: true)
+  if (build.hasBase === true) {
+    return {
+      valid: false,
+      error: `Cannot extend base build - base builds are not extendable`,
+    };
+  }
+
   // Calculate new total
   const newValue = build.value + extensionCard.value;
 
@@ -15,7 +23,7 @@ const validateBuildExtension = (build, extensionCard) => {
     return {
       valid: false,
       newValue,
-      error: `Extension would create invalid build value: ${newValue} (max 10)`
+      error: `Extension would create invalid build value: ${newValue} (max 10)`,
     };
   }
 
@@ -24,7 +32,7 @@ const validateBuildExtension = (build, extensionCard) => {
 
   return {
     valid: true,
-    newValue
+    newValue,
   };
 };
 
@@ -60,7 +68,7 @@ const createExtendedBuild = (build, extensionCard, newOwner, newValue) => {
     // Extension eligibility flags
     hasBase,
     isSingleCombination,
-    isExtendable
+    isExtendable,
   };
 };
 
@@ -68,15 +76,20 @@ const shouldExtensionEndTurn = () => {
   return true; // Build extensions always end the turn
 };
 
-const logger = createLogger('ValidateBuildExtension');
+const logger = createLogger("ValidateBuildExtension");
 
-function handleValidateBuildExtension(gameManager, playerIndex, action, gameId) {
+function handleValidateBuildExtension(
+  gameManager,
+  playerIndex,
+  action,
+  gameId,
+) {
   const { tempStackId } = action.payload;
 
-  logger.info('Validating build extension', {
+  logger.info("Validating build extension", {
     tempStackId,
     playerIndex,
-    gameId
+    gameId,
   });
 
   const gameState = gameManager.getGameState(gameId);
@@ -86,26 +99,26 @@ function handleValidateBuildExtension(gameManager, playerIndex, action, gameId) 
   }
 
   // Find the extension temp stack
-  const tempStackIndex = gameState.tableCards.findIndex(card =>
-    card.stackId === tempStackId && card.isBuildExtension
+  const tempStackIndex = gameState.tableCards.findIndex(
+    (card) => card.stackId === tempStackId && card.isBuildExtension,
   );
 
   if (tempStackIndex === -1) {
-    logger.warn('Build extension temp stack not found', { tempStackId });
+    logger.warn("Build extension temp stack not found", { tempStackId });
     return gameState;
   }
 
   const tempStack = gameState.tableCards[tempStackIndex];
 
   // Find the target build
-  const targetBuildIndex = gameState.tableCards.findIndex(card =>
-    card.type === 'build' && card.buildId === tempStack.targetBuildId
+  const targetBuildIndex = gameState.tableCards.findIndex(
+    (card) => card.type === "build" && card.buildId === tempStack.targetBuildId,
   );
 
   if (targetBuildIndex === -1) {
-    logger.warn('Target build not found', {
+    logger.warn("Target build not found", {
       targetBuildId: tempStack.targetBuildId,
-      tempStackId
+      tempStackId,
     });
     return gameState;
   }
@@ -117,28 +130,46 @@ function handleValidateBuildExtension(gameManager, playerIndex, action, gameId) 
   const validation = validateBuildExtension(targetBuild, extensionCard);
 
   if (!validation.valid) {
-    logger.warn('Build extension validation failed', {
+    logger.warn("Build extension validation failed", {
       error: validation.error,
       extensionCard: `${extensionCard.rank}${extensionCard.suit}`,
       targetBuild: {
         id: targetBuild.buildId,
         value: targetBuild.value,
-        owner: targetBuild.owner
-      }
+        owner: targetBuild.owner,
+        hasBase: targetBuild.hasBase,
+      },
     });
+
+    // 🚨 SEND ERROR TO CLIENT - Build extension blocked
+    const errorEvent = {
+      type: "buildExtensionFailed",
+      payload: {
+        error: validation.error,
+        targetBuildId: targetBuild.buildId,
+        extensionCard: extensionCard,
+        reason: validation.error.includes("base build")
+          ? "base_build_not_extendable"
+          : "invalid_extension",
+      },
+    };
+
+    // Broadcast error to all clients (or specifically to the attempting player)
+    gameManager.broadcastToGame(gameId, errorEvent);
+
     return gameState;
   }
 
-  logger.info('Build extension validated successfully', {
+  logger.info("Build extension validated successfully", {
     extensionCard: `${extensionCard.rank}${extensionCard.suit}`,
     oldBuild: {
       id: targetBuild.buildId,
       value: targetBuild.value,
       owner: targetBuild.owner,
-      cards: targetBuild.cards.length
+      cards: targetBuild.cards.length,
     },
     newValue: validation.newValue,
-    newOwner: playerIndex
+    newOwner: playerIndex,
   });
 
   // Create the extended build
@@ -146,7 +177,7 @@ function handleValidateBuildExtension(gameManager, playerIndex, action, gameId) 
     targetBuild,
     extensionCard,
     playerIndex, // New owner
-    validation.newValue
+    validation.newValue,
   );
 
   // Update the build in game state
@@ -156,13 +187,14 @@ function handleValidateBuildExtension(gameManager, playerIndex, action, gameId) 
   gameState.tableCards.splice(tempStackIndex, 1);
 
   // Remove extension card from player's hand
-  const handIndex = gameState.playerHands[playerIndex].findIndex(card =>
-    card.rank === extensionCard.rank && card.suit === extensionCard.suit
+  const handIndex = gameState.playerHands[playerIndex].findIndex(
+    (card) =>
+      card.rank === extensionCard.rank && card.suit === extensionCard.suit,
   );
 
   if (handIndex >= 0) {
     gameState.playerHands[playerIndex].splice(handIndex, 1);
-    logger.debug('Extension card removed from hand', { handIndex });
+    logger.debug("Extension card removed from hand", { handIndex });
   }
 
   // Handle turn management (extensions end the turn like captures)
@@ -170,14 +202,14 @@ function handleValidateBuildExtension(gameManager, playerIndex, action, gameId) 
     const nextPlayer = (playerIndex + 1) % 2;
     gameState.currentPlayer = nextPlayer;
 
-    logger.info('Build extension completed - turn ended', {
+    logger.info("Build extension completed - turn ended", {
       previousPlayer: playerIndex,
       nextPlayer,
       extendedBuild: {
         id: extendedBuild.buildId,
         newValue: extendedBuild.value,
-        newOwner: extendedBuild.owner
-      }
+        newOwner: extendedBuild.owner,
+      },
     });
   }
 
