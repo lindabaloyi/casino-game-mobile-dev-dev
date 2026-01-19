@@ -33,34 +33,35 @@ function handleAcceptBuildExtension(gameManager, playerIndex, action, gameId) {
 
   const pendingBuild = gameState.tableCards[buildIndex];
 
-  // 🔐 SAFETY VALIDATION: Ensure player still has the extension card
-  // (This is a safety check in case the initial BuildExtension validation was bypassed)
+  // 🎴 CASINO RULE VALIDATION: Player must have a card to capture the new build value
+  // When extending a build, player needs a capture card for the new total value
   const playerHand = gameState.playerHands[playerIndex];
-  const hasExtensionCard = playerHand.some(
-    (card) =>
-      card.rank === pendingBuild.pendingExtensionCard.rank &&
-      card.suit === pendingBuild.pendingExtensionCard.suit,
+  const newBuildValue = pendingBuild.previewValue;
+  const hasCaptureCardForNewValue = playerHand.some(
+    (card) => card.value === newBuildValue,
   );
 
-  if (!hasExtensionCard) {
+  if (!hasCaptureCardForNewValue) {
     logger.warn(
-      "Build extension validation failed - player missing extension card",
+      "Build extension validation failed - player missing capture card for new build value",
       {
         buildId,
         playerIndex,
-        missingCard: `${pendingBuild.pendingExtensionCard.rank}${pendingBuild.pendingExtensionCard.suit}`,
-        playerHand: playerHand.map((c) => `${c.rank}${c.suit}`),
+        newBuildValue,
+        extensionCard: `${pendingBuild.pendingExtensionCard.rank}${pendingBuild.pendingExtensionCard.suit}`,
+        playerHand: playerHand.map((c) => `${c.rank}${c.suit}(val:${c.value})`),
       },
     );
 
-    // 🚨 THROW ERROR - Extension card not found
+    // 🚨 THROW ERROR - No capture card for new build value
     // GameCoordinatorService will catch this and send error to client
     throw new Error(
       "You don't have the required card in your hand to complete this build extension",
     );
   }
 
-  // Remove the extension card from player's hand (final safety removal)
+  // Remove the extension card from player's hand
+  // (The extension card was validated and should exist in BuildExtension, but let's be safe)
   const cardIndex = playerHand.findIndex(
     (card) =>
       card.rank === pendingBuild.pendingExtensionCard.rank &&
@@ -73,7 +74,17 @@ function handleAcceptBuildExtension(gameManager, playerIndex, action, gameId) {
       buildId,
       playerIndex,
       card: `${pendingBuild.pendingExtensionCard.rank}${pendingBuild.pendingExtensionCard.suit}`,
+      newBuildValue,
     });
+  } else {
+    logger.warn(
+      "Extension card not found during finalization - this should not happen",
+      {
+        buildId,
+        playerIndex,
+        expectedCard: `${pendingBuild.pendingExtensionCard.rank}${pendingBuild.pendingExtensionCard.suit}`,
+      },
+    );
   }
 
   // Create the finalized extended build
