@@ -60,32 +60,7 @@ function handleAcceptBuildExtension(gameManager, playerIndex, action, gameId) {
     );
   }
 
-  // Remove the extension card from player's hand
-  // (The extension card was validated and should exist in BuildExtension, but let's be safe)
-  const cardIndex = playerHand.findIndex(
-    (card) =>
-      card.rank === pendingBuild.pendingExtensionCard.rank &&
-      card.suit === pendingBuild.pendingExtensionCard.suit,
-  );
-
-  if (cardIndex >= 0) {
-    playerHand.splice(cardIndex, 1);
-    logger.debug("Extension card removed from hand during finalization", {
-      buildId,
-      playerIndex,
-      card: `${pendingBuild.pendingExtensionCard.rank}${pendingBuild.pendingExtensionCard.suit}`,
-      newBuildValue,
-    });
-  } else {
-    logger.warn(
-      "Extension card not found during finalization - this should not happen",
-      {
-        buildId,
-        playerIndex,
-        expectedCard: `${pendingBuild.pendingExtensionCard.rank}${pendingBuild.pendingExtensionCard.suit}`,
-      },
-    );
-  }
+  // Note: Extension card was already removed from hand in BuildExtension action
 
   // Create the finalized extended build
   const extendedBuild = {

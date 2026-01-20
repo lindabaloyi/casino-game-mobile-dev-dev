@@ -3,8 +3,11 @@
  * Handles BOTH creation (loose card contact) and addition (temp stack contact)
  */
 
-import type { Card, GameState } from '../../../multiplayer/server/game-logic/game-state';
-import { findLooseCardById, findTempStackById } from '../contactUtils';
+import type {
+  Card,
+  GameState,
+} from "../../../multiplayer/server/game-logic/game-state";
+import { findLooseCardById, findTempStackById } from "../contactUtils";
 
 interface Contact {
   id: string;
@@ -17,7 +20,7 @@ interface Contact {
  * Check if table item is a temp stack
  */
 function isTempStack(item: any): boolean {
-  return item?.type === 'temporary_stack' || item?.type === 'temp_stack';
+  return item?.type === "temporary_stack" || item?.type === "temp_stack";
 }
 
 /**
@@ -28,11 +31,10 @@ export function handleTempStackContact(
   contact: Contact,
   gameState: GameState,
   currentPlayer: number,
-  source?: string
+  source?: string,
 ): { type: string; payload: any } | null {
-
-  // SCENARIO 1: Contact with EXISTING TEMP (Addition Flow)
-  if (contact.type === 'tempStack') {
+  // SCENARIO 1: Contact with EXISTING TEMP (Addition Flow or Capture)
+  if (contact.type === "tempStack") {
     const tempStack = findTempStackById(contact.id, gameState);
 
     if (!tempStack) {
@@ -50,18 +52,42 @@ export function handleTempStackContact(
       return null;
     }
 
+    // 🎯 CAPTURE CHECK: If dragged card value equals temp stack value, capture instead of adding
+    if (source === "hand" && draggedCard.value === tempStack.value) {
+      console.log(
+        "[TEMP_STACK_CONTACT] 🎯 Direct capture detected - card matches temp stack value",
+        {
+          draggedCard: `${draggedCard.rank}${draggedCard.suit}(val:${draggedCard.value})`,
+          tempStackValue: tempStack.value,
+          tempStackCards: tempStack.cards?.length || 0,
+          stackId: tempStack.stackId,
+        },
+      );
+
+      return {
+        type: "capture",
+        payload: {
+          tempStackId: tempStack.stackId,
+          captureValue: draggedCard.value,
+          targetCards: [...(tempStack.cards || []), draggedCard], // All stack cards + capturing card
+          capturingCard: draggedCard,
+        },
+      };
+    }
+
+    // Default: Add to existing temp stack
     return {
-      type: 'addToOwnTemp',
+      type: "addToOwnTemp",
       payload: {
         stackId: tempStack.stackId,
         card: draggedCard,
-        source: source
-      }
+        source: source,
+      },
     };
   }
 
   // SCENARIO 2: Contact with LOOSE CARD (Creation Flow)
-  if (contact.type === 'loose' || contact.type === 'card') {
+  if (contact.type === "loose" || contact.type === "card") {
     const targetCard = findLooseCardById(contact.id, gameState);
 
     if (!targetCard) {
@@ -69,8 +95,10 @@ export function handleTempStackContact(
     }
 
     // Prevent dragging card onto itself
-    if (draggedCard.rank === targetCard.rank &&
-        draggedCard.suit === targetCard.suit) {
+    if (
+      draggedCard.rank === targetCard.rank &&
+      draggedCard.suit === targetCard.suit
+    ) {
       return null;
     }
 
@@ -86,11 +114,11 @@ export function handleTempStackContact(
       return null;
     }
 
-    const isTableToTable = source === 'table';
-    const sourceLocation = isTableToTable ? 'table' : 'hand';
+    const isTableToTable = source === "table";
+    const sourceLocation = isTableToTable ? "table" : "hand";
 
     return {
-      type: 'createTemp',
+      type: "createTemp",
       payload: {
         cards: [targetCard, draggedCard], // Target first, dragged second
         isTableToTable,
@@ -99,8 +127,8 @@ export function handleTempStackContact(
         // Note: gameId will be added by the action router
         // Optional metadata for debugging
         targetCard,
-        draggedCard: draggedCard
-      }
+        draggedCard: draggedCard,
+      },
     };
   }
 
@@ -111,8 +139,8 @@ export function handleTempStackContact(
 function isCardInTemp(card: Card, gameState: GameState): boolean {
   return gameState.tableCards.some((tc: any) => {
     if (!isTempStack(tc)) return false;
-    return (tc.cards || []).some((c: any) =>
-      c.rank === card.rank && c.suit === card.suit
+    return (tc.cards || []).some(
+      (c: any) => c.rank === card.rank && c.suit === card.suit,
     );
   });
 }

@@ -4,126 +4,157 @@
  * Implements freedom of play approach like addToOwnBuild
  */
 
-const handleCapture = require('../capture/capture');
-const { updateBuildCalculator } = require('../../logic/utils/tempStackBuildCalculator');
+const handleCapture = require("../capture/capture");
+const {
+  updateBuildCalculator,
+} = require("../../logic/utils/tempStackBuildCalculator");
 
 function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
-  console.log('🚨🚨🚨 EMERGENCY: handleAddToOwnTemp EXECUTING 🚨🚨🚨');
-  console.log('🚨🚨🚨 Action payload:', JSON.stringify(action.payload));
-  console.log('🚨🚨🚨 Player:', playerIndex, 'Game:', gameId);
-  console.log('[TEMP_STACK] 🏃 ADD_TO_OWN_TEMP executing (FREEDOM OF PLAY)');
-  console.log('[TEMP_STACK] Input action payload:', JSON.stringify(action.payload, null, 2));
+  console.log("🚨🚨🚨 EMERGENCY: handleAddToOwnTemp EXECUTING 🚨🚨🚨");
+  console.log("🚨🚨🚨 Action payload:", JSON.stringify(action.payload));
+  console.log("🚨🚨🚨 Player:", playerIndex, "Game:", gameId);
+  console.log("[TEMP_STACK] 🏃 ADD_TO_OWN_TEMP executing (FREEDOM OF PLAY)");
+  console.log(
+    "[TEMP_STACK] Input action payload:",
+    JSON.stringify(action.payload, null, 2),
+  );
 
   // 🎯 DEBUG: Log opponent card handling specifically
-  if (action.payload.source === 'oppTopCard') {
-    console.log('[🎯 OPP-TEMP-STACK-SERVER] Processing opponent card for temp stack:', {
-      opponentId: action.payload.opponentId,
-      card: `${action.payload.card.rank}${action.payload.card.suit}`,
-      stackId: action.payload.stackId,
-      playerIndex,
-      gameId
-    });
+  if (action.payload.source === "oppTopCard") {
+    console.log(
+      "[🎯 OPP-TEMP-STACK-SERVER] Processing opponent card for temp stack:",
+      {
+        opponentId: action.payload.opponentId,
+        card: `${action.payload.card.rank}${action.payload.card.suit}`,
+        stackId: action.payload.stackId,
+        playerIndex,
+        gameId,
+      },
+    );
   }
 
   const { stackId, card, source } = action.payload;
   const gameState = gameManager.getGameState(gameId);
 
-  console.log('[TEMP_STACK] Operation details:', {
+  console.log("[TEMP_STACK] Operation details:", {
     gameId,
     stackId,
     card: `${card.rank}${card.suit}`,
     cardValue: card.value,
     source,
     playerIndex,
-    philosophy: 'ALWAYS FIND OR CREATE'
+    philosophy: "ALWAYS FIND OR CREATE",
   });
 
   // 🎯 EARLY VALIDATION: Check for undefined stackId (client bug)
-  if (!stackId || stackId === 'undefined') {
-    console.log('[TEMP_STACK] 🚨 CLIENT BUG: Received undefined stackId from client');
-    throw new Error('Invalid temp stack selection. Please try again.');
+  if (!stackId || stackId === "undefined") {
+    console.log(
+      "[TEMP_STACK] 🚨 CLIENT BUG: Received undefined stackId from client",
+    );
+    throw new Error("Invalid temp stack selection. Please try again.");
   }
 
   // 🎯 GUARD RAIL: Prevent multiple hand card additions to temp stacks per turn
-  if (source === 'hand') {
-    console.log('[TEMP_STACK_GUARD] 🎯 Checking hand card usage for temp stacks this turn');
+  if (source === "hand") {
+    console.log(
+      "[TEMP_STACK_GUARD] 🎯 Checking hand card usage for temp stacks this turn",
+    );
 
     // Initialize tracking array if it doesn't exist
     if (!gameState.tempStackHandCardUsedThisTurn) {
       gameState.tempStackHandCardUsedThisTurn = [false, false];
-      console.log('[TEMP_STACK_GUARD] 🆕 Initialized temp stack hand card tracking');
+      console.log(
+        "[TEMP_STACK_GUARD] 🆕 Initialized temp stack hand card tracking",
+      );
     }
 
     // Check if player has already used a hand card for temp stacks this turn
     if (gameState.tempStackHandCardUsedThisTurn[playerIndex]) {
-      console.log('[TEMP_STACK_GUARD] ❌ BLOCKED: Player already added hand card to temp stack this turn');
-      throw new Error('Cannot add multiple hand cards to temp stacks in the same turn. You must resolve your temp stack or wait for your next turn.');
+      console.log(
+        "[TEMP_STACK_GUARD] ❌ BLOCKED: Player already added hand card to temp stack this turn",
+      );
+      throw new Error(
+        "Cannot add multiple hand cards to temp stacks in the same turn. You must resolve your temp stack or wait for your next turn.",
+      );
     }
 
     // Mark hand card as used for temp stacks this turn
     gameState.tempStackHandCardUsedThisTurn[playerIndex] = true;
-    console.log('[TEMP_STACK_GUARD] ✅ ALLOWED: Marked hand card usage for temp stack this turn');
+    console.log(
+      "[TEMP_STACK_GUARD] ✅ ALLOWED: Marked hand card usage for temp stack this turn",
+    );
   }
 
   // 🎯 DIRECT CAPTURE CHECK: FIRST CHECK - If dragging hand card that equals temp stack value
-  if (source === 'hand') {
+  if (source === "hand") {
     // Find the temp stack to check its value
-    const tempStack = gameState.tableCards.find(item =>
-      item.type === 'temporary_stack' && item.stackId === stackId
+    const tempStack = gameState.tableCards.find(
+      (item) => item.type === "temporary_stack" && item.stackId === stackId,
     );
 
     if (tempStack && card.value === tempStack.value) {
       // Execute capture instead of adding to stack
       // Include capturing card in the captured set (like build captures)
-      return handleCapture(gameManager, playerIndex, {
-        type: 'capture',
-        payload: {
-          tempStackId: tempStack.stackId, // Include the actual stack ID for removal
-          captureValue: card.value,
-          targetCards: [...tempStack.cards, card], // Include capturing card on top
-          capturingCard: card // Mark for hand removal
-        }
-      }, gameId);
+      return handleCapture(
+        gameManager,
+        playerIndex,
+        {
+          type: "capture",
+          payload: {
+            tempStackId: tempStack.stackId, // Include the actual stack ID for removal
+            captureValue: card.value,
+            targetCards: [...tempStack.cards, card], // Include capturing card on top
+            capturingCard: card, // Mark for hand removal
+          },
+        },
+        gameId,
+      );
     }
   }
 
   // Find the temp stack - no auto-creation fallback
-  const tempStack = gameState.tableCards.find(item =>
-    item.type === 'temporary_stack' && item.stackId === stackId
+  const tempStack = gameState.tableCards.find(
+    (item) => item.type === "temporary_stack" && item.stackId === stackId,
   );
 
   if (!tempStack) {
-    const error = new Error(`Temp stack '${stackId}' not found. Cannot add card to non-existent stack.`);
-    console.error('[TEMP_STACK_ERROR] Stack not found:', {
+    const error = new Error(
+      `Temp stack '${stackId}' not found. Cannot add card to non-existent stack.`,
+    );
+    console.error("[TEMP_STACK_ERROR] Stack not found:", {
       requestedStackId: stackId,
       availableStacks: gameState.tableCards
-        .filter(item => item.type === 'temporary_stack')
-        .map(stack => ({ id: stack.stackId, owner: stack.owner, cards: stack.cards.length }))
+        .filter((item) => item.type === "temporary_stack")
+        .map((stack) => ({
+          id: stack.stackId,
+          owner: stack.owner,
+          cards: stack.cards.length,
+        })),
     });
     throw error;
   }
 
   // Basic sanity checks only (no game rule validation)
   if (!card || !card.rank || !card.suit) {
-    console.error('[VALIDATION_ERROR] Invalid card data');
-    throw new Error('Invalid card data');
+    console.error("[VALIDATION_ERROR] Invalid card data");
+    throw new Error("Invalid card data");
   }
 
   if (!source) {
-    console.error('[VALIDATION_ERROR] Card source not specified');
-    throw new Error('Card source not specified');
+    console.error("[VALIDATION_ERROR] Card source not specified");
+    throw new Error("Card source not specified");
   }
 
   // NOTE: No ownership, size, or rule validation for temp stacks
   // Freedom-first approach: Let players build anything during temp phase
 
   // 🎯 EXECUTION: Add card to stack (no size limits)
-  console.log('[EXECUTION] Adding card to stack (unlimited):', {
+  console.log("[EXECUTION] Adding card to stack (unlimited):", {
     stackId: tempStack.stackId,
     beforeCount: tempStack.cards.length,
     card: `${card.rank}${card.suit}`,
     source,
-    flexibleStacking: true
+    flexibleStacking: true,
   });
 
   // Initialize cardPositions array if it doesn't exist (for backward compatibility)
@@ -134,59 +165,63 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
       tempStack.cardPositions.push({
         cardId: `${existingCard.rank}${existingCard.suit}`,
         originalIndex: null, // Unknown for existing cards
-        source: existingCard.source || 'unknown'
+        source: existingCard.source || "unknown",
       });
     });
   }
 
   tempStack.cards.push({
     ...card,
-    source: source || 'unknown',
+    source: source || "unknown",
     addedAt: Date.now(),
-    addedBy: playerIndex
+    addedBy: playerIndex,
   });
 
   // Track the position of the newly added card
   let originalIndex = null;
-  if (source === 'table' || source === 'loose') {
+  if (source === "table" || source === "loose") {
     // For table cards, find their original position
     // Note: This is approximate since we don't have perfect tracking
     // In a real implementation, this would need better state management
-    originalIndex = gameState.tableCards.findIndex(tableCard =>
-      tableCard.rank === card.rank &&
-      tableCard.suit === card.suit &&
-      (!tableCard.type || tableCard.type === 'loose')
+    originalIndex = gameState.tableCards.findIndex(
+      (tableCard) =>
+        tableCard.rank === card.rank &&
+        tableCard.suit === card.suit &&
+        (!tableCard.type || tableCard.type === "loose"),
     );
   }
 
   tempStack.cardPositions.push({
     cardId: `${card.rank}${card.suit}`,
     originalIndex: originalIndex,
-    source: source || 'unknown'
+    source: source || "unknown",
   });
 
   try {
-    console.log('[BUILD_CALCULATOR] 🎯 Updating real-time build calculator:', {
+    console.log("[BUILD_CALCULATOR] 🎯 Updating real-time build calculator:", {
       stackId: tempStack.stackId,
       beforeCards: tempStack.cards.length - 1,
       newCardValue: card.value,
       currentBuildValue: tempStack.buildValue,
-      currentRunningSum: tempStack.runningSum
+      currentRunningSum: tempStack.runningSum,
     });
 
     updateBuildCalculator(tempStack, card.value);
 
-    console.log('[BUILD_CALCULATOR] ✅ Build calculator updated:', {
+    console.log("[BUILD_CALCULATOR] ✅ Build calculator updated:", {
       displayValue: tempStack.displayValue,
       isValid: tempStack.isValid,
       isBuilding: tempStack.isBuilding,
       buildValue: tempStack.buildValue,
       runningSum: tempStack.runningSum,
-      segmentCount: tempStack.segmentCount
+      segmentCount: tempStack.segmentCount,
     });
   } catch (error) {
-    console.error('[BUILD_CALCULATOR] ❌ ERROR in build calculator:', error.message);
-    console.error('[BUILD_CALCULATOR] Stack trace:', error.stack);
+    console.error(
+      "[BUILD_CALCULATOR] ❌ ERROR in build calculator:",
+      error.message,
+    );
+    console.error("[BUILD_CALCULATOR] Stack trace:", error.stack);
     // Continue execution even if build calculator fails
   }
 
@@ -195,55 +230,82 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
   tempStack.lastUpdated = Date.now();
 
   // 🎯 SOURCE REMOVAL: Remove card from original source
-  console.log('[EXECUTION] Removing card from source:', { source, card: `${card.rank}${card.suit}` });
+  console.log("[EXECUTION] Removing card from source:", {
+    source,
+    card: `${card.rank}${card.suit}`,
+  });
 
   try {
-    removeCardFromSource(gameState, card, source, playerIndex, action.payload.opponentId);
-    console.log('[EXECUTION] ✅ Card successfully removed from source');
+    removeCardFromSource(
+      gameState,
+      card,
+      source,
+      playerIndex,
+      action.payload.opponentId,
+    );
+    console.log("[EXECUTION] ✅ Card successfully removed from source");
   } catch (error) {
-    console.error('[EXECUTION_ERROR] Failed to remove card from source:', error.message);
+    console.error(
+      "[EXECUTION_ERROR] Failed to remove card from source:",
+      error.message,
+    );
     throw error;
   }
 
   // Check if this is now a complex stack (3+ cards, not same-value)
-  const isComplexStack = tempStack.cards.length >= 3 && !tempStack.isSameValueStack;
+  const isComplexStack =
+    tempStack.cards.length >= 3 && !tempStack.isSameValueStack;
 
   if (isComplexStack) {
-    console.log('[COMPLEX_BUILD_CHECK] ✅ Complex stack detected - checking for build options');
+    console.log(
+      "[COMPLEX_BUILD_CHECK] ✅ Complex stack detected - checking for build options",
+    );
 
-    const { detectNormalBuildCombinations, detectBaseBuild } = require('../../logic/utils/tempStackBuildCalculator');
+    const {
+      detectNormalBuildCombinations,
+      detectBaseBuild,
+    } = require("../../logic/utils/tempStackBuildCalculator");
     const playerHand = gameState.playerHands[playerIndex];
-    const cardValues = tempStack.cards.map(c => c.value);
+    const cardValues = tempStack.cards.map((c) => c.value);
 
     const availableOptions = [];
 
     // Check for Base Build options
     for (let baseIndex = 0; baseIndex < tempStack.cards.length; baseIndex++) {
       const potentialBase = tempStack.cards[baseIndex];
-      const supports = tempStack.cards.filter((_, index) => index !== baseIndex);
+      const supports = tempStack.cards.filter(
+        (_, index) => index !== baseIndex,
+      );
       const supportsSum = supports.reduce((s, c) => s + c.value, 0);
 
       if (supportsSum === potentialBase.value && potentialBase.value <= 10) {
         // Check position requirements
         let isValidBase = false;
-        if (potentialBase.source === 'oppTopCard') {
-          isValidBase = (baseIndex > 0); // oppTopCard base anywhere except bottom
-        } else if (potentialBase.source === 'table' || potentialBase.source === 'hand') {
-          isValidBase = (baseIndex === 0); // table/hand base must be bottom
+        if (potentialBase.source === "oppTopCard") {
+          isValidBase = baseIndex > 0; // oppTopCard base anywhere except bottom
+        } else if (
+          potentialBase.source === "table" ||
+          potentialBase.source === "hand"
+        ) {
+          isValidBase = baseIndex === 0; // table/hand base must be bottom
         }
 
         if (isValidBase) {
           // Check if player has the capture card
-          const hasCaptureCard = playerHand.some(card => card.value === potentialBase.value);
+          const hasCaptureCard = playerHand.some(
+            (card) => card.value === potentialBase.value,
+          );
           if (hasCaptureCard) {
             availableOptions.push({
-              type: 'build',
+              type: "build",
               label: `Build ${potentialBase.value} (base build)`,
               value: potentialBase.value,
-              buildType: 'base',
-              actionType: 'createBuildFromTempStack'
+              buildType: "base",
+              actionType: "createBuildFromTempStack",
             });
-            console.log(`[COMPLEX_BUILD_CHECK] ✅ Added base build option: ${potentialBase.value}`);
+            console.log(
+              `[COMPLEX_BUILD_CHECK] ✅ Added base build option: ${potentialBase.value}`,
+            );
           }
         }
       }
@@ -254,62 +316,89 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
 
     normalCombinations.forEach((combo) => {
       // Check if player has the capture card for this build value
-      const hasCaptureCard = playerHand.some(card => card.value === combo.buildValue);
+      const hasCaptureCard = playerHand.some(
+        (card) => card.value === combo.buildValue,
+      );
       if (hasCaptureCard) {
         availableOptions.push({
-          type: 'build',
+          type: "build",
           label: `Build ${combo.buildValue} (normal build)`,
           value: combo.buildValue,
-          buildType: 'normal',
+          buildType: "normal",
           segments: combo.segments,
-          actionType: 'createBuildFromTempStack'
+          actionType: "createBuildFromTempStack",
         });
-        console.log(`[COMPLEX_BUILD_CHECK] ✅ Added normal build option: ${combo.buildValue} (${combo.segmentCount} segments)`);
+        console.log(
+          `[COMPLEX_BUILD_CHECK] ✅ Added normal build option: ${combo.buildValue} (${combo.segmentCount} segments)`,
+        );
       }
     });
 
-    // If we have build options, send modal data packet instead of just updating the stack
-    if (availableOptions.length > 0) {
+    // Check if player can capture the temp stack directly
+    const playerHasCaptureCard = playerHand.some(
+      (card) => card.value === tempStack.displayValue,
+    );
+    console.log("[COMPLEX_BUILD_CHECK] 🎯 Direct capture check:", {
+      tempStackDisplayValue: tempStack.displayValue,
+      playerHasCaptureCard: playerHasCaptureCard,
+      playerHandValues: playerHand.map((c) => c.value),
+    });
+
+    // Only show modal if player cannot capture directly AND has build options
+    if (!playerHasCaptureCard && availableOptions.length > 0) {
       // Always add capture option
       availableOptions.push({
-        type: 'capture',
+        type: "capture",
         label: `Capture all (${tempStack.cards.length} cards)`,
         value: tempStack.cards[0]?.value || 0,
-        actionType: 'captureTempStack'
+        actionType: "captureTempStack",
       });
 
-      console.log('[COMPLEX_BUILD_CHECK] 🎯 Complex build options found - sending modal data packet:', {
-        optionCount: availableOptions.length,
-        options: availableOptions.map(o => `${o.label} (${o.type})`)
-      });
+      console.log(
+        "[COMPLEX_BUILD_CHECK] 🎯 Modal required - player cannot capture directly, sending modal data packet:",
+        {
+          optionCount: availableOptions.length,
+          options: availableOptions.map((o) => `${o.label} (${o.type})`),
+        },
+      );
 
       // Create a special action to trigger modal on client
-      // We'll modify the game state to include a pending modal action
       gameState.pendingModalAction = {
-        type: 'showTempStackOptions',
+        type: "showTempStackOptions",
         payload: {
           tempStackId: tempStack.stackId,
           availableOptions: availableOptions,
-          isComplexBuild: true
-        }
+          isComplexBuild: true,
+        },
       };
 
-      console.log('[COMPLEX_BUILD_CHECK] 📦 Modal data packet attached to game state');
+      console.log(
+        "[COMPLEX_BUILD_CHECK] 📦 Modal data packet attached to game state",
+      );
+    } else if (playerHasCaptureCard) {
+      console.log(
+        "[COMPLEX_BUILD_CHECK] ✅ Direct capture possible - no modal needed, temp stack can be captured with:",
+        tempStack.displayValue,
+      );
     } else {
-      console.log('[COMPLEX_BUILD_CHECK] ❌ No build options available - stack remains basic');
+      console.log(
+        "[COMPLEX_BUILD_CHECK] ❌ No build options and no capture card - stack remains basic",
+      );
     }
   } else {
-    console.log('[COMPLEX_BUILD_CHECK] ❌ Not a complex stack (same-value or < 3 cards)');
+    console.log(
+      "[COMPLEX_BUILD_CHECK] ❌ Not a complex stack (same-value or < 3 cards)",
+    );
   }
 
-  console.log('[EXECUTION] ✅ Card added successfully (game-appropriate):', {
+  console.log("[EXECUTION] ✅ Card added successfully (game-appropriate):", {
     stackId: tempStack.stackId,
     newCardCount: tempStack.cards.length,
     newValue: tempStack.value,
     remainingHand: gameState.playerHands[playerIndex]?.length || 0,
     unlimitedStacking: true,
     autoCreated: !!tempStack.createdAt,
-    hasPendingModal: !!gameState.pendingModalAction
+    hasPendingModal: !!gameState.pendingModalAction,
   });
 
   return gameState;
@@ -319,48 +408,65 @@ function handleAddToOwnTemp(gameManager, playerIndex, action, gameId) {
  * Remove card from its source location
  * Handles hand, captures, and table sources
  */
-function removeCardFromSource(gameState, card, source, playerIndex, opponentId) {
-  console.log('[SOURCE_REMOVAL] Removing card from source:', {
+function removeCardFromSource(
+  gameState,
+  card,
+  source,
+  playerIndex,
+  opponentId,
+) {
+  console.log("[SOURCE_REMOVAL] Removing card from source:", {
     card: `${card.rank}${card.suit}`,
     source,
-    playerIndex
+    playerIndex,
   });
 
-  if (source === 'hand') {
-    const handIndex = gameState.playerHands[playerIndex].findIndex(c =>
-      c.rank === card.rank && c.suit === card.suit
+  if (source === "hand") {
+    const handIndex = gameState.playerHands[playerIndex].findIndex(
+      (c) => c.rank === card.rank && c.suit === card.suit,
     );
     if (handIndex >= 0) {
       gameState.playerHands[playerIndex].splice(handIndex, 1);
-      console.log('[SOURCE_REMOVAL] ✅ Removed from hand at index:', handIndex);
+      console.log("[SOURCE_REMOVAL] ✅ Removed from hand at index:", handIndex);
     } else {
-      throw new Error(`Card ${card.rank}${card.suit} not found in player's hand`);
+      throw new Error(
+        `Card ${card.rank}${card.suit} not found in player's hand`,
+      );
     }
-  } else if (source === 'table' || source === 'loose') {
+  } else if (source === "table" || source === "loose") {
     // 🎯 FIX: Handle 'loose' source same as 'table' (loose cards are table cards)
-    console.log('[SOURCE_REMOVAL] Removing loose card from table');
-    const cardIndex = gameState.tableCards.findIndex(tableCard =>
-      tableCard.rank === card.rank &&
-      tableCard.suit === card.suit &&
-      (!tableCard.type || tableCard.type === 'loose')
+    console.log("[SOURCE_REMOVAL] Removing loose card from table");
+    const cardIndex = gameState.tableCards.findIndex(
+      (tableCard) =>
+        tableCard.rank === card.rank &&
+        tableCard.suit === card.suit &&
+        (!tableCard.type || tableCard.type === "loose"),
     );
     if (cardIndex >= 0) {
       gameState.tableCards.splice(cardIndex, 1);
-      console.log('[SOURCE_REMOVAL] ✅ Removed from table at index:', cardIndex);
+      console.log(
+        "[SOURCE_REMOVAL] ✅ Removed from table at index:",
+        cardIndex,
+      );
     } else {
       throw new Error(`Card ${card.rank}${card.suit} not found on table`);
     }
-  } else if (source === 'captured') {
-    const captureIndex = gameState.playerCaptures[playerIndex].findIndex(c =>
-      c.rank === card.rank && c.suit === card.suit
+  } else if (source === "captured") {
+    const captureIndex = gameState.playerCaptures[playerIndex].findIndex(
+      (c) => c.rank === card.rank && c.suit === card.suit,
     );
     if (captureIndex >= 0) {
       gameState.playerCaptures[playerIndex].splice(captureIndex, 1);
-      console.log('[SOURCE_REMOVAL] ✅ Removed from captures at index:', captureIndex);
+      console.log(
+        "[SOURCE_REMOVAL] ✅ Removed from captures at index:",
+        captureIndex,
+      );
     } else {
-      throw new Error(`Card ${card.rank}${card.suit} not found in player's captures`);
+      throw new Error(
+        `Card ${card.rank}${card.suit} not found in player's captures`,
+      );
     }
-  } else if (source === 'oppTopCard') {
+  } else if (source === "oppTopCard") {
     // Handle opponent top card - validate it's the top card and remove it
     if (opponentId === undefined) {
       throw new Error("opponentId is required for oppTopCard source");
@@ -374,12 +480,14 @@ function removeCardFromSource(gameState, card, source, playerIndex, opponentId) 
     // Check if it's the top card (last element in array)
     const actualTopCard = opponentCaptures[opponentCaptures.length - 1];
     if (actualTopCard.rank !== card.rank || actualTopCard.suit !== card.suit) {
-      throw new Error(`Card ${card.rank}${card.suit} is not opponent ${opponentId}'s top card`);
+      throw new Error(
+        `Card ${card.rank}${card.suit} is not opponent ${opponentId}'s top card`,
+      );
     }
 
     // Remove the top card from opponent's captures
     gameState.playerCaptures[opponentId].pop();
-    console.log('[SOURCE_REMOVAL] ✅ Removed opponent top card from captures');
+    console.log("[SOURCE_REMOVAL] ✅ Removed opponent top card from captures");
   } else {
     throw new Error(`Unknown source type: ${source}`);
   }

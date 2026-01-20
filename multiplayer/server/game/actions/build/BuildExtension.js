@@ -88,6 +88,14 @@ function handleBuildExtension(gameManager, playerIndex, action, gameId) {
       extensionCard,
     ),
     previewOwner: playerIndex,
+    // Add position tracking for the extension card (like temp stacks)
+    cardPositions: [
+      {
+        cardId: `${extensionCard.rank}${extensionCard.suit}`,
+        originalIndex: null, // No original index since it's from hand
+        source: "hand",
+      },
+    ],
   };
 
   // Replace the build with the pending extension version
