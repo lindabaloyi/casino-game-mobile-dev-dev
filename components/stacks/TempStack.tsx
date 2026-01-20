@@ -1,10 +1,10 @@
-import React from 'react';
-import { View } from 'react-native';
-import { useLayoutMeasurement } from '../../hooks/useLayoutMeasurement';
-import { useCardContact } from '../../src/hooks/useCardContact';
-import { CardType } from '../cards/card';
-import { TempStackIndicator } from '../indicators/TempStackIndicator';
-import { StackRenderer } from './StackRenderer';
+import React from "react";
+import { View } from "react-native";
+import { useLayoutMeasurement } from "../../hooks/useLayoutMeasurement";
+import { useCardContact } from "../../src/hooks/useCardContact";
+import { CardType } from "../cards/card";
+import { TempStackIndicator } from "../indicators/TempStackIndicator";
+import { StackRenderer } from "./StackRenderer";
 
 interface TempStackProps {
   stackId: string;
@@ -42,16 +42,35 @@ export const TempStack: React.FC<TempStackProps> = ({
   onFinalizeStack,
   onCancelStack,
   currentPlayer = 0,
-  dragSource = 'table',
+  dragSource = "table",
   dragZIndex,
   baseZIndex = 1,
   baseElevation = 1,
   canAugmentBuilds = false,
   onDragStart,
-  onDragEnd
+  onDragEnd,
 }) => {
-  // Use layout measurement hook with LARGER expansion for temp stacks (50% vs 15%)
-  const { ref, bounds, measure } = useLayoutMeasurement(stackId, 0.5);
+  // Dynamic expansion factor for temp stacks: base 50% + 10% per card over 4
+  // This ensures drop zones grow as stacks get taller
+  const baseExpansion = 0.5;
+  const extraExpansionPerCard = 0.1;
+  const cardCount = cards.length;
+  const dynamicExpansion =
+    cardCount > 4
+      ? baseExpansion + extraExpansionPerCard * (cardCount - 4)
+      : baseExpansion;
+
+  console.log(`[TempStack] 📏 Dynamic expansion for ${stackId}:`, {
+    cardCount,
+    baseExpansion: `${(baseExpansion * 100).toFixed(0)}%`,
+    dynamicExpansion: `${(dynamicExpansion * 100).toFixed(0)}%`,
+    totalExpansion: `${(dynamicExpansion * 2 * 100).toFixed(0)}% wider/taller`,
+  });
+
+  const { ref, bounds, measure } = useLayoutMeasurement(
+    stackId,
+    dynamicExpansion,
+  );
 
   // Report temp stack position to contact detection system
   const { reportCardPosition, removeCardPosition } = useCardContact();
@@ -64,15 +83,15 @@ export const TempStack: React.FC<TempStackProps> = ({
         y: bounds.y,
         width: bounds.width,
         height: bounds.height,
-        type: 'tempStack',
+        type: "tempStack",
         data: {
           displayValue, // Calculated build display value for rule engine
-          buildValue,   // Calculated build value for rule engine
+          buildValue, // Calculated build value for rule engine
           captureValue, // Explicit capture value
           value: totalValue, // Fallback total value
           canAugmentBuilds,
-          cards
-        } // Include all build values for rule engine evaluation
+          cards,
+        }, // Include all build values for rule engine evaluation
       });
     }
 
@@ -80,15 +99,30 @@ export const TempStack: React.FC<TempStackProps> = ({
     return () => {
       removeCardPosition(stackId);
     };
-  }, [stackId, bounds, reportCardPosition, removeCardPosition, totalValue, displayValue, buildValue, captureValue, canAugmentBuilds, cards]);
+  }, [
+    stackId,
+    bounds,
+    reportCardPosition,
+    removeCardPosition,
+    totalValue,
+    displayValue,
+    buildValue,
+    captureValue,
+    canAugmentBuilds,
+    cards,
+  ]);
 
   return (
-    <View ref={ref} onLayout={measure} style={{
-      position: 'relative',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 4,
-    }}>
+    <View
+      ref={ref}
+      onLayout={measure}
+      style={{
+        position: "relative",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 4,
+      }}
+    >
       <StackRenderer
         cards={cards}
         draggable={canAugmentBuilds} // Temp stacks are draggable only when player can augment builds
@@ -104,10 +138,7 @@ export const TempStack: React.FC<TempStackProps> = ({
       />
 
       {/* Temp stack value indicators */}
-      <TempStackIndicator
-        captureValue={captureValue}
-        totalValue={totalValue}
-      />
+      <TempStackIndicator captureValue={captureValue} totalValue={totalValue} />
     </View>
   );
 };

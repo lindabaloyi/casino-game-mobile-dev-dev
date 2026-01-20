@@ -279,5 +279,14 @@ describe("Temp Stack Build Calculator", () => {
         expect(result.buildValue).toBe(expected.value);
       });
     });
+
+    // Test case for the reported issue: [5,4,1,7,3] should be valid build of 10
+    test("[5,4,1,7,3] → normal_build with value 10 (two segments: [5,4,1] and [7,3])", () => {
+      const result = detectBuildType([5, 4, 1, 7, 3]);
+      expect(result.isValid).toBe(true);
+      expect(result.type).toBe("normal_build");
+      expect(result.buildValue).toBe(10);
+      expect(result.segmentCount).toBe(2);
+    });
   });
 });

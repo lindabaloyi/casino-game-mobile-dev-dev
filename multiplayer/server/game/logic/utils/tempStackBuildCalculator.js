@@ -27,13 +27,7 @@ function detectBaseBuild(values) {
   if (expectedSegments < 1) return { isValid: false };
 
   // Check if the remaining cards can be partitioned into segments summing to baseValue
-  // For simplicity, check if any single card equals baseValue, or if cards can be combined
-  // More complex validation would check all possible combinations
-  const canFormSegments =
-    remainingCards.some((card) => card === baseValue) ||
-    (remainingCards.length >= 2 &&
-      remainingCards.reduce((a, b) => a + b, 0) ===
-        baseValue * expectedSegments);
+  const canFormSegments = canFormValidSegments(remainingCards, baseValue);
 
   if (!canFormSegments) return { isValid: false };
 
@@ -74,29 +68,27 @@ function detectNormalBuildCombinations(values) {
   // COMPLEX CASE: Sum > 10, use segment-based logic
   const combinations = [];
 
-  // Find all possible first segments
-  for (let start = 0; start < values.length - 1; start++) {
-    for (let end = values.length; end >= start + 2; end--) {
-      const segmentSum = values.slice(start, end).reduce((a, b) => a + b, 0);
-      if (segmentSum <= 10) {
-        const buildValue = segmentSum;
-        const segmentEnd = end;
+  // Find all possible first segments (must start from index 0 to cover all cards)
+  const start = 0;
+  for (let end = values.length; end >= start + 2; end--) {
+    const segmentSum = values.slice(start, end).reduce((a, b) => a + b, 0);
+    if (segmentSum <= 10) {
+      const buildValue = segmentSum;
+      const segmentEnd = end;
 
-        // Check if remaining cards form valid segments of buildValue
-        const remainingCards = values.slice(segmentEnd);
-        if (canFormValidSegments(remainingCards, buildValue)) {
-          const segmentCount =
-            1 + countValidSegments(remainingCards, buildValue);
+      // Check if remaining cards form valid segments of buildValue
+      const remainingCards = values.slice(segmentEnd);
+      if (canFormValidSegments(remainingCards, buildValue)) {
+        const segmentCount = 1 + countValidSegments(remainingCards, buildValue);
 
-          combinations.push({
-            isValid: true,
-            buildValue,
-            type: "normal_build",
-            segmentCount,
-            segmentEnd,
-            segments: extractSegments(values, buildValue, segmentEnd),
-          });
-        }
+        combinations.push({
+          isValid: true,
+          buildValue,
+          type: "normal_build",
+          segmentCount,
+          segmentEnd,
+          segments: extractSegments(values, buildValue, segmentEnd),
+        });
       }
     }
   }
@@ -279,6 +271,18 @@ function detectBuildType(values) {
         return baseResult;
       }
     }
+  }
+
+  // QUATERNARY RULE: Normal combination builds for sum > 10
+  console.log(
+    `[BUILD_DETECT] 🔍 Checking normal combination builds for sum ${totalSum} > 10`,
+  );
+  const normalCombinations = detectNormalBuildCombinations(values);
+  if (normalCombinations.length > 0) {
+    console.log(
+      `[BUILD_DETECT] 📊 Normal combination build detected with value ${normalCombinations[0].buildValue}`,
+    );
+    return normalCombinations[0];
   }
 
   console.log(
