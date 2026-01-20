@@ -4,12 +4,12 @@
  * Extracted from TableCards.tsx to focus on build logic
  */
 
-import React, { useRef } from 'react';
-import { View } from 'react-native';
-import { useBuildContactRegistration, useBuildDropHandler } from '../../hooks';
-import { TableCard } from '../../multiplayer/server/game-logic/game-state';
-import { CardType } from '../cards/card';
-import { BuildStack } from '../stacks/BuildStack';
+import React, { useRef } from "react";
+import { View } from "react-native";
+import { useBuildContactRegistration, useBuildDropHandler } from "../../hooks";
+import { TableCard } from "../../multiplayer/server/game-logic/game-state";
+import { CardType } from "../cards/card";
+import { BuildStack } from "../stacks/BuildStack";
 
 interface BuildCardRendererProps {
   tableItem: TableCard;
@@ -42,7 +42,7 @@ export function BuildCardRenderer({
   onRejectBuildAddition,
   // Extension overlay props
   onAcceptBuildExtension,
-  onCancelBuildExtension
+  onCancelBuildExtension,
 }: BuildCardRendererProps) {
   // Type assertion for build item
   const buildItem = tableItem as any; // Build has type: 'build' with additional properties
@@ -52,21 +52,34 @@ export function BuildCardRenderer({
   // Build items can have multiple cards, or a single card representation
   // When in pending extension, show preview cards to visualize the extension
   const buildCards = buildItem.isPendingExtension
-    ? (buildItem.previewCards || buildItem.cards || [tableItem as CardType])
-    : (buildItem.cards || [tableItem as CardType]);
+    ? buildItem.previewCards || buildItem.cards || [tableItem as CardType]
+    : buildItem.cards || [tableItem as CardType];
 
   // Extracted hooks for cleaner separation of concerns
   useBuildDropHandler({
     buildItem,
     currentPlayer,
-    sendAction: sendAction || (() => {}) // Provide fallback to avoid undefined
+    sendAction: sendAction || (() => {}), // Provide fallback to avoid undefined
   });
 
   // Extracted contact registration hook
   useBuildContactRegistration({
     buildItem,
-    stackRef: stackRef as React.RefObject<View> // Cast to remove null possibility
+    stackRef: stackRef as React.RefObject<View>, // Cast to remove null possibility
   });
+
+  // Handle build addition acceptance
+  const handleAcceptBuildAddition = React.useCallback(() => {
+    if (sendAction) {
+      console.log(
+        `[BUILD_ADDITION] Accepting build addition for build ${stackId}`,
+      );
+      sendAction({
+        type: "acceptBuildAddition",
+        payload: { buildId: stackId },
+      });
+    }
+  }, [sendAction, stackId]);
 
   return (
     <View ref={stackRef}>
@@ -74,13 +87,18 @@ export function BuildCardRenderer({
         key={`table-build-${index}`}
         stackId={stackId}
         cards={buildCards}
-        buildValue={buildItem.isPendingExtension ? buildItem.previewValue : buildItem.value}
+        buildValue={
+          buildItem.isPendingExtension
+            ? buildItem.previewValue
+            : buildItem.value
+        }
+        displayValue={buildItem.displayValue}
         stackOwner={buildItem.owner}
         currentPlayer={currentPlayer}
         // Overlay props for build additions
         showOverlay={showOverlay}
         overlayText="BUILD"
-        onAccept={onAcceptBuildAddition}
+        onAccept={handleAcceptBuildAddition}
         onReject={onRejectBuildAddition}
         // Overlay props for build extensions
         isPendingExtension={buildItem.isPendingExtension}

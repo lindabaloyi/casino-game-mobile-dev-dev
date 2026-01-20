@@ -288,5 +288,13 @@ describe("Temp Stack Build Calculator", () => {
       expect(result.buildValue).toBe(10);
       expect(result.segmentCount).toBe(2);
     });
+
+    // Test case for [5,4,1] - should be sum build, not base build
+    test("[5,4,1] → sum_build with value 10 (not base build)", () => {
+      const result = detectBuildType([5, 4, 1]);
+      expect(result.isValid).toBe(true);
+      expect(result.type).toBe("sum_build");
+      expect(result.buildValue).toBe(10);
+    });
   });
 });

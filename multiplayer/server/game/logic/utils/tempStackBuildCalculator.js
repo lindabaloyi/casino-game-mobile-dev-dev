@@ -250,26 +250,28 @@ function detectBuildType(values) {
     };
   }
 
-  // TERTIARY RULE: Complex base builds for sum > 10
+  // TERTIARY RULE: Complex base builds for sum > 10 (base card must be at END)
   console.log(
     `[BUILD_DETECT] 🔍 Checking complex base builds for sum ${totalSum} > 10`,
   );
-  const sortedValues = [...values].sort((a, b) => b - a);
-  for (const potentialBase of sortedValues) {
-    if (potentialBase >= 1 && potentialBase <= 10) {
-      const baseIndex = values.indexOf(potentialBase);
-      const reorderedValues = [
-        potentialBase,
-        ...values.slice(0, baseIndex),
-        ...values.slice(baseIndex + 1),
-      ];
-      const baseResult = detectBaseBuild(reorderedValues);
-      if (baseResult.isValid) {
-        console.log(
-          `[BUILD_DETECT] 🏗️ Complex base build detected with base ${potentialBase}`,
-        );
-        return baseResult;
-      }
+  // Only check if the last card could be a base for the preceding cards
+  const lastCardAsBase = values[values.length - 1];
+  if (lastCardAsBase >= 1 && lastCardAsBase <= 10) {
+    const supportingCards = values.slice(0, -1);
+    const supportingSum = supportingCards.reduce((sum, card) => sum + card, 0);
+    if (supportingSum === lastCardAsBase) {
+      console.log(
+        `[BUILD_DETECT] 🏗️ Complex base build detected: ${supportingCards.join(",")} = ${lastCardAsBase}`,
+      );
+      return {
+        isValid: true,
+        buildValue: lastCardAsBase,
+        type: "base_value_build",
+        baseCardIndex: values.length - 1,
+        supportingCards: supportingCards,
+        segmentCount: 1,
+        segmentEnd: values.length,
+      };
     }
   }
 

@@ -57,6 +57,7 @@ const handleAddToOwnBuild = require("./build/addToOwnBuild");
 const handleBuildExtension = require("./build/BuildExtension");
 const handleAcceptBuildExtension = require("./build/acceptBuildExtension");
 const handleCancelBuildExtension = require("./build/cancelBuildExtension");
+const handleAcceptBuildAddition = require("./build/acceptBuildAddition");
 const handleTableToTableDrop = require("./card-drop/tableToTableDrop");
 const handleHandToTableDrop = require("./card-drop/handToTableDrop");
 const handleCleanup = require("./cleanup");
@@ -64,7 +65,7 @@ const handleGameOver = require("./game-over");
 const handleReinforceBuild = require("./build/reinforceBuild");
 
 module.exports = {
-  // 🎯 CORE 15 ACTIONS - Build Extension System + Reinforce Build + Cleanup + Game Over
+  // 🎯 CORE 16 ACTIONS - Build Extension System + Build Addition + Reinforce Build + Cleanup + Game Over
   handleTrail,
   handleCreateTemp,
   handleAddToOwnTemp,
@@ -75,6 +76,7 @@ module.exports = {
   handleBuildExtension, // 🎯 NEW: Direct Build Extension
   handleAcceptBuildExtension, // 🎯 NEW: Accept Build Extension
   handleCancelBuildExtension, // 🎯 NEW: Cancel Build Extension
+  handleAcceptBuildAddition, // 🎯 NEW: Accept Build Addition
   handleReinforceBuild, // 🏗️ NEW: Reinforce Build action
   handleTableToTableDrop,
   handleHandToTableDrop,

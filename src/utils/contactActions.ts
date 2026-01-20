@@ -31,10 +31,11 @@ export function determineActionFromContact(
   source?: string,
 ): { type: string; payload: any } | null {
   // For complex cases that might have multiple options, use the rule engine
+  // EXCEPT for opponent cards on temp stacks - use direct handler to avoid stackId issues
   if (
     touchedContact.type === "build" ||
-    touchedContact.type === "temporary_stack" ||
-    touchedContact.type === "tempStack"
+    (touchedContact.type === "temporary_stack" && source !== "oppTopCard") ||
+    (touchedContact.type === "tempStack" && source !== "oppTopCard")
   ) {
     // Prepare context for rule engine
     const draggedItem = {

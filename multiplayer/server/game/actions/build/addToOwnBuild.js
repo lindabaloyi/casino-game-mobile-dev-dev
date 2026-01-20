@@ -3,21 +3,29 @@
  * Player adds to their own build
  */
 
-const { createLogger } = require('../../../utils/logger');
-const { buildLifecycleTracker } = require('../../GameState');
+const { createLogger } = require("../../../utils/logger");
+const { buildLifecycleTracker } = require("../../GameState");
 
-const logger = createLogger('AddToOwnBuild');
+const logger = createLogger("AddToOwnBuild");
 
-function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter) {
+function handleAddToOwnBuild(
+  gameManager,
+  playerIndex,
+  action,
+  gameIdFromRouter,
+) {
   // Handle both payload gameId (from card-drop) and parameter gameId (from game-action)
   const gameId = gameIdFromRouter || action.payload.gameId;
-  console.log('[BUILD_PENDING] addToOwnBuild called - creating pending state:', {
-    gameId,
-    playerIndex,
-    actionType: action.type,
-    payloadKeys: Object.keys(action.payload),
-    timestamp: new Date().toISOString()
-  });
+  console.log(
+    "[BUILD_PENDING] addToOwnBuild called - creating pending state:",
+    {
+      gameId,
+      playerIndex,
+      actionType: action.type,
+      payloadKeys: Object.keys(action.payload),
+      timestamp: new Date().toISOString(),
+    },
+  );
 
   const gameState = gameManager.getGameState(gameId);
 
@@ -31,108 +39,129 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
   let buildId, card, source, build;
 
   // CRITICAL DEBUG: Log extension attempt
-  console.log('[BUILD_PENDING] addToOwnBuild debug info:', {
+  console.log("[BUILD_PENDING] addToOwnBuild debug info:", {
     allBuilds: gameState.tableCards
-      .filter(item => item.type === 'build')
-      .map(b => ({ id: b.buildId, owner: b.owner, cards: b.cards.length })),
-    payloadStructure: action.payload.buildId ? 'drop-handler' : 'contact-handler'
+      .filter((item) => item.type === "build")
+      .map((b) => ({ id: b.buildId, owner: b.owner, cards: b.cards.length })),
+    payloadStructure: action.payload.buildId
+      ? "drop-handler"
+      : "contact-handler",
   });
 
   if (action.payload.buildId) {
     // Structure from build drop handlers
     ({ buildId, card, source } = action.payload);
     // Find build
-    build = gameState.tableCards.find(item =>
-      item.type === 'build' && item.buildId === buildId && item.owner === playerIndex
+    build = gameState.tableCards.find(
+      (item) =>
+        item.type === "build" &&
+        item.buildId === buildId &&
+        item.owner === playerIndex,
     );
   } else {
     // Structure from contact handler
-    ({ draggedItem: { card, source }, buildToAddTo: build } = action.payload);
+    ({
+      draggedItem: { card, source },
+      buildToAddTo: build,
+    } = action.payload);
     buildId = build.buildId;
   }
 
-  console.log('[BUILD_PENDING] Creating pending build addition:', {
+  console.log("[BUILD_PENDING] Creating pending build addition:", {
     buildId,
-    card: card ? `${card.rank}${card.suit}` : 'undefined',
+    card: card ? `${card.rank}${card.suit}` : "undefined",
     source,
     playerIndex,
-    payloadStructure: action.payload.buildId ? 'drop-handler' : 'contact-handler'
+    payloadStructure: action.payload.buildId
+      ? "drop-handler"
+      : "contact-handler",
   });
 
   if (!card) {
-    throw new Error('Card is undefined in addToOwnBuild payload');
+    throw new Error("Card is undefined in addToOwnBuild payload");
   }
 
-  logger.info('Creating pending build addition', {
+  logger.info("Creating pending build addition", {
     playerIndex,
     card: `${card.rank}${card.suit}`,
     source,
     buildId,
-    gameId
+    gameId,
   });
 
   // 🎯 GUARD RAIL: Prevent multiple hand card additions to builds per turn
-  if (source === 'hand') {
-    console.log('[BUILD_GUARD] 🎯 Checking hand card usage for builds this turn');
+  if (source === "hand") {
+    console.log(
+      "[BUILD_GUARD] 🎯 Checking hand card usage for builds this turn",
+    );
 
     // Initialize tracking array if it doesn't exist
     if (!gameState.buildHandCardUsedThisTurn) {
       gameState.buildHandCardUsedThisTurn = [false, false];
-      console.log('[BUILD_GUARD] 🆕 Initialized build hand card tracking');
+      console.log("[BUILD_GUARD] 🆕 Initialized build hand card tracking");
     }
 
     // Check if player has already used a hand card for builds this turn
     if (gameState.buildHandCardUsedThisTurn[playerIndex]) {
-      console.log('[BUILD_GUARD] ❌ BLOCKED: Player already added hand card to build this turn');
-      throw new Error('Cannot add multiple hand cards to builds in the same turn. You must resolve your build or wait for your next turn.');
+      console.log(
+        "[BUILD_GUARD] ❌ BLOCKED: Player already added hand card to build this turn",
+      );
+      throw new Error(
+        "Cannot add multiple hand cards to builds in the same turn. You must resolve your build or wait for your next turn.",
+      );
     }
 
     // Mark hand card as used for builds this turn
     gameState.buildHandCardUsedThisTurn[playerIndex] = true;
-    console.log('[BUILD_GUARD] ✅ ALLOWED: Marked hand card usage for build this turn');
+    console.log(
+      "[BUILD_GUARD] ✅ ALLOWED: Marked hand card usage for build this turn",
+    );
   }
 
   // Verify build ownership (for contact handler structure, we already have the build)
   if (!build) {
-    build = gameState.tableCards.find(item =>
-      item.type === 'build' && item.buildId === buildId && item.owner === playerIndex
+    build = gameState.tableCards.find(
+      (item) =>
+        item.type === "build" &&
+        item.buildId === buildId &&
+        item.owner === playerIndex,
     );
   }
 
   if (!build) {
-    console.error('[ADD_TO_BUILD_CRITICAL] Build not found:', {
+    console.error("[ADD_TO_BUILD_CRITICAL] Build not found:", {
       requestedId: buildId,
       allBuildIds: gameState.tableCards
-        .filter(item => item.type === 'build')
-        .map(b => b.buildId),
+        .filter((item) => item.type === "build")
+        .map((b) => b.buildId),
       allBuilds: gameState.tableCards
-        .filter(item => item.type === 'build')
-        .map(b => ({ id: b.buildId, owner: b.owner, cards: b.cards.length }))
+        .filter((item) => item.type === "build")
+        .map((b) => ({ id: b.buildId, owner: b.owner, cards: b.cards.length })),
     });
     throw new Error("Own build not found");
   }
 
   // CRITICAL DEBUG: Found target build
-  console.log('[ADD_TO_BUILD_CRITICAL] Found target build:', {
+  console.log("[ADD_TO_BUILD_CRITICAL] Found target build:", {
     requestedId: buildId,
     actualId: build.buildId,
     idMatch: buildId === build.buildId,
     currentCards: build.cards.map((c, i) => `${i}:${c.rank}${c.suit}`),
     addingCard: `${card.rank}${card.suit}`,
-    lifecycleTracking: 'EXTENDING'
+    lifecycleTracking: "EXTENDING",
   });
 
   // Track build extension
-  buildLifecycleTracker.trackExtension(build.buildId, 'addToOwnBuild', {
+  buildLifecycleTracker.trackExtension(build.buildId, "addToOwnBuild", {
     card: `${card.rank}${card.suit}`,
     source,
-    playerIndex
+    playerIndex,
   });
 
   // CRITICAL FIX: Update the build object DIRECTLY in gameState.tableCards
   // Don't update a local reference - update the persistent object
-  const buildIndex = gameState.tableCards.findIndex(item =>
-    item.type === 'build' && item.buildId === buildId
+  const buildIndex = gameState.tableCards.findIndex(
+    (item) => item.type === "build" && item.buildId === buildId,
   );
 
   if (buildIndex < 0) {
@@ -141,15 +170,18 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
 
   const gameStateBuild = gameState.tableCards[buildIndex];
 
+  // Store original value for display calculation
+  const originalValue = gameStateBuild.value;
+
   // 🔍 DEBUG: Log build state BEFORE extension
-  console.log('[BUILD_ACCUMULATION_DEBUG] Build state BEFORE extension:', {
+  console.log("[BUILD_ACCUMULATION_DEBUG] Build state BEFORE extension:", {
     buildId,
     extensionNumber: (gameStateBuild.extensionCount || 0) + 1,
     currentCards: gameStateBuild.cards.map((c, i) => `${i}:${c.rank}${c.suit}`),
     currentCardCount: gameStateBuild.cards.length,
     currentValue: gameStateBuild.value,
     addingCard: `${card.rank}${card.suit} (value: ${card.value || 0})`,
-    source
+    source,
   });
 
   // CRITICAL FIX: Save old state BEFORE any changes
@@ -162,65 +194,92 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
     {
       ...card,
       source,
-      addedAt: Date.now()
-    }
+      addedAt: Date.now(),
+    },
   ];
 
-  // CRITICAL FIX: Update and save build value properly
-  const newValue = gameStateBuild.cards.reduce((sum, c) => sum + (c.value || 0), 0);
-  gameStateBuild.value = newValue;
+  // IMPORTANT: Keep build.value as the capture value (don't update it)
+  // The capture value should remain constant when adding cards
+  const captureValue = gameStateBuild.value;
+
+  // Calculate total sum for display purposes
+  const totalSum = gameStateBuild.cards.reduce(
+    (sum, c) => sum + (c.value || 0),
+    0,
+  );
+
+  // Calculate displayValue using build calculator logic (like temp stacks)
+  // Show the capture value when total is at multiples of 10
+  const nextMultipleOf10 = Math.ceil(totalSum / 10) * 10;
+  if (totalSum % 10 === 0) {
+    // At a multiple of 10, show the capture value
+    gameStateBuild.displayValue = captureValue;
+  } else {
+    // Not at multiple of 10, show deficit to next multiple
+    gameStateBuild.displayValue = -(nextMultipleOf10 - totalSum);
+  }
+
   gameStateBuild.lastUpdated = Date.now();
 
   // IMMEDIATE ADDITION: Now log AFTER the update (shows correct data!)
-  console.log('[BUILD_IMMEDIATE_FIXED] Card successfully added to build:', {
+  console.log("[BUILD_IMMEDIATE_FIXED] Card successfully added to build:", {
     buildId,
     card: `${card.rank}${card.suit}`,
     oldState: { cards: oldCardCount, value: oldValue },
     newState: { cards: build.cards.length, value: build.value },
     currentCards: build.cards.map((c, i) => `${i}:${c.rank}${c.suit}`),
-    valueChange: `${oldValue} → ${build.value}`
+    valueChange: `${oldValue} → ${build.value}`,
   });
 
   // Remove card from source
   removeCardFromSource(gameState, card, source, playerIndex, action);
 
-  // Create pending state for cancel option
+  // Create pending state for cancel option - ACCUMULATE multiple cards
   const newGameState = { ...gameState };
+  const existingPending = gameState.pendingBuildAdditions?.[buildId];
+
   newGameState.pendingBuildAdditions = {
     ...gameState.pendingBuildAdditions,
     [buildId]: {
-      card,
-      source,
+      cards: existingPending?.cards ? [...existingPending.cards, card] : [card],
+      sources: existingPending?.sources
+        ? [...existingPending.sources, source]
+        : [source],
       playerId: playerIndex,
       added: true, // Mark as already added to build
-      timestamp: Date.now()
-    }
+      timestamp: Date.now(),
+    },
   };
 
   // Debug all builds after extension
-  buildLifecycleTracker.debugAllBuilds(newGameState, 'AfterAddToOwnBuild');
+  buildLifecycleTracker.debugAllBuilds(newGameState, "AfterAddToOwnBuild");
 
   // 🔍 FINAL VERIFICATION: Check that our changes persisted
-  const finalBuild = newGameState.tableCards.find(item =>
-    item.type === 'build' && item.buildId === buildId
+  const finalBuild = newGameState.tableCards.find(
+    (item) => item.type === "build" && item.buildId === buildId,
   );
 
-  console.log('[BUILD_ACCUMULATION_VERIFICATION] Final build state verification:', {
-    buildId,
-    totalExtensions: finalBuild?.extensionCount || 0,
-    finalCardCount: finalBuild?.cards?.length || 0,
-    finalValue: finalBuild?.value || 0,
-    finalCards: finalBuild?.cards?.map((c, i) => `${i}:${c.rank}${c.suit}`) || [],
-    changesPersisted: finalBuild?.cards?.length === (oldCardCount + 1),
-    valueIncreased: (finalBuild?.value || 0) > oldValue,
-    topCard: finalBuild?.cards?.[finalBuild.cards.length - 1]?.rank +
-             finalBuild?.cards?.[finalBuild.cards.length - 1]?.suit
-  });
+  console.log(
+    "[BUILD_ACCUMULATION_VERIFICATION] Final build state verification:",
+    {
+      buildId,
+      totalExtensions: finalBuild?.extensionCount || 0,
+      finalCardCount: finalBuild?.cards?.length || 0,
+      finalValue: finalBuild?.value || 0,
+      finalCards:
+        finalBuild?.cards?.map((c, i) => `${i}:${c.rank}${c.suit}`) || [],
+      changesPersisted: finalBuild?.cards?.length === oldCardCount + 1,
+      valueIncreased: (finalBuild?.value || 0) > oldValue,
+      topCard:
+        finalBuild?.cards?.[finalBuild.cards.length - 1]?.rank +
+        finalBuild?.cards?.[finalBuild.cards.length - 1]?.suit,
+    },
+  );
 
-  logger.info('Pending build addition created', {
+  logger.info("Pending build addition created", {
     buildId,
     card: `${card.rank}${card.suit}`,
-    pendingAdditions: Object.keys(newGameState.pendingBuildAdditions || {})
+    pendingAdditions: Object.keys(newGameState.pendingBuildAdditions || {}),
   });
 
   return newGameState;
@@ -230,35 +289,44 @@ function handleAddToOwnBuild(gameManager, playerIndex, action, gameIdFromRouter)
  * Remove card from its source location
  */
 function removeCardFromSource(gameState, card, source, playerIndex, action) {
-  console.log('[BUILD_SOURCE_REMOVAL] Removing card from source:', {
+  console.log("[BUILD_SOURCE_REMOVAL] Removing card from source:", {
     card: `${card.rank}${card.suit}`,
     source,
-    playerIndex
+    playerIndex,
   });
 
-  if (source === 'hand') {
-    const handIndex = gameState.playerHands[playerIndex].findIndex(c =>
-      c.rank === card.rank && c.suit === card.suit
+  if (source === "hand") {
+    const handIndex = gameState.playerHands[playerIndex].findIndex(
+      (c) => c.rank === card.rank && c.suit === card.suit,
     );
     if (handIndex >= 0) {
       gameState.playerHands[playerIndex].splice(handIndex, 1);
-      console.log('[BUILD_SOURCE_REMOVAL] ✅ Removed from hand at index:', handIndex);
+      console.log(
+        "[BUILD_SOURCE_REMOVAL] ✅ Removed from hand at index:",
+        handIndex,
+      );
     } else {
-      throw new Error(`Card ${card.rank}${card.suit} not found in player's hand`);
+      throw new Error(
+        `Card ${card.rank}${card.suit} not found in player's hand`,
+      );
     }
-  } else if (source === 'table') {
-    const cardIndex = gameState.tableCards.findIndex(tableCard =>
-      tableCard.rank === card.rank &&
-      tableCard.suit === card.suit &&
-      (!tableCard.type || tableCard.type === 'loose')
+  } else if (source === "table") {
+    const cardIndex = gameState.tableCards.findIndex(
+      (tableCard) =>
+        tableCard.rank === card.rank &&
+        tableCard.suit === card.suit &&
+        (!tableCard.type || tableCard.type === "loose"),
     );
     if (cardIndex >= 0) {
       gameState.tableCards.splice(cardIndex, 1);
-      console.log('[BUILD_SOURCE_REMOVAL] ✅ Removed from table at index:', cardIndex);
+      console.log(
+        "[BUILD_SOURCE_REMOVAL] ✅ Removed from table at index:",
+        cardIndex,
+      );
     } else {
       throw new Error(`Card ${card.rank}${card.suit} not found on table`);
     }
-  } else if (source === 'oppTopCard') {
+  } else if (source === "oppTopCard") {
     // Handle opponent top card - validate it's the top card and remove it
     // For build actions, opponentId should come from the action payload
     // This needs to be passed in from the handler - for now, we'll need to modify the function signature
@@ -283,12 +351,16 @@ function removeCardFromSource(gameState, card, source, playerIndex, action) {
     // Check if it's the top card (last element in array)
     const actualTopCard = opponentCaptures[opponentCaptures.length - 1];
     if (actualTopCard.rank !== card.rank || actualTopCard.suit !== card.suit) {
-      throw new Error(`Card ${card.rank}${card.suit} is not opponent ${opponentId}'s top card`);
+      throw new Error(
+        `Card ${card.rank}${card.suit} is not opponent ${opponentId}'s top card`,
+      );
     }
 
     // Remove the top card from opponent's captures
     gameState.playerCaptures[opponentId].pop();
-    console.log('[BUILD_SOURCE_REMOVAL] ✅ Removed opponent top card from captures');
+    console.log(
+      "[BUILD_SOURCE_REMOVAL] ✅ Removed opponent top card from captures",
+    );
   } else {
     throw new Error(`Unknown source type: ${source}`);
   }

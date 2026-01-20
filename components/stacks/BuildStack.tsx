@@ -1,20 +1,21 @@
-import React from 'react';
-import { View } from 'react-native';
+import React from "react";
+import { View } from "react-native";
 /**
  * DEPRECATED: Drop zone system removed - builds now use contact detection only
  */
-import { useLayoutMeasurement } from '../../hooks/useLayoutMeasurement';
-import { CardType } from '../cards/card';
-import { BuildIndicator } from '../indicators/BuildIndicator';
-import { CardCountIndicator } from '../indicators/CardCountIndicator';
-import BuildExtensionOverlay from '../overlays/BuildExtensionOverlay';
-import TempOverlay from '../overlays/TempOverlay';
-import { StackRenderer } from './StackRenderer';
+import { useLayoutMeasurement } from "../../hooks/useLayoutMeasurement";
+import { CardType } from "../cards/card";
+import { BuildIndicator } from "../indicators/BuildIndicator";
+import { CardCountIndicator } from "../indicators/CardCountIndicator";
+import BuildExtensionOverlay from "../overlays/BuildExtensionOverlay";
+import TempOverlay from "../overlays/TempOverlay";
+import { StackRenderer } from "./StackRenderer";
 
 interface BuildStackProps {
   stackId: string;
   cards: CardType[];
   buildValue?: number;
+  displayValue?: number;
   stackOwner?: number;
   onDropStack?: (draggedItem: any) => boolean | any;
   currentPlayer?: number;
@@ -42,34 +43,39 @@ export const BuildStack: React.FC<BuildStackProps> = ({
   stackId,
   cards,
   buildValue,
+  displayValue,
   stackOwner,
   onDropStack,
   currentPlayer = 0,
-  dragSource = 'table',
+  dragSource = "table",
   dragZIndex,
   baseZIndex = 1,
   baseElevation = 1,
   // Overlay props
   showOverlay = false,
-  overlayText = 'BUILD',
+  overlayText = "BUILD",
   onAccept,
   onReject,
   // Build extension overlay props
   isPendingExtension = false,
   onAcceptExtension,
-  onCancelExtension
+  onCancelExtension,
 }) => {
   // DEPRECATED: Drop zone registration removed - builds now use contact detection only
   // Layout measurement still needed for contact detection positioning
   const { ref, measure } = useLayoutMeasurement(stackId, 0.15);
 
   return (
-    <View ref={ref} onLayout={measure} style={{
-      position: 'relative',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 4,
-    }}>
+    <View
+      ref={ref}
+      onLayout={measure}
+      style={{
+        position: "relative",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 4,
+      }}
+    >
       <StackRenderer
         cards={cards}
         draggable={false} // Builds are not directly draggable
@@ -84,6 +90,7 @@ export const BuildStack: React.FC<BuildStackProps> = ({
       {/* Build value and owner indicators */}
       <BuildIndicator
         value={buildValue}
+        displayValue={displayValue}
         owner={stackOwner}
       />
 
