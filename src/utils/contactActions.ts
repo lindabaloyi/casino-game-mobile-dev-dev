@@ -30,6 +30,18 @@ export function determineActionFromContact(
   currentPlayer: number,
   source?: string,
 ): { type: string; payload: any } | null {
+
+  console.log('[CONTACT_ACTION] 🎯 CONTACT DETECTED:', {
+    draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+    draggedCardValue: draggedCard.value,
+    contactType: touchedContact.type,
+    contactId: touchedContact.id,
+    contactData: touchedContact.data,
+    source,
+    currentPlayer,
+    timestamp: Date.now()
+  });
+
   // For complex cases that might have multiple options, use the rule engine
   // EXCEPT for opponent cards on temp stacks - use direct handler to avoid stackId issues
   if (

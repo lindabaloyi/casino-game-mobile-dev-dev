@@ -2,24 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-interface BuildExtensionOverlayProps {
+interface BuildMergeOverlayProps {
   isVisible: boolean;
   buildId?: string;
-  extensionText?: string;  // e.g., "Extend build 5 to 9"
-  onAccept: (buildId: string) => void;
+  extensionText?: string;  // e.g., "Merge extension into build 5"
+  onMerge: () => void;
   onCancel: () => void;
   disabled?: boolean;
-  mergeMode?: boolean;  // 🔀 NEW: Show "Merge" instead of "Accept" when true
 }
 
-const BuildExtensionOverlay: React.FC<BuildExtensionOverlayProps> = ({
+const BuildMergeOverlay: React.FC<BuildMergeOverlayProps> = ({
   isVisible,
   buildId,
-  extensionText = 'EXTEND BUILD',
-  onAccept,
+  extensionText = 'MERGE INTO BUILD',
+  onMerge,
   onCancel,
-  disabled = false,
-  mergeMode = false
+  disabled = false
 }) => {
   const [fadeAnim] = React.useState(new Animated.Value(0));
 
@@ -32,16 +30,16 @@ const BuildExtensionOverlay: React.FC<BuildExtensionOverlayProps> = ({
   }, [isVisible, fadeAnim]);
 
   if (!isVisible) {
-    console.log(`[BUILD_EXTENSION_OVERLAY] Overlay hidden for build ${buildId || 'unknown'}`);
+    console.log(`[BUILD_MERGE_OVERLAY] Overlay hidden for build ${buildId || 'unknown'}`);
     return null;
   }
 
-  console.log(`[BUILD_EXTENSION_OVERLAY] 🎬 Rendering extension overlay for build ${buildId}, disabled: ${disabled}`, {
+  console.log(`[BUILD_MERGE_OVERLAY] 🔀 Rendering merge overlay for build ${buildId}`, {
     isVisible,
     buildId,
     disabled,
     extensionText,
-    hasOnAccept: typeof onAccept === 'function',
+    hasOnMerge: typeof onMerge === 'function',
     hasOnCancel: typeof onCancel === 'function'
   });
 
@@ -50,41 +48,38 @@ const BuildExtensionOverlay: React.FC<BuildExtensionOverlayProps> = ({
       style={[styles.overlayContainer, { opacity: fadeAnim }]}
       pointerEvents={disabled ? 'none' : 'auto'}
     >
-      {/* Extension indicator */}
-      <View style={styles.extensionIndicator}>
+      {/* Merge indicator */}
+      <View style={styles.mergeIndicator}>
         <Text style={styles.indicatorText}>{extensionText}</Text>
       </View>
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.actionButton, styles.acceptButton, disabled && styles.disabled]}
+          style={[styles.actionButton, styles.mergeButton, disabled && styles.disabled]}
           onPress={() => {
-            console.log(`[BUILD_EXTENSION_OVERLAY] ✅ ${mergeMode ? 'MERGE' : 'ACCEPT'} button pressed for build ${buildId}`, {
-              buildId,
+            console.log(`[BUILD_MERGE_OVERLAY] 🔀 MERGE button pressed for build ${buildId}`, {
               disabled,
-              mergeMode,
               timestamp: Date.now(),
-              action: mergeMode ? 'mergeBuildExtension' : 'acceptBuildExtension'
+              action: 'mergeBuildExtension'
             });
-            if (onAccept) {
-              onAccept(buildId || 'unknown');
+            if (onMerge) {
+              onMerge();
             } else {
-              console.error(`[BUILD_EXTENSION_OVERLAY] No onAccept callback provided for build ${buildId}`);
+              console.error(`[BUILD_MERGE_OVERLAY] Missing onMerge callback for build ${buildId}`);
             }
           }}
           disabled={disabled}
-          accessibilityLabel={mergeMode ? "Merge build extension" : "Accept build extension"}
-          accessibilityHint={mergeMode ? "Merges the extension into your existing build" : "Accepts the build extension and validates the move"}
+          accessibilityLabel="Merge build extension"
+          accessibilityHint="Merges the extension into your existing build instead of creating a new one"
         >
-          <Ionicons name="checkmark-circle" size={24} color="#28a745" />
-          <Text style={styles.buttonText}>{mergeMode ? 'Merge' : 'Accept'}</Text>
+          <Ionicons name="git-merge" size={24} color="#28a745" />
+          <Text style={styles.buttonText}>Merge</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.actionButton, styles.cancelButton, disabled && styles.disabled]}
           onPress={() => {
-            console.log(`[BUILD_EXTENSION_OVERLAY] ❌ CANCEL button pressed for build ${buildId}`, {
-              buildId,
+            console.log(`[BUILD_MERGE_OVERLAY] ❌ CANCEL button pressed for build ${buildId}`, {
               disabled,
               timestamp: Date.now(),
               action: 'cancelBuildExtension'
@@ -92,11 +87,11 @@ const BuildExtensionOverlay: React.FC<BuildExtensionOverlayProps> = ({
             if (onCancel) {
               onCancel();
             } else {
-              console.error(`[BUILD_EXTENSION_OVERLAY] No onCancel callback provided for build ${buildId}`);
+              console.error(`[BUILD_MERGE_OVERLAY] No onCancel callback provided for build ${buildId}`);
             }
           }}
           disabled={disabled}
-          accessibilityLabel="Cancel build extension"
+          accessibilityLabel="Cancel build merge"
           accessibilityHint="Cancels the build extension and returns the card"
         >
           <Ionicons name="close-circle" size={24} color="#dc3545" />
@@ -110,7 +105,7 @@ const BuildExtensionOverlay: React.FC<BuildExtensionOverlayProps> = ({
 const styles = StyleSheet.create({
   overlayContainer: {
     position: 'absolute',
-    bottom: -70, // Exact position for build extension overlay
+    bottom: -70, // Exact position for build merge overlay
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -133,10 +128,10 @@ const styles = StyleSheet.create({
     minWidth: 60,
     pointerEvents: 'auto' // Buttons can be pressed
   },
-  acceptButton: {
-    backgroundColor: '#d4edda',
+  mergeButton: {
+    backgroundColor: '#d1ecf1', // Light blue/cyan for merge operations
     borderWidth: 1,
-    borderColor: '#28a745'
+    borderColor: '#17a2b8'
   },
   cancelButton: {
     backgroundColor: '#f8d7da',
@@ -153,13 +148,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'center'
   },
-  extensionIndicator: {
+  mergeIndicator: {
     marginTop: 8,
-    backgroundColor: '#007bff', // Blue for build extensions
+    backgroundColor: '#17a2b8', // Blue for merge operations (distinct from extension blue)
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
-    shadowColor: '#007bff',
+    shadowColor: '#17a2b8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4
@@ -172,4 +167,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default BuildExtensionOverlay;
+export default BuildMergeOverlay;

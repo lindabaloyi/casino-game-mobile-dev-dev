@@ -24,11 +24,31 @@ export function handleBuildContact(
   source?: string
 ): { type: string; payload: any } | null {
 
+  console.log('[BUILD_HANDLER] 📋 Processing build contact:', {
+    draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
+    draggedCardValue: draggedCard.value,
+    contactBuildId: contact.id,
+    contactBuildData: contact.data,
+    source,
+    currentPlayer,
+    timestamp: Date.now()
+  });
+
   const build = findBuildById(contact.id, gameState);
 
   if (!build) {
+    console.log('[BUILD_HANDLER] ❌ Build not found:', { buildId: contact.id });
     return null;
   }
+
+  console.log('[BUILD_HANDLER] ✅ Found target build:', {
+    buildId: build.buildId,
+    buildOwner: build.owner,
+    buildValue: build.value,
+    isOwnedByCurrentPlayer: build.owner === currentPlayer
+  });
+
+
 
   // Check if this is a draggable staging stack being dropped on a build
   const draggedStack = gameState.tableCards.find(tc =>
@@ -91,11 +111,11 @@ export function handleBuildContact(
       // 🎯 POTENTIAL EXTENSION: Visually add card to build and show overlay
       // Check if this could be an overtake scenario (player has build with same value)
       const playerBuilds = gameState.tableCards.filter(tc =>
-        tc.type === 'build' && tc.owner === currentPlayer
+        (tc as any).type === 'build' && (tc as any).owner === currentPlayer
       );
 
       const hasMatchingPlayerBuild = playerBuilds.some(playerBuild =>
-        playerBuild.value === build.value + draggedCard.value
+        (playerBuild as any).value === build.value + draggedCard.value
       );
 
       const overtakeMode = hasMatchingPlayerBuild;

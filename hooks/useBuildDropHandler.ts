@@ -19,16 +19,19 @@ export function useBuildDropHandler({
 
   // Handle drops on builds - with validation for temp stack augmentation
   const handleBuildDrop = useCallback((draggedItem: any) => {
-    console.log('[BUILD_DROP_HANDLER] 🚀 ENTERING handleBuildDrop', {
+    console.log('[CARD_DROP] 🎯 CARD-TO-BUILD DROP DETECTED:', {
       buildId: buildItem.buildId,
-      buildItem: buildItem,
-      draggedItem: draggedItem,
+      buildOwner: buildItem.owner,
+      buildValue: buildItem.value,
       draggedCard: draggedItem.card ? `${draggedItem.card.rank}${draggedItem.card.suit}` : 'none',
+      draggedCardValue: draggedItem.card?.value,
       draggedType: draggedItem.type || 'unknown',
       draggedSource: draggedItem.source,
-      buildOwner: buildItem.owner,
       currentPlayer,
-      timestamp: new Date().toISOString()
+      dropType: 'card-to-build',
+      isOwnedBuild: buildItem.owner === currentPlayer,
+      isTempStack: draggedItem.type === 'tempStack',
+      timestamp: Date.now()
     });
 
     // CRITICAL: Log build selection for debugging

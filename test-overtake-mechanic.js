@@ -3,7 +3,7 @@
  * Tests the scenario: Player owns build 10, creates build of 8, inserts 2 on opponent's 8 (making it 10), then overtakes
  */
 
-const { handleBuildExtension, handleAcceptBuildExtension, handleOvertakeBuild } = require('./multiplayer/server/game/actions');
+const { handleBuildExtension, handleAcceptBuildExtension, handleMergeBuild } = require('./multiplayer/server/game/actions');
 
 // Mock game state for testing
 function createMockGameState() {
@@ -109,10 +109,10 @@ async function testOvertakeMechanic() {
   console.log('🎯 Step 3: Player 0 overtakes by dragging extended build onto their own');
 
   try {
-    gameState = handleOvertakeBuild(mockGameManager, 0, {
+    gameState = handleMergeBuild(mockGameManager, 0, {
       payload: {
-        extendedOpponentBuildId: 'build-p1-8',
-        playerBuildId: 'build-p0-10'
+        sourceBuildId: 'build-p1-8',
+        targetBuildId: 'build-p0-10'
       }
     }, 'test-game');
 

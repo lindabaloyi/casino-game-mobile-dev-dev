@@ -8,6 +8,7 @@ import { CardType } from "../cards/card";
 import { BuildIndicator } from "../indicators/BuildIndicator";
 import { CardCountIndicator } from "../indicators/CardCountIndicator";
 import BuildExtensionOverlay from "../overlays/BuildExtensionOverlay";
+import BuildMergeOverlay from "../overlays/BuildMergeOverlay";
 import TempOverlay from "../overlays/TempOverlay";
 import { StackRenderer } from "./StackRenderer";
 
@@ -32,6 +33,8 @@ interface BuildStackProps {
   isPendingExtension?: boolean;
   onAcceptExtension?: (buildId: string) => void;
   onCancelExtension?: (buildId: string) => void;
+  mergeMode?: boolean; // 🔀 NEW: Show "Merge" instead of "Accept" when true
+  onMergeExtension?: () => void; // 🔀 NEW: Merge handler
   // NEW: Drag handlers for draggable builds
   onDragStart?: (card: CardType) => void;
   onDragEnd?: (draggedItem: any, dropPosition: any) => { validContact: boolean };
@@ -67,6 +70,8 @@ export const BuildStack: React.FC<BuildStackProps> = ({
   isPendingExtension = false,
   onAcceptExtension,
   onCancelExtension,
+  mergeMode = false, // 🔀 NEW: Show "Merge" instead of "Accept" when true
+  onMergeExtension, // 🔀 NEW: Merge handler
   // Drag handlers
   onDragStart,
   onDragEnd,
@@ -164,15 +169,26 @@ export const BuildStack: React.FC<BuildStackProps> = ({
         onReject={onReject || (() => {})}
       />
 
-      {/* Build extension overlay - custom overlay for build extensions */}
+      {/* Build extension/merge overlay - conditional rendering based on merge mode */}
       {/* Hide overlay when dragging for clean overtake UX */}
-      <BuildExtensionOverlay
-        isVisible={isPendingExtension && !isDragging}
-        buildId={stackId}
-        extensionText="EXTEND BUILD"
-        onAccept={(id) => onAcceptExtension?.(id)}
-        onCancel={() => onCancelExtension?.(stackId)}
-      />
+      {mergeMode ? (
+        <BuildMergeOverlay
+          isVisible={isPendingExtension && !isDragging}
+          buildId={stackId}
+          extensionText="MERGE INTO BUILD"
+          onMerge={() => onMergeExtension?.()}
+          onCancel={() => onCancelExtension?.(stackId)}
+        />
+      ) : (
+        <BuildExtensionOverlay
+          isVisible={isPendingExtension && !isDragging}
+          buildId={stackId}
+          extensionText="EXTEND BUILD"
+          onAccept={(id) => onAcceptExtension?.(id)}
+          onCancel={() => onCancelExtension?.(stackId)}
+          mergeMode={mergeMode}
+        />
+      )}
     </View>
   );
 };

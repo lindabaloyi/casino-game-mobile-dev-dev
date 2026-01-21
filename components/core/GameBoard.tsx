@@ -97,24 +97,76 @@ export function GameBoard({
   });
 
   // Build overlay handlers
-  const handleAcceptBuildAddition = (buildId: string) => {
+  const handleAcceptBuildAddition = (buildId?: string) => {
     console.log(
       "[GameBoard] Accepting build addition/extension for build:",
       buildId,
     );
 
-    // Find the build to check if it's a pending extension
-    const build = gameState.tableCards.find(
-      (card: any) => card.type === "build" && card.buildId === buildId,
-    ) as any;
+    // If no buildId provided, this is a merge mode call - find the pending extension build for current player
+    let build;
+    if (!buildId) {
+      console.log("[GameBoard] 🔀 No buildId provided - finding pending extension build for merge mode");
+      build = gameState.tableCards.find(
+        (card: any) => (card as any).type === "build" &&
+                       (card as any).isPendingExtension &&
+                       (card as any).pendingExtensionPlayer === playerNumber
+      ) as any;
+
+      if (build) {
+        buildId = (build as any).buildId;
+        console.log("[GameBoard] 🔀 Found pending extension build for merge:", buildId);
+      }
+    } else {
+      // Find the build by buildId
+      build = gameState.tableCards.find(
+        (card: any) => (card as any).type === "build" && (card as any).buildId === buildId,
+      ) as any;
+    }
+
+    if (!build) {
+      console.error("[GameBoard] ❌ Build not found:", { buildId, playerNumber });
+      return;
+    }
 
     if (build?.isPendingExtension) {
-      // 🎯 PENDING EXTENSION: Accept the extension
-      console.log("[GameBoard] Accepting build extension for build:", buildId);
-      sendAction({
-        type: "acceptBuildExtension",
-        payload: { buildId },
-      });
+      // Check if this is merge mode (player already owns a build)
+      if (build.mergeMode) {
+        // 🔀 MERGE MODE: Find player's existing build and merge extension into it
+        const playerBuilds = gameState.tableCards.filter(
+          (card: any) => card.type === "build" && card.owner === playerNumber && card.buildId !== buildId
+        );
+
+        if (playerBuilds.length > 0) {
+          // Use the first (or only) existing player build as target
+          const targetPlayerBuildId = playerBuilds[0].buildId;
+          console.log("[GameBoard] 🔀 Merging extension into existing build:", {
+            sourceBuildId: buildId,
+            targetPlayerBuildId,
+            mergeMode: build.mergeMode
+          });
+          sendAction({
+            type: "mergeBuildExtension",
+            payload: {
+              sourceBuildId: buildId,
+              targetPlayerBuildId
+            },
+          });
+        } else {
+          console.error("[GameBoard] ❌ Merge mode but no existing player build found:", {
+            buildId,
+            playerNumber,
+            mergeMode: build.mergeMode
+          });
+        }
+      } else {
+        // 🎯 NORMAL EXTENSION: Accept the extension (creates new build)
+        console.log("[GameBoard] Accepting build extension for build:", buildId);
+        sendAction({
+          type: "acceptBuildExtension",
+          payload: { buildId },
+        });
+      }
     } else {
       // 🎯 PENDING ADDITION: Use existing logic
       console.log("[GameBoard] Accepting build addition for build:", buildId);
@@ -380,6 +432,7 @@ export function GameBoard({
             onAcceptBuildAddition={handleAcceptBuildAddition} // ✅ NEW: Build overlay handlers
             onRejectBuildAddition={handleRejectBuildAddition} // ✅ NEW: Build overlay handlers
             onAcceptBuildExtension={handleAcceptBuildAddition} // ✅ NEW: Build extension overlay handler
+            onMergeBuildExtension={handleAcceptBuildAddition} // 🔀 NEW: Build merge extension handler (same logic, different UI)
           />
         </View>
 

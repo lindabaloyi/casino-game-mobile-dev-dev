@@ -58,7 +58,8 @@ const handleBuildExtension = require("./build/BuildExtension");
 const handleAcceptBuildExtension = require("./build/acceptBuildExtension");
 const handleCancelBuildExtension = require("./build/cancelBuildExtension");
 const handleAcceptBuildAddition = require("./build/acceptBuildAddition");
-const handleOvertakeBuild = require("./build/overtakeBuild");
+const handleMergeBuild = require("./build/mergeBuild");
+const handleMergeBuildExtension = require("./build/mergeBuildExtension");
 const handleTableToTableDrop = require("./card-drop/tableToTableDrop");
 const handleHandToTableDrop = require("./card-drop/handToTableDrop");
 const handleCleanup = require("./cleanup");
@@ -78,7 +79,8 @@ module.exports = {
   handleAcceptBuildExtension, // 🎯 NEW: Accept Build Extension
   handleCancelBuildExtension, // 🎯 NEW: Cancel Build Extension
   handleAcceptBuildAddition, // 🎯 NEW: Accept Build Addition
-  handleOvertakeBuild, // 🎯 NEW: Overtake Build action
+  handleMergeBuild, // 🎯 NEW: Merge Build action
+  handleMergeBuildExtension, // 🔀 NEW: Merge Build Extension action
   handleReinforceBuild, // 🏗️ NEW: Reinforce Build action
   handleTableToTableDrop,
   handleHandToTableDrop,

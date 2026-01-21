@@ -50,15 +50,30 @@ export function findContactAtPoint(
   data?: any;
 } | null {
 
+  console.log('[CONTACT_DETECTION] 🔍 Searching for contact at point:', { x, y, threshold, context });
+
   if (contactPositions.size === 0) {
+    console.log('[CONTACT_DETECTION] ❌ No contact positions registered!');
     return null;
   }
+
+  console.log('[CONTACT_DETECTION] 📋 All registered contacts:', Array.from(contactPositions.entries()).map(([id, pos]) => ({
+    id,
+    type: pos.type,
+    x: Math.round(pos.x),
+    y: Math.round(pos.y),
+    width: pos.width,
+    height: pos.height,
+    centerX: Math.round(pos.x + pos.width / 2),
+    centerY: Math.round(pos.y + pos.height / 2)
+  })));
 
   const hits = [];
 
   for (const [id, pos] of contactPositions) {
     // Skip excluded contact (prevents dragged card from finding itself)
     if (context?.excludeId && id === context.excludeId) {
+      console.log(`[CONTACT_DETECTION] ⏭️ Skipping excluded contact: ${id}`);
       continue;
     }
 
@@ -66,8 +81,20 @@ export function findContactAtPoint(
     const centerY = pos.y + pos.height / 2;
     const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
 
+    console.log(`[CONTACT_DETECTION] 📏 Distance calculation for ${id}:`, {
+      contactCenter: `(${Math.round(centerX)}, ${Math.round(centerY)})`,
+      dropPoint: `(${Math.round(x)}, ${Math.round(y)})`,
+      distance: Math.round(distance),
+      threshold,
+      withinThreshold: distance < threshold,
+      type: pos.type
+    });
+
     if (distance < threshold) {
+      console.log(`[CONTACT_DETECTION] ✅ HIT: ${id} is within threshold!`);
       hits.push({ id, type: pos.type, distance, data: pos.data });
+    } else {
+      console.log(`[CONTACT_DETECTION] ❌ MISS: ${id} is outside threshold`);
     }
   }
 

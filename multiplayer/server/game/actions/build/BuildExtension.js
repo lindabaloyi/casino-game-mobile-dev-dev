@@ -52,6 +52,21 @@ function handleBuildExtension(gameManager, playerIndex, action, gameId) {
     );
   }
 
+  // 🔍 DETECT MERGE SCENARIO: Check if player already owns any build
+  const playerBuilds = gameState.tableCards.filter(
+    (card) => card.type === "build" && card.owner === playerIndex
+  );
+  const playerAlreadyOwnsBuild = playerBuilds.length > 0;
+  const mergeMode = playerAlreadyOwnsBuild;
+
+  logger.info("Build extension conflict detection", {
+    playerIndex,
+    playerBuildsCount: playerBuilds.length,
+    playerAlreadyOwnsBuild,
+    mergeMode,
+    playerBuildIds: playerBuilds.map(b => b.buildId)
+  });
+
   // Remove the extension card from player's hand immediately (like temp stacks)
   const playerHand = gameState.playerHands[playerIndex];
   const cardIndex = playerHand.findIndex(
@@ -78,6 +93,8 @@ function handleBuildExtension(gameManager, playerIndex, action, gameId) {
     isPendingExtension: true,
     pendingExtensionCard: extensionCard,
     pendingExtensionPlayer: playerIndex,
+    // 🔀 MERGE MODE: Flag to indicate if this should show "Merge" instead of "Accept"
+    mergeMode,
     // Store original values for cancellation
     originalValue: targetBuild.value,
     originalCards: [...targetBuild.cards],

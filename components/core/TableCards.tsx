@@ -25,6 +25,7 @@ interface TableCardsProps {
   onRejectBuildAddition?: () => void;
   onAcceptBuildExtension?: (buildId: string) => void;
   onCancelBuildExtension?: (buildId: string) => void;
+  onMergeBuildExtension?: () => void;
 }
 
 function getCardType(
@@ -56,6 +57,7 @@ const TableCards: React.FC<TableCardsProps> = ({
   onRejectBuildAddition,
   onAcceptBuildExtension,
   onCancelBuildExtension,
+  onMergeBuildExtension,
 }) => {
   const tableRef = useRef<View>(null);
   const tableBoundsRef = useRef<any>(null);
@@ -186,6 +188,7 @@ const TableCards: React.FC<TableCardsProps> = ({
                     onRejectBuildAddition={onRejectBuildAddition}
                     onAcceptBuildExtension={onAcceptBuildExtension}
                     onCancelBuildExtension={onCancelBuildExtension}
+                    onMergeBuildExtension={onMergeBuildExtension}
                   />
                 );
               } else if (itemType === "temporary_stack") {

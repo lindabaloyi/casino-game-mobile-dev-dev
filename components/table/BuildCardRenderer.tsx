@@ -26,6 +26,7 @@ interface BuildCardRendererProps {
   // Overlay support for build extensions
   onAcceptBuildExtension?: (buildId: string) => void;
   onCancelBuildExtension?: (buildId: string) => void;
+  onMergeBuildExtension?: () => void;
 }
 
 export function BuildCardRenderer({
@@ -43,6 +44,7 @@ export function BuildCardRenderer({
   // Extension overlay props
   onAcceptBuildExtension,
   onCancelBuildExtension,
+  onMergeBuildExtension,
 }: BuildCardRendererProps) {
   // Type assertion for build item
   const buildItem = tableItem as any; // Build has type: 'build' with additional properties
@@ -60,13 +62,15 @@ export function BuildCardRenderer({
 
   // Handle dragging opponent builds for overtake
   const handleBuildDragStart = React.useCallback((card: CardType) => {
-    console.log('[BUILD_DRAG] 🚀 Build drag START:', {
+    console.log('[BUILD_OVERTAKE] 🚀 BUILD DRAG START:', {
       buildId: buildItem.buildId,
       buildOwner: buildItem.owner,
       currentPlayer,
       card: `${card.rank}${card.suit}`,
       buildValue: buildItem.value,
-      isOpponentBuild: buildItem.owner !== currentPlayer
+      isOpponentBuild: buildItem.owner !== currentPlayer,
+      dropType: 'build-to-build',
+      timestamp: Date.now()
     });
   }, [buildItem.buildId, buildItem.owner, currentPlayer, buildItem.value]);
 
@@ -75,46 +79,60 @@ export function BuildCardRenderer({
   }, []);
 
   const handleBuildDragEnd = React.useCallback((draggedItem: any, dropPosition: any) => {
-    console.log('[BUILD_DRAG] Build drag end:', {
+    console.log('[BUILD_DRAG] Build drag end - DROP POSITION DEBUG:', {
       buildId: draggedItem.buildId,
-      dropPosition: dropPosition,
-      contact: dropPosition.contact
+      dropPosition: JSON.stringify(dropPosition, null, 2),
+      hasContact: !!dropPosition.contact,
+      contactType: dropPosition.contact?.type,
+      contactData: dropPosition.contact?.data
     });
 
     // Check if dropped on another build for overtake
     if (dropPosition.contact?.type === 'build') {
       const targetBuild = dropPosition.contact.data;
-      console.log('[BUILD_DRAG] Potential overtake - build dropped on build:', {
+      const valuesMatch = draggedItem.value === targetBuild.value;
+      const isValidOvertake = targetBuild.owner === currentPlayer && valuesMatch;
+
+      console.log('[BUILD_OVERTAKE] 🎯 BUILD-TO-BUILD DROP DETECTED:', {
         draggedBuildId: draggedItem.buildId,
+        draggedBuildOwner: draggedItem.owner,
+        draggedBuildValue: draggedItem.value,
         targetBuildId: targetBuild.buildId,
-        draggedValue: draggedItem.value,
-        targetValue: targetBuild.value
+        targetBuildOwner: targetBuild.owner,
+        targetBuildValue: targetBuild.value,
+        currentPlayer,
+        valuesMatch,
+        isValidOvertake,
+        dropType: 'build-to-build',
+        timestamp: Date.now()
       });
 
-      // Send overtake action
-      if (sendAction) {
-        console.log('[BUILD_DRAG] 🚀 SENDING OVERTAKE ACTION:', {
-          type: 'overtakeBuild',
+      // Send merge action if valid
+      if (isValidOvertake && sendAction) {
+        console.log('[BUILD_MERGE] ✅ VALID MERGE - SENDING ACTION:', {
+          type: 'mergeBuild',
           payload: {
-            extendedOpponentBuildId: draggedItem.buildId,
-            playerBuildId: targetBuild.buildId
+            sourceBuildId: draggedItem.buildId,
+            targetBuildId: targetBuild.buildId
           },
-          draggedBuildValue: draggedItem.value,
-          targetBuildValue: targetBuild.value,
-          valuesMatch: draggedItem.value === targetBuild.value
+          reason: 'Build values match and target belongs to current player'
         });
 
         sendAction({
-          type: 'overtakeBuild',
+          type: 'mergeBuild',
           payload: {
-            extendedOpponentBuildId: draggedItem.buildId,
-            playerBuildId: targetBuild.buildId
+            sourceBuildId: draggedItem.buildId,
+            targetBuildId: targetBuild.buildId
           }
         });
+      } else if (!sendAction) {
+        console.log('[BUILD_OVERTAKE] ❌ No sendAction function available!');
       } else {
-        console.log('[BUILD_DRAG] ❌ No sendAction function available!');
+        console.log('[BUILD_OVERTAKE] ❌ INVALID OVERTAKE - Not sending action:', {
+          reason: valuesMatch ? 'Target build not owned by current player' : 'Build values do not match'
+        });
       }
-      return { validContact: true };
+      return { validContact: isValidOvertake };
     }
 
     return { validContact: false };
@@ -181,6 +199,8 @@ export function BuildCardRenderer({
         isPendingExtension={buildItem.isPendingExtension}
         onAcceptExtension={onAcceptBuildExtension}
         onCancelExtension={onCancelBuildExtension}
+        mergeMode={buildItem.mergeMode} // 🔀 NEW: Pass merge mode from server data
+        onMergeExtension={onMergeBuildExtension} // 🔀 NEW: Pass merge handler
         baseZIndex={baseZIndex}
         baseElevation={1}
       />
