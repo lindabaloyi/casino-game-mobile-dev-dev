@@ -61,6 +61,15 @@ function handleCreateBuildFromTempStack(
 
   const gameState = gameManager.getGameState(gameId);
 
+  // 🚫 GUARD RAIL: Prevent multiple active builds per player
+  const existingBuild = gameState.tableCards.find(
+    (card) => card.type === 'build' && card.owner === playerIndex
+  );
+
+  if (existingBuild) {
+    throw new Error('Player can only have one active build at a time');
+  }
+
   // Find temp stack
   const tempStackIndex = gameState.tableCards.findIndex(
     (card) => card.stackId === tempStackId,

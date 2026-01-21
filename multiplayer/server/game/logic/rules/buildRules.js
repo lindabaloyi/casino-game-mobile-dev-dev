@@ -25,14 +25,14 @@ const buildRules = [
         return false;
       }
 
-      // Must be round 1 or player must have existing build
+      // Must be round 1 and player must not have existing build (one build per player)
       const round = context.round;
       const tableCards = context.tableCards || [];
       const hasOwnBuild = tableCards.some(card =>
         isBuild(card) && card.owner === currentPlayer
       );
 
-      const canCreate = round === 1 || hasOwnBuild;
+      const canCreate = round === 1 && !hasOwnBuild;
       console.log('[BUILD_RULE] Build creation check:', { round, hasOwnBuild, canCreate });
       return canCreate;
     },
