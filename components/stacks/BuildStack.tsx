@@ -36,6 +36,9 @@ interface BuildStackProps {
   onDragStart?: (card: CardType) => void;
   onDragEnd?: (draggedItem: any, dropPosition: any) => { validContact: boolean };
   onDragMove?: (card: CardType, position: { x: number; y: number }) => void;
+  // NEW: Drag state for UI optimization
+  isDragging?: boolean;
+  onDragStateChange?: (isDragging: boolean) => void;
 }
 
 /**
@@ -68,7 +71,26 @@ export const BuildStack: React.FC<BuildStackProps> = ({
   onDragStart,
   onDragEnd,
   onDragMove,
+  // Drag state
+  isDragging: externalIsDragging,
+  onDragStateChange,
 }) => {
+  // Track internal drag state for UI optimization
+  const [internalIsDragging, setInternalIsDragging] = React.useState(false);
+  const isDragging = externalIsDragging !== undefined ? externalIsDragging : internalIsDragging;
+
+  // Enhanced drag handlers that update internal state
+  const handleDragStart = React.useCallback((card: CardType) => {
+    setInternalIsDragging(true);
+    onDragStateChange?.(true);
+    onDragStart?.(card);
+  }, [onDragStart, onDragStateChange]);
+
+  const handleDragEnd = React.useCallback((draggedItem: any, dropPosition: any) => {
+    setInternalIsDragging(false);
+    onDragStateChange?.(false);
+    return onDragEnd?.(draggedItem, dropPosition);
+  }, [onDragEnd, onDragStateChange]);
   // Debug build dragging setup
   const isOpponentBuild = stackOwner !== currentPlayer;
   const willBeDraggable = isOpponentBuild;
@@ -83,6 +105,9 @@ export const BuildStack: React.FC<BuildStackProps> = ({
     hasDragHandlers,
     cardCount: cards.length,
     isPendingExtension,
+    isDragging,
+    overlayVisible: isPendingExtension && !isDragging,
+    indicatorsVisible: !isDragging,
     dragSource
   });
 
@@ -105,8 +130,8 @@ export const BuildStack: React.FC<BuildStackProps> = ({
         cards={cards}
         draggable={stackOwner !== currentPlayer} // All opponent builds are draggable for overtake
         allowMultiCardDrag={true} // Builds can have multiple cards and still be draggable
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
         onDragMove={onDragMove}
         currentPlayer={currentPlayer}
         dragSource={dragSource}
@@ -116,15 +141,19 @@ export const BuildStack: React.FC<BuildStackProps> = ({
         baseElevation={baseElevation}
       />
 
-      {/* Build value and owner indicators */}
-      <BuildIndicator
-        value={buildValue}
-        displayValue={displayValue}
-        owner={stackOwner}
-      />
+      {/* Build value and owner indicators - hide when dragging for clean UX */}
+      {!isDragging && (
+        <BuildIndicator
+          value={buildValue}
+          displayValue={displayValue}
+          owner={stackOwner}
+        />
+      )}
 
-      {/* Card count indicator for builds with multiple cards */}
-      <CardCountIndicator count={cards.length} />
+      {/* Card count indicator for builds with multiple cards - hide when dragging */}
+      {!isDragging && (
+        <CardCountIndicator count={cards.length} />
+      )}
 
       {/* Build augmentation overlay */}
       <TempOverlay
@@ -136,8 +165,9 @@ export const BuildStack: React.FC<BuildStackProps> = ({
       />
 
       {/* Build extension overlay - custom overlay for build extensions */}
+      {/* Hide overlay when dragging for clean overtake UX */}
       <BuildExtensionOverlay
-        isVisible={isPendingExtension}
+        isVisible={isPendingExtension && !isDragging}
         buildId={stackId}
         extensionText="EXTEND BUILD"
         onAccept={(id) => onAcceptExtension?.(id)}
