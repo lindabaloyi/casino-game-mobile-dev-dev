@@ -11,7 +11,7 @@ const {
 const logger = createLogger("BuildExtension");
 
 function handleBuildExtension(gameManager, playerIndex, action, gameId) {
-  const { extensionCard, targetBuildId } = action.payload;
+  const { extensionCard, targetBuildId, overtakeMode } = action.payload;
 
   logger.info("Build extension - creating pending extension overlay", {
     extensionCard: `${extensionCard.rank}${extensionCard.suit}`,
@@ -87,7 +87,7 @@ function handleBuildExtension(gameManager, playerIndex, action, gameId) {
       targetBuild.cards,
       extensionCard,
     ),
-    previewOwner: playerIndex,
+    previewOwner: overtakeMode ? targetBuild.owner : playerIndex,
     // Add position tracking for the extension card (like temp stacks)
     cardPositions: [
       {

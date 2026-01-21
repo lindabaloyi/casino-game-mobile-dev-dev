@@ -89,11 +89,23 @@ export function handleBuildContact(
       };
     } else {
       // 🎯 POTENTIAL EXTENSION: Visually add card to build and show overlay
+      // Check if this could be an overtake scenario (player has build with same value)
+      const playerBuilds = gameState.tableCards.filter(tc =>
+        tc.type === 'build' && tc.owner === currentPlayer
+      );
+
+      const hasMatchingPlayerBuild = playerBuilds.some(playerBuild =>
+        playerBuild.value === build.value + draggedCard.value
+      );
+
+      const overtakeMode = hasMatchingPlayerBuild;
+
       return {
         type: 'BuildExtension',
         payload: {
           extensionCard: draggedCard,
-          targetBuildId: build.buildId
+          targetBuildId: build.buildId,
+          overtakeMode
         }
       };
     }

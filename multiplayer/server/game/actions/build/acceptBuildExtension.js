@@ -8,7 +8,7 @@ const { createLogger } = require("../../../utils/logger");
 const logger = createLogger("AcceptBuildExtension");
 
 function handleAcceptBuildExtension(gameManager, playerIndex, action, gameId) {
-  const { buildId } = action.payload;
+  const { buildId, overtakeMode } = action.payload;
 
   logger.info("Accepting build extension", { buildId, playerIndex });
 
@@ -33,31 +33,40 @@ function handleAcceptBuildExtension(gameManager, playerIndex, action, gameId) {
 
   const pendingBuild = gameState.tableCards[buildIndex];
 
-  // 🎴 CASINO RULE VALIDATION: Player must have a card to capture the new build value
-  // When extending a build, player needs a capture card for the new total value
-  const playerHand = gameState.playerHands[playerIndex];
-  const newBuildValue = pendingBuild.previewValue;
-  const hasCaptureCardForNewValue = playerHand.some(
-    (card) => card.value === newBuildValue,
-  );
-
-  if (!hasCaptureCardForNewValue) {
-    logger.warn(
-      "Build extension validation failed - player missing capture card for new build value",
-      {
-        buildId,
-        playerIndex,
-        newBuildValue,
-        extensionCard: `${pendingBuild.pendingExtensionCard.rank}${pendingBuild.pendingExtensionCard.suit}`,
-        playerHand: playerHand.map((c) => `${c.rank}${c.suit}(val:${c.value})`),
-      },
+  // 🎯 OVERTAKE MODE: Skip capture card validation, finalize with original ownership
+  if (overtakeMode) {
+    logger.info("Accepting overtake-mode extension - keeping original ownership", {
+      buildId,
+      originalOwner: pendingBuild.owner,
+      newValue: pendingBuild.previewValue,
+    });
+  } else {
+    // 🎴 CASINO RULE VALIDATION: Player must have a card to capture the new build value
+    // When extending a build, player needs a capture card for the new total value
+    const playerHand = gameState.playerHands[playerIndex];
+    const newBuildValue = pendingBuild.previewValue;
+    const hasCaptureCardForNewValue = playerHand.some(
+      (card) => card.value === newBuildValue,
     );
 
-    // 🚨 THROW ERROR - No capture card for new build value
-    // GameCoordinatorService will catch this and send error to client
-    throw new Error(
-      "You don't have the required card in your hand to complete this build extension",
-    );
+    if (!hasCaptureCardForNewValue) {
+      logger.warn(
+        "Build extension validation failed - player missing capture card for new build value",
+        {
+          buildId,
+          playerIndex,
+          newBuildValue,
+          extensionCard: `${pendingBuild.pendingExtensionCard.rank}${pendingBuild.pendingExtensionCard.suit}`,
+          playerHand: playerHand.map((c) => `${c.rank}${c.suit}(val:${c.value})`),
+        },
+      );
+
+      // 🚨 THROW ERROR - No capture card for new build value
+      // GameCoordinatorService will catch this and send error to client
+      throw new Error(
+        "You don't have the required card in your hand to complete this build extension",
+      );
+    }
   }
 
   // Note: Extension card was already removed from hand in BuildExtension action

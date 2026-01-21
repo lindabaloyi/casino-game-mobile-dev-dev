@@ -75,6 +75,7 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
     acceptBuildExtension: actionHandlers.handleAcceptBuildExtension, // 🎯 NEW: Accept Build Extension
     cancelBuildExtension: actionHandlers.handleCancelBuildExtension, // 🎯 NEW: Cancel Build Extension
     acceptBuildAddition: actionHandlers.handleAcceptBuildAddition, // 🎯 NEW: Accept Build Addition
+    overtakeBuild: actionHandlers.handleOvertakeBuild, // 🎯 NEW: Overtake Build action
     tableToTableDrop: actionHandlers.handleTableToTableDrop,
     handToTableDrop: actionHandlers.handleHandToTableDrop,
     ReinforceBuild: actionHandlers.handleReinforceBuild, // 🏗️ NEW: Reinforce Build action

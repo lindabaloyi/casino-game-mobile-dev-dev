@@ -32,6 +32,10 @@ interface BuildStackProps {
   isPendingExtension?: boolean;
   onAcceptExtension?: (buildId: string) => void;
   onCancelExtension?: (buildId: string) => void;
+  // NEW: Drag handlers for draggable builds
+  onDragStart?: (card: CardType) => void;
+  onDragEnd?: (draggedItem: any, dropPosition: any) => { validContact: boolean };
+  onDragMove?: (card: CardType, position: { x: number; y: number }) => void;
 }
 
 /**
@@ -60,7 +64,28 @@ export const BuildStack: React.FC<BuildStackProps> = ({
   isPendingExtension = false,
   onAcceptExtension,
   onCancelExtension,
+  // Drag handlers
+  onDragStart,
+  onDragEnd,
+  onDragMove,
 }) => {
+  // Debug build dragging setup
+  const isOpponentBuild = stackOwner !== currentPlayer;
+  const willBeDraggable = isOpponentBuild;
+  const hasDragHandlers = !!(onDragStart && onDragEnd);
+
+  console.log('[BUILD_STACK] Build setup:', {
+    stackId,
+    stackOwner,
+    currentPlayer,
+    isOpponentBuild,
+    willBeDraggable,
+    hasDragHandlers,
+    cardCount: cards.length,
+    isPendingExtension,
+    dragSource
+  });
+
   // DEPRECATED: Drop zone registration removed - builds now use contact detection only
   // Layout measurement still needed for contact detection positioning
   const { ref, measure } = useLayoutMeasurement(stackId, 0.15);
@@ -78,7 +103,11 @@ export const BuildStack: React.FC<BuildStackProps> = ({
     >
       <StackRenderer
         cards={cards}
-        draggable={false} // Builds are not directly draggable
+        draggable={stackOwner !== currentPlayer} // All opponent builds are draggable for overtake
+        allowMultiCardDrag={true} // Builds can have multiple cards and still be draggable
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onDragMove={onDragMove}
         currentPlayer={currentPlayer}
         dragSource={dragSource}
         stackId={stackId}

@@ -68,7 +68,9 @@ export const StackRenderer: React.FC<StackRendererProps> = ({
     isDragging,
     dynamicZIndex: isDragging ? 99999 : baseZIndex,
     dynamicElevation: isDragging ? 999 : baseElevation,
-    dragSource
+    dragSource,
+    willRenderDraggableCard: isDraggable,
+    willRenderTouchableOpacity: !isDraggable
   });
 
   // Dynamic style for stacking context management

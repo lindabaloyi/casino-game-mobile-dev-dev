@@ -46,6 +46,79 @@ export function BuildCardRenderer({
 }: BuildCardRendererProps) {
   // Type assertion for build item
   const buildItem = tableItem as any; // Build has type: 'build' with additional properties
+
+  console.log('[BUILD_RENDERER] Rendering build:', {
+    buildId: buildItem.buildId,
+    owner: buildItem.owner,
+    currentPlayer,
+    value: buildItem.value,
+    isOpponent: buildItem.owner !== currentPlayer,
+    isPendingExtension: buildItem.isPendingExtension,
+    cardCount: buildItem.cards?.length || 0,
+    willBeDraggable: buildItem.owner !== currentPlayer
+  });
+
+  // Handle dragging opponent builds for overtake
+  const handleBuildDragStart = React.useCallback((card: CardType) => {
+    console.log('[BUILD_DRAG] 🚀 Build drag START:', {
+      buildId: buildItem.buildId,
+      buildOwner: buildItem.owner,
+      currentPlayer,
+      card: `${card.rank}${card.suit}`,
+      buildValue: buildItem.value,
+      isOpponentBuild: buildItem.owner !== currentPlayer
+    });
+  }, [buildItem.buildId, buildItem.owner, currentPlayer, buildItem.value]);
+
+  const handleBuildDragMove = React.useCallback((card: CardType, position: { x: number; y: number }) => {
+    // Optional: handle drag move if needed for visual feedback
+  }, []);
+
+  const handleBuildDragEnd = React.useCallback((draggedItem: any, dropPosition: any) => {
+    console.log('[BUILD_DRAG] Build drag end:', {
+      buildId: draggedItem.buildId,
+      dropPosition: dropPosition,
+      contact: dropPosition.contact
+    });
+
+    // Check if dropped on another build for overtake
+    if (dropPosition.contact?.type === 'build') {
+      const targetBuild = dropPosition.contact.data;
+      console.log('[BUILD_DRAG] Potential overtake - build dropped on build:', {
+        draggedBuildId: draggedItem.buildId,
+        targetBuildId: targetBuild.buildId,
+        draggedValue: draggedItem.value,
+        targetValue: targetBuild.value
+      });
+
+      // Send overtake action
+      if (sendAction) {
+        console.log('[BUILD_DRAG] 🚀 SENDING OVERTAKE ACTION:', {
+          type: 'overtakeBuild',
+          payload: {
+            extendedOpponentBuildId: draggedItem.buildId,
+            playerBuildId: targetBuild.buildId
+          },
+          draggedBuildValue: draggedItem.value,
+          targetBuildValue: targetBuild.value,
+          valuesMatch: draggedItem.value === targetBuild.value
+        });
+
+        sendAction({
+          type: 'overtakeBuild',
+          payload: {
+            extendedOpponentBuildId: draggedItem.buildId,
+            playerBuildId: targetBuild.buildId
+          }
+        });
+      } else {
+        console.log('[BUILD_DRAG] ❌ No sendAction function available!');
+      }
+      return { validContact: true };
+    }
+
+    return { validContact: false };
+  }, [sendAction]);
   const stackId = buildItem.buildId; // ✅ Use actual build ID instead of render index
   const stackRef = useRef<View>(null);
 
@@ -95,6 +168,10 @@ export function BuildCardRenderer({
         displayValue={buildItem.displayValue}
         stackOwner={buildItem.owner}
         currentPlayer={currentPlayer}
+        // Drag handlers for opponent builds
+        onDragStart={buildItem.owner !== currentPlayer ? handleBuildDragStart : undefined}
+        onDragEnd={buildItem.owner !== currentPlayer ? handleBuildDragEnd : undefined}
+        onDragMove={buildItem.owner !== currentPlayer ? handleBuildDragMove : undefined}
         // Overlay props for build additions
         showOverlay={showOverlay}
         overlayText="BUILD"
