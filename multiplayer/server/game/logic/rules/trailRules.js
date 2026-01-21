@@ -56,6 +56,16 @@ const trailRules = [
         return false;
       }
 
+      // 🎯 NEW RULE: Cannot trail if card value matches any active build value
+      const hasMatchingBuildValue = tableCards.some(card =>
+        card.type === 'build' && card.value === draggedValue
+      );
+
+      if (hasMatchingBuildValue) {
+        console.log('[TRAIL_RULE] ❌ Card value matches active build, rejecting trail');
+        return false;
+      }
+
       console.log('[TRAIL_RULE] ✅ Trail condition met');
       return true;
     },

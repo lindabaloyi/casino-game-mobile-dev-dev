@@ -96,6 +96,24 @@ function handleTrail(gameManager, playerIndex, action, gameId) {
       throw new Error(`Cannot trail ${card.rank}${card.suit} - same rank already on table`);
     }
 
+    // 🎯 NEW RULE: Cannot trail if card value matches any active build value
+    const cardValue = card.rank === 'A' ? 1 : parseInt(card.rank) || 10; // Handle face cards
+    const hasMatchingBuildValue = gameState.tableCards.some(tc =>
+      tc.type === 'build' && tc.value === cardValue
+    );
+
+    if (hasMatchingBuildValue) {
+      logger.logDecision('VALIDATION', 'TRAIL_REJECTED', {
+        reason: 'card_value_matches_active_build',
+        card: `${card.rank}${card.suit}`,
+        cardValue,
+        conflictingBuilds: gameState.tableCards
+          .filter(tc => tc.type === 'build' && tc.value === cardValue)
+          .map(tc => ({ id: tc.buildId, value: tc.value, owner: tc.owner }))
+      });
+      throw new Error(`Cannot trail ${card.rank}${card.suit} - it matches the value of an active build on the table`);
+    }
+
     logger.logDecision('VALIDATION', 'TRAIL_APPROVED', {
       card: `${card.rank}${card.suit}`,
       reason: 'all_conditions_met',

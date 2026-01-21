@@ -185,6 +185,33 @@ export function useServerListeners({
     };
   }, [socket, setErrorModal]);
 
+  // Handle action failures with error modals
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleActionFailed = (data: any) => {
+      console.log("[CLIENT] Action failed:", data);
+
+      // Show error modal for action failures
+      setErrorModal({
+        visible: true,
+        title: "Action Blocked",
+        message: data.error || "This action is not allowed.",
+      });
+
+      // Auto-hide after 4 seconds for action failures
+      setTimeout(() => {
+        setErrorModal(null);
+      }, 4000);
+    };
+
+    socket.on("action-failed", handleActionFailed);
+
+    return () => {
+      socket.off("action-failed", handleActionFailed);
+    };
+  }, [socket, setErrorModal]);
+
   // Hide navigation bar when entering game (Platform/OS specific)
   useEffect(() => {
     const hideNavBar = async () => {
