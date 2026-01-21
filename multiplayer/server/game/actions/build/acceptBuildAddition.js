@@ -149,13 +149,13 @@ function handleAcceptBuildAddition(gameManager, playerIndex, action, gameId) {
 
   // Update build display value (capture value stays constant, display shows appropriate value)
   const totalSum = build.cards.reduce((sum, c) => sum + (c.value || 0), 0);
-  const nextMultipleOf10 = Math.ceil(totalSum / 10) * 10;
-  if (totalSum % 10 === 0) {
-    // At a multiple of 10, show the capture value
+  const nextMultipleOfBuildValue = Math.ceil(totalSum / build.value) * build.value;
+  if (totalSum % build.value === 0) {
+    // At a multiple of build value, show the capture value
     build.displayValue = build.value;
   } else {
-    // Not at multiple of 10, show deficit to next multiple
-    build.displayValue = -(nextMultipleOf10 - totalSum);
+    // Not at multiple of build value, show deficit to next multiple
+    build.displayValue = -(nextMultipleOfBuildValue - totalSum);
   }
 
   // Remove from pending additions

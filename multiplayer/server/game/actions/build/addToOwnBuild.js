@@ -209,14 +209,14 @@ function handleAddToOwnBuild(
   );
 
   // Calculate displayValue using build calculator logic (like temp stacks)
-  // Show the capture value when total is at multiples of 10
-  const nextMultipleOf10 = Math.ceil(totalSum / 10) * 10;
-  if (totalSum % 10 === 0) {
-    // At a multiple of 10, show the capture value
+  // Show the capture value when total is at multiples of build value
+  const nextMultipleOfBuildValue = Math.ceil(totalSum / gameStateBuild.value) * gameStateBuild.value;
+  if (totalSum % gameStateBuild.value === 0) {
+    // At a multiple of build value, show the capture value
     gameStateBuild.displayValue = captureValue;
   } else {
-    // Not at multiple of 10, show deficit to next multiple
-    gameStateBuild.displayValue = -(nextMultipleOf10 - totalSum);
+    // Not at multiple of build value, show deficit to next multiple
+    gameStateBuild.displayValue = -(nextMultipleOfBuildValue - totalSum);
   }
 
   gameStateBuild.lastUpdated = Date.now();
