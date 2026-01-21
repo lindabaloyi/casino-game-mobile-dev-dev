@@ -65,11 +65,32 @@ function handleMergeBuildExtension(gameManager, playerIndex, action, gameId) {
     throw new Error("Pending extension is not for you");
   }
 
+  // 🔒 VALUE COMPATIBILITY VALIDATION: Builds must have the same value to merge
+  const sourceValue = sourceBuild.isPendingExtension ? sourceBuild.previewValue : sourceBuild.value;
+  const targetValue = targetBuild.value;
+
+  if (sourceValue !== targetValue) {
+    logger.warn("Build merge blocked - incompatible values", {
+      sourceBuildId,
+      targetPlayerBuildId,
+      sourceValue,
+      targetValue,
+      difference: Math.abs(sourceValue - targetValue),
+      playerIndex
+    });
+
+    // 🚨 THROW ERROR - Incompatible build values
+    // GameCoordinatorService will catch this and send error to client via modal manager
+    throw new Error(
+      `Cannot merge builds with different values (${sourceValue} and ${targetValue}). Builds must have the same capture value to merge.`
+    );
+  }
+
   logger.info("Merge extension validation passed", {
     sourceBuildId,
     targetPlayerBuildId,
-    sourceValue: sourceBuild.value,
-    targetValue: targetBuild.value,
+    sourceValue,
+    targetValue,
     extensionCard: sourceBuild.pendingExtensionCard ?
       `${sourceBuild.pendingExtensionCard.rank}${sourceBuild.pendingExtensionCard.suit}` : 'none',
     playerIndex,
@@ -99,18 +120,20 @@ function handleMergeBuildExtension(gameManager, playerIndex, action, gameId) {
     targetBuild.cards = insertCardIntoBuildDescending(targetBuild.cards, card);
   }
 
-  // Calculate new total value
-  const sourceValue = sourceBuild.isPendingExtension ? sourceBuild.previewValue : sourceBuild.value;
-  targetBuild.value += sourceValue;
+  // 🔄 MERGE PRESERVATION: Keep the target build's original capture value unchanged
+  // The capture value should remain constant for merged builds (strategic gameplay)
+  const originalCaptureValue = targetBuild.value;
 
-  // Update display value
-  targetBuild.displayValue = targetBuild.value;
+  // Update display value to show the capture value (same as the preserved value)
+  targetBuild.displayValue = originalCaptureValue;
 
-  logger.info("All source build cards merged into target build", {
+  logger.info("All source build cards merged into target build (capture value preserved)", {
     mergedCards: allCardsToMerge.map(c => `${c.rank}${c.suit}`),
     targetBuildId: targetPlayerBuildId,
-    newTargetValue: targetBuild.value,
-    newCardCount: targetBuild.cards.length
+    preservedCaptureValue: targetBuild.value,
+    displayValue: targetBuild.displayValue,
+    newCardCount: targetBuild.cards.length,
+    captureMultiples: `Can capture with ${targetBuild.value}, ${targetBuild.value * 2}, ${targetBuild.value * 3}, etc.`
   });
 
   // Remove the source build from the table (the opponent build that was being extended)
