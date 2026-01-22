@@ -134,9 +134,34 @@ function calculateFinalScores(playerCaptures) {
 }
 
 /**
- * Update scores in game state
+ * Determine the winner based on final scores
+ * @param {Array} scores - [player0Score, player1Score]
+ * @returns {number|null} Winner player index (0 or 1) or null for tie
+ */
+function determineWinner(scores) {
+  if (!scores || scores.length !== 2) {
+    logger.error("Invalid scores array for winner determination", { scores });
+    return null;
+  }
+
+  const [p0Score, p1Score] = scores;
+
+  if (p0Score > p1Score) {
+    logger.info(`🏆 Player 0 wins with ${p0Score} points vs ${p1Score}`);
+    return 0;
+  } else if (p1Score > p0Score) {
+    logger.info(`🏆 Player 1 wins with ${p1Score} points vs ${p0Score}`);
+    return 1;
+  } else {
+    logger.info(`🤝 Tie game: Both players have ${p0Score} points`);
+    return null; // Tie game
+  }
+}
+
+/**
+ * Update scores and determine winner in game state
  * @param {Object} gameState - Game state object
- * @returns {Object} Updated game state with new scores
+ * @returns {Object} Updated game state with new scores and winner
  */
 function updateScores(gameState) {
   if (!gameState) {
@@ -146,8 +171,9 @@ function updateScores(gameState) {
 
   const newScores = calculateFinalScores(gameState.playerCaptures);
   gameState.scores = newScores;
+  gameState.winner = determineWinner(newScores);
 
-  logger.info(`📊 Scores updated: [${newScores[0]}, ${newScores[1]}]`);
+  logger.info(`📊 Scores updated: [${newScores[0]}, ${newScores[1]}], Winner: ${gameState.winner !== null ? `Player ${gameState.winner}` : 'Tie'}`);
 
   return gameState;
 }
@@ -156,5 +182,6 @@ module.exports = {
   calculateCardPoints,
   calculatePlayerScore,
   calculateFinalScores,
+  determineWinner,
   updateScores,
 };

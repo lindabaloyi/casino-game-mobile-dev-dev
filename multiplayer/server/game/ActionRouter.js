@@ -229,50 +229,27 @@ class ActionRouter {
           },
         );
 
-        // 4. Check for turn 40 analysis (cleanup now handled client-side)
-        if (finalGameState.turnCounter === 40) {
-          // Get the most current game state for accurate analysis
-          const currentGameState = this.gameManager.getGameState(gameId);
+        // 4. Check for turn 41 cleanup trigger (when turn 41 begins)
+        if (finalGameState.turnCounter === 41) {
+          console.log("🧹 TURN 41 BEGINS: Automatically triggering cleanup");
 
-          // Calculate turn completion statistics
-          const turnCompletionFlags =
-            currentGameState.turnCompletionFlags || [];
-          const completedTurns = turnCompletionFlags.filter(
-            (flag) => flag === true,
-          ).length;
-          const incompleteTurns = turnCompletionFlags.filter(
-            (flag) => flag === false,
-          ).length;
-          const totalTurnsTracked = turnCompletionFlags.length;
+          try {
+            // Automatically trigger cleanup action server-side
+            const cleanupAction = { type: "cleanup" };
+            const cleanupResult = await this.actionHandlers["cleanup"](
+              this.gameManager,
+              finalGameState.currentPlayer,
+              cleanupAction,
+              gameId
+            );
 
-          const turn40Analysis = {
-            turnCounter: finalGameState.turnCounter,
-            tableCardsCount: currentGameState.tableCards.length,
-            lastCapturer: currentGameState.lastCapturer,
-            currentPlayer: currentGameState.currentPlayer,
-            playerCaptures: currentGameState.playerCaptures.map(
-              (captures, idx) => ({
-                player: idx,
-                cards: captures.length,
-              }),
-            ),
-            turnCompletionStats: {
-              totalTurnsTracked,
-              completedTurns,
-              incompleteTurns,
-              completionRate:
-                totalTurnsTracked > 0
-                  ? ((completedTurns / totalTurnsTracked) * 100).toFixed(1) +
-                    "%"
-                  : "N/A",
-              turnCompletionFlags: turnCompletionFlags.slice(0, 10), // First 10 turns for detailed logging
-            },
-          };
-
-          logger.info("🎯 TURN 40 GAME ANALYSIS:", turn40Analysis);
-
-          // Send analysis to client for logging and client-side cleanup trigger
-          finalGameState.turn40Analysis = turn40Analysis;
+            // Use cleanup result as final game state
+            finalGameState = cleanupResult;
+            console.log("🧹 Cleanup completed successfully at turn 41 start");
+          } catch (error) {
+            console.error("🧹 Failed to auto-trigger cleanup at turn 41:", error);
+            // Continue with normal flow if cleanup fails
+          }
         }
       }
 

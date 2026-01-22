@@ -45,7 +45,19 @@ export function handleTempStackContact(
 
     console.log(`[TEMP_STACK_HANDLER] ✅ Found temp stack: ${tempStack.stackId}, owner=${tempStack.owner}, currentPlayer=${currentPlayer}`);
 
-    // 🎯 CLIENT-SIDE VALIDATION: Prevent multiple hand card additions to temp stacks per turn
+    // Ownership check
+    if (tempStack.owner !== currentPlayer) {
+      return null;
+    }
+
+    // Prevent temp-to-temp
+    const draggedFromTemp = isCardInTemp(draggedCard, gameState);
+    if (draggedFromTemp) {
+      return null;
+    }
+
+    // 🎯 CLIENT-SIDE VALIDATION: Prevent multiple hand card actions on temp stacks per turn
+    // This must come BEFORE capture/add logic to block ALL hand card usage after first use
     if (source === "hand") {
       console.log(`[TEMP_STACK_HANDLER] 🔍 Checking hand card usage for temp stacks this turn:`, {
         currentPlayer,
@@ -57,20 +69,9 @@ export function handleTempStackContact(
         console.log(`[TEMP_STACK_HANDLER] ❌ CLIENT VALIDATION FAILED: Already used hand card for temp stacks this turn`);
         return {
           type: 'validation_error',
-          message: 'Cannot add multiple hand cards to temp stacks in the same turn. You must resolve your temp stack or wait for your next turn.'
+          message: 'Cannot use multiple hand cards on temp stacks in the same turn. You must resolve your temp stack or wait for your next turn.'
         };
       }
-    }
-
-    // Ownership check
-    if (tempStack.owner !== currentPlayer) {
-      return null;
-    }
-
-    // Prevent temp-to-temp
-    const draggedFromTemp = isCardInTemp(draggedCard, gameState);
-    if (draggedFromTemp) {
-      return null;
     }
 
     // 🎯 CAPTURE CHECK: If dragged card value equals temp stack value, capture instead of adding

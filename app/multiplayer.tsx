@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { GameBoard } from '../components/core/GameBoard';
-import { useSocket } from '../hooks/useSocket';
+import GameOverScreen from './game-over';
+import { useGameServer } from '../hooks/useGameServer';
 
 export const options = {
   headerShown: false,
@@ -8,7 +9,7 @@ export const options = {
 
 export default function MultiplayerScreen() {
   console.log('[SCREEN] MultiplayerScreen rendered');
-  const { gameState, playerNumber, sendAction, buildOptions, actionChoices, error, clearError } = useSocket();
+  const { gameState, playerNumber, sendAction, buildOptions, actionChoices, error, clearError } = useGameServer();
 
   console.log('[SCREEN] gameState:', gameState, 'playerNumber:', playerNumber);
 
@@ -22,7 +23,18 @@ export default function MultiplayerScreen() {
     );
   }
 
-  // Render the game board when game starts
+  // Show game over screen if game is finished
+  if (gameState.gameOver) {
+    return (
+      <GameOverScreen
+        gameState={gameState}
+        onPlayAgain={() => console.log('Play again')}
+        onBackToMenu={() => console.log('Back to menu')}
+      />
+    );
+  }
+
+  // Render the game board when game is active
   return (
     <GameBoard
       gameState={gameState}

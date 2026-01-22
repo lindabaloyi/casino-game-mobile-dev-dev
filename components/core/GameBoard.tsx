@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -17,6 +17,8 @@ import TrailConfirmationModal from "../modals/TrailConfirmationModal";
 import BurgerMenu from "../navigation/BurgerMenu";
 import PlayerHand from "./playerHand";
 import TableCards from "./TableCards";
+import { ConnectionStatus } from "./ConnectionStatus";
+import { DebugSyncButton } from "./DebugSyncButton";
 
 interface GameBoardProps {
   gameState: GameState;
@@ -295,106 +297,45 @@ export function GameBoard({
     }
   };
 
-  const isMyTurn = gameState.currentPlayer === playerNumber;
+  // Memoize derived values to prevent unnecessary recalculations
+  const isMyTurn = useMemo(() =>
+    gameState.currentPlayer === playerNumber,
+    [gameState.currentPlayer, playerNumber]
+  );
 
-  // Connection status display
-  const ConnectionStatusDisplay = () => {
-    const [status, setStatus] = useState("connecting");
+  const playerHand = useMemo(() =>
+    gameState.playerHands?.[playerNumber] || [],
+    [gameState.playerHands, playerNumber]
+  );
 
-    // Use socket connection status
-    const socket = useSocket();
+  const opponentCaptures = useMemo(() =>
+    gameState.playerCaptures?.[(playerNumber + 1) % 2] || [],
+    [gameState.playerCaptures, playerNumber]
+  );
 
-    React.useEffect(() => {
-      const onConnect = () => setStatus("connected");
-      const onDisconnect = () => setStatus("disconnected");
-      const onReconnect = () => setStatus("reconnected");
+  const playerCaptures = useMemo(() =>
+    gameState.playerCaptures?.[playerNumber] || [],
+    [gameState.playerCaptures, playerNumber]
+  );
 
-      // These would need to be exposed from useSocket hook
-      // For now, just show a static status
-      setStatus("connected");
 
-      return () => {
-        // Cleanup if needed
-      };
-    }, []);
 
-    const statusColors: Record<string, string> = {
-      connected: "#4CAF50",
-      disconnected: "#F44336",
-      connecting: "#FF9800",
-      reconnected: "#2196F3",
-    };
-
-    return (
-      <View
-        style={{
-          position: "absolute",
-          top: 10,
-          left: 10,
-          backgroundColor: statusColors[status] || "#999",
-          padding: 5,
-          borderRadius: 5,
-          zIndex: 9999,
-        }}
-      >
-        <Text style={{ color: "white", fontSize: 10, fontWeight: "bold" }}>
-          {status.toUpperCase()}
-        </Text>
-      </View>
-    );
-  };
-
-  // Debug sync button for development
-  const DebugSyncButton = () => {
-    const socket = useSocket();
-
-    const handleForceSync = () => {
-      console.log("🔄 [DEBUG] Requesting manual state sync");
-      if (socket.sendAction) {
-        socket.sendAction({
-          type: "request-sync",
-          payload: {
-            playerNumber,
-            reason: "manual_sync",
-            clientState: gameState,
-          },
-        });
-      }
-    };
-
-    if (!__DEV__) return null;
-
-    return (
-      <View
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          backgroundColor: "#FF6B6B",
-          padding: 8,
-          borderRadius: 5,
-          zIndex: 9999,
-        }}
-      >
-        <Text
-          style={{ color: "white", fontSize: 12, fontWeight: "bold" }}
-          onPress={handleForceSync}
-        >
-          🔄 SYNC
-        </Text>
-      </View>
-    );
-  };
+  // Memoize callbacks to prevent child re-renders
+  const stableOnRestart = useCallback(onRestart || (() => {}), [onRestart]);
+  const stableOnBackToMenu = useCallback(onBackToMenu || (() => {}), [onBackToMenu]);
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       {/* Connection Status Display */}
-      <ConnectionStatusDisplay />
+      <ConnectionStatus status="connected" />
 
       <BurgerMenu
-        onRestart={onRestart || (() => {})}
-        onEndGame={onBackToMenu || (() => {})}
+        onRestart={stableOnRestart}
+        onEndGame={stableOnBackToMenu}
       />
+
+      {/* Debug Sync Button */}
+      <DebugSyncButton playerNumber={playerNumber} />
 
       {/* Status Section */}
       <View style={styles.statusSection}>
@@ -439,7 +380,7 @@ export function GameBoard({
         {/* Opponent Captured Section */}
         <View style={styles.opponentCapturedSection}>
           <CapturedCards
-            captures={gameState.playerCaptures?.[(playerNumber + 1) % 2] || []}
+            captures={opponentCaptures}
             playerIndex={(playerNumber + 1) % 2}
             isOpponent={true}
             isMinimal={true}
@@ -455,7 +396,7 @@ export function GameBoard({
         <View style={styles.playerHandArea}>
           <PlayerHand
             player={playerNumber}
-            cards={gameState.playerHands?.[playerNumber] || []}
+            cards={playerHand}
             isCurrent={isMyTurn}
             onDragStart={dragHandlers.handleDragStart}
             onDragEnd={dragHandlers.handleHandCardDragEnd}
@@ -466,7 +407,7 @@ export function GameBoard({
         </View>
         <View style={styles.playerCapturedArea}>
           <CapturedCards
-            captures={gameState.playerCaptures?.[playerNumber] || []}
+            captures={playerCaptures}
             playerIndex={playerNumber}
             isOpponent={false}
             isMinimal={true}
@@ -609,4 +550,18 @@ const styles = StyleSheet.create({
   },
 });
 
-export default GameBoard;
+// Add React.memo with custom comparison to prevent unnecessary re-renders
+const MemoizedGameBoard = React.memo(GameBoard, (prevProps, nextProps) => {
+  // Only re-render when these specific props change
+  return (
+    prevProps.gameState === nextProps.gameState &&
+    prevProps.playerNumber === nextProps.playerNumber &&
+    prevProps.buildOptions === nextProps.buildOptions &&
+    prevProps.actionChoices === nextProps.actionChoices &&
+    prevProps.serverError === nextProps.serverError
+  );
+});
+
+MemoizedGameBoard.displayName = 'GameBoard';
+
+export default MemoizedGameBoard;

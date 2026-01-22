@@ -60,8 +60,8 @@ describe("Game Over Flow", () => {
     mockGameManager.activeGames.set("test-game", mockGameState);
   });
 
-  describe("Point Card Extraction", () => {
-    test("should extract 10♦ from player captures", async () => {
+  describe("Score Calculation", () => {
+    test("should calculate correct final scores", async () => {
       const result = await handleGameOver(
         mockGameManager,
         0,
@@ -69,19 +69,13 @@ describe("Game Over Flow", () => {
         "test-game",
       );
 
-      const diamondTen = result.tableCards.find(
-        (card) =>
-          card.type === "game-over-point-card" &&
-          card.rank === "10" &&
-          card.suit === "♦" &&
-          card.player === 0,
-      );
-
-      expect(diamondTen).toBeDefined();
-      expect(diamondTen.pointValue).toBe(2);
+      // Player 0: 32 cards (10♦=2, 2♠=1, A♠=1, A♥=1) + 7♠ bonus (+2) + 32 cards bonus (+2) = 9 points
+      // Player 1: 22 cards (A♦=1, A♣=1) + 22 cards bonus (+2) = 4 points
+      expect(result.scores).toEqual([9, 4]);
+      expect(result.scores[0] + result.scores[1]).toBe(13); // Total points
     });
 
-    test("should extract 2♠ from player captures", async () => {
+    test("should determine winner correctly", async () => {
       const result = await handleGameOver(
         mockGameManager,
         0,
@@ -89,81 +83,18 @@ describe("Game Over Flow", () => {
         "test-game",
       );
 
-      const spadeTwo = result.tableCards.find(
-        (card) =>
-          card.type === "game-over-point-card" &&
-          card.rank === "2" &&
-          card.suit === "♠" &&
-          card.player === 0,
-      );
-
-      expect(spadeTwo).toBeDefined();
-      expect(spadeTwo.pointValue).toBe(1);
-    });
-
-    test("should extract all aces from player captures", async () => {
-      const result = await handleGameOver(
-        mockGameManager,
-        0,
-        { type: "game-over" },
-        "test-game",
-      );
-
-      const aces = result.tableCards.filter(
-        (card) =>
-          card.type === "game-over-point-card" &&
-          card.rank === "A" &&
-          card.pointValue === 1,
-      );
-
-      expect(aces.length).toBe(4); // A♠, A♥ from player 0, A♦, A♣ from player 1
-    });
-
-    test("should create spades bonus for 6+ spades", async () => {
-      const result = await handleGameOver(
-        mockGameManager,
-        0,
-        { type: "game-over" },
-        "test-game",
-      );
-
-      const spadesBonus = result.tableCards.find(
-        (card) =>
-          card.type === "game-over-bonus" &&
-          card.bonus === "spades-6" &&
-          card.player === 0,
-      );
-
-      expect(spadesBonus).toBeDefined();
-      expect(spadesBonus.points).toBe(2);
-      expect(spadesBonus.description).toBe("7 Spades"); // A♠, 2♠, 3♠, 4♠, 5♠, 6♠, 7♠ = 7 spades
-    });
-
-    test("should create *21 cards bonus for 21+ total cards", async () => {
-      const result = await handleGameOver(
-        mockGameManager,
-        0,
-        { type: "game-over" },
-        "test-game",
-      );
-
-      const cardsBonus = result.tableCards.find(
-        (card) =>
-          card.type === "game-over-bonus" &&
-          card.bonus === "cards-21" &&
-          card.player === 0,
-      );
-
-      expect(cardsBonus).toBeDefined();
-      expect(cardsBonus.points).toBe(2);
-      expect(cardsBonus.description).toBe("*32 Cards");
-      expect(cardsBonus.rank).toBe("*");
-      expect(cardsBonus.suit).toBe("21");
+      expect(result.winner).toBe(0); // Player 0 wins with 9 > 4
     });
   });
 
-  describe("Table Placement", () => {
-    test("should place all point cards and bonuses on table", async () => {
+  describe("Table Preservation", () => {
+    test("should not modify table cards", async () => {
+      // Set up some table cards
+      mockGameState.tableCards = [
+        { rank: "J", suit: "♠" },
+        { rank: "9", suit: "♦" },
+      ];
+
       const result = await handleGameOver(
         mockGameManager,
         0,
@@ -171,62 +102,11 @@ describe("Game Over Flow", () => {
         "test-game",
       );
 
-      expect(result.tableCards.length).toBeGreaterThan(0);
-
-      // Should have point cards and bonuses
-      const pointCards = result.tableCards.filter(
-        (card) => card.type === "game-over-point-card",
-      );
-      const bonuses = result.tableCards.filter(
-        (card) => card.type === "game-over-bonus",
-      );
-      const separators = result.tableCards.filter(
-        (card) => card.type === "game-over-separator",
-      );
-
-      expect(pointCards.length).toBe(6); // 10♦, 2♠, A♠, A♥, A♦, A♣ = 6 point cards total
-      expect(bonuses.length).toBe(3); // spades bonus + 2 cards bonuses
-      expect(separators.length).toBe(1); // separator between players
-    });
-
-    test("should organize cards by player with separators", async () => {
-      const result = await handleGameOver(
-        mockGameManager,
-        0,
-        { type: "game-over" },
-        "test-game",
-      );
-
-      // Find separator
-      const separatorIndex = result.tableCards.findIndex(
-        (card) => card.type === "game-over-separator",
-      );
-
-      expect(separatorIndex).toBeGreaterThan(0);
-
-      // Cards before separator should belong to player 0
-      const player0Cards = result.tableCards.slice(0, separatorIndex);
-      const player0Items = player0Cards.filter(
-        (card) =>
-          card.player === 0 ||
-          card.type === "game-over-point-card" ||
-          card.type === "game-over-bonus",
-      );
-
-      expect(player0Cards.length).toBeGreaterThan(0);
-      expect(player0Items.length).toBe(player0Cards.length); // All cards should belong to player 0
-
-      // Cards after separator should belong to player 1
-      const player1Cards = result.tableCards.slice(separatorIndex + 1);
-      const player1Items = player1Cards.filter(
-        (card) =>
-          card.player === 1 ||
-          card.type === "game-over-point-card" ||
-          card.type === "game-over-bonus",
-      );
-
-      expect(player1Cards.length).toBeGreaterThan(0);
-      expect(player1Items.length).toBe(player1Cards.length); // All cards should belong to player 1
+      // Table cards should remain unchanged
+      expect(result.tableCards).toEqual([
+        { rank: "J", suit: "♠" },
+        { rank: "9", suit: "♦" },
+      ]);
     });
   });
 
@@ -273,19 +153,17 @@ describe("Game Over Flow", () => {
         "test-game",
       );
 
-      // Verify the result is the game over state (not just cleanup)
+      // Verify the result is the game over state
       expect(result.gameOver).toBe(true);
-      expect(result.tableCards.length).toBeGreaterThan(0); // Point cards placed on table
+      expect(result.scores).toEqual([9, 4]); // Final scores calculated
+      expect(result.winner).toBe(0); // Winner determined
 
-      // Verify cleanup was performed
-      expect(result.playerCaptures[0].length).toBe(34); // 32 + 2 awarded cards
-      expect(
-        result.tableCards.some((card) => card.type === "game-over-point-card"),
-      ).toBe(true);
+      // Verify cleanup was performed - table cards awarded to last capturer
+      expect(result.playerCaptures[0].length).toBe(34); // 32 original + 2 awarded
+      expect(result.playerCaptures[1].length).toBe(22); // 22 original (unchanged)
 
-      // Verify game over state
-      expect(result.gameOver).toBe(true);
-      expect(result.scores).toBeDefined();
+      // Verify table cards remain as awarded by cleanup (not modified by game over)
+      expect(result.tableCards).toEqual([]); // Cleanup clears table after awarding cards
     });
   });
 });

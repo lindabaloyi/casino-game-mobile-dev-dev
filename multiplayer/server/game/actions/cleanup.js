@@ -27,6 +27,22 @@ async function handleCleanup(gameManager, playerIndex, action, gameId) {
       ? gameState.lastCapturer
       : gameState.currentPlayer;
 
+  // 🧹 BEFORE CLEANUP: Show complete game state
+  console.log("🧹 [CLEANUP] ===== BEFORE CLEANUP =====");
+  console.log(`🧹 [CLEANUP] Player 0 captures (${gameState.playerCaptures[0].length} cards):`,
+    gameState.playerCaptures[0].map(c => `${c.rank}${c.suit}`));
+  console.log(`🧹 [CLEANUP] Player 1 captures (${gameState.playerCaptures[1].length} cards):`,
+    gameState.playerCaptures[1].map(c => `${c.rank}${c.suit}`));
+  console.log(`🧹 [CLEANUP] Table cards (${tableCardCount} cards):`,
+    tableCards.map(c => `${c.rank}${c.suit}`));
+  console.log(`🧹 [CLEANUP] Last capturer: Player ${gameState.lastCapturer}`);
+
+  // 🧹 DURING CLEANUP: Show award details
+  console.log(`🧹 [CLEANUP] ===== AWARDING CARDS =====`);
+  console.log(`🧹 [CLEANUP] Awarding ${tableCardCount} table cards to Player ${recipientPlayer}`);
+  console.log("🧹 [CLEANUP] Cards being awarded:",
+    tableCards.map(c => `${c.rank}${c.suit}`));
+
   logger.info(
     `🧹 Awarding ${tableCardCount} table cards to Player ${recipientPlayer}`,
     {
@@ -48,9 +64,20 @@ async function handleCleanup(gameManager, playerIndex, action, gameId) {
   // Clear the table
   gameState.tableCards = [];
 
+  // 🧹 AFTER CLEANUP: Show updated game state
+  console.log(`🧹 [CLEANUP] ===== AFTER CLEANUP =====`);
+  console.log(`🧹 [CLEANUP] Player 0 captures (${gameState.playerCaptures[0].length} cards):`,
+    gameState.playerCaptures[0].map(c => `${c.rank}${c.suit}`));
+  console.log(`🧹 [CLEANUP] Player 1 captures (${gameState.playerCaptures[1].length} cards):`,
+    gameState.playerCaptures[1].map(c => `${c.rank}${c.suit}`));
+  console.log("🧹 [CLEANUP] Table cards: (cleared)",
+    gameState.tableCards.map(c => `${c.rank}${c.suit}`)); // Should be empty
+
   // Recalculate final scores after cleanup
   const { calculateFinalScores } = require("../scoring");
   gameState.scores = calculateFinalScores(gameState.playerCaptures);
+
+  console.log(`🧹 [CLEANUP] Final scores after cleanup: [${gameState.scores[0]}, ${gameState.scores[1]}]`);
 
   // Add cleanup action info for client-side visualization
   gameState.cleanupAction = {

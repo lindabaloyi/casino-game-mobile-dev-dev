@@ -6,7 +6,7 @@ interface BurgerMenuProps {
   onEndGame: () => void;
 }
 
-const BurgerMenu: React.FC<BurgerMenuProps> = ({ onRestart, onEndGame }) => {
+const BurgerMenu: React.FC<BurgerMenuProps> = React.memo(({ onRestart, onEndGame }) => {
   const [menuVisible, setMenuVisible] = useState(false);
 
   const showMenu = () => setMenuVisible(true);
@@ -72,7 +72,15 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({ onRestart, onEndGame }) => {
       </Modal>
     </>
   );
-};
+}, (prevProps, nextProps) => {
+  // Only re-render if callbacks change (they shouldn't)
+  return (
+    prevProps.onRestart === nextProps.onRestart &&
+    prevProps.onEndGame === nextProps.onEndGame
+  );
+});
+
+BurgerMenu.displayName = 'BurgerMenu';
 
 const styles = StyleSheet.create({
   burgerButton: {
