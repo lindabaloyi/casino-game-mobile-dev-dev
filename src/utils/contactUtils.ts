@@ -6,7 +6,7 @@
 import type { Build, Card, GameState } from '../../multiplayer/server/game-logic/game-state';
 
 export interface TempStack {
-  type: 'temporary_stack';
+  type: 'temporary_stack' | 'tempStack';
   stackId: string;
   cards: Card[];
   owner: number;
@@ -39,10 +39,11 @@ export function isBuild(item: any): item is Build {
 
 /**
  * Type guard for TempStack objects
+ * Accepts both client-side "tempStack" and server-side "temporary_stack" types
  */
 export function isTempStack(item: any): item is TempStack {
   return item && typeof item === 'object' &&
-         item.type === 'temporary_stack' &&
+         (item.type === 'temporary_stack' || item.type === 'tempStack') &&
          typeof item.stackId === 'string' &&
          Array.isArray(item.cards) &&
          typeof item.owner === 'number' &&

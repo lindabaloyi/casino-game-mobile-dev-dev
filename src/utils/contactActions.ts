@@ -29,7 +29,7 @@ export function determineActionFromContact(
   gameState: GameState,
   currentPlayer: number,
   source?: string,
-): { type: string; payload: any } | null {
+): { type: string; payload?: any; message?: string } | null {
 
   console.log('[CONTACT_ACTION] 🎯 CONTACT DETECTED:', {
     draggedCard: `${draggedCard.rank}${draggedCard.suit}`,
@@ -49,6 +49,7 @@ export function determineActionFromContact(
     (touchedContact.type === "temporary_stack" && source !== "oppTopCard") ||
     (touchedContact.type === "tempStack" && source !== "oppTopCard")
   ) {
+    console.log(`[CONTACT_ACTION] 🎯 Using rule engine for: type=${touchedContact.type}, source=${source}`);
     // Prepare context for rule engine
     const draggedItem = {
       card: draggedCard,

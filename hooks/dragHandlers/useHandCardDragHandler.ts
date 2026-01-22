@@ -215,6 +215,17 @@ export function useHandCardDragHandler({
         }
 
         if (action) {
+          // 🎯 CLIENT-SIDE VALIDATION: Handle validation errors
+          if (action.type === 'validation_error') {
+            logger.info(`❌ CLIENT VALIDATION FAILED: ${action.message}`);
+            setErrorModal({
+              visible: true,
+              title: "Invalid Action",
+              message: action.message || "This action is not allowed."
+            });
+            return { validContact: false }; // Trigger snap-back
+          }
+
           logger.info(`📤 Sending action: ${action.type}`, action.payload);
           sendAction(action);
 

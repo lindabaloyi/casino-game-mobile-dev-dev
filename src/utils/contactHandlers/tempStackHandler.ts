@@ -20,7 +20,7 @@ interface Contact {
  * Check if table item is a temp stack
  */
 function isTempStack(item: any): boolean {
-  return item?.type === "temporary_stack" || item?.type === "temp_stack";
+  return item?.type === "temporary_stack" || item?.type === "tempStack" || item?.type === "temp_stack";
 }
 
 /**
@@ -32,13 +32,34 @@ export function handleTempStackContact(
   gameState: GameState,
   currentPlayer: number,
   source?: string,
-): { type: string; payload: any } | null {
+): { type: string; payload?: any; message?: string } | null {
   // SCENARIO 1: Contact with EXISTING TEMP (Addition Flow or Capture)
-  if (contact.type === "tempStack") {
+  if (contact.type === "tempStack" || contact.type === "temporary_stack") {
+    console.log(`[TEMP_STACK_HANDLER] 🎯 Found temp stack contact: type=${contact.type}, id=${contact.id}`);
     const tempStack = findTempStackById(contact.id, gameState);
 
     if (!tempStack) {
+      console.log(`[TEMP_STACK_HANDLER] ❌ Temp stack not found for id: ${contact.id}`);
       return null;
+    }
+
+    console.log(`[TEMP_STACK_HANDLER] ✅ Found temp stack: ${tempStack.stackId}, owner=${tempStack.owner}, currentPlayer=${currentPlayer}`);
+
+    // 🎯 CLIENT-SIDE VALIDATION: Prevent multiple hand card additions to temp stacks per turn
+    if (source === "hand") {
+      console.log(`[TEMP_STACK_HANDLER] 🔍 Checking hand card usage for temp stacks this turn:`, {
+        currentPlayer,
+        tempStackHandCardUsedThisTurn: gameState.tempStackHandCardUsedThisTurn?.[currentPlayer],
+        source
+      });
+
+      if (gameState.tempStackHandCardUsedThisTurn?.[currentPlayer]) {
+        console.log(`[TEMP_STACK_HANDLER] ❌ CLIENT VALIDATION FAILED: Already used hand card for temp stacks this turn`);
+        return {
+          type: 'validation_error',
+          message: 'Cannot add multiple hand cards to temp stacks in the same turn. You must resolve your temp stack or wait for your next turn.'
+        };
+      }
     }
 
     // Ownership check

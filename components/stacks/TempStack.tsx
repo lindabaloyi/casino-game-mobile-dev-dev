@@ -50,9 +50,9 @@ export const TempStack: React.FC<TempStackProps> = ({
   onDragStart,
   onDragEnd,
 }) => {
-  // Dynamic expansion factor for temp stacks: base 50% + 10% per card over 4
+  // Dynamic expansion factor for temp stacks: base 100% + 10% per card over 4
   // This ensures drop zones grow as stacks get taller
-  const baseExpansion = 0.5;
+  const baseExpansion = 1.0;
   const extraExpansionPerCard = 0.1;
   const cardCount = cards.length;
   const dynamicExpansion =

@@ -70,7 +70,7 @@ function detectNormalBuildCombinations(values) {
 
   // Find all possible first segments (must start from index 0 to cover all cards)
   const start = 0;
-  for (let end = values.length; end >= start + 2; end--) {
+  for (let end = values.length; end >= start + 1; end--) {
     const segmentSum = values.slice(start, end).reduce((a, b) => a + b, 0);
     if (segmentSum <= 10) {
       const buildValue = segmentSum;

@@ -62,6 +62,8 @@ export function useOppTopCardDragHandler({
       distance: contact.distance
     });
 
+    console.log('[DEBUG] Full contact details:', contact);
+
     const opponentId = currentDragMetadata?.opponentId;
     console.log(`[🎯 OPP-CONTACT] Contact detected:`, {
       type: contact.type,
@@ -74,13 +76,23 @@ export function useOppTopCardDragHandler({
     const action = determineActionFromContact(draggedItem.card, contact, gameState, playerNumber, 'oppTopCard');
 
     if (action) {
+      // 🎯 CLIENT-SIDE VALIDATION: Handle validation errors
+      if (action.type === 'validation_error') {
+        console.log('[❌ OPP-VALIDATION-ERROR] Client validation failed:', action.message);
+        // Show error modal (we'll need to pass modal setter or use global modal system)
+        // For now, log and return invalid contact (triggers snap-back)
+        console.error('[CLIENT VALIDATION ERROR]', action.message);
+        return { validContact: false, validationError: action.message };
+      }
+
       // Add opponentId to action payload for server processing
       if (!action.payload) action.payload = {};
       action.payload.opponentId = opponentId;
 
       console.log('[✅ OPP-ACTION] Sending determined action:', {
         type: action.type,
-        payload: action.payload,
+        payload: JSON.stringify(action.payload, null, 2),
+        stackId: action.payload.stackId,
         timestamp: new Date().toISOString()
       });
 
