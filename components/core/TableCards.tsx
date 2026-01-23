@@ -41,6 +41,8 @@ function getCardType(
   return "loose";
 }
 
+let tableCardsRenderCount = 0;
+
 const TableCards: React.FC<TableCardsProps> = ({
   tableCards = [],
   onDropOnCard,
@@ -59,6 +61,13 @@ const TableCards: React.FC<TableCardsProps> = ({
   onCancelBuildExtension,
   onMergeBuildExtension,
 }) => {
+  tableCardsRenderCount++;
+  console.log(`🔄 TableCards render #${tableCardsRenderCount}`, {
+    time: Date.now(),
+    tableCardsLength: tableCards?.length,
+    currentPlayer,
+    trigger: 'drag_or_prop_change'
+  });
   const tableRef = useRef<View>(null);
   const tableBoundsRef = useRef<any>(null);
 
@@ -399,4 +408,20 @@ const GameOverSeparator: React.FC<{ separator: any; index: number }> = ({
   );
 };
 
-export default TableCards;
+export default React.memo(TableCards, (prevProps, nextProps) => {
+  // Only re-render if these specific props actually change
+  const shouldUpdate =
+    prevProps.tableCards !== nextProps.tableCards ||
+    prevProps.currentPlayer !== nextProps.currentPlayer ||
+    prevProps.isDragging !== nextProps.isDragging;
+
+  console.log('🧠 TableCards memo check:', {
+    shouldUpdate,
+    prevCards: prevProps.tableCards?.length,
+    nextCards: nextProps.tableCards?.length,
+    prevPlayer: prevProps.currentPlayer,
+    nextPlayer: nextProps.currentPlayer
+  });
+
+  return !shouldUpdate;
+});

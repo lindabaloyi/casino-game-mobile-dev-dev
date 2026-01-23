@@ -44,12 +44,14 @@ interface BuildStackProps {
   onDragStateChange?: (isDragging: boolean) => void;
 }
 
+let buildStackRenderCount = 0;
+
 /**
  * BuildStack - Component for build stacks
  * Handles build-specific drop zone registration and indicators
  * Uses StackRenderer for visual rendering
  */
-export const BuildStack: React.FC<BuildStackProps> = ({
+const BuildStack: React.FC<BuildStackProps> = ({
   stackId,
   cards,
   buildValue,
@@ -80,6 +82,14 @@ export const BuildStack: React.FC<BuildStackProps> = ({
   isDragging: externalIsDragging,
   onDragStateChange,
 }) => {
+  buildStackRenderCount++;
+  console.log(`🏗️ BuildStack render #${buildStackRenderCount}`, {
+    stackId,
+    cardsLength: cards?.length,
+    isPendingExtension,
+    time: Date.now()
+  });
+
   // Track internal drag state for UI optimization
   const [internalIsDragging, setInternalIsDragging] = React.useState(false);
   const isDragging = externalIsDragging !== undefined ? externalIsDragging : internalIsDragging;
@@ -192,3 +202,14 @@ export const BuildStack: React.FC<BuildStackProps> = ({
     </View>
   );
 };
+
+export default React.memo(BuildStack, (prev, next) => {
+  // Only re-render if cards array or build state changes
+  return (
+    prev.cards === next.cards &&
+    prev.isPendingExtension === next.isPendingExtension &&
+    prev.buildValue === next.buildValue &&
+    prev.showOverlay === next.showOverlay &&
+    prev.isDragging === next.isDragging
+  );
+});
