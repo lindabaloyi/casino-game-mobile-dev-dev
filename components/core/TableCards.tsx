@@ -33,10 +33,7 @@ function getCardType(
 ):
   | "loose"
   | "temporary_stack"
-  | "build"
-  | "game-over-point-card"
-  | "game-over-bonus"
-  | "game-over-separator" {
+  | "build" {
   if ("type" in card) return card.type;
   return "loose";
 }
@@ -206,50 +203,6 @@ const TableCards: React.FC<TableCardsProps> = ({
                     key={`temp-container-${originalPosition}`}
                     tableItem={tableItem}
                     index={originalPosition}
-                    baseZIndex={baseZIndex}
-                    dragZIndex={dragZIndex}
-                    currentPlayer={currentPlayer}
-                    onDropStack={(draggedItem) =>
-                      handleDropOnStack(
-                        draggedItem,
-                        (tableItem as any).stackId ||
-                          `temp-${originalPosition}`,
-                      )
-                    }
-                    onFinalizeStack={onFinalizeStack}
-                    onCancelStack={onCancelStack}
-                    onTempAccept={onTempAccept}
-                    onTempReject={handleTempRejectWithLocalState}
-                    isDragging={isDragging}
-                    onDragStart={handleTableCardDragStartWithPosition}
-                    onDragEnd={handleTableCardDragEndWithPosition}
-                  />
-                );
-              } else if (itemType === "game-over-point-card") {
-                // Render individual point cards (10♦, 2♠, Aces)
-                return (
-                  <GameOverPointCard
-                    key={`game-over-point-${originalPosition}`}
-                    card={tableItem}
-                    index={originalPosition}
-                  />
-                );
-              } else if (itemType === "game-over-bonus") {
-                // Render bonus cards (*21 cards, spades count)
-                return (
-                  <GameOverBonusCard
-                    key={`game-over-bonus-${originalPosition}`}
-                    bonusCard={tableItem}
-                    index={originalPosition}
-                  />
-                );
-              } else if (itemType === "game-over-separator") {
-                // Render player separators
-                return (
-                  <GameOverSeparator
-                    key={`game-over-separator-${originalPosition}`}
-                    separator={tableItem}
-                    index={originalPosition}
                   />
                 );
               }
@@ -305,115 +258,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  gameOverPointCard: {
-    backgroundColor: "#FFF",
-    borderRadius: 8,
-    padding: 12,
-    margin: 4,
-    minWidth: 80,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  gameOverCardText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#000",
-    marginBottom: 4,
-  },
-  gameOverCardPoints: {
-    fontSize: 14,
-    color: "#4CAF50",
-    fontWeight: "bold",
-  },
-  gameOverBonusCard: {
-    backgroundColor: "#FFD700",
-    borderRadius: 8,
-    padding: 12,
-    margin: 4,
-    minWidth: 120,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  gameOverBonusText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#000",
-    textAlign: "center",
-    marginBottom: 4,
-  },
-  gameOverBonusPoints: {
-    fontSize: 16,
-    color: "#FF6B35",
-    fontWeight: "bold",
-  },
-  gameOverSeparator: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  gameOverSeparatorText: {
-    fontSize: 16,
-    color: "#FFF",
-    fontWeight: "bold",
-    textTransform: "uppercase",
-    letterSpacing: 2,
-  },
 });
 
-// Game Over Components
-const GameOverPointCard: React.FC<{ card: any; index: number }> = ({
-  card,
-  index,
-}) => {
-  return (
-    <View style={styles.gameOverPointCard}>
-      <Text style={styles.gameOverCardText}>
-        {card.rank}
-        {card.suit}
-      </Text>
-      <Text style={styles.gameOverCardPoints}>+{card.pointValue}</Text>
-    </View>
-  );
-};
 
-const GameOverBonusCard: React.FC<{ bonusCard: any; index: number }> = ({
-  bonusCard,
-  index,
-}) => {
-  return (
-    <View style={styles.gameOverBonusCard}>
-      <Text style={styles.gameOverBonusText}>{bonusCard.description}</Text>
-      <Text style={styles.gameOverBonusPoints}>+{bonusCard.points}</Text>
-    </View>
-  );
-};
-
-const GameOverSeparator: React.FC<{ separator: any; index: number }> = ({
-  separator,
-  index,
-}) => {
-  return (
-    <View style={styles.gameOverSeparator}>
-      <Text style={styles.gameOverSeparatorText}>{separator.separator}</Text>
-    </View>
-  );
-};
 
 export default React.memo(TableCards, (prevProps, nextProps) => {
   // Only re-render if these specific props actually change
   const shouldUpdate =
     prevProps.tableCards !== nextProps.tableCards ||
-    prevProps.currentPlayer !== nextProps.currentPlayer ||
-    prevProps.isDragging !== nextProps.isDragging;
+    prevProps.currentPlayer !== nextProps.currentPlayer;
 
   console.log('🧠 TableCards memo check:', {
     shouldUpdate,
