@@ -28,6 +28,9 @@ interface StackFactoryProps {
   baseZIndex?: number;
   baseElevation?: number;
   canAugmentBuilds?: boolean;
+  // Temp stack overlay props
+  sendAction?: (action: any) => void;
+  isDragging?: boolean;
 }
 
 /**
@@ -104,6 +107,22 @@ export const StackFactory: React.FC<StackFactoryProps> = (props) => {
         baseZIndex={props.baseZIndex}
         baseElevation={props.baseElevation}
         canAugmentBuilds={props.canAugmentBuilds}
+        showOverlay={true}
+        onTempAccept={(tempId) => {
+          console.log(`[TEMP_STACK] ✅ Creating build from temp stack: ${tempId}`);
+          props.sendAction?.({
+            type: "createBuildFromTempStack",
+            payload: { tempStackId: tempId }
+          });
+        }}
+        onTempReject={(tempId) => {
+          console.log(`[TEMP_STACK] ❌ Cancelling temp stack: ${tempId}`);
+          props.sendAction?.({
+            type: "cancelTemp",
+            payload: { tempStackId: tempId }
+          });
+        }}
+        isDragging={props.isDragging}
       />
     ),
 

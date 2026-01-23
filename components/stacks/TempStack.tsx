@@ -5,6 +5,7 @@ import { useCardContact } from "../../src/hooks/useCardContact";
 import { CardType } from "../cards/card";
 import { TempStackIndicator } from "../indicators/TempStackIndicator";
 import { StackRenderer } from "./StackRenderer";
+import TempOverlay from "../overlays/TempOverlay";
 
 interface TempStackProps {
   stackId: string;
@@ -24,6 +25,11 @@ interface TempStackProps {
   canAugmentBuilds?: boolean;
   onDragStart?: (card: CardType) => void;
   onDragEnd?: (draggedItem: any, dropPosition: any) => void;
+  // Overlay props
+  showOverlay?: boolean;
+  onTempAccept?: (tempId: string) => void;
+  onTempReject?: (tempId: string) => void;
+  isDragging?: boolean;
 }
 
 /**
@@ -49,6 +55,11 @@ export const TempStack: React.FC<TempStackProps> = ({
   canAugmentBuilds = false,
   onDragStart,
   onDragEnd,
+  // Overlay props
+  showOverlay = true,
+  onTempAccept,
+  onTempReject,
+  isDragging = false,
 }) => {
   // Dynamic expansion factor for temp stacks: base 100% + 10% per card over 4
   // This ensures drop zones grow as stacks get taller
@@ -139,6 +150,17 @@ export const TempStack: React.FC<TempStackProps> = ({
 
       {/* Temp stack value indicators */}
       <TempStackIndicator captureValue={captureValue} totalValue={totalValue} />
+
+      {/* Temp overlay for current player's temp stacks */}
+      {showOverlay && onTempAccept && onTempReject && (
+        <TempOverlay
+          isVisible={!isDragging}
+          tempId={stackId}
+          overlayText="TEMP"
+          onAccept={(id) => onTempAccept(stackId)}
+          onReject={() => onTempReject(stackId)}
+        />
+      )}
     </View>
   );
 };

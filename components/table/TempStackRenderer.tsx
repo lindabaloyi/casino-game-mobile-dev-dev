@@ -18,8 +18,7 @@ interface TempStackRendererProps {
   onDropStack: (draggedItem: any) => boolean | any;
   onFinalizeStack?: (stackId: string) => void;
   onCancelStack?: (stackId: string) => void;
-  onTempAccept?: (tempId: string) => void;  // ✅ Now triggers validation modal
-  onTempReject?: (tempId: string) => void;
+  sendAction?: (action: any) => void; // Add sendAction for direct server communication
   isDragging?: boolean; // Add drag state to hide overlay during drag
   onDragStart?: (card: any) => void; // For updating table drag state
   onDragEnd?: (draggedItem: any, dropPosition: any) => void; // For updating table drag state
@@ -34,8 +33,7 @@ export function TempStackRenderer({
   onDropStack,
   onFinalizeStack,
   onCancelStack,
-  onTempAccept,
-  onTempReject,
+  sendAction,
   isDragging = false,
   onDragStart,
   onDragEnd
@@ -74,15 +72,23 @@ export function TempStackRenderer({
         canAugmentBuilds={canAugmentBuilds}
       />
       {/* Show temp overlay only for player's own temporary stacks, hidden during drag */}
-      {isCurrentPlayerOwner && (
+      {isCurrentPlayerOwner && sendAction && (
         <TempOverlay
           isVisible={!isDragging}
           tempId={tempStackItem.stackId || stackId}
           onAccept={() => {
-            onTempAccept?.(stackId);
+            console.log(`[TEMP_STACK] ✅ Creating build from temp stack: ${stackId}`);
+            sendAction({
+              type: "createBuildFromTempStack",
+              payload: { tempStackId: stackId }
+            });
           }}
           onReject={() => {
-            onTempReject?.(stackId);
+            console.log(`[TEMP_STACK] ❌ Cancelling temp stack: ${stackId}`);
+            sendAction({
+              type: "cancelTemp",
+              payload: { tempStackId: stackId }
+            });
           }}
         />
       )}

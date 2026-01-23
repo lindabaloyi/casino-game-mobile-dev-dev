@@ -203,6 +203,18 @@ const TableCards: React.FC<TableCardsProps> = ({
                     key={`temp-container-${originalPosition}`}
                     tableItem={tableItem}
                     index={originalPosition}
+                    baseZIndex={baseZIndex}
+                    dragZIndex={dragZIndex}
+                    currentPlayer={currentPlayer}
+                    onDropStack={(draggedItem) =>
+                      handleDropOnStack(
+                        draggedItem,
+                        (tableItem as any).stackId ||
+                          `temp-${originalPosition}`,
+                      )
+                    }
+                    sendAction={sendAction}
+                    isDragging={isDragging}
                   />
                 );
               }
