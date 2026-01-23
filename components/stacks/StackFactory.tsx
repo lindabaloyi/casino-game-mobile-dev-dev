@@ -1,6 +1,6 @@
 import React from 'react';
 import { CardType } from '../cards/card';
-import { BuildStack } from './BuildStack';
+import BuildStack from './BuildStack';
 import { RegularStack } from './RegularStack';
 import { TempStack } from './TempStack';
 
