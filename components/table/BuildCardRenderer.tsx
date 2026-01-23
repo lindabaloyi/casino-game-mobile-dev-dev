@@ -9,7 +9,7 @@ import { View } from "react-native";
 import { useBuildContactRegistration, useBuildDropHandler } from "../../hooks";
 import { TableCard } from "../../multiplayer/server/game-logic/game-state";
 import { CardType } from "../cards/card";
-import { BuildStack } from "../stacks/BuildStack";
+import BuildStack from "../stacks/BuildStack";
 
 interface BuildCardRendererProps {
   tableItem: TableCard;
