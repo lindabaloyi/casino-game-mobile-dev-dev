@@ -114,19 +114,35 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
     })();
   };
 
-  // ✅ CONTACT-BASED: Report position to contact system
+  // ✅ CONTACT-BASED: Report position to contact system (OPTIMIZED)
   useEffect(() => {
     if (!cardRef.current) return;
 
     const cardId = `${card.rank}${card.suit}_${index}`;
+    let lastReportedPosition: { x: number; y: number; width: number; height: number } | null = null;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const measureAndReport = () => {
+    const measureAndReport = (force = false) => {
       cardRef.current?.measureInWindow((x, y, width, height) => {
         // Skip invalid measurements
         if (x === 0 && y === 0 && width === 0 && height === 0) {
-          console.log('[TABLE-CARD] Invalid measurement for card:', cardId);
           return;
         }
+
+        // Skip if position hasn't changed significantly (unless forced)
+        if (!force && lastReportedPosition) {
+          const dx = Math.abs(x - lastReportedPosition.x);
+          const dy = Math.abs(y - lastReportedPosition.y);
+          const dw = Math.abs(width - lastReportedPosition.width);
+          const dh = Math.abs(height - lastReportedPosition.height);
+
+          // Only update if position changed by more than 5px or size changed
+          if (dx < 5 && dy < 5 && dw === 0 && dh === 0) {
+            return;
+          }
+        }
+
+        lastReportedPosition = { x, y, width, height };
 
         reportPosition(cardId, {
           id: cardId,
@@ -140,15 +156,24 @@ const TableDraggableCard: React.FC<TableDraggableCardProps> = ({
       });
     };
 
-    // Initial report
-    const initialTimeout = setTimeout(measureAndReport, 50);
+    // Debounced measurement to avoid excessive updates during animations
+    const debouncedMeasure = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => measureAndReport(), 100);
+    };
 
-    // Re-measure periodically
-    const intervalId = setInterval(measureAndReport, 1000);
+    // Initial report
+    const initialTimeout = setTimeout(() => measureAndReport(true), 50);
+
+    // Listen for layout changes instead of polling
+    const layoutSubscription = cardRef.current?.measureInWindow?.((x, y, width, height) => {
+      // This will be called when layout changes
+      debouncedMeasure();
+    });
 
     return () => {
       clearTimeout(initialTimeout);
-      clearInterval(intervalId);
+      if (debounceTimer) clearTimeout(debounceTimer);
       removePosition(cardId);
       console.log('[TABLE-CARD] 🧹 Cleaned up position for card:', cardId);
     };

@@ -1,7 +1,29 @@
 /**
  * Temp Stack Build Calculator
  * Implements real-time consecutive segment validation for temp stacks
+ * OPTIMIZED: Includes caching for repeated calculations
  */
+
+// Simple LRU cache for build calculator results
+const buildCache = new Map();
+const CACHE_SIZE = 100; // Limit cache size to prevent memory leaks
+
+function getCacheKey(values) {
+  return values.join(',');
+}
+
+function setCacheResult(key, result) {
+  if (buildCache.size >= CACHE_SIZE) {
+    // Remove oldest entry (simple FIFO eviction)
+    const firstKey = buildCache.keys().next().value;
+    buildCache.delete(firstKey);
+  }
+  buildCache.set(key, result);
+}
+
+function getCacheResult(key) {
+  return buildCache.get(key);
+}
 
 /**
  * Detect base extension builds (Type 2)
@@ -309,8 +331,22 @@ function checkFirstCompleteSegment(values) {
  * @returns {object|null} Build result with segment end or null
  */
 function detectBuildWithSegmentInfo(values) {
+  // Check cache first
+  const cacheKey = getCacheKey(values);
+  const cachedResult = getCacheResult(cacheKey);
+  if (cachedResult !== undefined) {
+    console.log(`[BUILD_CALCULATOR] 📋 Cache hit for key: ${cacheKey}`);
+    return cachedResult;
+  }
+
+  console.log(`[BUILD_CALCULATOR] 📋 Cache miss for key: ${cacheKey}, computing...`);
   const result = detectBuildType(values);
-  return result.isValid ? result : null;
+  const finalResult = result.isValid ? result : null;
+
+  // Cache the result
+  setCacheResult(cacheKey, finalResult);
+
+  return finalResult;
 }
 
 /**

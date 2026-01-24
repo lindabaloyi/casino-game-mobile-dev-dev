@@ -11,7 +11,7 @@ interface TempOverlayProps {
   disabled?: boolean;
 }
 
-const TempOverlay: React.FC<TempOverlayProps> = ({
+const TempOverlayComponent: React.FC<TempOverlayProps> = ({
   isVisible,
   tempId,
   overlayText = 'TEMP',  // Default to 'TEMP' for new standard
@@ -171,5 +171,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1
   }
 });
+
+// Memoize the component to prevent unnecessary re-renders
+const TempOverlay = React.memo(TempOverlayComponent);
 
 export default TempOverlay;

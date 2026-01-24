@@ -2,8 +2,10 @@
  * TempStackRenderer
  * Handles rendering and interaction for temporary stack items on the table
  * Extracted from TableCards.tsx to focus on temporary stack logic
+ * OPTIMIZED: Memoized to prevent unnecessary re-renders
  */
 
+import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { TableCard } from '../../multiplayer/server/game-logic/game-state';
 import CardStack from '../cards/CardStack';
@@ -25,7 +27,7 @@ interface TempStackRendererProps {
   onDragEnd?: (draggedItem: any, dropPosition: any) => void; // For updating table drag state
 }
 
-export function TempStackRenderer({
+const TempStackRendererComponent = ({
   tableItem,
   index,
   baseZIndex,
@@ -39,7 +41,7 @@ export function TempStackRenderer({
   isDragging = false,
   onDragStart,
   onDragEnd
-}: TempStackRendererProps) {
+}: TempStackRendererProps) => {
   // Type assertion for temporary stack item
   const tempStackItem = tableItem as any; // Temporary stack has type: 'temporary_stack'
 
@@ -88,7 +90,10 @@ export function TempStackRenderer({
       )}
     </View>
   );
-}
+};
+
+// Memoize the component to prevent unnecessary re-renders
+export const TempStackRenderer = React.memo(TempStackRendererComponent);
 
 const styles = StyleSheet.create({
   stagingStackContainer: {
