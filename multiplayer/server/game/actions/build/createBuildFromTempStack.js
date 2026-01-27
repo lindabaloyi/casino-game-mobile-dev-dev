@@ -43,19 +43,17 @@ function handleCreateBuildFromTempStack(
   action,
   gameId,
 ) {
-  const { tempStackId, buildValue, hasBase } = action.payload;
+  const { tempStackId, buildValue } = action.payload; // Remove hasBase from payload
 
   console.log("[CREATE_BUILD_DEBUG] Received payload:", {
     tempStackId,
     buildValue,
-    hasBase, // ✅ DEBUG: Show received hasBase value
     playerIndex,
   });
 
   logger.info("Creating build from temp stack", {
     tempStackId,
     buildValue,
-    hasBase, // ✅ DEBUG: Include hasBase in logger
     playerIndex,
   });
 
@@ -89,18 +87,49 @@ function handleCreateBuildFromTempStack(
   // Create permanent build (no card additions - just convert temp stack as-is)
   const buildCards = [...tempStackCards];
 
+  // Determine hasBase for same-value builds based on chosen buildValue
+  let determinedHasBase;
+  const allSameValue = buildCards.length > 1 && buildCards.every(card => card.value === buildCards[0].value);
+
+  if (allSameValue) {
+    const cardValue = buildCards[0].value;
+    const cardCount = buildCards.length;
+    const sumValue = cardValue * cardCount;
+    // If building the card value, it's a base build; if building the sum, it's not
+    determinedHasBase = (buildValue === cardValue);
+
+    console.log("[SAME_VALUE_BUILD_DEBUG] Same-value build detected:", {
+      cardValue,
+      cardCount,
+      sumValue,
+      chosenBuildValue: buildValue,
+      isBaseBuild: determinedHasBase,
+      buildType: determinedHasBase ? "BASE_BUILD" : "SUM_BUILD",
+      cards: buildCards.map(c => `${c.rank}${c.suit}`),
+    });
+  } else {
+    console.log("[MIXED_VALUE_BUILD_DEBUG] Mixed-value build:", {
+      buildValue,
+      cards: buildCards.map(c => `${c.rank}${c.suit}(${c.value})`),
+      usingExtensionAnalysis: true,
+    });
+  }
+
   // Analyze build for extension eligibility
   const extensionAnalysis = analyzeBuildForExtension(buildCards);
+
+  // Separate hasBase from the rest of the analysis to avoid overwriting
+  const { hasBase: analysisHasBase, ...restOfAnalysis } = extensionAnalysis;
 
   const build = {
     type: "build",
     buildId: `build-${playerIndex}`, // ✅ SIMPLE: Same pattern as temp stacks (players can only have 1 build)
     cards: buildCards,
     value: buildValue,
-    hasBase: hasBase !== undefined ? hasBase : extensionAnalysis.hasBase,
+    hasBase: determinedHasBase !== undefined ? determinedHasBase : analysisHasBase,
     owner: playerIndex,
     // Extension eligibility flags
-    ...extensionAnalysis,
+    ...restOfAnalysis,
   };
 
   // CRITICAL DEBUG: Log build creation with full details

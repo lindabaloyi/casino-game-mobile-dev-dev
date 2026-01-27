@@ -129,6 +129,15 @@ const tempStackRules = [
       );
       const isOwned = tempStack && tempStack.owner === context.currentPlayer;
 
+      console.log('[TEMP_STACK_RULE_DEBUG] Ownership check:', {
+        stackId,
+        tempStackFound: !!tempStack,
+        tempStackOwner: tempStack?.owner,
+        currentPlayer: context.currentPlayer,
+        isOwned,
+        ruleWillMatch: isTempStackTarget && hasValidCard && isOwned,
+      });
+
       const finalResult = isTempStackTarget && hasValidCard && isOwned;
       return finalResult;
     },
