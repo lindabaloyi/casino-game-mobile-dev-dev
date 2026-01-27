@@ -7,6 +7,7 @@ interface BuildAdditionOverlayProps {
   buildId?: string;
   onAccept: (buildId: string) => void;
   onCancel: (buildId: string) => void;
+  onReject?: (buildId: string) => void;
   disabled?: boolean;
 }
 
@@ -15,6 +16,7 @@ const BuildAdditionOverlay: React.FC<BuildAdditionOverlayProps> = ({
   buildId,
   onAccept,
   onCancel,
+  onReject,
   disabled = false
 }) => {
   const [fadeAnim] = React.useState(new Animated.Value(0));
@@ -83,10 +85,12 @@ const BuildAdditionOverlay: React.FC<BuildAdditionOverlayProps> = ({
               timestamp: Date.now(),
               action: 'rejectBuildAddition'
             });
-            if (onCancel && buildId) {
+            if (onReject && buildId) {
+              onReject(buildId);
+            } else if (onCancel && buildId) {
               onCancel(buildId);
             } else {
-              console.error(`[BUILD_ADDITION_OVERLAY] No onCancel callback or buildId provided`);
+              console.error(`[BUILD_ADDITION_OVERLAY] No onReject or onCancel callback or buildId provided`);
             }
           }}
           disabled={disabled}

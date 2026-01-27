@@ -22,7 +22,7 @@ interface BuildCardRendererProps {
   // Overlay support for build augmentation
   showOverlay?: boolean;
   onAcceptBuildAddition?: (buildId: string) => void;
-  onRejectBuildAddition?: () => void;
+  onRejectBuildAddition?: (buildId: string) => void;
   // Overlay support for build extensions
   onAcceptBuildExtension?: (buildId: string) => void;
   onCancelBuildExtension?: (buildId: string) => void;
@@ -194,7 +194,7 @@ export function BuildCardRenderer({
         showOverlay={showOverlay}
         overlayText="BUILD"
         onAccept={handleAcceptBuildAddition}
-        onReject={onRejectBuildAddition}
+        onReject={() => onRejectBuildAddition?.(buildItem.buildId)}
         // Overlay props for build extensions
         isPendingExtension={buildItem.isPendingExtension}
         onAcceptExtension={onAcceptBuildExtension}

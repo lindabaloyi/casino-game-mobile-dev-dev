@@ -179,37 +179,42 @@ export function GameBoard({
     }
   };
 
-  const handleRejectBuildAddition = () => {
-    console.log("[GameBoard] Rejecting build addition/extension");
+  const handleRejectBuildAddition = (buildIdToReject?: string) => { // Accept optional buildId
+    console.log("[GameBoard] Rejecting build addition/extension", { buildIdToReject });
 
-    // Find the first pending build addition or extension
-    const pendingBuildId = Object.keys(
-      gameState.pendingBuildAdditions || {},
-    )[0];
-    const pendingExtensionBuild = gameState.tableCards.find(
-      (card: any) => card.type === "build" && card.isPendingExtension,
-    ) as any;
+    let finalBuildIdToReject = buildIdToReject;
 
-    if (pendingExtensionBuild) {
-      // 🎯 CANCEL PENDING EXTENSION: Remove extension card from build
-      console.log(
-        "[GameBoard] Cancelling build extension for build:",
-        pendingExtensionBuild.buildId,
-      );
-      sendAction({
-        type: "cancelBuildExtension",
-        payload: { buildId: pendingExtensionBuild.buildId },
-      });
-    } else if (pendingBuildId) {
-      // 🎯 CANCEL PENDING ADDITION: Use existing logic
-      console.log(
-        "[GameBoard] Rejecting build addition for build:",
-        pendingBuildId,
-      );
+    // If no specific buildIdToReject is provided, try to find one from pending states
+    if (!finalBuildIdToReject) {
+      const pendingBuildIdFromState = Object.keys(
+        gameState.pendingBuildAdditions || {},
+      )[0];
+      const pendingExtensionBuild = gameState.tableCards.find(
+        (card: any) => card.type === "build" && card.isPendingExtension,
+      ) as any;
+
+      if (pendingExtensionBuild) {
+        finalBuildIdToReject = pendingExtensionBuild.buildId;
+        console.log("[GameBoard] Cancelling build extension for build:", finalBuildIdToReject);
+        sendAction({
+          type: "cancelBuildExtension",
+          payload: { buildId: finalBuildIdToReject },
+        });
+        return; // Exit after handling extension cancellation
+      } else if (pendingBuildIdFromState) {
+        finalBuildIdToReject = pendingBuildIdFromState;
+        console.log("[GameBoard] Rejecting build addition for build:", finalBuildIdToReject);
+      }
+    }
+
+    // If a buildIdToReject is determined (either passed in or found from state), send the action
+    if (finalBuildIdToReject) {
       sendAction({
         type: "rejectBuildAddition",
-        payload: { buildId: pendingBuildId },
+        payload: { buildId: finalBuildIdToReject },
       });
+    } else {
+      console.warn("[GameBoard] No specific buildId provided and no pending build addition/extension found to reject.");
     }
   };
 

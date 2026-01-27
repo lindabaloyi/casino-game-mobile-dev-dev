@@ -5,7 +5,6 @@ import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 interface TempOverlayProps {
   isVisible: boolean;
   tempId?: string;
-  overlayText?: string;  // NEW: Customizable text (default: 'TEMP')
   onAccept: (tempId: string) => void;
   onReject: () => void;
   disabled?: boolean;
@@ -14,7 +13,6 @@ interface TempOverlayProps {
 const TempOverlayComponent: React.FC<TempOverlayProps> = ({
   isVisible,
   tempId,
-  overlayText = 'TEMP',  // Default to 'TEMP' for new standard
   onAccept,
   onReject,
   disabled = false
@@ -34,17 +32,16 @@ const TempOverlayComponent: React.FC<TempOverlayProps> = ({
     return null;
   }
 
-  console.log(`[TEMP_OVERLAY] 🎬 Rendering ${overlayText} overlay for temp ${tempId}, disabled: ${disabled}`, {
+  console.log(`[TEMP_OVERLAY] 🎬 Rendering TEMP overlay for temp ${tempId}, disabled: ${disabled}`, {
     isVisible,
     tempId,
     disabled,
-    overlayText,
     hasOnAccept: typeof onAccept === 'function',
     hasOnReject: typeof onReject === 'function'
   });
 
   // All temp stacks now show Accept/Cancel buttons (including build augmentations)
-  console.log(`🎯 [TEMP_DEBUG] ${overlayText} OVERLAY RENDERED: Accept/Cancel buttons should be visible for temp ${tempId}`);
+  console.log(`🎯 [TEMP_DEBUG] TEMP OVERLAY RENDERED: Accept/Cancel buttons should be visible for temp ${tempId}`);
 
   return (
     <Animated.View
@@ -53,7 +50,7 @@ const TempOverlayComponent: React.FC<TempOverlayProps> = ({
     >
       {/* Dynamic indicator */}
       <View style={styles.tempIndicator}>
-        <Text style={styles.indicatorText}>{overlayText}</Text>
+        <Text style={styles.indicatorText}>TEMP</Text>
       </View>
 
       <View style={styles.buttonContainer}>

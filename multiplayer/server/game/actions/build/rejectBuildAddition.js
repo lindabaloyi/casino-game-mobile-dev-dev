@@ -23,12 +23,22 @@ function handleRejectBuildAddition(gameManager, playerIndex, action, gameId) {
     throw new Error(`Game ${gameId} not found`);
   }
 
+  // --- NEW DEBUG LOGGING ---
+  logger.debug("[REJECT_BUILD_ADDITION] 🔍 Debugging build rejection conditions:", {
+    receivedBuildId: buildId,
+    requestingPlayerIndex: playerIndex,
+    allPendingBuildAdditions: gameState.pendingBuildAdditions, // Log the entire object
+    specificPendingEntry: gameState.pendingBuildAdditions?.[buildId], // Log the specific entry
+    pendingEntryPlayerIndex: gameState.pendingBuildAdditions?.[buildId]?.playerIndex, // Log its playerIndex
+  });
+  // --- END NEW DEBUG LOGGING ---
+  
   // Find the build with pending addition
   const buildIndex = gameState.tableCards.findIndex(
     (card) =>
       card.type === "build" &&
       card.buildId === buildId &&
-      gameState.pendingBuildAdditions?.[buildId]?.playerIndex === playerIndex, // Ensure it's this player's pending addition
+      gameState.pendingBuildAdditions?.[buildId]?.playerId === playerIndex, // Ensure it's this player's pending addition
   );
 
   if (buildIndex === -1) {
@@ -50,7 +60,7 @@ function handleRejectBuildAddition(gameManager, playerIndex, action, gameId) {
   }
 
   const pendingBuild = gameState.tableCards[buildIndex];
-  const pendingAdditionDetails = gameState.pendingBuildAdditions[buildId];
+  const pendingAdditionDetails = gameState.pendingBuildAdditions?.[buildId] || { addedCards: [] };
 
   logger.debug("[REJECT_BUILD_ADDITION] 🎯 Pending build found, details:", {
     buildId: pendingBuild.buildId,
@@ -74,7 +84,7 @@ function handleRejectBuildAddition(gameManager, playerIndex, action, gameId) {
 
   // Identify and return added cards to player's hand
   // The cards to return are those in pendingAdditionDetails.addedCards
-  const cardsToReturn = pendingAdditionDetails.addedCards;
+  const cardsToReturn = pendingAdditionDetails?.addedCards || [];
   const playerHand = gameState.playerHands[playerIndex];
 
   if (!playerHand) {

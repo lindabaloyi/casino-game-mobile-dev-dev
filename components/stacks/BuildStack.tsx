@@ -28,7 +28,7 @@ interface BuildStackProps {
   showOverlay?: boolean;
   overlayText?: string;
   onAccept?: (buildId: string) => void;
-  onReject?: () => void;
+  onReject?: (buildId: string) => void;
   // NEW: Build extension overlay
   isPendingExtension?: boolean;
   onAcceptExtension?: (buildId: string) => void;
@@ -169,7 +169,7 @@ export const BuildStack: React.FC<BuildStackProps> = ({
           // Call onReject with the buildId
           if (onReject) {
             // If onReject expects a function, call it
-            onReject();
+            onReject(id);
           }
         }}
       />

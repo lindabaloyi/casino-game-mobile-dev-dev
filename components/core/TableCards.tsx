@@ -22,7 +22,7 @@ interface TableCardsProps {
   sendAction?: (action: any) => void;
   gameState?: any;
   onAcceptBuildAddition?: (buildId: string) => void;
-  onRejectBuildAddition?: () => void;
+  onRejectBuildAddition?: (buildId: string) => void;
   onAcceptBuildExtension?: (buildId: string) => void;
   onCancelBuildExtension?: (buildId: string) => void;
   onMergeBuildExtension?: () => void;
@@ -185,7 +185,7 @@ const TableCards: React.FC<TableCardsProps> = ({
                     sendAction={sendAction}
                     showOverlay={!!hasPendingAddition}
                     onAcceptBuildAddition={onAcceptBuildAddition}
-                    onRejectBuildAddition={onRejectBuildAddition}
+                    onRejectBuildAddition={() => onRejectBuildAddition?.(buildId)}
                     onAcceptBuildExtension={onAcceptBuildExtension}
                     onCancelBuildExtension={onCancelBuildExtension}
                     onMergeBuildExtension={onMergeBuildExtension}
