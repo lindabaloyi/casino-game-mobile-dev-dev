@@ -75,6 +75,7 @@ function initializeGameSystem(GameManagerClass, ActionRouterClass) {
     acceptBuildExtension: actionHandlers.handleAcceptBuildExtension, // 🎯 NEW: Accept Build Extension
     cancelBuildExtension: actionHandlers.handleCancelBuildExtension, // 🎯 NEW: Cancel Build Extension
     acceptBuildAddition: actionHandlers.handleAcceptBuildAddition, // 🎯 NEW: Accept Build Addition
+    rejectBuildAddition: actionHandlers.handleRejectBuildAddition, // 🎯 NEW: Reject Build Addition
     mergeBuild: actionHandlers.handleMergeBuild, // 🎯 NEW: Merge Build action
     mergeBuildExtension: actionHandlers.handleMergeBuildExtension, // 🔀 NEW: Merge Build Extension action
     tableToTableDrop: actionHandlers.handleTableToTableDrop,

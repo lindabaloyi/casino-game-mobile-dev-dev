@@ -57,6 +57,7 @@ const handleAddToOwnBuild = require("./build/addToOwnBuild");
 const handleBuildExtension = require("./build/BuildExtension");
 const handleAcceptBuildExtension = require("./build/acceptBuildExtension");
 const handleCancelBuildExtension = require("./build/cancelBuildExtension");
+const handleRejectBuildAddition = require("./build/rejectBuildAddition"); // NEW: Reject Build Addition Handler
 const handleAcceptBuildAddition = require("./build/acceptBuildAddition");
 const handleMergeBuild = require("./build/mergeBuild");
 const handleMergeBuildExtension = require("./build/mergeBuildExtension");
@@ -82,6 +83,7 @@ module.exports = {
   handleMergeBuild, // 🎯 NEW: Merge Build action
   handleMergeBuildExtension, // 🔀 NEW: Merge Build Extension action
   handleReinforceBuild, // 🏗️ NEW: Reinforce Build action
+  handleRejectBuildAddition, // 🎯 NEW: Reject Build Addition action
   handleTableToTableDrop,
   handleHandToTableDrop,
   handleCleanup, // 🧹 NEW: Turn 40 cleanup action
