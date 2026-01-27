@@ -85,6 +85,7 @@ export const TempStack: React.FC<TempStackProps> = ({
         height: bounds.height,
         type: "tempStack",
         data: {
+          stackId, // Include stackId for rule engine
           displayValue, // Calculated build display value for rule engine
           buildValue, // Calculated build value for rule engine
           captureValue, // Explicit capture value

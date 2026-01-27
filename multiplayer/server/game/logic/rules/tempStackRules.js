@@ -121,15 +121,29 @@ const tempStackRules = [
         result: hasValidCard,
         card: hasValidCard ? `${draggedItem.card.rank}${draggedItem.card.suit}(${draggedItem.card.value})` : null
       });
-      const finalResult = isTempStackTarget && hasValidCard;
+
+      // ✅ OWNERSHIP CHECK: Find temp stack and verify ownership
+      const stackId = targetInfo?.stackId || targetInfo?.card?.stackId;
+      const tempStack = context.gameState.tableCards.find(tc =>
+        tc.type === 'temporary_stack' && tc.stackId === stackId
+      );
+      const isOwned = tempStack && tempStack.owner === context.currentPlayer;
+
+      const finalResult = isTempStackTarget && hasValidCard && isOwned;
       return finalResult;
     },
     action: (context) => {
+      // Find the temp stack to ensure we have the correct stackId
+      const stackId = context.targetInfo?.stackId || context.targetInfo?.card?.stackId;
+      const tempStack = context.gameState.tableCards.find(tc =>
+        tc.type === 'temporary_stack' && tc.stackId === stackId
+      );
+
       return {
         type: 'addToOwnTemp',
         payload: {
           gameId: context.gameId,
-          stackId: context.targetInfo?.stackId,
+          stackId: tempStack.stackId, // Use the actual stack object
           card: context.draggedItem.card,
           source: context.draggedItem.source
         }

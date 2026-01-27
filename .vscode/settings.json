@@ -1,7 +1,5 @@
 {
-  "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit",
-    "source.organizeImports": "explicit",
-    "source.sortMembers": "explicit"
-  }
+    "react-native.packager.port": "8081",
+    "react-native.projectRoot": "${workspaceFolder}",
+    "typescript.preferences.includePackageJsonAutoImports": "auto"
 }

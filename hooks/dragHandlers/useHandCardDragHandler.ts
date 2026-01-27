@@ -157,7 +157,7 @@ export function useHandCardDragHandler({
         // If contact handler returns null, it means multiple options exist - use rule engine directly
         if (
           !action &&
-          (contact.type === "build" || contact.type === "temporary_stack")
+          (contact.type === "build" || contact.type === "temporary_stack" || contact.type === "tempStack")
         ) {
           logger.info(
             "🎯 Multiple options detected, calling rule engine directly",
@@ -169,7 +169,8 @@ export function useHandCardDragHandler({
           };
 
           const targetInfoForRules = {
-            type: contact.type,
+            type: contact.type === "tempStack" ? "temporary_stack" : contact.type, // Normalize tempStack to temporary_stack for rule matching
+            stackId: contact.id, // Include the stackId from contact.id
             card: contact.data || contact,
             index: contact.data?.index,
           };

@@ -11,7 +11,7 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "lint:check": "eslint . --quiet",
+    "lint:check": "eslint . --ext .js,.ts,.tsx",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -19,8 +19,7 @@
     "test:client": "jest",
     "test:all": "npm run test:server && npm run test:client",
     "syntax-check": "bash check-syntax-enhanced.sh",
-    "type-check": "tsc --noEmit --skipLibCheck",
-    "lint:check": "eslint . --ext .js,.ts,.tsx"
+    "type-check": "tsc --noEmit --skipLibCheck"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
