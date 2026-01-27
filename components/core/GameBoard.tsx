@@ -373,6 +373,7 @@ export function GameBoard({
             onAcceptBuildAddition={handleAcceptBuildAddition} // ✅ NEW: Build overlay handlers
             onRejectBuildAddition={handleRejectBuildAddition} // ✅ NEW: Build overlay handlers
             onAcceptBuildExtension={handleAcceptBuildAddition} // ✅ NEW: Build extension overlay handler
+            onCancelBuildExtension={handleRejectBuildAddition} // ✅ NEW: Pass reject handler for cancellation
             onMergeBuildExtension={handleAcceptBuildAddition} // 🔀 NEW: Build merge extension handler (same logic, different UI)
           />
         </View>
