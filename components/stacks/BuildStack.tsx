@@ -9,7 +9,7 @@ import { BuildIndicator } from "../indicators/BuildIndicator";
 import { CardCountIndicator } from "../indicators/CardCountIndicator";
 import BuildExtensionOverlay from "../overlays/BuildExtensionOverlay";
 import BuildMergeOverlay from "../overlays/BuildMergeOverlay";
-import TempOverlay from "../overlays/TempOverlay";
+import BuildAdditionOverlay from "../overlays/BuildAdditionOverlay";
 import { StackRenderer } from "./StackRenderer";
 
 interface BuildStackProps {
@@ -160,34 +160,40 @@ export const BuildStack: React.FC<BuildStackProps> = ({
         <CardCountIndicator count={cards.length} />
       )}
 
-      {/* Build augmentation overlay */}
-      <TempOverlay
-        isVisible={showOverlay}
-        tempId={stackId}
-        overlayText={overlayText}
+      {/* Build addition overlay - for adding to your own build */}
+      <BuildAdditionOverlay
+        isVisible={showOverlay && !isPendingExtension && !isDragging}
+        buildId={stackId}
         onAccept={(id) => onAccept?.(id)}
-        onReject={onReject || (() => {})}
+        onCancel={(id) => {
+          // Call onReject with the buildId
+          if (onReject) {
+            // If onReject expects a function, call it
+            onReject();
+          }
+        }}
       />
 
-      {/* Build extension/merge overlay - conditional rendering based on merge mode */}
-      {/* Hide overlay when dragging for clean overtake UX */}
-      {mergeMode ? (
-        <BuildMergeOverlay
-          isVisible={isPendingExtension && !isDragging}
-          buildId={stackId}
-          extensionText="MERGE INTO BUILD"
-          onMerge={() => onMergeExtension?.()}
-          onCancel={() => onCancelExtension?.(stackId)}
-        />
-      ) : (
-        <BuildExtensionOverlay
-          isVisible={isPendingExtension && !isDragging}
-          buildId={stackId}
-          extensionText="EXTEND BUILD"
-          onAccept={(id) => onAcceptExtension?.(id)}
-          onCancel={() => onCancelExtension?.(stackId)}
-          mergeMode={mergeMode}
-        />
+      {/* Build extension overlay - for extending opponent's build */}
+      {isPendingExtension && !isDragging && (
+        mergeMode ? (
+          <BuildMergeOverlay
+            isVisible={isPendingExtension && !isDragging}
+            buildId={stackId}
+            extensionText="MERGE INTO BUILD"
+            onMerge={() => onMergeExtension?.()}
+            onCancel={() => onCancelExtension?.(stackId)}
+          />
+        ) : (
+          <BuildExtensionOverlay
+            isVisible={isPendingExtension && !isDragging}
+            buildId={stackId}
+            extensionText="EXTEND BUILD"
+            onAccept={(id) => onAcceptExtension?.(id)}
+            onCancel={() => onCancelExtension?.(stackId)}
+            mergeMode={mergeMode}
+          />
+        )
       )}
     </View>
   );
