@@ -27,12 +27,18 @@ export function useDrag() {
 
   /**
    * Attach to the table View's onLayout.
-   * Uses measure() to get absolute (screen) coordinates — these match
-   * the absoluteX/absoluteY values from Gesture Handler.
+   *
+   * Uses measureInWindow() — NOT measure() — because on Android,
+   * measure()'s pageX/pageY are relative to the React Native root view
+   * (which excludes the status bar), while Gesture Handler's absoluteX/Y
+   * are relative to the full window (including status bar).
+   * measureInWindow() uses the same coordinate space as absoluteX/Y on
+   * both Android and iOS, so drop-zone hit testing is always accurate.
    */
   const onTableLayout = useCallback(() => {
-    tableRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
-      dropBounds.current = { x: pageX, y: pageY, width, height };
+    tableRef.current?.measureInWindow((x, y, width, height) => {
+      dropBounds.current = { x, y, width, height };
+      console.log('[useDrag] Table measured (measureInWindow):', { x, y, width, height });
     });
   }, []);
 
