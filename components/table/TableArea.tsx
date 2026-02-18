@@ -143,7 +143,10 @@ interface TempStackViewProps {
 
 function TempStackView({ stack, registerTempStack, unregisterTempStack }: TempStackViewProps) {
   const viewRef = useRef<View>(null);
-  const [bottom, top] = stack.cards;
+  // bottom = first card (highest value, set at creation)
+  // top    = last card (most recently added)
+  const bottom = stack.cards[0];
+  const top    = stack.cards[stack.cards.length - 1];
 
   const onLayout = useCallback(() => {
     viewRef.current?.measureInWindow((x, y, width, height) => {

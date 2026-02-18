@@ -62,11 +62,15 @@ function createTemp(state, payload, playerIndex) {
   }
   const [tableCard] = newState.tableCards.splice(tableIdx, 1);
 
-  // Create temp stack — pushed to tableCards
+  // Sort: higher-value card is the base (bottom), lower-value sits on top
+  const [bottom, top] = handCard.value >= tableCard.value
+    ? [handCard, tableCard]
+    : [tableCard, handCard];
+
   newState.tableCards.push({
     type: 'temp_stack',
     stackId: `temp_${Date.now()}_p${playerIndex}`,
-    cards: [tableCard, handCard],
+    cards: [bottom, top],
     owner: playerIndex,
     value: tableCard.value + handCard.value,
   });
