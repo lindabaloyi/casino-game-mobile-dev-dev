@@ -87,13 +87,11 @@ function handleMergeBuild(gameManager, playerIndex, action, gameId) {
     gameState.tableCards.splice(sourceBuildIndex, 1);
   }
 
-  // 5. Advance to next player
-  const nextPlayer = (playerIndex + 1) % 2;
-  gameState.currentPlayer = nextPlayer;
+  // Turn management is handled centrally by ActionRouter (mergeBuild is listed
+  // in actionsThatCompleteTurns). Do not switch turns here.
 
   logger.info("🔀 MERGE COMPLETED SUCCESSFULLY", {
     playerIndex,
-    nextPlayer,
     sourceBuildId,
     targetBuildId,
     mergedCards: sourceCards.map(c => `${c.rank}${c.suit}`),

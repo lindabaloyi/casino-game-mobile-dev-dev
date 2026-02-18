@@ -7,68 +7,8 @@
 const { createLogger } = require("../utils/logger.js");
 const logger = createLogger("GameState");
 
-// Global build lifecycle tracker for debugging build creation/extension flow
-const buildLifecycleTracker = {
-  createdBuilds: new Map(),
-
-  trackCreation(buildId, context, metadata = {}) {
-    this.createdBuilds.set(buildId, {
-      createdAt: Date.now(),
-      context,
-      extensions: [],
-      metadata,
-    });
-    console.log("[BUILD_LIFECYCLE] Build created:", {
-      buildId,
-      context,
-      metadata,
-    });
-  },
-
-  trackExtension(buildId, context, metadata = {}) {
-    const build = this.createdBuilds.get(buildId);
-    if (build) {
-      build.extensions.push({ timestamp: Date.now(), context, metadata });
-      console.log("[BUILD_LIFECYCLE] Build extended:", {
-        buildId,
-        extensionCount: build.extensions.length,
-        context,
-        metadata,
-      });
-    } else {
-      console.warn("[BUILD_LIFECYCLE] Attempting to extend unknown build:", {
-        buildId,
-        context,
-        metadata,
-      });
-    }
-  },
-
-  getBuildInfo(buildId) {
-    return this.createdBuilds.get(buildId);
-  },
-
-  debugAllBuilds(gameState, context) {
-    const builds = gameState.tableCards.filter((item) => item.type === "build");
-    console.log(`[ALL_BUILDS:${context}]`, {
-      totalBuilds: builds.length,
-      builds: builds.map((b, i) => ({
-        index: i,
-        id: b.buildId,
-        owner: b.owner,
-        cards: b.cards.map((c) => `${c.rank}${c.suit}`),
-        cardCount: b.cards.length,
-        value: b.value,
-        lifecycle: this.createdBuilds.get(b.buildId)
-          ? {
-              createdAt: this.createdBuilds.get(b.buildId).createdAt,
-              extensions: this.createdBuilds.get(b.buildId).extensions.length,
-            }
-          : "NOT_TRACKED",
-      })),
-    });
-  },
-};
+// Shared build lifecycle tracker (single source of truth)
+const { buildTracker: buildLifecycleTracker } = require("../../../utils/buildLifecycleTracker.js");
 
 // Game configuration constants
 const GAME_CONFIG = {
@@ -336,6 +276,33 @@ function clone(gameState) {
 }
 
 /**
+ * Check if a build value already exists on the table
+ * @param {Object} gameState - Current game state
+ * @param {number} buildValue - The build value to check
+ * @param {string} [excludeBuildId] - Optional build ID to exclude (for extensions)
+ * @returns {Object} - { hasDuplicate: boolean, duplicateType: 'build'|'card'|'none', duplicateValue: number|null }
+ */
+function checkDuplicateBuildValue(gameState, buildValue, excludeBuildId = null) {
+  // Check existing builds
+  for (const item of gameState.tableCards) {
+    if (item.type === 'build' && item.buildId !== excludeBuildId) {
+      if (item.value === buildValue) {
+        return { hasDuplicate: true, duplicateType: 'build', duplicateValue: buildValue };
+      }
+    }
+  }
+
+  // Check loose cards
+  for (const item of gameState.tableCards) {
+    if (!item.type && item.value === buildValue) {
+      return { hasDuplicate: true, duplicateType: 'card', duplicateValue: buildValue };
+    }
+  }
+
+  return { hasDuplicate: false, duplicateType: 'none', duplicateValue: null };
+}
+
+/**
  * Validate that no duplicate cards exist in game state
  * Checks for card duplication issues in temp stacks, loose cards, and player hands
  */
@@ -430,6 +397,7 @@ module.exports = {
   initializeRound2,
   validateGameState,
   validateNoDuplicates,
+  checkDuplicateBuildValue,
   clone,
   rankValue,
   calculateCardSum,

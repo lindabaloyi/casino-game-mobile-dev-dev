@@ -91,15 +91,13 @@ function handleAcceptBuildExtension(gameManager, playerIndex, action, gameId) {
   // Replace with finalized build
   gameState.tableCards[buildIndex] = extendedBuild;
 
-  // Turn passes to next player
-  const nextPlayer = (playerIndex + 1) % 2;
-  gameState.currentPlayer = nextPlayer;
+  // Turn management is handled centrally by ActionRouter (acceptBuildExtension
+  // is listed in actionsThatCompleteTurns). Do not switch turns here.
 
   logger.info("Build extension accepted - finalized", {
     buildId,
     previousOwner: pendingBuild.owner,
     newOwner: playerIndex,
-    nextPlayer,
     finalValue: extendedBuild.value,
     cardCount: extendedBuild.cards.length,
   });

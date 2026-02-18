@@ -10,50 +10,49 @@ class BuildLifecycleTracker {
     // Removed console.log for production performance
   }
 
-  trackCreation(buildId, context, cards = [], metadata = {}) {
+  /**
+   * @param {string} buildId
+   * @param {string} context - where the build was created
+   * @param {Object} [metadata] - any extra info about the build
+   */
+  trackCreation(buildId, context, metadata = {}) {
     const sessionId = this.getCurrentSession();
     const buildInfo = {
       buildId,
       createdAt: Date.now(),
       context,
       sessionId,
-      cards: cards.map(c => `${c.rank}${c.suit}`),
       extensions: [],
       metadata,
-      lastSeen: Date.now()
+      lastSeen: Date.now(),
     };
 
     this.createdBuilds.set(buildId, buildInfo);
-
-    // Removed console.log for production performance
-
     return buildInfo;
   }
 
-  trackExtension(buildId, context, addedCard, metadata = {}) {
+  /**
+   * @param {string} buildId
+   * @param {string} context - where the extension happened
+   * @param {Object} [metadata] - any extra info (e.g. card, source, playerIndex)
+   */
+  trackExtension(buildId, context, metadata = {}) {
     const build = this.createdBuilds.get(buildId);
 
     if (build) {
       const extension = {
         timestamp: Date.now(),
         context,
-        addedCard: `${addedCard.rank}${addedCard.suit}`,
         extensionCount: build.extensions.length + 1,
-        metadata
+        metadata,
       };
 
       build.extensions.push(extension);
       build.lastSeen = Date.now();
-
-      // Removed console.log for production performance
-
       return extension;
-    } else {
-      // Removed console.error for production performance
-      // Keep error handling logic but silent
-
-      return null;
     }
+
+    return null;
   }
 
   getCurrentSession() {

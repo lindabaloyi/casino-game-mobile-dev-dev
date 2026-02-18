@@ -4,36 +4,8 @@
  */
 
 const { createLogger } = require("../../../utils/logger");
-const { buildLifecycleTracker } = require("../../GameState");
-
-// Inline build extension utilities to avoid module resolution issues
-const analyzeBuildForExtension = (cards) => {
-  // Check for base structure (one card that supports = total - supports)
-  let hasBase = false;
-  for (let baseIndex = 0; baseIndex < cards.length; baseIndex++) {
-    const potentialBase = cards[baseIndex];
-    const supports = cards.filter((_, index) => index !== baseIndex);
-    const supportsSum = supports.reduce((sum, card) => sum + card.value, 0);
-
-    if (supportsSum === potentialBase.value && potentialBase.value <= 10) {
-      hasBase = true;
-      break;
-    }
-  }
-
-  // Check if single combination (only one way to interpret the build)
-  // For now, assume pure sum builds are single combination
-  const isSingleCombination = !hasBase;
-
-  // Build is extendable if: <5 cards, no base, single combination
-  const isExtendable = cards.length < 5 && !hasBase && isSingleCombination;
-
-  return {
-    hasBase,
-    isSingleCombination,
-    isExtendable,
-  };
-};
+const { buildLifecycleTracker, checkDuplicateBuildValue } = require("../../GameState");
+const { analyzeBuildForExtension } = require("../../../utils/buildExtensionUtils");
 
 const logger = createLogger("CreateBuildFromTempStack");
 
@@ -66,6 +38,13 @@ function handleCreateBuildFromTempStack(
 
   if (existingBuild) {
     throw new Error('Player can only have one active build at a time');
+  }
+
+  // 🚫 GUARD RAIL: Prevent duplicate build values on table
+  const duplicateCheck = checkDuplicateBuildValue(gameState, buildValue);
+  if (duplicateCheck.hasDuplicate) {
+    const duplicateType = duplicateCheck.duplicateType === 'build' ? 'build' : 'card';
+    throw new Error(`Cannot create build: A ${duplicateType} with value ${buildValue} already exists on the table`);
   }
 
   // Find temp stack

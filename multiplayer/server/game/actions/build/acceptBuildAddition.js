@@ -166,14 +166,12 @@ function handleAcceptBuildAddition(gameManager, playerIndex, action, gameId) {
     gameState.buildHandCardUsedThisTurn[playerIndex] = false;
   }
 
-  // END TURN: Move to next player
-  const nextPlayer = (playerIndex + 1) % 2;
-  gameState.currentPlayer = nextPlayer;
+  // Turn management is handled centrally by ActionRouter (acceptBuildAddition is
+  // listed in actionsThatCompleteTurns). Do not switch turns here.
 
   logger.info("Build addition accepted successfully - turn ended", {
     buildId,
     playerIndex,
-    nextPlayer,
     finalCardCount: build.cards.length,
     finalValue: totalSum,
   });

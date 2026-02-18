@@ -146,13 +146,11 @@ function handleMergeBuildExtension(gameManager, playerIndex, action, gameId) {
     logger.info("Source build removed from table", { sourceBuildId });
   }
 
-  // Advance to next player
-  const nextPlayer = (playerIndex + 1) % 2;
-  gameState.currentPlayer = nextPlayer;
+  // Turn management is handled centrally by ActionRouter (mergeBuildExtension is
+  // listed in actionsThatCompleteTurns). Do not switch turns here.
 
   logger.info("🔀 MERGE BUILD EXTENSION COMPLETED SUCCESSFULLY", {
     playerIndex,
-    nextPlayer,
     sourceBuildId,
     targetPlayerBuildId,
     mergedCards: allCardsToMerge.map(c => `${c.rank}${c.suit}`),

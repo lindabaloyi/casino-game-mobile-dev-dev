@@ -1,12 +1,32 @@
 /**
  * Validate Build Extension Action Handler
- * Server-side validation and processing of build extensions
+ *
+ * NOTE: This file implements an OLDER temp-stack-based extension flow where a
+ * temporary stack with `isBuildExtension: true` is placed on the table first.
+ *
+ * The ACTIVE extension flow is:
+ *   BuildExtension.js  →  acceptBuildExtension.js / cancelBuildExtension.js
+ *   (uses `isPendingExtension` flag directly on the build object)
+ *
+ * This handler is NOT registered in socket-server.js. It remains here for
+ * reference. Do not register it without first verifying it won't conflict
+ * with the active BuildExtension flow.
  */
 
 const { createLogger } = require("../../../utils/logger");
+const { checkDuplicateBuildValue } = require("../../GameState");
+const {
+  analyzeBuildForExtension,
+  insertCardIntoBuildDescending,
+} = require("../../../utils/buildExtensionUtils");
 
-// Inline build extension utilities to avoid module resolution issues
-const validateBuildExtension = (build, extensionCard) => {
+/**
+ * Validate that a build extension is legal.
+ * @param {Object} build - The target build
+ * @param {Object} extensionCard - The card being used to extend
+ * @param {Object} gameState - Current game state (needed for duplicate check)
+ */
+const validateBuildExtension = (build, extensionCard, gameState) => {
   // 🚫 BLOCK EXTENSIONS ON BASE BUILDS (hasBase: true)
   if (build.hasBase === true) {
     return {
@@ -27,8 +47,18 @@ const validateBuildExtension = (build, extensionCard) => {
     };
   }
 
-  // Additional validation can be added here
-  // For now, single card extensions are always valid if under the limit
+  // 🚫 GUARD RAIL: Prevent duplicate build values on table after extension
+  if (gameState) {
+    const duplicateCheck = checkDuplicateBuildValue(gameState, newValue, build.buildId);
+    if (duplicateCheck.hasDuplicate) {
+      const duplicateType = duplicateCheck.duplicateType === 'build' ? 'build' : 'card';
+      return {
+        valid: false,
+        newValue,
+        error: `Cannot extend build: A ${duplicateType} with value ${newValue} already exists on the table`,
+      };
+    }
+  }
 
   return {
     valid: true,
@@ -36,39 +66,20 @@ const validateBuildExtension = (build, extensionCard) => {
   };
 };
 
+/**
+ * Create the extended build object after a successful validation.
+ * Delegates extension eligibility analysis to the shared utility.
+ */
 const createExtendedBuild = (build, extensionCard, newOwner, newValue) => {
-  // Re-analyze for extension eligibility with new card
-  const cards = [...build.cards, extensionCard];
-
-  // Check for base structure (one card that supports = total - supports)
-  let hasBase = false;
-  for (let baseIndex = 0; baseIndex < cards.length; baseIndex++) {
-    const potentialBase = cards[baseIndex];
-    const supports = cards.filter((_, index) => index !== baseIndex);
-    const supportsSum = supports.reduce((sum, card) => sum + card.value, 0);
-
-    if (supportsSum === potentialBase.value && potentialBase.value <= 10) {
-      hasBase = true;
-      break;
-    }
-  }
-
-  // Check if single combination (only one way to interpret the build)
-  // For now, assume pure sum builds are single combination
-  const isSingleCombination = !hasBase;
-
-  // Build is extendable if: <5 cards, no base, single combination
-  const isExtendable = cards.length < 5 && !hasBase && isSingleCombination;
+  const newCards = insertCardIntoBuildDescending(build.cards, extensionCard);
+  const extensionAnalysis = analyzeBuildForExtension(newCards);
 
   return {
     ...build,
-    cards: [...build.cards, extensionCard],
+    cards: newCards,
     value: newValue,
     owner: newOwner,
-    // Extension eligibility flags
-    hasBase,
-    isSingleCombination,
-    isExtendable,
+    ...extensionAnalysis,
   };
 };
 
@@ -126,8 +137,8 @@ function handleValidateBuildExtension(
   const targetBuild = gameState.tableCards[targetBuildIndex];
   const extensionCard = tempStack.extensionCard;
 
-  // Validate the extension
-  const validation = validateBuildExtension(targetBuild, extensionCard);
+  // Validate the extension (pass gameState for duplicate build value check)
+  const validation = validateBuildExtension(targetBuild, extensionCard, gameState);
 
   if (!validation.valid) {
     logger.warn("Build extension validation failed", {

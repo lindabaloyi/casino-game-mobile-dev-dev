@@ -47,7 +47,6 @@ export function useGameServer() {
       },
 
       handleGameStart: (data: any) => {
-        // Schedule state update on next frame
         requestAnimationFrame(() => {
           setState(prev => ({
             ...prev,
@@ -58,24 +57,29 @@ export function useGameServer() {
       },
 
       handleGameUpdate: (data: any) => {
-        // Schedule update on next frame (NOT during render)
         requestAnimationFrame(() => {
-          const gameStateUpdate = data._meta ? data : data;
-          setState(prev => ({ ...prev, gameState: gameStateUpdate }));
+          setState(prev => ({ ...prev, gameState: data }));
         });
-
-        // Non-critical work goes to setTimeout (not blocking render)
-        setTimeout(() => {
-          // Your cleanup and tracking logic here
-          console.log('🔄 Game updated (non-blocking)');
-        }, 0);
       },
 
       handleError: (error: any) => {
         requestAnimationFrame(() => {
           setState(prev => ({ ...prev, error }));
         });
-      }
+      },
+
+      // Named handlers so they can be removed on cleanup
+      handleBuildOptions: (options: any) => {
+        requestAnimationFrame(() => {
+          setState(prev => ({ ...prev, buildOptions: options }));
+        });
+      },
+
+      handleActionChoices: (data: any) => {
+        requestAnimationFrame(() => {
+          setState(prev => ({ ...prev, actionChoices: data }));
+        });
+      },
     };
 
     // Attach all listeners
@@ -84,25 +88,19 @@ export function useGameServer() {
     socket.on("game-start", handlersRef.current.handleGameStart);
     socket.on("game-update", handlersRef.current.handleGameUpdate);
     socket.on("error", handlersRef.current.handleError);
-    socket.on("build-options", (options: any) => {
-      requestAnimationFrame(() => {
-        setState(prev => ({ ...prev, buildOptions: options }));
-      });
-    });
-    socket.on("action-choices", (data: any) => {
-      requestAnimationFrame(() => {
-        setState(prev => ({ ...prev, actionChoices: data }));
-      });
-    });
+    socket.on("build-options", handlersRef.current.handleBuildOptions);
+    socket.on("action-choices", handlersRef.current.handleActionChoices);
 
     return () => {
-      // Clean up ALL listeners
+      // Clean up ALL listeners (including previously-anonymous ones)
       const handlers = handlersRef.current;
       socket.off("connect", handlers.handleConnect);
       socket.off("disconnect", handlers.handleDisconnect);
       socket.off("game-start", handlers.handleGameStart);
       socket.off("game-update", handlers.handleGameUpdate);
       socket.off("error", handlers.handleError);
+      socket.off("build-options", handlers.handleBuildOptions);
+      socket.off("action-choices", handlers.handleActionChoices);
       socket.close();
     };
   }, []); // Empty deps - runs once
