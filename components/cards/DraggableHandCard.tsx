@@ -1,29 +1,20 @@
 /**
  * DraggableHandCard
- * A hand card the player can drag to the table to trail.
+ * A hand card the player can drag to the table.
  *
- * During drag the card hides itself (opacity → 0) and delegates visual
- * rendering to the parent's drag overlay, which renders outside the
- * ScrollView and is therefore never clipped by it.
+ * Drop detection (JS-thread — never inside a worklet):
+ *  1. If the finger lands on a SPECIFIC table card → onCardDrop(handCard, targetCard)
+ *     → GameBoard sends createTemp action
+ *  2. If the finger lands anywhere on the table → onTrail(handCard)
+ *     → GameBoard sends trail action
+ *  3. Otherwise → snap back
  *
- * Props:
- *   card        — the card data { rank, suit, value }
- *   dropBounds  — ref to absolute table bounds (from useDrag)
- *   isMyTurn    — gesture is disabled when it's not this player's turn
- *   onTrail     — called when the card is successfully dropped on the table
- *   onDragStart — called (with the card) when a drag begins
- *   onDragMove  — called every frame with absolute screen coords of the finger
- *   onDragEnd   — called when the drag finishes (drop or snap-back)
- *
- * ── Web vs Native threading note ─────────────────────────────────────────────
- * On WEB:    RNGH callbacks run on the JS thread — React refs are always live.
- * On NATIVE: RNGH + Reanimated runs callbacks as UI-thread worklets. Reanimated
- *            serialises captured JS objects at worklet-creation time, so
- *            `dropBounds.current` inside a worklet would be a stale initial copy
- *            ({ x:0, y:0, width:0, height:0 }) even after measureInWindow() has
- *            updated it.  The fix: pass only the raw gesture coordinates from
- *            the worklet, then read dropBounds.current inside a runOnJS handler
- *            that runs on the JS thread where the ref is always fresh.
+ * Threading note:
+ *   On native, RNGH callbacks run as UI-thread worklets. Reanimated serialises
+ *   captured JS objects at worklet-creation time, so dropBounds / cardPositions
+ *   refs captured inside the worklet are stale. The fix: pass only raw
+ *   coordinates from the worklet, then read refs inside runOnJS handlers on the
+ *   JS thread where refs are always fresh.
  */
 
 import React, { MutableRefObject } from 'react';
@@ -37,7 +28,7 @@ import Animated, {
 import { PlayingCard } from './PlayingCard';
 import { DropBounds } from '../../hooks/useDrag';
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Card {
   rank: string;
@@ -48,9 +39,13 @@ interface Card {
 interface Props {
   card: Card;
   dropBounds: MutableRefObject<DropBounds>;
+  /** Finds a specific table card at (x, y); returns null if no card there */
+  findCardAtPoint: (x: number, y: number) => Card | null;
   isMyTurn: boolean;
   onTrail: (card: Card) => void;
-  /** Overlay callbacks — called via runOnJS so the parent can render the ghost card */
+  /** Called when the dragged card lands on a specific table card */
+  onCardDrop: (handCard: Card, targetCard: Card) => void;
+  /** Overlay callbacks */
   onDragStart: (card: Card) => void;
   onDragMove: (absoluteX: number, absoluteY: number) => void;
   onDragEnd: () => void;
@@ -61,8 +56,10 @@ interface Props {
 export function DraggableHandCard({
   card,
   dropBounds,
+  findCardAtPoint,
   isMyTurn,
   onTrail,
+  onCardDrop,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -70,15 +67,9 @@ export function DraggableHandCard({
   const opacity = useSharedValue(1);
 
   // ── JS-thread helpers ─────────────────────────────────────────────────────
-  // All functions below run on the JS thread (called via runOnJS from worklets).
 
-  function handleDragStart() {
-    onDragStart(card);
-  }
-
-  function handleDragMove(x: number, y: number) {
-    onDragMove(x, y);
-  }
+  function handleDragStart() { onDragStart(card); }
+  function handleDragMove(x: number, y: number) { onDragMove(x, y); }
 
   function handleSnapBack() {
     opacity.value = withSpring(1);
@@ -86,13 +77,26 @@ export function DraggableHandCard({
   }
 
   /**
-   * handleDrop — JS-thread drop decision.
+   * handleDrop — runs on the JS thread.
    *
-   * Reads dropBounds.current HERE on the JS thread so we always get the
-   * value written by measureInWindow(), not the stale copy captured by the
-   * worklet at render time.
+   * Priority:
+   *   1. Specific table card hit → createTemp
+   *   2. General table area hit  → trail
+   *   3. Miss → snap back
    */
   function handleDrop(absX: number, absY: number) {
+    // 1. Check for a specific table card under the finger
+    const targetCard = findCardAtPoint(absX, absY);
+    if (targetCard) {
+      console.log(
+        `[DraggableHandCard] CARD DROP — ${card.rank}${card.suit} → ${targetCard.rank}${targetCard.suit}`,
+      );
+      onDragEnd();
+      onCardDrop(card, targetCard);
+      return;
+    }
+
+    // 2. General table drop → trail
     const b = dropBounds.current;
     const inZone =
       absX >= b.x &&
@@ -108,7 +112,6 @@ export function DraggableHandCard({
     );
 
     if (inZone) {
-      // Card consumed — server will remove it from the hand
       onDragEnd();
       onTrail(card);
     } else {
@@ -125,10 +128,10 @@ export function DraggableHandCard({
   }
 
   // ── Gesture ───────────────────────────────────────────────────────────────
+
   const gesture = Gesture.Pan()
     .enabled(isMyTurn)
     .onStart(e => {
-      // Hide the real card; GameBoard's overlay renders the ghost
       opacity.value = 0;
       runOnJS(handleDragStart)();
       runOnJS(handleDragMove)(e.absoluteX, e.absoluteY);
@@ -138,8 +141,7 @@ export function DraggableHandCard({
       runOnJS(handleDragMove)(e.absoluteX, e.absoluteY);
     })
     .onEnd(e => {
-      // Pass ONLY the raw coordinates to the JS thread.
-      // dropBounds.current is read inside handleDrop (JS thread) — never stale.
+      // Pass ONLY coordinates to JS thread — refs are read there (always fresh)
       runOnJS(handleDrop)(e.absoluteX, e.absoluteY);
     });
 

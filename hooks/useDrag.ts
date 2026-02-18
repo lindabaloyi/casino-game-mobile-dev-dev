@@ -1,18 +1,27 @@
 /**
  * useDrag
- * Manages the table drop zone for trail drag interactions.
+ * Manages the table drop zone and individual card positions for drag interactions.
  *
  * Usage:
- *   const { tableRef, dropBounds, onTableLayout } = useDrag();
+ *   const { tableRef, dropBounds, onTableLayout,
+ *           registerCard, unregisterCard, findCardAtPoint } = useDrag();
  *
- *   // On the table View:
+ *   // Table View:
  *   <View ref={tableRef} onLayout={onTableLayout} ...>
  *
- *   // Pass dropBounds to each DraggableHandCard
+ *   // Each table card registers its position:
+ *   registerCard('A♠', { x, y, width, height, card })
+ *
+ *   // On drop, DraggableHandCard checks for a specific card hit first:
+ *   const hit = findCardAtPoint(absX, absY);
+ *   if (hit) → createTemp action
+ *   else → trail action (general table drop)
  */
 
 import { useCallback, useRef } from 'react';
 import { View } from 'react-native';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface DropBounds {
   x: number;
@@ -21,7 +30,18 @@ export interface DropBounds {
   height: number;
 }
 
+export interface CardBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  card: { rank: string; suit: string; value: number };
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
+
 export function useDrag() {
+  // ── Table drop zone ───────────────────────────────────────────────────────
   const tableRef   = useRef<View>(null);
   const dropBounds = useRef<DropBounds>({ x: 0, y: 0, width: 0, height: 0 });
 
@@ -42,7 +62,60 @@ export function useDrag() {
     });
   }, []);
 
-  return { tableRef, dropBounds, onTableLayout };
+  // ── Individual card positions ─────────────────────────────────────────────
+  // Populated by TableArea: each loose table card registers its screen bounds.
+  // Read by DraggableHandCard.handleDrop to detect specific-card hits.
+  const cardPositions = useRef<Map<string, CardBounds>>(new Map());
+
+  /**
+   * Register a table card's absolute screen bounds.
+   * Called by TableArea after each card's layout is measured.
+   * id = `${rank}${suit}` — unique for a 40-card deck.
+   */
+  const registerCard = useCallback((id: string, bounds: CardBounds) => {
+    cardPositions.current.set(id, bounds);
+  }, []);
+
+  /**
+   * Remove a card from the position registry (card left the table).
+   */
+  const unregisterCard = useCallback((id: string) => {
+    cardPositions.current.delete(id);
+  }, []);
+
+  /**
+   * Find a specific table card at the given absolute screen coordinates.
+   * Returns the card data if the point falls within a registered card's bounds,
+   * otherwise returns null (drop will be treated as a general trail).
+   */
+  const findCardAtPoint = useCallback(
+    (x: number, y: number): { rank: string; suit: string; value: number } | null => {
+      for (const [, bounds] of cardPositions.current) {
+        if (
+          x >= bounds.x &&
+          x <= bounds.x + bounds.width &&
+          y >= bounds.y &&
+          y <= bounds.y + bounds.height
+        ) {
+          return bounds.card;
+        }
+      }
+      return null;
+    },
+    [],
+  );
+
+  return {
+    // Table drop zone
+    tableRef,
+    dropBounds,
+    onTableLayout,
+    // Card-level position tracking
+    cardPositions,
+    registerCard,
+    unregisterCard,
+    findCardAtPoint,
+  };
 }
 
 export default useDrag;

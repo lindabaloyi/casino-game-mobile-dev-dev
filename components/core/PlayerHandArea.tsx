@@ -4,9 +4,8 @@
  *
  * Responsibilities:
  *  - Renders DraggableHandCard for each card in the player's hand
- *  - Passes dropBounds + isMyTurn down to each card
- *  - Threads drag-overlay callbacks (onDragStart / onDragMove / onDragEnd)
- *    down to each card so GameBoard can render the ghost above the table
+ *  - Passes dropBounds, findCardAtPoint + callbacks down to each card
+ *  - Threads drag-overlay callbacks so GameBoard can render the ghost
  */
 
 import React, { MutableRefObject } from 'react';
@@ -24,7 +23,11 @@ interface Props {
   hand: Card[];
   isMyTurn: boolean;
   dropBounds: MutableRefObject<DropBounds>;
+  /** Find a specific table card under the finger — from useDrag */
+  findCardAtPoint: (x: number, y: number) => Card | null;
   onTrail: (card: Card) => void;
+  /** Called when the dragged card lands on a specific table card */
+  onCardDrop: (handCard: Card, targetCard: Card) => void;
   /** Drag overlay callbacks — forwarded straight to each DraggableHandCard */
   onDragStart: (card: Card) => void;
   onDragMove: (absoluteX: number, absoluteY: number) => void;
@@ -35,7 +38,9 @@ export function PlayerHandArea({
   hand,
   isMyTurn,
   dropBounds,
+  findCardAtPoint,
   onTrail,
+  onCardDrop,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -54,8 +59,10 @@ export function PlayerHandArea({
             key={`${card.rank}${card.suit}`}
             card={card}
             dropBounds={dropBounds}
+            findCardAtPoint={findCardAtPoint}
             isMyTurn={isMyTurn}
             onTrail={onTrail}
+            onCardDrop={onCardDrop}
             onDragStart={onDragStart}
             onDragMove={onDragMove}
             onDragEnd={onDragEnd}

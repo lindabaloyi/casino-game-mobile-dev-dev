@@ -16,9 +16,13 @@ const actionHandlers = {
   // ── Milestone 2 ──────────────────────────────────────────────────────────
   trail: require('./trail'),
 
-  // ── Milestone 3 → capture:    require('./capture')
-  // ── Milestone 4 → temp stack: require('./tempStack')
-  // ── Milestone 5 → build:      require('./build')
+  // ── Milestone 4 ──────────────────────────────────────────────────────────
+  createTemp: require('./createTemp'),
+  acceptTemp: require('./acceptTemp'),
+  cancelTemp: require('./cancelTemp'),
+
+  // ── Milestone 3 → capture:     require('./capture')
+  // ── Milestone 5 → build:       require('./build')
   // ── Milestone 6 → extendBuild: require('./extendBuild')
 };
 

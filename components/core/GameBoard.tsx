@@ -6,7 +6,7 @@
  *
  * Sub-components own their own look:
  *   GameStatusBar   — round / turn / score display
- *   TableArea       — table drop zone + card display
+ *   TableArea       — table drop zone + card display (loose cards + temp stacks)
  *   PlayerHandArea  — scrollable draggable hand
  *
  * Drag-overlay pattern
@@ -20,6 +20,14 @@
  *      child of the root, so it always paints above everything else.
  *   3. The ghost follows the finger via Reanimated shared values (no React
  *      state updates, no re-renders per frame).
+ *
+ * Temp stack creation
+ * ───────────────────
+ * When a player drops their hand card onto a specific table card, TableArea
+ * has already registered that card's screen bounds via useDrag.registerCard.
+ * DraggableHandCard calls onCardDrop(handCard, targetCard) which triggers
+ * the createTemp server action — grouping the two cards into a temp_stack
+ * in tableCards without advancing the turn.
  */
 
 import React, { useCallback, useState } from 'react';
@@ -33,7 +41,7 @@ import { PlayerHandArea } from './PlayerHandArea';
 import { PlayingCard } from '../cards/PlayingCard';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-// Must match PlayingCard's card dimensions so the ghost is centred on the finger.
+
 const CARD_WIDTH  = 56;
 const CARD_HEIGHT = 84;
 
@@ -69,12 +77,17 @@ export function GameBoard({
   const table    = gameState.tableCards ?? [];
   const isMyTurn = gameState.currentPlayer === playerNumber;
 
-  // ── Drop zone (absolute-position measurement for gesture hit-testing) ─────
-  const { tableRef, dropBounds, onTableLayout } = useDrag();
+  // ── Drop zone + card position tracking ───────────────────────────────────
+  const {
+    tableRef,
+    dropBounds,
+    onTableLayout,
+    registerCard,
+    unregisterCard,
+    findCardAtPoint,
+  } = useDrag();
 
   // ── Drag overlay state ────────────────────────────────────────────────────
-  // draggingCard: React state — only changes at drag start/end (not per frame)
-  // overlayX/Y:  Reanimated shared values — updated every gesture frame
   const [draggingCard, setDraggingCard] = useState<Card | null>(null);
   const overlayX = useSharedValue(0);
   const overlayY = useSharedValue(0);
@@ -95,7 +108,6 @@ export function GameBoard({
     setDraggingCard(null);
   }, []);
 
-  // Animated style for the ghost card — runs on the UI thread, zero JS frames
   const ghostStyle = useAnimatedStyle(() => ({
     position: 'absolute',
     left: overlayX.value,
@@ -103,12 +115,61 @@ export function GameBoard({
   }));
 
   // ── Action callbacks ──────────────────────────────────────────────────────
+
+  /** Trail: hand card dropped anywhere on the table */
   const handleTrail = useCallback(
-    (card: { rank: string; suit: string; value: number }) => {
+    (card: Card) => {
       sendAction({ type: 'trail', payload: { card } as unknown as Record<string, unknown> });
     },
     [sendAction],
   );
+
+  /**
+   * Card drop: hand card dropped onto a specific table card → createTemp.
+   * Turn does NOT advance — player confirms via Accept/Cancel overlay.
+   */
+  const handleCardDrop = useCallback(
+    (handCard: Card, targetCard: Card) => {
+      console.log(
+        `[GameBoard] createTemp: ${handCard.rank}${handCard.suit} → ${targetCard.rank}${targetCard.suit}`,
+      );
+      sendAction({
+        type: 'createTemp',
+        payload: { card: handCard, targetCard } as unknown as Record<string, unknown>,
+      });
+    },
+    [sendAction],
+  );
+
+  /** Accept the pending temp stack → turn advances to opponent */
+  const handleAcceptTemp = useCallback(
+    (stackId: string) => {
+      console.log(`[GameBoard] acceptTemp: ${stackId}`);
+      sendAction({ type: 'acceptTemp', payload: { stackId } as unknown as Record<string, unknown> });
+    },
+    [sendAction],
+  );
+
+  /** Cancel the pending temp stack → cards returned, same player's turn */
+  const handleCancelTemp = useCallback(
+    (stackId: string) => {
+      console.log(`[GameBoard] cancelTemp: ${stackId}`);
+      sendAction({ type: 'cancelTemp', payload: { stackId } as unknown as Record<string, unknown> });
+    },
+    [sendAction],
+  );
+
+  /**
+   * Compute which temp stack (if any) should show the Accept/Cancel overlay.
+   * Only show on the current player's own temp stack, and only on their turn.
+   */
+  const overlayStackId: string | null = (() => {
+    if (!isMyTurn) return null;
+    const myTemp = (table as any[]).find(
+      (tc: any) => tc.type === 'temp_stack' && tc.owner === playerNumber,
+    );
+    return myTemp?.stackId ?? null;
+  })();
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -129,17 +190,24 @@ export function GameBoard({
       />
 
       <TableArea
-        tableCards={table}
+        tableCards={table as any}
         isMyTurn={isMyTurn}
         tableRef={tableRef}
         onTableLayout={onTableLayout}
+        registerCard={registerCard}
+        unregisterCard={unregisterCard}
+        overlayStackId={overlayStackId}
+        onAcceptTemp={handleAcceptTemp}
+        onCancelTemp={handleCancelTemp}
       />
 
       <PlayerHandArea
         hand={myHand}
         isMyTurn={isMyTurn}
         dropBounds={dropBounds}
+        findCardAtPoint={findCardAtPoint}
         onTrail={handleTrail}
+        onCardDrop={handleCardDrop}
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -148,7 +216,6 @@ export function GameBoard({
       {/*
         ── Drag ghost overlay ──────────────────────────────────────────────
         Rendered LAST so it naturally paints above every other child.
-        position:absolute + full-screen ensures it covers the table area.
         pointerEvents="none" so it never intercepts gestures.
       */}
       {draggingCard && (
@@ -184,17 +251,14 @@ const styles = StyleSheet.create({
   errorText:  { color: '#fff', flex: 1, fontSize: 13 },
   errorClose: { color: '#fff', fontSize: 18, paddingHorizontal: 8 },
 
-  // Full-screen overlay — sits above everything because it's the last child
   overlayContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    // No zIndex needed — last-child paint order handles it natively on both platforms
   },
   ghostCard: {
-    // Slight scale-up so it looks "lifted"
     transform: [{ scale: 1.15 }],
     opacity: 0.92,
     shadowColor: '#000',
