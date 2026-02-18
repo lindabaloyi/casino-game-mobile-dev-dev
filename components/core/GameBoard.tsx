@@ -85,6 +85,9 @@ export function GameBoard({
     registerCard,
     unregisterCard,
     findCardAtPoint,
+    registerTempStack,
+    unregisterTempStack,
+    findTempStackAtPoint,
   } = useDrag();
 
   // ── Drag overlay state ────────────────────────────────────────────────────
@@ -125,18 +128,30 @@ export function GameBoard({
   );
 
   /**
-   * Card drop: hand card dropped onto a specific table card → createTemp.
-   * Turn does NOT advance — player confirms via Accept/Cancel overlay.
+   * Hand card dropped onto a specific table card → createTemp.
    */
   const handleCardDrop = useCallback(
     (handCard: Card, targetCard: Card) => {
-      console.log(
-        `[GameBoard] createTemp: ${handCard.rank}${handCard.suit} → ${targetCard.rank}${targetCard.suit}`,
-      );
-      sendAction({
-        type: 'createTemp',
-        payload: { card: handCard, targetCard } as unknown as Record<string, unknown>,
-      });
+      console.log(`[GameBoard] createTemp: ${handCard.rank}${handCard.suit} → ${targetCard.rank}${targetCard.suit}`);
+      sendAction({ type: 'createTemp', payload: { card: handCard, targetCard } as unknown as Record<string, unknown> });
+    },
+    [sendAction],
+  );
+
+  /** Table card dropped onto another loose table card → createTempFromTable */
+  const handleTableCardDropOnCard = useCallback(
+    (card: Card, targetCard: Card) => {
+      console.log(`[GameBoard] createTempFromTable: ${card.rank}${card.suit} → ${targetCard.rank}${targetCard.suit}`);
+      sendAction({ type: 'createTempFromTable', payload: { card, targetCard } as unknown as Record<string, unknown> });
+    },
+    [sendAction],
+  );
+
+  /** Table card dropped onto own temp stack → addToTemp */
+  const handleTableCardDropOnTemp = useCallback(
+    (tableCard: Card, stackId: string) => {
+      console.log(`[GameBoard] addToTemp: ${tableCard.rank}${tableCard.suit} → stack ${stackId}`);
+      sendAction({ type: 'addToTemp', payload: { tableCard, stackId } as unknown as Record<string, unknown> });
     },
     [sendAction],
   );
@@ -192,10 +207,20 @@ export function GameBoard({
       <TableArea
         tableCards={table as any}
         isMyTurn={isMyTurn}
+        playerNumber={playerNumber}
         tableRef={tableRef}
         onTableLayout={onTableLayout}
         registerCard={registerCard}
         unregisterCard={unregisterCard}
+        registerTempStack={registerTempStack}
+        unregisterTempStack={unregisterTempStack}
+        findCardAtPoint={findCardAtPoint}
+        findTempStackAtPoint={findTempStackAtPoint}
+        onTableCardDropOnCard={handleTableCardDropOnCard}
+        onTableCardDropOnTemp={handleTableCardDropOnTemp}
+        onTableDragStart={handleDragStart}
+        onTableDragMove={handleDragMove}
+        onTableDragEnd={handleDragEnd}
         overlayStackId={overlayStackId}
         onAcceptTemp={handleAcceptTemp}
         onCancelTemp={handleCancelTemp}

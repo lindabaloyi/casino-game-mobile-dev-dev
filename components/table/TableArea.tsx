@@ -13,12 +13,17 @@
  *   │                                  │
  *   │      [✓ Accept]  [✕ Cancel]      │  (fixed bottom of table)
  *   └──────────────────────────────────┘
+ *
+ * Loose cards are draggable (DraggableTableCard):
+ *   - Drag loose → loose: createTempFromTable
+ *   - Drag loose → own temp stack: addToTemp
  */
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
-import { CardBounds } from '../../hooks/useDrag';
+import { CardBounds, TempStackBounds } from '../../hooks/useDrag';
+import { DraggableTableCard } from './DraggableTableCard';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -41,27 +46,62 @@ type TableItem = Card | TempStack;
 interface Props {
   tableCards: TableItem[];
   isMyTurn: boolean;
+  playerNumber: number;
   tableRef: React.RefObject<View | null>;
   onTableLayout: () => void;
+  // Loose card position registry (from useDrag)
   registerCard: (id: string, bounds: CardBounds) => void;
   unregisterCard: (id: string) => void;
-  /** stackId of the temp stack to show the overlay for, or null */
+  // Temp stack position registry (from useDrag)
+  registerTempStack: (stackId: string, bounds: TempStackBounds) => void;
+  unregisterTempStack: (stackId: string) => void;
+  // Hit detection (from useDrag, passed to DraggableTableCard)
+  findCardAtPoint: (x: number, y: number, excludeId?: string) => Card | null;
+  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
+  // Table card drag callbacks → GameBoard actions
+  onTableCardDropOnCard: (card: Card, targetCard: Card) => void;
+  onTableCardDropOnTemp: (card: Card, stackId: string) => void;
+  // Ghost overlay callbacks (shared with hand card drags)
+  onTableDragStart: (card: Card) => void;
+  onTableDragMove: (absoluteX: number, absoluteY: number) => void;
+  onTableDragEnd: () => void;
+  // Temp stack overlay control
   overlayStackId: string | null;
   onAcceptTemp: (stackId: string) => void;
   onCancelTemp: (stackId: string) => void;
 }
 
-// ── Sub-component: loose card with position registration ─────────────────────
+// ── Sub-component: draggable loose card ──────────────────────────────────────
 
-function LooseCardView({
-  card,
-  registerCard,
-  unregisterCard,
-}: {
+interface DraggableLooseCardProps {
   card: Card;
+  isMyTurn: boolean;
+  playerNumber: number;
   registerCard: (id: string, bounds: CardBounds) => void;
   unregisterCard: (id: string) => void;
-}) {
+  findCardAtPoint: (x: number, y: number, excludeId?: string) => Card | null;
+  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
+  onDropOnCard: (card: Card, targetCard: Card) => void;
+  onDropOnTemp: (card: Card, stackId: string) => void;
+  onDragStart: (card: Card) => void;
+  onDragMove: (x: number, y: number) => void;
+  onDragEnd: () => void;
+}
+
+function DraggableLooseCard({
+  card,
+  isMyTurn,
+  playerNumber,
+  registerCard,
+  unregisterCard,
+  findCardAtPoint,
+  findTempStackAtPoint,
+  onDropOnCard,
+  onDropOnTemp,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+}: DraggableLooseCardProps) {
   const viewRef = useRef<View>(null);
   const cardId  = `${card.rank}${card.suit}`;
 
@@ -77,19 +117,48 @@ function LooseCardView({
 
   return (
     <View ref={viewRef} onLayout={onLayout}>
-      <PlayingCard rank={card.rank} suit={card.suit} />
+      <DraggableTableCard
+        card={card}
+        isMyTurn={isMyTurn}
+        playerNumber={playerNumber}
+        findCardAtPoint={findCardAtPoint}
+        findTempStackAtPoint={findTempStackAtPoint}
+        onDropOnCard={onDropOnCard}
+        onDropOnTemp={onDropOnTemp}
+        onDragStart={onDragStart}
+        onDragMove={onDragMove}
+        onDragEnd={onDragEnd}
+      />
     </View>
   );
 }
 
 // ── Sub-component: stacked temp cards + TEMP badge ────────────────────────────
 
-function TempStackView({ stack }: { stack: TempStack }) {
+interface TempStackViewProps {
+  stack: TempStack;
+  registerTempStack: (stackId: string, bounds: TempStackBounds) => void;
+  unregisterTempStack: (stackId: string) => void;
+}
+
+function TempStackView({ stack, registerTempStack, unregisterTempStack }: TempStackViewProps) {
+  const viewRef = useRef<View>(null);
   const [bottom, top] = stack.cards;
+
+  const onLayout = useCallback(() => {
+    viewRef.current?.measureInWindow((x, y, width, height) => {
+      registerTempStack(stack.stackId, { x, y, width, height, stackId: stack.stackId, owner: stack.owner });
+    });
+  }, [stack.stackId, stack.owner, registerTempStack]);
+
+  useEffect(() => {
+    return () => unregisterTempStack(stack.stackId);
+  }, [stack.stackId, unregisterTempStack]);
+
   if (!bottom || !top) return null;
 
   return (
-    <View style={styles.tempContainer}>
+    <View ref={viewRef} style={styles.tempContainer} onLayout={onLayout}>
       {/* Bottom card (original table card) */}
       <View style={styles.tempBottom}>
         <PlayingCard rank={bottom.rank} suit={bottom.suit} />
@@ -100,7 +169,7 @@ function TempStackView({ stack }: { stack: TempStack }) {
         <PlayingCard rank={top.rank} suit={top.suit} />
       </View>
 
-      {/* TEMP badge — sits at the bottom of the top card */}
+      {/* TEMP badge — sits at the bottom of the card stack */}
       <View style={styles.tempBadge}>
         <Text style={styles.tempBadgeText}>TEMP</Text>
       </View>
@@ -108,7 +177,7 @@ function TempStackView({ stack }: { stack: TempStack }) {
   );
 }
 
-// ── Sub-component: fixed Accept/Cancel strip ──────────────────────────────────
+// ── Sub-component: Accept / Cancel action strip ───────────────────────────────
 
 function TempActionStrip({
   stackId,
@@ -155,10 +224,20 @@ function TempActionStrip({
 export function TableArea({
   tableCards,
   isMyTurn,
+  playerNumber,
   tableRef,
   onTableLayout,
   registerCard,
   unregisterCard,
+  registerTempStack,
+  unregisterTempStack,
+  findCardAtPoint,
+  findTempStackAtPoint,
+  onTableCardDropOnCard,
+  onTableCardDropOnTemp,
+  onTableDragStart,
+  onTableDragMove,
+  onTableDragEnd,
   overlayStackId,
   onAcceptTemp,
   onCancelTemp,
@@ -182,23 +261,34 @@ export function TableArea({
       {/* Cards */}
       <View style={styles.cardRow}>
         {looseCards.map((card) => (
-          <LooseCardView
+          <DraggableLooseCard
             key={`${card.rank}${card.suit}`}
             card={card}
+            isMyTurn={isMyTurn}
+            playerNumber={playerNumber}
             registerCard={registerCard}
             unregisterCard={unregisterCard}
+            findCardAtPoint={findCardAtPoint}
+            findTempStackAtPoint={findTempStackAtPoint}
+            onDropOnCard={onTableCardDropOnCard}
+            onDropOnTemp={onTableCardDropOnTemp}
+            onDragStart={onTableDragStart}
+            onDragMove={onTableDragMove}
+            onDragEnd={onTableDragEnd}
           />
         ))}
 
         {tempStacks.map((stack) => (
-          <TempStackView key={stack.stackId} stack={stack} />
+          <TempStackView
+            key={stack.stackId}
+            stack={stack}
+            registerTempStack={registerTempStack}
+            unregisterTempStack={unregisterTempStack}
+          />
         ))}
       </View>
 
-      {/*
-        Accept / Cancel strip — fixed at the bottom of the table area.
-        Only visible to the owning player on their turn (overlayStackId set).
-      */}
+      {/* Accept / Cancel strip — fixed at bottom, only on owner's turn */}
       {overlayStackId && (
         <TempActionStrip
           stackId={overlayStackId}
@@ -212,8 +302,8 @@ export function TableArea({
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const CARD_W = 56;   // matches PlayingCard width
-const CARD_H = 84;   // matches PlayingCard height
+const CARD_W = 56;
+const CARD_H = 84;
 
 const styles = StyleSheet.create({
   area: {
@@ -249,12 +339,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // ── Temp stack ──────────────────────────────────────────────────────────
-
-  // Height = card height + badge height (~20) + top-card offset (6)
+  // Temp stack
   tempContainer: {
-    width:  CARD_W + 6 + 4,   // card + offset + breathing room
-    height: CARD_H + 6 + 22,  // card + offset + badge
+    width:  CARD_W + 6 + 4,
+    height: CARD_H + 6 + 22,
     position: 'relative',
   },
   tempBottom: {
@@ -291,8 +379,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  // ── Accept / Cancel action strip (fixed bottom of table) ────────────────
-
+  // Action strip
   actionStrip: {
     position: 'absolute',
     bottom: 14,

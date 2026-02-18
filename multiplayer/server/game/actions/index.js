@@ -17,9 +17,11 @@ const actionHandlers = {
   trail: require('./trail'),
 
   // ── Milestone 4 ──────────────────────────────────────────────────────────
-  createTemp: require('./createTemp'),
-  acceptTemp: require('./acceptTemp'),
-  cancelTemp: require('./cancelTemp'),
+  createTemp:          require('./createTemp'),
+  createTempFromTable: require('./createTempFromTable'),
+  addToTemp:           require('./addToTemp'),
+  acceptTemp:          require('./acceptTemp'),
+  cancelTemp:          require('./cancelTemp'),
 
   // ── Milestone 3 → capture:     require('./capture')
   // ── Milestone 5 → build:       require('./build')
