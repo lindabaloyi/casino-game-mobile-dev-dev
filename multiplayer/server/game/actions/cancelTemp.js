@@ -42,15 +42,16 @@ function cancelTemp(state, payload, playerIndex) {
   // Remove the temp stack
   newState.tableCards.splice(stackIdx, 1);
 
-  // cards[0] = original table card → back to table as a loose card
-  // cards[1] = player's hand card → back to hand
-  const [tableCard, handCard] = stack.cards;
-
-  if (tableCard) {
-    newState.tableCards.push({ rank: tableCard.rank, suit: tableCard.suit, value: tableCard.value });
-  }
-  if (handCard) {
-    newState.playerHands[playerIndex].push({ rank: handCard.rank, suit: handCard.suit, value: handCard.value });
+  // Return every card in the stack to its original location.
+  // Each card carries a `source` tag ('hand' | 'table') set when it was added.
+  for (const card of stack.cards) {
+    // Strip the source metadata — return a clean card object
+    const pureCard = { rank: card.rank, suit: card.suit, value: card.value };
+    if (card.source === 'hand') {
+      newState.playerHands[playerIndex].push(pureCard);
+    } else {
+      newState.tableCards.push(pureCard);
+    }
   }
 
   // Turn does NOT advance — player can make a different move

@@ -55,8 +55,8 @@ function addToTemp(state, payload, playerIndex) {
   }
   const [looseCard] = newState.tableCards.splice(cardIdx, 1);
 
-  // Append to the temp stack
-  stack.cards.push(looseCard);
+  // Append to the temp stack — tag as 'table' so cancelTemp returns it correctly
+  stack.cards.push({ ...looseCard, source: 'table' });
   stack.value += looseCard.value;
 
   // ⚠️  No nextTurn() — turn advances when player Accepts

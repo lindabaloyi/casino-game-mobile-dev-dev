@@ -62,10 +62,13 @@ function createTemp(state, payload, playerIndex) {
   }
   const [tableCard] = newState.tableCards.splice(tableIdx, 1);
 
-  // Sort: higher-value card is the base (bottom), lower-value sits on top
-  const [bottom, top] = handCard.value >= tableCard.value
-    ? [handCard, tableCard]
-    : [tableCard, handCard];
+  // Sort: higher-value card is the base (bottom), lower-value sits on top.
+  // Tag each card with its source so cancelTemp can return it to the right place.
+  const taggedHand  = { ...handCard,  source: 'hand'  };
+  const taggedTable = { ...tableCard, source: 'table' };
+  const [bottom, top] = taggedHand.value >= taggedTable.value
+    ? [taggedHand,  taggedTable]
+    : [taggedTable, taggedHand];
 
   newState.tableCards.push({
     type: 'temp_stack',

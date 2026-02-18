@@ -67,10 +67,13 @@ function createTempFromTable(state, payload, playerIndex) {
   }
   const [tableCard] = newState.tableCards.splice(targetIdx, 1);
 
-  // Sort: higher-value card is the base (bottom), lower-value sits on top
-  const [bottom, top] = draggedCard.value >= tableCard.value
-    ? [draggedCard, tableCard]
-    : [tableCard, draggedCard];
+  // Sort: higher-value card is the base (bottom), lower-value sits on top.
+  // Both originate from the table, so tag both as 'table'.
+  const taggedDragged = { ...draggedCard, source: 'table' };
+  const taggedTarget  = { ...tableCard,   source: 'table' };
+  const [bottom, top] = taggedDragged.value >= taggedTarget.value
+    ? [taggedDragged, taggedTarget]
+    : [taggedTarget,  taggedDragged];
 
   newState.tableCards.push({
     type: 'temp_stack',
