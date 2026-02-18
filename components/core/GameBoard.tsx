@@ -1,12 +1,13 @@
 /**
- * GameBoard — Milestone 1 shell
- * Shows the game state visually (round, hands, table cards).
- * Drag, modals, and action logic will be added in later milestones.
+ * GameBoard — Milestone 2
+ * Players can drag hand cards to the table to trail.
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { GameState } from '../../hooks/useGameState';
+import { useDrag } from '../../hooks/useDrag';
+import { DraggableHandCard } from '../cards/DraggableHandCard';
 import { PlayingCard } from '../cards/PlayingCard';
 
 // ── Props ──────────────────────────────────────────────────────────────────────
@@ -27,8 +28,6 @@ export function GameBoard({
   gameState,
   playerNumber,
   sendAction,
-  onRestart,
-  onBackToMenu,
   serverError,
   onServerErrorClose,
 }: GameBoardProps) {
@@ -36,10 +35,24 @@ export function GameBoard({
   const table    = gameState.tableCards ?? [];
   const isMyTurn = gameState.currentPlayer === playerNumber;
 
+  // Drop zone management — measures the table area in absolute screen coords
+  const { tableRef, dropBounds, onTableLayout } = useDrag();
+
+  // Trail callback — sends the action to the server
+  const handleTrail = useCallback(
+    (card: { rank: string; suit: string; value: number }) => {
+      sendAction({
+        type: 'trail',
+        payload: { card } as unknown as Record<string, unknown>,
+      });
+    },
+    [sendAction],
+  );
+
   return (
     <View style={styles.root}>
 
-      {/* ── Server error banner ─────────────────────────── */}
+      {/* ── Server error banner ───────────────────────── */}
       {serverError && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{serverError.message}</Text>
@@ -47,7 +60,7 @@ export function GameBoard({
         </View>
       )}
 
-      {/* ── Status bar ──────────────────────────────────── */}
+      {/* ── Status bar ────────────────────────────────── */}
       <View style={styles.statusBar}>
         <Text style={styles.statusText}>Round {gameState.round}</Text>
         <View style={[styles.turnBadge, { backgroundColor: isMyTurn ? '#4CAF50' : '#F44336' }]}>
@@ -60,30 +73,45 @@ export function GameBoard({
         </Text>
       </View>
 
-      {/* ── Table cards ─────────────────────────────────── */}
-      <View style={[styles.section, styles.tableSection]}>
-        <Text style={styles.sectionLabel}>
-          Table ({table.length} cards) · Deck: {gameState.deck.length}
-        </Text>
+      {/* ── Table drop zone ───────────────────────────── */}
+      <View
+        ref={tableRef}
+        style={[styles.tableSection, isMyTurn && styles.tableSectionActive]}
+        onLayout={onTableLayout}
+      >
+        {/* Drop hint when it's player's turn and table is empty */}
+        {isMyTurn && table.length === 0 && (
+          <View style={styles.dropHint}>
+            <Text style={styles.dropHintText}>Drop a card here to trail</Text>
+          </View>
+        )}
+
         <View style={styles.cardRow}>
-          {table.length === 0
-            ? <Text style={styles.emptyText}>Table is empty</Text>
-            : table.map((card, i) => (
-                <PlayingCard key={i} rank={card.rank} suit={card.suit} />
-              ))
-          }
+          {table.map((card, i) => (
+            <PlayingCard key={`${card.rank}${card.suit}-${i}`} rank={card.rank} suit={card.suit} />
+          ))}
         </View>
       </View>
 
-      {/* ── Player hand ─────────────────────────────────── */}
-      <View style={[styles.section, styles.handSection]}>
-        <Text style={styles.sectionLabel}>Your Hand</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.cardRow}>
-            {myHand.map((card, i) => (
-              <PlayingCard key={i} rank={card.rank} suit={card.suit} />
-            ))}
-          </View>
+      {/* ── Player hand ───────────────────────────────── */}
+      {/* overflow:visible so dragged cards can travel above the table */}
+      <View style={[styles.handSection, { overflow: 'visible' }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          scrollEnabled={true}
+          style={{ overflow: 'visible' }}
+          contentContainerStyle={[styles.cardRow, { overflow: 'visible' }]}
+        >
+          {myHand.map((card) => (
+            <DraggableHandCard
+              key={`${card.rank}${card.suit}`}
+              card={card}
+              dropBounds={dropBounds}
+              isMyTurn={isMyTurn}
+              onTrail={handleTrail}
+            />
+          ))}
         </ScrollView>
       </View>
 
@@ -104,11 +132,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  errorText: { color: '#fff', flex: 1 },
-  errorClose: { color: '#fff', fontSize: 18, paddingHorizontal: 10 },
-  // Status
+  errorText:  { color: '#fff', flex: 1, fontSize: 13 },
+  errorClose: { color: '#fff', fontSize: 18, paddingHorizontal: 8 },
+
+  // Status bar
   statusBar: {
     height: 44,
     backgroundColor: '#2E7D32',
@@ -124,36 +154,56 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   turnBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  // Sections
-  section: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#388E3C',
-  },
+
+  // Table
   tableSection: {
     flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    margin: 8,
+    borderRadius: 12,
+  },
+  tableSectionActive: {
+    borderColor: '#66BB6A',          // green glow border when it's your turn
+    borderStyle: 'dashed',
+  },
+  dropHint: {
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 100,
   },
-  handSection: {
-    height: 110,          // 84px card + 10+10 padding + 6 label
-    backgroundColor: '#2E7D32',
-    justifyContent: 'center',
+  dropHintText: {
+    color: '#81C784',
+    fontSize: 14,
+    fontStyle: 'italic',
+    letterSpacing: 0.3,
   },
-  sectionLabel: {
-    color: '#A5D6A7',
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  emptyText: { color: '#81C784', fontStyle: 'italic' },
-  // Cards
   cardRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    paddingVertical: 4,
+  },
+
+  // Hand — only the top half of each card is visible; the rest hangs off-screen
+  handSection: {
+    height: 65,
+    backgroundColor: '#2E7D32',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#388E3C',
+  },
+  sectionLabel: {
+    color: '#A5D6A7',
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });
 

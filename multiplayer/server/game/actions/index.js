@@ -13,11 +13,13 @@
 // (populated milestone by milestone)
 
 const actionHandlers = {
-  // Milestone 2 → trail:         require('./trail')
-  // Milestone 3 → capture:       require('./capture')
-  // Milestone 4 → createTemp / addToTemp / cancelTemp
-  // Milestone 5 → createBuild
-  // Milestone 6 → extendBuild
+  // ── Milestone 2 ──────────────────────────────────────────────────────────
+  trail: require('./trail'),
+
+  // ── Milestone 3 → capture:    require('./capture')
+  // ── Milestone 4 → temp stack: require('./tempStack')
+  // ── Milestone 5 → build:      require('./build')
+  // ── Milestone 6 → extendBuild: require('./extendBuild')
 };
 
 module.exports = actionHandlers;
