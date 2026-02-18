@@ -58,29 +58,6 @@ class GameCoordinatorService {
     }
   }
 
-  /**
-   * Handle an execute-action event (client confirmed a choice from a modal).
-   * Expected payload: { action: { type: string, payload: object } }
-   */
-  handleExecuteAction(socket, data) {
-    if (!data?.action?.type) {
-      this.broadcaster.sendError(socket, 'Invalid execute-action: missing action.type');
-      return;
-    }
-
-    const ctx = this._resolvePlayer(socket);
-    if (!ctx) return;
-
-    const { gameId, playerIndex } = ctx;
-
-    try {
-      const newState = this.actionRouter.executeAction(gameId, playerIndex, data.action);
-      this.broadcaster.broadcastGameUpdate(gameId, newState);
-    } catch (err) {
-      console.error(`[Coordinator] execute-action failed: ${err.message}`);
-      this.broadcaster.sendError(socket, err.message);
-    }
-  }
 }
 
 module.exports = GameCoordinatorService;

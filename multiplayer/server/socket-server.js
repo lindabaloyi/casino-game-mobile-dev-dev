@@ -47,8 +47,7 @@ io.on('connection', socket => {
   }
 
   // ── Game events ──────────────────────────────────────────────────────
-  socket.on('game-action',   data => coordinator.handleGameAction(socket, data));
-  socket.on('execute-action', data => coordinator.handleExecuteAction(socket, data));
+  socket.on('game-action', data => coordinator.handleGameAction(socket, data));
 
   // ── State sync (client can request the current state at any time) ────
   socket.on('request-sync', () => {

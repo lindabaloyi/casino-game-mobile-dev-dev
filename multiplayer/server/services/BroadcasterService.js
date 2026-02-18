@@ -62,27 +62,6 @@ class BroadcasterService {
   }
 
   /**
-   * Send action choices to a specific player
-   */
-  sendActionChoices(socket, actions, requestId) {
-    socket.emit("action-choices", {
-      requestId,
-      actions,
-    });
-  }
-
-  /**
-   * Send temp stack options to a specific player
-   */
-  sendTempStackOptions(socket, payload, requestId) {
-    socket.emit("temp-stack-options", {
-      requestId,
-      tempStackId: payload.tempStackId,
-      availableOptions: payload.availableOptions,
-    });
-  }
-
-  /**
    * Send error message to a specific player
    */
   sendError(socket, message) {
