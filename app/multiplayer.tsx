@@ -1,17 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { GameBoard } from '../components/core/GameBoard';
 import GameOverScreen from './game-over';
-import { useGameServer } from '../hooks/useGameServer';
+import { useGameState } from '../hooks/useGameState';
 
 export const options = {
   headerShown: false,
 };
 
 export default function MultiplayerScreen() {
-  console.log('[SCREEN] MultiplayerScreen rendered');
-  const { gameState, playerNumber, sendAction, buildOptions, actionChoices, error, clearError } = useGameServer();
-
-  console.log('[SCREEN] gameState:', gameState, 'playerNumber:', playerNumber);
+  const { gameState, playerNumber, sendAction, error, clearError } = useGameState();
 
   if (!gameState) {
     return (
@@ -23,7 +20,6 @@ export default function MultiplayerScreen() {
     );
   }
 
-  // Show game over screen if game is finished
   if (gameState.gameOver) {
     return (
       <GameOverScreen
@@ -34,17 +30,14 @@ export default function MultiplayerScreen() {
     );
   }
 
-  // Render the game board when game is active
   return (
     <GameBoard
       gameState={gameState}
-      playerNumber={playerNumber || 0}
+      playerNumber={playerNumber ?? 0}
       sendAction={sendAction}
-      onRestart={() => console.log('Restart game')}
+      onRestart={() => console.log('Restart')}
       onBackToMenu={() => console.log('Back to menu')}
-      buildOptions={buildOptions}
-      actionChoices={actionChoices}
-      serverError={error}
+      serverError={error ? { message: error } : null}
       onServerErrorClose={clearError}
     />
   );
@@ -60,11 +53,6 @@ const styles = StyleSheet.create({
   waitingText: {
     color: 'white',
     fontSize: 30,
-    textAlign: 'center',
-  },
-  gameText: {
-    color: 'white',
-    fontSize: 24,
     textAlign: 'center',
   },
 });

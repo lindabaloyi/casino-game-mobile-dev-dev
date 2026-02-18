@@ -1,157 +1,104 @@
 /**
  * MatchmakingService
- * Handles player queuing, game creation, and matchmaking logic
- * Extracted from socket-server.js for better separation of concerns
+ * Queues players and pairs them into games when two are ready.
  */
-
-const { createLogger } = require('../utils/logger');
 
 class MatchmakingService {
   constructor(gameManager) {
-    this.logger = createLogger('MatchmakingService');
     this.gameManager = gameManager;
-    this.waitingPlayers = []; // Array of waiting socket objects
-    this.activeGames = new Map(); // socketId -> gameId mapping
-    this.gamePlayerIndex = new Map(); // gameId -> socketId[] mapping
+
+    /** Sockets waiting for an opponent */
+    this.waitingPlayers = [];
+
+    /** socketId → gameId */
+    this.socketGameMap = new Map();
+
+    /** gameId → socketId[] */
+    this.gameSocketsMap = new Map();
   }
 
+  // ── Queue management ──────────────────────────────────────────────────────
+
   /**
-   * Add a player to the matchmaking queue
+   * Add a socket to the queue. If two players are waiting, start a game.
+   * @returns {object|null} game result object if a game was created, else null
    */
   addToQueue(socket) {
-    this.logger.info(`Adding ${socket.id} to waiting queue. Total waiting: ${this.waitingPlayers.length + 1}`);
-
+    console.log(`[Matchmaking] ${socket.id} joined queue (${this.waitingPlayers.length + 1} waiting)`);
     this.waitingPlayers.push(socket);
-    this.activeGames.set(socket.id, null); // Not in a game yet
-
-    // Try to create a game if we have enough players
-    return this.tryCreateGame();
+    this.socketGameMap.set(socket.id, null);
+    return this._tryCreateGame();
   }
 
-  /**
-   * Try to create a game if we have enough waiting players
-   */
-  tryCreateGame() {
-    if (this.waitingPlayers.length < 2) {
-      return null; // Not enough players
-    }
+  _tryCreateGame() {
+    if (this.waitingPlayers.length < 2) return null;
 
-    this.logger.info('Two players ready - starting game');
+    const [p1, p2] = this.waitingPlayers.splice(0, 2);
 
-    const [player1Socket, player2Socket] = this.waitingPlayers;
-    this.waitingPlayers = []; // Clear waiting queue
+    const { gameId, gameState } = this.gameManager.startGame();
 
-    try {
-      // Create new game via GameManager
-      const { gameId, gameState } = this.gameManager.startGame();
-      this.activeGames.set(player1Socket.id, gameId);
-      this.activeGames.set(player2Socket.id, gameId);
+    // Map sockets → gameId
+    this.socketGameMap.set(p1.id, gameId);
+    this.socketGameMap.set(p2.id, gameId);
+    this.gameSocketsMap.set(gameId, [p1.id, p2.id]);
 
-      // Register players with GameManager for proper indexing
-      this.gameManager.addPlayerToGame(gameId, player1Socket.id, 0);
-      this.gameManager.addPlayerToGame(gameId, player2Socket.id, 1);
+    // Register players in GameManager
+    this.gameManager.addPlayerToGame(gameId, p1.id, 0);
+    this.gameManager.addPlayerToGame(gameId, p2.id, 1);
 
-      // Track which sockets are in which games
-      this.gamePlayerIndex.set(gameId, [player1Socket.id, player2Socket.id]);
+    console.log(`[Matchmaking] Game ${gameId} started — P0:${p1.id}  P1:${p2.id}`);
 
-      // Create game result for socket server to use
-      const gameResult = {
-        gameId,
-        gameState,
-        players: [
-          { socket: player1Socket, playerNumber: 0 },
-          { socket: player2Socket, playerNumber: 1 }
-        ]
-      };
-
-      this.logger.info(`Game ${gameId} started with ${gameResult.players.length} players`);
-      return gameResult;
-
-    } catch (error) {
-      this.logger.error('Failed to start game:', error);
-
-      // Return players to waiting queue on error
-      this.waitingPlayers.push(player1Socket, player2Socket);
-      throw error;
-    }
+    return {
+      gameId,
+      gameState,
+      players: [
+        { socket: p1, playerNumber: 0 },
+        { socket: p2, playerNumber: 1 },
+      ],
+    };
   }
 
+  // ── Disconnection ─────────────────────────────────────────────────────────
+
   /**
-   * Handle player disconnection
+   * Clean up when a socket disconnects.
+   * @returns {{ gameId, remainingSockets }|null}
    */
   handleDisconnection(socket) {
-    this.logger.info(`Disconnect: ${socket.id}`);
+    // Remove from queue if still waiting
+    this.waitingPlayers = this.waitingPlayers.filter(s => s.id !== socket.id);
 
-    // Remove from waiting queue
-    this.waitingPlayers = this.waitingPlayers.filter(p => p.id !== socket.id);
+    const gameId = this.socketGameMap.get(socket.id);
+    this.socketGameMap.delete(socket.id);
 
-    // Get game they were in (if any)
-    const gameId = this.activeGames.get(socket.id);
+    if (!gameId) return null;
 
-    let disconnectedGame = null;
-    if (gameId) {
-      // Clean up game player tracking
-      const gameSockets = this.gamePlayerIndex.get(gameId) || [];
-      const updatedSockets = gameSockets.filter(socketId => socketId !== socket.id);
-      this.gamePlayerIndex.set(gameId, updatedSockets);
+    const sockets = (this.gameSocketsMap.get(gameId) || []).filter(id => id !== socket.id);
+    this.gameSocketsMap.set(gameId, sockets);
 
-      disconnectedGame = {
-        gameId,
-        remainingSockets: updatedSockets
-      };
-    }
-
-    // Remove from active games
-    this.activeGames.delete(socket.id);
-
-    this.logger.info(`Cleanup complete. Waiting: ${this.waitingPlayers.length}, Active games: ${this.getActiveGamesCount()}`);
-    return disconnectedGame;
+    console.log(`[Matchmaking] ${socket.id} left game ${gameId} (${sockets.length} remaining)`);
+    return { gameId, remainingSockets: sockets };
   }
 
-  /**
-   * Check if a socket is in an active game
-   */
+  // ── Lookups ───────────────────────────────────────────────────────────────
+
   getGameId(socketId) {
-    return this.activeGames.get(socketId) || null;
+    return this.socketGameMap.get(socketId) || null;
   }
 
-  /**
-   * Get all active games count
-   */
-  getActiveGamesCount() {
-    // Count unique game IDs
-    const uniqueGameIds = new Set();
-    for (const gameId of this.activeGames.values()) {
-      if (gameId) uniqueGameIds.add(gameId);
-    }
-    return uniqueGameIds.size;
+  getGameSockets(gameId, io) {
+    return (this.gameSocketsMap.get(gameId) || [])
+      .map(id => io.sockets.sockets.get(id))
+      .filter(Boolean);
   }
 
-  /**
-   * Get waiting players count
-   */
   getWaitingPlayersCount() {
     return this.waitingPlayers.length;
   }
 
-  /**
-   * Get all sockets for a specific game
-   */
-  getGameSockets(gameId, io) {
-    return Array.from(this.activeGames.entries())
-      .filter(([_, gId]) => gId === gameId)
-      .map(([socketId, _]) => io.sockets.sockets.get(socketId))
-      .filter(Boolean);
-  }
-
-  /**
-   * Clean up all state (for testing/shutdown)
-   */
-  reset() {
-    this.waitingPlayers = [];
-    this.activeGames.clear();
-    this.gamePlayerIndex.clear();
-    this.logger.info('MatchmakingService state reset');
+  getActiveGamesCount() {
+    const unique = new Set([...this.socketGameMap.values()].filter(Boolean));
+    return unique.size;
   }
 }
 

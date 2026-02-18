@@ -1,36 +1,14 @@
 /**
- * New Server Entry Point - Production Optimized
- * Uses the refactored modular architecture
- * Minimal logging for production performance
+ * Server entry point
+ * Start with:  node multiplayer/server/index.js
+ *          or: npm run server
  */
 
-// Import the new modular system
-const GameManager = require('./game/GameManager.js');
-const ActionRouter = require('./game/ActionRouter.js');
+const { startServer } = require('./socket-server');
 
-// Import the new networking layer
-const { startServer } = require('./socket-server.js');
-
-// Initialize the game system
 try {
-  // Dependency injection: ActionRouter gets GameManager
-  const gameManager = new GameManager();
-  const actionRouter = new ActionRouter(gameManager);
-
-  // ActionRouter gets injected into GameManager
-  gameManager.actionRouter = actionRouter;
-
-  // Start the server with the modular components
-  const serverComponents = startServer(GameManager, ActionRouter);
-
-  // Export for testing purposes
-  module.exports = {
-    gameManager,
-    actionRouter,
-    serverComponents
-  };
-
-} catch (error) {
-  console.error('[SERVER_ERROR] Failed to start server:', error.message);
+  startServer();
+} catch (err) {
+  console.error('[Server] Failed to start:', err.message);
   process.exit(1);
 }

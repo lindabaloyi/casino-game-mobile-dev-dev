@@ -4,11 +4,8 @@
  * Extracted from socket-server.js for better separation of concerns
  */
 
-const { createLogger } = require("../utils/logger");
-
 class BroadcasterService {
   constructor(matchmakingService, gameManager, io) {
-    this.logger = createLogger("BroadcasterService");
     this.matchmaking = matchmakingService;
     this.gameManager = gameManager;
     this.io = io;
@@ -21,9 +18,7 @@ class BroadcasterService {
     const { gameId, gameState, players } = gameResult;
 
     players.forEach(({ socket, playerNumber }) => {
-      this.logger.info(
-        `Starting game ${gameId} for Player ${playerNumber} (${socket.id})`,
-      );
+    console.log(`[Broadcaster] Starting game ${gameId} for Player ${playerNumber} (${socket.id})`);
       socket.emit("game-start", {
         gameId,
         gameState,
@@ -38,9 +33,7 @@ class BroadcasterService {
   broadcastGameUpdate(gameId, gameState) {
     const gameSockets = this.matchmaking.getGameSockets(gameId, this.io);
 
-    this.logger.info(
-      `Broadcasting game-update to ${gameSockets.length} players in game ${gameId}`,
-    );
+    console.log(`[Broadcaster] game-update → game ${gameId} (${gameSockets.length} players)`);
 
     // Deep clone to avoid serializing internal references
     const stateToSend = JSON.parse(JSON.stringify(gameState));
@@ -61,9 +54,7 @@ class BroadcasterService {
     );
 
     if (remainingSockets.length > 0) {
-      this.logger.info(
-        `Notifying ${remainingSockets.length} remaining player(s) about disconnection in game ${gameId}`,
-      );
+      console.log(`[Broadcaster] Notifying ${remainingSockets.length} player(s) of disconnection in game ${gameId}`);
       remainingSockets.forEach((otherSocket) => {
         otherSocket.emit("player-disconnected");
       });

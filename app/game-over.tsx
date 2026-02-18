@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { GameState } from '../multiplayer/server/game-logic/game-state';
+import { GameState } from '../hooks/useGameState';
 
 interface GameOverScreenProps {
   gameState: GameState;
@@ -14,9 +14,9 @@ export const options = {
 };
 
 export default function GameOverScreen({ gameState, onPlayAgain, onBackToMenu }: GameOverScreenProps) {
-  // Determine winner and scores
-  const winner = gameState.winner;
-  const scores = gameState.scores || [0, 0];
+  const scores = gameState.scores ?? [0, 0];
+  // Derive winner from scores (higher score wins; -1 = tie)
+  const winner = scores[0] > scores[1] ? 0 : scores[1] > scores[0] ? 1 : -1;
 
   const getWinnerText = () => {
     if (winner === 0) return '🎉 Player 1 Wins!';

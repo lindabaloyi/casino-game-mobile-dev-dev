@@ -1,200 +1,89 @@
 /**
- * Game Manager Module
- * Orchestrates game state and actions. Holds game instances and coordinates
- * with ActionRouter to execute actions and determineActions logic.
+ * GameManager
+ * Manages the lifecycle of active games.
+ * Stores game states in memory and exposes get/save/end helpers.
+ * No game logic here — delegates to ActionRouter.
  */
 
-const { initializeGame, validateGameState } = require('./GameState.js');
-const { createLogger } = require('../utils/logger.js');
-const { determineActions } = require('./logic/actionDetermination.js');
-
-const logger = createLogger('GameManager');
+const { initializeGame } = require('./GameState.js');
 
 class GameManager {
-  constructor(actionRouter = null) {
-    this.activeGames = new Map(); // gameId -> gameState
-    this.gameIdCounter = 0;
-    this.actionRouter = actionRouter; // Dependency injection
-    this.socketPlayerMap = new Map(); // gameId -> Map(socketId -> playerIndex)
+  constructor() {
+    /** gameId → gameState */
+    this.activeGames = new Map();
+
+    /** gameId → Map(socketId → playerIndex) */
+    this.socketPlayerMap = new Map();
+
+    this._nextId = 1;
   }
 
+  // ── Game lifecycle ──────────────────────────────────────────────────────────
+
   /**
-   * Start a new game
-   * Returns gameId for reference
+   * Create a new game, deal cards, store state.
+   * @returns {{ gameId: number, gameState: object }}
    */
   startGame() {
-    const gameId = ++this.gameIdCounter;
+    const gameId = this._nextId++;
     const gameState = initializeGame();
 
-    // Validate initial state
-    const validation = validateGameState(gameState);
-    if (!validation.valid) {
-      logger.error('Failed to create valid initial game state', { errors: validation.errors });
-      throw new Error('Invalid game state: ' + validation.errors.join(', '));
-    }
-
     this.activeGames.set(gameId, gameState);
-    // Initialize socket player mapping for this game
     this.socketPlayerMap.set(gameId, new Map());
 
-    logger.info('Game started', { gameId, initialPlayer: gameState.currentPlayer });
-
+    console.log(`[GameManager] Game ${gameId} started — deck: ${gameState.deck.length} remaining`);
     return { gameId, gameState };
   }
 
   /**
-   * Get game state by ID
+   * Retrieve game state (returns undefined if not found).
    */
   getGameState(gameId) {
     return this.activeGames.get(gameId);
   }
 
   /**
-   * Apply an action to a game
-   * Validates turn, delegates to ActionRouter
+   * Persist updated game state (called by ActionRouter after each action).
    */
-  applyAction(gameId, playerIndex, action) {
-    const gameState = this.activeGames.get(gameId);
-    if (!gameState) {
-      throw new Error(`Game ${gameId} not found`);
-    }
-
-    // Turn validation
-    if (playerIndex !== gameState.currentPlayer) {
-      logger.warn('Turn violation', { gameId, playerIndex, currentPlayer: gameState.currentPlayer, action: action.type });
-      throw new Error(`It's not player ${playerIndex}'s turn`);
-    }
-
-    if (!this.actionRouter) {
-      throw new Error('ActionRouter not initialized');
-    }
-
-    logger.info('Routing action through ActionRouter', { gameId, playerIndex, actionType: action.type });
-
-    try {
-      // Delegate to ActionRouter - it will route to appropriate action module
-      const newGameState = this.actionRouter.executeAction(gameId, playerIndex, action);
-
-      // Store updated state (ActionRouter should update our internal state)
-      logger.debug('Action executed successfully by ActionRouter', { gameId, actionType: action.type });
-
-
-
-      return newGameState;
-    } catch (error) {
-      logger.error('Action execution failed', { gameId, actionType: action.type, error: error.message });
-      throw error; // Re-throw with ActionRouter's error details
-    }
+  saveGameState(gameId, newState) {
+    this.activeGames.set(gameId, newState);
   }
 
   /**
-   * Determine possible actions for a drag
-   * Delegates to determineActions logic module
-   */
-  determineActions(gameId, draggedItem, targetInfo) {
-    const gameState = this.activeGames.get(gameId);
-    if (!gameState) {
-      throw new Error(`Game ${gameId} not found`);
-    }
-
-    logger.debug('Determining actions', { gameId, draggedCard: `${draggedItem.card.rank}${draggedItem.card.suit}`, targetType: targetInfo.type });
-
-    try {
-      // Delegate to logic module
-      const result = determineActions(draggedItem, targetInfo, gameState);
-
-      logger.debug('Actions determined successfully', { gameId, actionCount: result.actions.length, requiresModal: result.requiresModal });
-      return result;
-    } catch (error) {
-      logger.error('Failed to determine actions', { gameId, error: error.message });
-      return {
-        actions: [],
-        requiresModal: false,
-        errorMessage: error.message
-      };
-    }
-  }
-
-  /**
-   * End game and clean up
+   * Remove a game from memory.
    */
   endGame(gameId) {
-    if (this.activeGames.has(gameId)) {
-      this.activeGames.delete(gameId);
-      logger.info('Game ended', { gameId });
-    }
+    this.activeGames.delete(gameId);
+    this.socketPlayerMap.delete(gameId);
+    console.log(`[GameManager] Game ${gameId} ended`);
   }
 
-  /**
-   * Get active games count
-   */
+  // ── Player ↔ Socket mapping ─────────────────────────────────────────────────
+
+  addPlayerToGame(gameId, socketId, playerIndex) {
+    const map = this.socketPlayerMap.get(gameId);
+    if (map) map.set(socketId, playerIndex);
+  }
+
+  getPlayerIndex(gameId, socketId) {
+    const map = this.socketPlayerMap.get(gameId);
+    return map ? (map.get(socketId) ?? null) : null;
+  }
+
+  removePlayerFromGame(gameId, socketId) {
+    const map = this.socketPlayerMap.get(gameId);
+    if (map) map.delete(socketId);
+  }
+
+  getGameSockets(gameId) {
+    const map = this.socketPlayerMap.get(gameId);
+    return map ? Array.from(map.keys()) : [];
+  }
+
+  // ── Diagnostics ─────────────────────────────────────────────────────────────
+
   getActiveGamesCount() {
     return this.activeGames.size;
-  }
-
-  /**
-   * Validate game state integrity
-   */
-  validateGame(gameId) {
-    const gameState = this.activeGames.get(gameId);
-    if (!gameState) {
-      return { valid: false, error: 'Game not found' };
-    }
-
-    const validation = validateGameState(gameState);
-    if (!validation.valid) {
-      logger.error('Game state validation failed', { gameId, errors: validation.errors });
-    }
-
-    return validation;
-  }
-
-  /**
-   * Add player to game (maps socket ID to player index)
-   */
-  addPlayerToGame(gameId, socketId, playerIndex) {
-    const gameMapping = this.socketPlayerMap.get(gameId);
-    if (!gameMapping) {
-      throw new Error(`Game ${gameId} not found`);
-    }
-
-    gameMapping.set(socketId, playerIndex);
-    logger.debug('Player added to game', { gameId, socketId, playerIndex });
-  }
-
-  /**
-   * Get player index for socket in game
-   */
-  getPlayerIndex(gameId, socketId) {
-    const gameMapping = this.socketPlayerMap.get(gameId);
-    if (!gameMapping) {
-      return null;
-    }
-
-    return gameMapping.get(socketId) ?? null;
-  }
-
-  /**
-   * Remove player from game
-   */
-  removePlayerFromGame(gameId, socketId) {
-    const gameMapping = this.socketPlayerMap.get(gameId);
-    if (gameMapping) {
-      gameMapping.delete(socketId);
-      logger.debug('Player removed from game', { gameId, socketId });
-    }
-  }
-
-  /**
-   * Get all socket IDs for a game
-   */
-  getGameSockets(gameId) {
-    const gameMapping = this.socketPlayerMap.get(gameId);
-    if (!gameMapping) {
-      return [];
-    }
-
-    return Array.from(gameMapping.keys());
   }
 }
 
