@@ -19,33 +19,28 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { PlayingCard } from '../cards/PlayingCard';
+import { Card } from './types';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface Card {
-  rank: string;
-  suit: string;
-  value: number;
-}
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
-  card: Card;
-  isMyTurn: boolean;
+  card:         Card;
+  isMyTurn:     boolean;
   playerNumber: number;
   /**
    * excludeId = `${rank}${suit}` of the dragged card — prevents self-match
    * in the card position registry.
    */
-  findCardAtPoint: (x: number, y: number, excludeId?: string) => Card | null;
-  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
+  findCardAtPoint:     (x: number, y: number, excludeId?: string) => Card | null;
+  findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number } | null;
   /** Dragged loose card dropped on another loose card → createTempFromTable */
   onDropOnCard: (card: Card, targetCard: Card) => void;
   /** Dragged loose card dropped on own temp stack → addToTemp */
-  onDropOnTemp: (card: Card, stackId: string) => void;
+  onDropOnTemp: (card: Card, stackId: string)  => void;
   /** Ghost overlay callbacks */
   onDragStart: (card: Card) => void;
-  onDragMove: (absoluteX: number, absoluteY: number) => void;
-  onDragEnd: () => void;
+  onDragMove:  (absoluteX: number, absoluteY: number) => void;
+  onDragEnd:   () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -67,11 +62,11 @@ export function DraggableTableCard({
 
   // ── JS-thread handlers ────────────────────────────────────────────────────
 
-  function _onDragStart()   { onDragStart(card); }
-  function _onDragMove(x: number, y: number) { onDragMove(x, y); }
+  function _onDragStart()                        { onDragStart(card); }
+  function _onDragMove(x: number, y: number)     { onDragMove(x, y); }
 
   function handleDrop(absX: number, absY: number) {
-    // 1. Check if dropped on an own temp stack
+    // 1. Check if dropped on own temp stack
     const tempHit = findTempStackAtPoint(absX, absY);
     if (tempHit && tempHit.owner === playerNumber) {
       console.log(`[DraggableTableCard] DROP ON TEMP — ${cardId} → stack ${tempHit.stackId}`);
@@ -83,15 +78,13 @@ export function DraggableTableCard({
     // 2. Check if dropped on another loose table card (exclude self)
     const cardHit = findCardAtPoint(absX, absY, cardId);
     if (cardHit) {
-      console.log(
-        `[DraggableTableCard] DROP ON CARD — ${cardId} → ${cardHit.rank}${cardHit.suit}`,
-      );
+      console.log(`[DraggableTableCard] DROP ON CARD — ${cardId} → ${cardHit.rank}${cardHit.suit}`);
       onDragEnd();
       onDropOnCard(card, cardHit);
       return;
     }
 
-    // 3. Miss — card stays on table, just restore opacity
+    // 3. Miss — card stays on table, restore opacity
     console.log(`[DraggableTableCard] MISS — ${cardId} snapping back`);
     opacity.value = withSpring(1);
     onDragEnd();

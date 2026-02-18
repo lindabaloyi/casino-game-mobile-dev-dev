@@ -71,16 +71,21 @@ export function useDrag() {
   /**
    * Returns the loose card at (x, y), or null.
    * excludeId — skip this card ID (used by DraggableTableCard to avoid matching itself).
+   *
+   * Hit detection uses a 12px tolerance on all sides to compensate for:
+   *  - Measurement timing lag (measureInWindow resolves asynchronously)
+   *  - Finger centroid vs exact drop point discrepancy on mobile
    */
+  const CARD_TOLERANCE = 12;
   const findCardAtPoint = useCallback(
     (x: number, y: number, excludeId?: string): { rank: string; suit: string; value: number } | null => {
       for (const [id, bounds] of cardPositions.current) {
         if (excludeId && id === excludeId) continue;
         if (
-          x >= bounds.x &&
-          x <= bounds.x + bounds.width &&
-          y >= bounds.y &&
-          y <= bounds.y + bounds.height
+          x >= bounds.x - CARD_TOLERANCE &&
+          x <= bounds.x + bounds.width  + CARD_TOLERANCE &&
+          y >= bounds.y - CARD_TOLERANCE &&
+          y <= bounds.y + bounds.height + CARD_TOLERANCE
         ) {
           return bounds.card;
         }
@@ -101,15 +106,16 @@ export function useDrag() {
     tempStackPositions.current.delete(stackId);
   }, []);
 
-  /** Returns the temp stack at (x, y), or null. */
+  /** Returns the temp stack at (x, y), or null. Same 12px tolerance as findCardAtPoint. */
+  const STACK_TOLERANCE = 12;
   const findTempStackAtPoint = useCallback(
     (x: number, y: number): { stackId: string; owner: number } | null => {
       for (const [, bounds] of tempStackPositions.current) {
         if (
-          x >= bounds.x &&
-          x <= bounds.x + bounds.width &&
-          y >= bounds.y &&
-          y <= bounds.y + bounds.height
+          x >= bounds.x - STACK_TOLERANCE &&
+          x <= bounds.x + bounds.width  + STACK_TOLERANCE &&
+          y >= bounds.y - STACK_TOLERANCE &&
+          y <= bounds.y + bounds.height + STACK_TOLERANCE
         ) {
           return { stackId: bounds.stackId, owner: bounds.owner };
         }

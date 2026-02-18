@@ -32,12 +32,23 @@ function createTemp(state, payload, playerIndex) {
   const newState = cloneState(state);
   const hand = newState.playerHands[playerIndex];
 
-  // Guard: player must not already own a pending temp stack
+  // Graceful fallback: if the player already owns a temp stack (e.g. hit detection
+  // missed the stack and routed here instead of addToTemp), add the hand card to
+  // the existing stack. The target table card stays loose on the table.
   const existingTemp = newState.tableCards.find(
     tc => tc.type === 'temp_stack' && tc.owner === playerIndex,
   );
   if (existingTemp) {
-    throw new Error('createTemp: player already has an active temp stack');
+    const hIdx = hand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
+    if (hIdx === -1) {
+      throw new Error(
+        `createTemp: fallback — card ${card.rank}${card.suit} not in player ${playerIndex}'s hand`,
+      );
+    }
+    const [handCard] = hand.splice(hIdx, 1);
+    existingTemp.cards.push({ ...handCard, source: 'hand' });
+    existingTemp.value += handCard.value;
+    return newState; // target table card remains loose; no new stack created
   }
 
   // Remove dragged card from hand
