@@ -2,11 +2,18 @@
  * DraggableHandCard
  * A hand card the player can drag to the table to trail.
  *
+ * During drag the card hides itself (opacity → 0) and delegates visual
+ * rendering to the parent's drag overlay, which renders outside the
+ * ScrollView and is therefore never clipped by it.
+ *
  * Props:
  *   card        — the card data { rank, suit, value }
  *   dropBounds  — ref to absolute table bounds (from useDrag)
  *   isMyTurn    — gesture is disabled when it's not this player's turn
  *   onTrail     — called when the card is successfully dropped on the table
+ *   onDragStart — called (with the card) when a drag begins
+ *   onDragMove  — called every frame with absolute screen coords of the finger
+ *   onDragEnd   — called when the drag finishes (drop or snap-back)
  */
 
 import React, { MutableRefObject } from 'react';
@@ -33,37 +40,49 @@ interface Props {
   dropBounds: MutableRefObject<DropBounds>;
   isMyTurn: boolean;
   onTrail: (card: Card) => void;
+  /** Overlay callbacks — called via runOnJS so the parent can render the ghost card */
+  onDragStart: (card: Card) => void;
+  onDragMove: (absoluteX: number, absoluteY: number) => void;
+  onDragEnd: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function DraggableHandCard({ card, dropBounds, isMyTurn, onTrail }: Props) {
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const scale      = useSharedValue(1);
-  const opacity    = useSharedValue(1);
+export function DraggableHandCard({
+  card,
+  dropBounds,
+  isMyTurn,
+  onTrail,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+}: Props) {
+  const opacity = useSharedValue(1);
 
-  // JS-thread callbacks (called via runOnJS from gesture worklet)
-  function handleTrail()  { onTrail(card); }
+  // JS-thread callbacks
+  function handleTrail()      { onTrail(card); }
+  function handleDragStart()  { onDragStart(card); }
+  function handleDragMove(x: number, y: number) { onDragMove(x, y); }
+  function handleDragEnd()    { onDragEnd(); }
+
   function handleSnapBack() {
-    translateX.value = withSpring(0, { damping: 15, stiffness: 200 });
-    translateY.value = withSpring(0, { damping: 15, stiffness: 200 });
-    scale.value      = withSpring(1);
-    opacity.value    = withSpring(1);
+    opacity.value = withSpring(1);
+    onDragEnd();
   }
 
   const gesture = Gesture.Pan()
     .enabled(isMyTurn)
-    .onStart(() => {
-      scale.value   = withSpring(1.15, { damping: 12 });
-      opacity.value = withSpring(0.88);
+    .onStart(e => {
+      // Hide the real card; the overlay in GameBoard renders the ghost
+      opacity.value = 0;
+      runOnJS(handleDragStart)();
+      runOnJS(handleDragMove)(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {
-      translateX.value = e.translationX;
-      translateY.value = e.translationY;
+      runOnJS(handleDragMove)(e.absoluteX, e.absoluteY);
     })
     .onEnd(e => {
-      const b    = dropBounds.current;
+      const b = dropBounds.current;
       const inZone =
         e.absoluteX >= b.x &&
         e.absoluteX <= b.x + b.width &&
@@ -71,21 +90,17 @@ export function DraggableHandCard({ card, dropBounds, isMyTurn, onTrail }: Props
         e.absoluteY <= b.y + b.height;
 
       if (inZone) {
-        opacity.value = 0;           // hide immediately; server will remove from hand
+        // Card is consumed — stays hidden, server removes it from hand
+        runOnJS(handleDragEnd)();
         runOnJS(handleTrail)();
       } else {
+        // Snap the real card back into view
         runOnJS(handleSnapBack)();
       }
     });
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-      { scale: scale.value },
-    ],
     opacity: opacity.value,
-    zIndex: scale.value > 1.05 ? 999 : 1,
   }));
 
   return (

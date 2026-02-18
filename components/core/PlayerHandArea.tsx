@@ -1,12 +1,12 @@
 /**
  * PlayerHandArea
  * Scrollable row of draggable hand cards.
- * Only the top half of each card is visible (section height clips the rest).
  *
  * Responsibilities:
  *  - Renders DraggableHandCard for each card in the player's hand
  *  - Passes dropBounds + isMyTurn down to each card
- *  - Uses overflow:visible so drag animations escape the container
+ *  - Threads drag-overlay callbacks (onDragStart / onDragMove / onDragEnd)
+ *    down to each card so GameBoard can render the ghost above the table
  */
 
 import React, { MutableRefObject } from 'react';
@@ -25,9 +25,21 @@ interface Props {
   isMyTurn: boolean;
   dropBounds: MutableRefObject<DropBounds>;
   onTrail: (card: Card) => void;
+  /** Drag overlay callbacks — forwarded straight to each DraggableHandCard */
+  onDragStart: (card: Card) => void;
+  onDragMove: (absoluteX: number, absoluteY: number) => void;
+  onDragEnd: () => void;
 }
 
-export function PlayerHandArea({ hand, isMyTurn, dropBounds, onTrail }: Props) {
+export function PlayerHandArea({
+  hand,
+  isMyTurn,
+  dropBounds,
+  onTrail,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+}: Props) {
   return (
     <View style={styles.container}>
       <ScrollView
@@ -35,6 +47,7 @@ export function PlayerHandArea({ hand, isMyTurn, dropBounds, onTrail }: Props) {
         showsHorizontalScrollIndicator={false}
         style={styles.scroll}
         contentContainerStyle={styles.cardRow}
+        scrollEnabled={!isMyTurn}   // prevent accidental scroll during drag turn
       >
         {hand.map((card) => (
           <DraggableHandCard
@@ -43,6 +56,9 @@ export function PlayerHandArea({ hand, isMyTurn, dropBounds, onTrail }: Props) {
             dropBounds={dropBounds}
             isMyTurn={isMyTurn}
             onTrail={onTrail}
+            onDragStart={onDragStart}
+            onDragMove={onDragMove}
+            onDragEnd={onDragEnd}
           />
         ))}
       </ScrollView>
@@ -58,7 +74,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#388E3C',
-    overflow: 'visible',   // lets dragged cards travel above the container
   },
   scroll: {
     overflow: 'visible',
@@ -66,7 +81,6 @@ const styles = StyleSheet.create({
   cardRow: {
     flexDirection: 'row',
     gap: 8,
-    overflow: 'visible',
     alignItems: 'flex-start',
   },
 });
