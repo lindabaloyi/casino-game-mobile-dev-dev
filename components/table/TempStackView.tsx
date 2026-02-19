@@ -92,6 +92,11 @@ export function TempStackView({ stack, layoutVersion, registerTempStack, unregis
         <PlayingCard rank={top.rank} suit={top.suit} />
       </View>
 
+      {/* Value indicator - shows running total from stack.value */}
+      <View style={styles.valueBadge}>
+        <Text style={styles.valueText}>{stack.value}</Text>
+      </View>
+
       {/* Badge — colour + label driven by stackActions config */}
       <View style={styles.badge}>
         <Text style={[styles.badgeText, { backgroundColor: badgeColor }]}>
@@ -125,6 +130,33 @@ const styles = StyleSheet.create({
     shadowRadius:  3,
     elevation:     4,
   },
+  // Value badge - shows the running total (top-right corner)
+  valueBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#9C27B0', // Purple
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    zIndex: 20,        // Make sure it appears above cards
+    elevation: 5,      // Android shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 1, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+  },
+  valueText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
   badge: {
     position: 'absolute',
     bottom:   0,
@@ -133,14 +165,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: {
-    color:          '#fff',
-    fontSize:       8,
-    fontWeight:     'bold',
-    letterSpacing:  1,
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: 'bold',
+    letterSpacing: 1,
     paddingHorizontal: 8,
-    paddingVertical:   2,
-    borderRadius:   6,
-    overflow:       'hidden',
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: 'hidden',
   },
 });
 
