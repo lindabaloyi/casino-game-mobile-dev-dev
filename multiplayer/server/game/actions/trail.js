@@ -5,6 +5,7 @@
  * Rules:
  *  - Player must have the card in their hand
  *  - Card is removed from hand and added to tableCards
+ *  - Player CANNOT play a card whose rank already exists on the table
  *  - Turn advances to the other player
  *
  * Contract: (state, payload, playerIndex) => newState  (pure, no side effects)
@@ -21,10 +22,24 @@ const { cloneState, nextTurn } = require('../GameState');
 function trail(state, payload, playerIndex) {
   const { card } = payload;
 
+  // Validate card payload
   if (!card || !card.rank || !card.suit) {
     throw new Error('trail: invalid card payload');
   }
 
+  // GUARDRAIL: Check if a card with the same rank already exists on the table
+  const existingCardOfSameRank = state.tableCards.some(
+    tableCard => tableCard.rank === card.rank
+  );
+  
+  if (existingCardOfSameRank) {
+    throw new Error(
+      `trail: Cannot play ${card.rank}${card.suit} - ` +
+      `there's already a ${card.rank} on the table`
+    );
+  }
+
+  // Clone state for pure function
   const newState = cloneState(state);
   const hand = newState.playerHands[playerIndex];
 
