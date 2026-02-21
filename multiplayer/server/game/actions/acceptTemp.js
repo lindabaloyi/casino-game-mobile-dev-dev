@@ -59,7 +59,10 @@ function acceptTemp(state, payload, playerIndex) {
     );
   }
 
-  // Stack unchanged, turn advances to opponent
+  // Change type from 'temp_stack' to 'build_stack' so TEMP badge disappears
+  stack.type = 'build_stack';
+
+  // Stack unchanged (except type), turn advances to opponent
   return nextTurn(newState);
 }
 

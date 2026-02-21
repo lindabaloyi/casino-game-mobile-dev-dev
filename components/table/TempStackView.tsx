@@ -97,12 +97,14 @@ export function TempStackView({ stack, layoutVersion, registerTempStack, unregis
         <Text style={styles.valueText}>{stack.value}</Text>
       </View>
 
-      {/* Badge — colour + label driven by stackActions config */}
-      <View style={styles.badge}>
-        <Text style={[styles.badgeText, { backgroundColor: badgeColor }]}>
-          {badgeLabel}
-        </Text>
-      </View>
+      {/* Badge — only show for temp_stack type */}
+      {stack.type === 'temp_stack' && (
+        <View style={styles.badge}>
+          <Text style={[styles.badgeText, { backgroundColor: badgeColor }]}>
+            {badgeLabel}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }

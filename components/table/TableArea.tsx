@@ -4,23 +4,12 @@
  * Renders the table drop zone and delegates all sub-concerns to dedicated
  * components. This file intentionally contains NO styles beyond the outer
  * container — every inner visual is owned by its sub-component.
- *
- * Sub-components:
- *   DraggableLooseCard  — position-registered, draggable loose card
- *   TempStackView       — fanned card stack with badge (color from stackActions config)
- *   StackActionStrip    — Accept / Cancel buttons (copy + colors from stackActions config)
- *
- * Adding a new stack type (build, extend_build):
- *   1. Add entry to constants/stackActions.ts
- *   2. Update components/table/types.ts
- *   3. Filter + render the new stack type below — TempStackView + StackActionStrip
- *      adapt automatically.
  */
 
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { CardBounds, TempStackBounds } from '../../hooks/useDrag';
-import { Card, TempStack, TableItem, isLooseCard, isTempStack } from './types';
+import { Card, TempStack, TableItem, isLooseCard } from './types';
 import { DraggableLooseCard } from './DraggableLooseCard';
 import { TempStackView } from './TempStackView';
 import { StackActionStrip } from './StackActionStrip';
@@ -61,6 +50,13 @@ interface Props {
   onCancelTemp:   (stackId: string) => void;
 }
 
+// ── Type guard for stacks ───────────────────────────────────────────────
+
+// Helper to check if an item is any kind of stack (temp_stack or build_stack)
+function isStack(item: TableItem): item is TempStack {
+  return 'type' in item && (item.type === 'temp_stack' || item.type === 'build_stack');
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function TableArea({
@@ -85,7 +81,8 @@ export function TableArea({
   onCancelTemp,
 }: Props) {
   const looseCards     = tableCards.filter(isLooseCard) as Card[];
-  const tempStacks     = tableCards.filter(isTempStack) as TempStack[];
+  // Show both temp stacks and accepted builds
+  const stacks         = tableCards.filter(isStack);
   // layoutVersion bumps on every tableCards change, triggering re-measurement
   // in DraggableLooseCard and TempStackView so flex-reflow shifts are captured.
   const layoutVersion  = tableCards.length;
@@ -124,7 +121,7 @@ export function TableArea({
           />
         ))}
 
-        {tempStacks.map((stack) => (
+        {stacks.map((stack) => (
           <TempStackView
             key={stack.stackId}
             stack={stack}
