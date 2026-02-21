@@ -6,12 +6,18 @@
  * Rules:
  *  - Player must own an active temp stack
  *  - It must be that player's turn
- *  - Turn advances after acceptance
- *
- * Contract: (state, payload, playerIndex) => newState  (pure, no side effects)
+ *  - Player must have a card in hand matching the stack's total value
+ *  - Turn advances after acceptance (stack unchanged)
  */
 
 const { cloneState, nextTurn } = require('../GameState');
+
+/**
+ * Helper to check if player has a card with a specific value in hand
+ */
+function hasCardWithValue(hand, targetValue) {
+  return hand.some(card => card.value === targetValue);
+}
 
 /**
  * @param {object} state
@@ -26,6 +32,7 @@ function acceptTemp(state, payload, playerIndex) {
 
   const newState = cloneState(state);
 
+  // Find the temp stack
   const stackIdx = newState.tableCards.findIndex(
     tc => tc.type === 'temp_stack' && tc.stackId === stackId,
   );
@@ -35,12 +42,24 @@ function acceptTemp(state, payload, playerIndex) {
   }
 
   const stack = newState.tableCards[stackIdx];
+  
+  // Validate ownership
   if (stack.owner !== playerIndex) {
     throw new Error(`acceptTemp: player ${playerIndex} does not own stack "${stackId}"`);
   }
 
-  // Temp stack stays exactly as-is — no mutation needed
-  // Advance turn to opponent
+  // Get player's hand
+  const playerHand = newState.playerHands[playerIndex];
+  
+  // Check if player has a card matching the stack's total value
+  const targetValue = stack.value;
+  if (!hasCardWithValue(playerHand, targetValue)) {
+    throw new Error(
+      `acceptTemp: Player does not have a card with value ${targetValue} in hand`
+    );
+  }
+
+  // Stack unchanged, turn advances to opponent
   return nextTurn(newState);
 }
 
