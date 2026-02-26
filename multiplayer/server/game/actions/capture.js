@@ -2,12 +2,12 @@
  * capture
  * Player captures either:
  *   1. A loose table card (matching the hand card's value)
- *   2. An opponent's build stack (matching the build's total value)
+ *   2. A build stack (own or opponent's, matching the build's total value)
  *
  * Rules:
  *  - Card must be in player's hand
  *  - Card value must match target value
- *  - If target is opponent's build, player must NOT own it
+ *  - Player can capture their own builds or opponent's builds
  *  - Turn advances after capture
  *
  * Contract: (state, payload, playerIndex) => newState  (pure, no side effects)
@@ -82,7 +82,7 @@ function capture(state, payload, playerIndex) {
     capturedCards.push(targetCard);
 
   } else if (targetType === 'build') {
-    // Capture an opponent's build stack
+    // Capture a build stack (can be own or opponent's)
     if (!targetStackId) {
       throw new Error('capture: build target missing stackId');
     }
@@ -96,13 +96,6 @@ function capture(state, payload, playerIndex) {
     }
 
     const buildStack = newState.tableCards[stackIdx];
-
-    // Validate: player must NOT own this build
-    if (buildStack.owner === playerIndex) {
-      throw new Error(
-        `capture: cannot capture your own build stack "${targetStackId}"`,
-      );
-    }
 
     // Validate: card value must match build's total value
     if (capturingCard.value !== buildStack.value) {
