@@ -187,6 +187,7 @@ export function TableArea({
         playerCaptures={playerCaptures}
         opponentCaptures={opponentCaptures}
         playerNumber={playerNumber}
+        isMyTurn={isMyTurn}
         registerCapturedCard={registerCapturedCard}
         unregisterCapturedCard={unregisterCapturedCard}
         findCardAtPoint={findCardAtPoint}

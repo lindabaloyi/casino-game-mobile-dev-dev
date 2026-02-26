@@ -20,14 +20,6 @@
  *      child of the root, so it always paints above everything else.
  *   3. The ghost follows the finger via Reanimated shared values (no React
  *      state updates, no re-renders per frame).
- *
- * Temp stack creation
- * ───────────────────
- * When a player drops their hand card onto a specific table card, TableArea
- * has already registered that card's screen bounds via useDrag.registerCard.
- * DraggableHandCard calls onCardDrop(handCard, targetCard) which triggers
- * the createTemp server action — grouping the two cards into a temp_stack
- * in tableCards without advancing the turn.
  */
 
 import React, { useCallback, useState, useMemo } from 'react';
@@ -52,6 +44,8 @@ interface Card {
   suit: string;
   value: number;
 }
+
+type DragSource = 'hand' | 'captured' | null;
 
 interface GameBoardProps {
   gameState: GameState;
@@ -81,8 +75,7 @@ export function GameBoard({
   const playerCaptures = gameState.playerCaptures?.[playerNumber] ?? [];
   const opponentCaptures = gameState.playerCaptures?.[playerNumber === 0 ? 1 : 0] ?? [];
 
-  // Table version counter - increments on every change to trigger position re-measurement
-  // Uses a hash of card identifiers to detect all changes (not just count)
+  // Table version counter
   const tableVersion = useMemo(() => {
     const cards = gameState.tableCards ?? [];
     const cardCount = cards.length;
@@ -105,21 +98,23 @@ export function GameBoard({
     isNearAnyStack,
     registerCapturedCard,
     unregisterCapturedCard,
-    findCapturedCardAtPoint,
   } = useDrag();
 
   // ── Drag overlay state ────────────────────────────────────────────────────
   const [draggingCard, setDraggingCard] = useState<Card | null>(null);
+  const [dragSource, setDragSource] = useState<DragSource>(null);
   const overlayX = useSharedValue(0);
   const overlayY = useSharedValue(0);
 
   const handleDragStart = useCallback((card: Card) => {
     setDraggingCard(card);
+    setDragSource('hand');
   }, []);
 
   const handleDragMove = useCallback(
     (absoluteX: number, absoluteY: number) => {
-      overlayX.value = absoluteX - CARD_WIDTH  / 2;
+      // Position ghost centered on finger
+      overlayX.value = absoluteX - CARD_WIDTH / 2;
       overlayY.value = absoluteY - CARD_HEIGHT / 2;
     },
     [overlayX, overlayY],
@@ -127,17 +122,19 @@ export function GameBoard({
 
   const handleDragEnd = useCallback(() => {
     setDraggingCard(null);
+    setDragSource(null);
   }, []);
 
+  // Ghost style - simple positioning, no transforms
   const ghostStyle = useAnimatedStyle(() => ({
     position: 'absolute',
     left: overlayX.value,
-    top:  overlayY.value,
+    top: overlayY.value,
+    zIndex: 1000,
   }));
 
   // ── Action callbacks ──────────────────────────────────────────────────────
 
-  /** Trail: hand card dropped anywhere on the table */
   const handleTrail = useCallback(
     (card: Card) => {
       sendAction({ type: 'trail', payload: { card } as unknown as Record<string, unknown> });
@@ -145,57 +142,43 @@ export function GameBoard({
     [sendAction],
   );
 
-  /**
-   * Hand card dropped onto a specific table card → createTemp.
-   */
   const handleCardDrop = useCallback(
     (handCard: Card, targetCard: Card) => {
-      console.log(`[GameBoard] createTemp: ${handCard.rank}${handCard.suit} → ${targetCard.rank}${targetCard.suit}`);
       sendAction({ type: 'createTemp', payload: { card: handCard, targetCard } as unknown as Record<string, unknown> });
     },
     [sendAction],
   );
 
-  /** Table card dropped onto another loose table card → createTempFromTable */
   const handleTableCardDropOnCard = useCallback(
     (card: Card, targetCard: Card) => {
-      console.log(`[GameBoard] createTempFromTable: ${card.rank}${card.suit} → ${targetCard.rank}${targetCard.suit}`);
       sendAction({ type: 'createTempFromTable', payload: { card, targetCard } as unknown as Record<string, unknown> });
     },
     [sendAction],
   );
 
-  /** Table card dropped onto own temp stack → addToTemp */
   const handleTableCardDropOnTemp = useCallback(
     (tableCard: Card, stackId: string) => {
-      console.log(`[GameBoard] addToTemp: ${tableCard.rank}${tableCard.suit} → stack ${stackId}`);
       sendAction({ type: 'addToTemp', payload: { tableCard, stackId } as unknown as Record<string, unknown> });
     },
     [sendAction],
   );
 
-  /** Accept the pending temp stack → turn advances to opponent */
   const handleAcceptTemp = useCallback(
     (stackId: string) => {
-      console.log(`[GameBoard] acceptTemp: ${stackId}`);
       sendAction({ type: 'acceptTemp', payload: { stackId } as unknown as Record<string, unknown> });
     },
     [sendAction],
   );
 
-  /** Cancel the pending temp stack → cards returned, same player's turn */
   const handleCancelTemp = useCallback(
     (stackId: string) => {
-      console.log(`[GameBoard] cancelTemp: ${stackId}`);
       sendAction({ type: 'cancelTemp', payload: { stackId } as unknown as Record<string, unknown> });
     },
     [sendAction],
   );
 
-  /** Capture: hand card dropped onto loose card or opponent's temp stack */
   const handleCapture = useCallback(
     (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => {
-      console.log(`[GameBoard] capture: ${card.rank}${card.suit} → ${targetType}`);
       sendAction({ 
         type: 'capture', 
         payload: { card, targetType, targetRank, targetSuit, targetStackId } as unknown as Record<string, unknown> 
@@ -204,14 +187,14 @@ export function GameBoard({
     [sendAction],
   );
 
-  /** Handle opponent's captured card drag - stack onto loose card or add to temp stack */
   const handleCapturedCardDragStart = useCallback((card: Card) => {
     setDraggingCard(card);
+    setDragSource('captured');
   }, []);
 
   const handleCapturedCardDragMove = useCallback(
     (absoluteX: number, absoluteY: number) => {
-      overlayX.value = absoluteX - CARD_WIDTH  / 2;
+      overlayX.value = absoluteX - CARD_WIDTH / 2;
       overlayY.value = absoluteY - CARD_HEIGHT / 2;
     },
     [overlayX, overlayY],
@@ -219,34 +202,26 @@ export function GameBoard({
 
   const handleCapturedCardDragEnd = useCallback(
     (card: Card, targetCard?: Card, targetStackId?: string) => {
-      console.log(`[GameBoard] playFromCaptures: ${card.rank}${card.suit}`);
-      
       if (targetCard) {
-        // Stack onto loose card → create temp
         sendAction({ 
           type: 'playFromCaptures', 
           payload: { capturedCard: card, targetCard } as unknown as Record<string, unknown> 
         });
       } else if (targetStackId) {
-        // Add to existing temp stack
         sendAction({ 
           type: 'playFromCaptures', 
           payload: { capturedCard: card, targetStackId } as unknown as Record<string, unknown> 
         });
       }
-      
       setDraggingCard(null);
+      setDragSource(null);
     },
     [sendAction],
   );
 
-  /**
-   * Compute which stack (if any) should show the Accept/Cancel overlay.
-   * Shows for own temp_stack only. Only on current player's turn.
-   */
+  // Find overlay stack
   const overlayStackId: string | null = (() => {
     if (!isMyTurn) return null;
-    // Check for own temp stack
     const myTemp = (table as any[]).find(
       (tc: any) => tc.type === 'temp_stack' && tc.owner === playerNumber,
     );
@@ -256,7 +231,6 @@ export function GameBoard({
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
-      {/* Optional server-error banner */}
       {serverError && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{serverError.message}</Text>
@@ -318,21 +292,14 @@ export function GameBoard({
         onCapture={handleCapture}
       />
 
-      {/*
-        ── Drag ghost overlay ──────────────────────────────────────────────
-        Rendered LAST so it naturally paints above every other child.
-        pointerEvents="none" so it never intercepts gestures.
-      */}
-      {draggingCard && (
-        <View style={styles.overlayContainer} pointerEvents="none">
-          <Animated.View style={ghostStyle}>
-            <PlayingCard
-              rank={draggingCard.rank}
-              suit={draggingCard.suit}
-              style={styles.ghostCard}
-            />
-          </Animated.View>
-        </View>
+      {/* Ghost overlay - only for hand card drags */}
+      {draggingCard && dragSource === 'hand' && (
+        <Animated.View style={ghostStyle} pointerEvents="none">
+          <PlayingCard
+            rank={draggingCard.rank}
+            suit={draggingCard.suit}
+          />
+        </Animated.View>
       )}
     </View>
   );
@@ -355,23 +322,6 @@ const styles = StyleSheet.create({
   },
   errorText:  { color: '#fff', flex: 1, fontSize: 13 },
   errorClose: { color: '#fff', fontSize: 18, paddingHorizontal: 8 },
-
-  overlayContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  ghostCard: {
-    transform: [{ scale: 1.15 }],
-    opacity: 0.92,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 20,
-  },
 });
 
 export default GameBoard;

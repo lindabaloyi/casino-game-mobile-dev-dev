@@ -7,7 +7,7 @@
  * - Shows the TOP card (last in array = most recently captured)
  */
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
@@ -22,6 +22,8 @@ interface CapturedCardsViewProps {
   opponentCaptures: Card[];
   /** Player number (0 or 1) */
   playerNumber: number;
+  /** Whether it's this player's turn */
+  isMyTurn?: boolean;
   /** Register captured card position */
   registerCapturedCard?: (bounds: CapturedCardBounds) => void;
   /** Unregister captured card */
@@ -42,6 +44,7 @@ export function CapturedCardsView({
   playerCaptures,
   opponentCaptures,
   playerNumber,
+  isMyTurn = false,
   registerCapturedCard,
   unregisterCapturedCard,
   findCardAtPoint,
@@ -68,23 +71,36 @@ export function CapturedCardsView({
   const isDragging = useSharedValue(false);
   const draggedCard = useSharedValue<Card | null>(null);
 
-  const handleRegisterPosition = useCallback((card: Card) => {
-    if (cardRef.current && registerCapturedCard) {
+  // Register position on mount/layout
+  const handleLayout = useCallback(() => {
+    if (cardRef.current && registerCapturedCard && opponentTopCard) {
       cardRef.current.measureInWindow((x, y, width, height) => {
-        registerCapturedCard({ x, y, width, height, card });
+        registerCapturedCard({ x, y, width, height, card: opponentTopCard });
       });
     }
-  }, [registerCapturedCard]);
+  }, [registerCapturedCard, opponentTopCard]);
 
-  const handleDragStart = useCallback((card: Card) => {
+  // Re-register when opponent's top card changes
+  useEffect(() => {
+    if (cardRef.current && registerCapturedCard && opponentTopCard) {
+      // Small delay to ensure the view is laid out
+      setTimeout(() => {
+        cardRef.current?.measureInWindow((x, y, width, height) => {
+          registerCapturedCard({ x, y, width, height, card: opponentTopCard });
+        });
+      }, 100);
+    }
+  }, [registerCapturedCard, opponentTopCard]);
+
+  const handleDragStartInternal = useCallback((card: Card) => {
     if (onDragStart) onDragStart(card);
   }, [onDragStart]);
 
-  const handleDragMove = useCallback((x: number, y: number) => {
+  const handleDragMoveInternal = useCallback((x: number, y: number) => {
     if (onDragMove) onDragMove(x, y);
   }, [onDragMove]);
 
-  const handleDragEnd = useCallback((card: Card) => {
+  const handleDragEndInternal = useCallback((card: Card) => {
     if (!onDragEnd || !findCardAtPoint || !findTempStackAtPoint) return;
 
     // Get current position of the dragged card
@@ -118,24 +134,24 @@ export function CapturedCardsView({
   }, [findCardAtPoint, findTempStackAtPoint, onDragEnd, playerNumber, translateX, translateY]);
 
   const panGesture = Gesture.Pan()
+    .enabled(isMyTurn && !!opponentTopCard)
     .onStart(() => {
       if (opponentTopCard) {
         isDragging.value = true;
         draggedCard.value = opponentTopCard;
-        runOnJS(handleDragStart)(opponentTopCard);
-        runOnJS(handleRegisterPosition)(opponentTopCard);
+        runOnJS(handleDragStartInternal)(opponentTopCard);
       }
     })
     .onUpdate((event) => {
       if (isDragging.value) {
         translateX.value = event.translationX;
         translateY.value = event.translationY;
-        runOnJS(handleDragMove)(event.absoluteX, event.absoluteY);
+        runOnJS(handleDragMoveInternal)(event.absoluteX, event.absoluteY);
       }
     })
     .onEnd(() => {
       if (isDragging.value && draggedCard.value) {
-        runOnJS(handleDragEnd)(draggedCard.value);
+        runOnJS(handleDragEndInternal)(draggedCard.value);
       }
       // Reset after a short delay to allow for action processing
       setTimeout(() => {
@@ -146,17 +162,17 @@ export function CapturedCardsView({
       }, 100);
     });
 
+  // No opacity change - keep card at full opacity while dragging
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
       { translateY: translateY.value },
     ],
-    opacity: isDragging.value ? 0.8 : 1,
     zIndex: isDragging.value ? 100 : 1,
   }));
 
   // Cleanup on unmount
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (unregisterCapturedCard) {
         unregisterCapturedCard();
@@ -165,9 +181,9 @@ export function CapturedCardsView({
   }, [unregisterCapturedCard]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       {/* Player's captures (left side) - view only */}
-      <View style={styles.captureSection}>
+      <View style={styles.captureSection} pointerEvents="none">
         <Text style={styles.label}>{playerLabel}</Text>
         <View style={styles.cardContainer}>
           {playerTopCard ? (
@@ -185,11 +201,12 @@ export function CapturedCardsView({
       </View>
 
       {/* Opponent's captures (right side) - draggable */}
-      <View style={styles.captureSection}>
+      <View style={styles.captureSection} pointerEvents="box-none">
         <Text style={styles.label}>{opponentLabel}</Text>
         <GestureDetector gesture={panGesture}>
           <Animated.View 
             ref={cardRef}
+            onLayout={handleLayout}
             style={[styles.cardWrapper, animatedStyle]}
           >
             {opponentTopCard ? (
@@ -221,7 +238,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    pointerEvents: 'none',
   },
   captureSection: {
     alignItems: 'center',
