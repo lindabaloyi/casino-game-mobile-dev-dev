@@ -49,10 +49,10 @@ export interface CapturedCardBounds {
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
-// Tight tolerance for direct hit detection (cards must be dropped directly on)
-const DIRECT_HIT_TOLERANCE = 12;
+// Increased tolerance for better hit detection during drag & drop
+const DIRECT_HIT_TOLERANCE = 20;
 // Expanded tolerance for proximity check - cards near table items won't trail
-const PROXIMITY_TOLERANCE = 25;
+const PROXIMITY_TOLERANCE = 35;
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
@@ -77,6 +77,7 @@ export function useDrag() {
   const cardPositions = useRef<Map<string, CardBounds>>(new Map());
 
   const registerCard = useCallback((id: string, bounds: CardBounds) => {
+    console.log('[useDrag] registerCard:', { id, ...bounds });
     cardPositions.current.set(id, bounds);
   }, []);
 
@@ -90,17 +91,21 @@ export function useDrag() {
    */
   const findCardAtPoint = useCallback(
     (x: number, y: number, excludeId?: string): { rank: string; suit: string; value: number } | null => {
+      // Debug: log all registered cards
+      const cardList = Array.from(cardPositions.current.entries()).map(([id, b]) => ({ id, ...b }));
+      console.log('[useDrag] findCardAtPoint - checking:', { x, y, excludeId, registeredCards: cardList });
+      
       for (const [id, bounds] of cardPositions.current) {
         if (excludeId && id === excludeId) continue;
-        if (
-          x >= bounds.x - DIRECT_HIT_TOLERANCE &&
-          x <= bounds.x + bounds.width  + DIRECT_HIT_TOLERANCE &&
-          y >= bounds.y - DIRECT_HIT_TOLERANCE &&
-          y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE
-        ) {
+        const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
+        const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
+        console.log('[useDrag] findCardAtPoint - checking card:', { id, card: bounds.card, x, y, bounds, inX, inY });
+        if (inX && inY) {
+          console.log('[useDrag] findCardAtPoint - HIT:', { id, bounds, x, y, tolerance: DIRECT_HIT_TOLERANCE });
           return bounds.card;
         }
       }
+      console.log('[useDrag] findCardAtPoint - no hit');
       return null;
     },
     [],
@@ -131,6 +136,7 @@ export function useDrag() {
   const tempStackPositions = useRef<Map<string, TempStackBounds>>(new Map());
 
   const registerTempStack = useCallback((stackId: string, bounds: TempStackBounds) => {
+    console.log('[useDrag] registerTempStack:', { stackId, x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height, owner: bounds.owner });
     tempStackPositions.current.set(stackId, bounds);
   }, []);
 
@@ -141,16 +147,20 @@ export function useDrag() {
   /** Returns the temp stack at (x, y), or null (direct hit). */
   const findTempStackAtPoint = useCallback(
     (x: number, y: number): { stackId: string; owner: number } | null => {
+      // Debug: log all registered stacks
+      const stackList = Array.from(tempStackPositions.current.entries()).map(([id, b]) => ({ id, ...b }));
+      console.log('[useDrag] findTempStackAtPoint - checking:', { x, y, registeredStacks: stackList });
+      
       for (const [, bounds] of tempStackPositions.current) {
-        if (
-          x >= bounds.x - DIRECT_HIT_TOLERANCE &&
-          x <= bounds.x + bounds.width  + DIRECT_HIT_TOLERANCE &&
-          y >= bounds.y - DIRECT_HIT_TOLERANCE &&
-          y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE
-        ) {
+        const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
+        const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
+        console.log('[useDrag] findTempStackAtPoint - checking stack:', { stackId: bounds.stackId, x, y, bounds, inX, inY });
+        if (inX && inY) {
+          console.log('[useDrag] findTempStackAtPoint - HIT:', { bounds, x, y, tolerance: DIRECT_HIT_TOLERANCE });
           return { stackId: bounds.stackId, owner: bounds.owner };
         }
       }
+      console.log('[useDrag] findTempStackAtPoint - no hit');
       return null;
     },
     [],

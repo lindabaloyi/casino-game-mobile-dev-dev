@@ -75,6 +75,7 @@ export function CapturedCardsView({
   const handleLayout = useCallback(() => {
     if (cardRef.current && registerCapturedCard && opponentTopCard) {
       cardRef.current.measureInWindow((x, y, width, height) => {
+        console.log('[CapturedCardsView] Registering opponent card position:', { x, y, width, height, card: opponentTopCard });
         registerCapturedCard({ x, y, width, height, card: opponentTopCard });
       });
     }
@@ -86,6 +87,7 @@ export function CapturedCardsView({
       // Small delay to ensure the view is laid out
       setTimeout(() => {
         cardRef.current?.measureInWindow((x, y, width, height) => {
+          console.log('[CapturedCardsView] Re-registering opponent card:', { x, y, width, height, card: opponentTopCard });
           registerCapturedCard({ x, y, width, height, card: opponentTopCard });
         });
       }, 100);
@@ -93,6 +95,7 @@ export function CapturedCardsView({
   }, [registerCapturedCard, opponentTopCard]);
 
   const handleDragStartInternal = useCallback((card: Card) => {
+    console.log('[CapturedCardsView] Drag started:', card);
     if (onDragStart) onDragStart(card);
   }, [onDragStart]);
 
@@ -100,37 +103,40 @@ export function CapturedCardsView({
     if (onDragMove) onDragMove(x, y);
   }, [onDragMove]);
 
-  const handleDragEndInternal = useCallback((card: Card) => {
-    if (!onDragEnd || !findCardAtPoint || !findTempStackAtPoint) return;
-
-    // Get current position of the dragged card
-    if (cardRef.current) {
-      cardRef.current.measureInWindow((x, y, width, height) => {
-        const centerX = x + width / 2 + translateX.value;
-        const centerY = y + height / 2 + translateY.value;
-
-        // Check if dropped on a loose card
-        const targetCard = findCardAtPoint(centerX, centerY);
-        if (targetCard) {
-          onDragEnd(card, targetCard);
-          return;
-        }
-
-        // Check if dropped on a temp stack
-        const targetStack = findTempStackAtPoint(centerX, centerY);
-        if (targetStack) {
-          // Can only add to own temp stack
-          if (targetStack.owner === playerNumber) {
-            onDragEnd(card, undefined, targetStack.stackId);
-          }
-          return;
-        }
-
-        // No valid drop target - reset position
-        translateX.value = 0;
-        translateY.value = 0;
-      });
+  // Handle drop using finger position directly (like DraggableHandCard does)
+  const handleDragEndInternal = useCallback((card: Card, absX: number, absY: number) => {
+    if (!onDragEnd || !findCardAtPoint || !findTempStackAtPoint) {
+      console.log('[CapturedCardsView] Drag ended - missing callbacks');
+      return;
     }
+
+    console.log('[CapturedCardsView] Drop check at finger position:', { absX, absY });
+
+    // Check if dropped on a loose card (using finger position directly)
+    const targetCard = findCardAtPoint(absX, absY);
+    if (targetCard) {
+      console.log('[CapturedCardsView] Dropped on loose card:', targetCard);
+      onDragEnd(card, targetCard);
+      return;
+    }
+
+    // Check if dropped on a temp stack (using finger position directly)
+    const targetStack = findTempStackAtPoint(absX, absY);
+    if (targetStack) {
+      console.log('[CapturedCardsView] Dropped on temp stack:', targetStack);
+      // Can only add to own temp stack
+      if (targetStack.owner === playerNumber) {
+        onDragEnd(card, undefined, targetStack.stackId);
+      } else {
+        console.log('[CapturedCardsView] Cannot add to opponent stack');
+      }
+      return;
+    }
+
+    console.log('[CapturedCardsView] No valid drop target found at finger position');
+    // No valid drop target - reset position
+    translateX.value = 0;
+    translateY.value = 0;
   }, [findCardAtPoint, findTempStackAtPoint, onDragEnd, playerNumber, translateX, translateY]);
 
   const panGesture = Gesture.Pan()
@@ -149,9 +155,10 @@ export function CapturedCardsView({
         runOnJS(handleDragMoveInternal)(event.absoluteX, event.absoluteY);
       }
     })
-    .onEnd(() => {
+    .onEnd((event) => {
       if (isDragging.value && draggedCard.value) {
-        runOnJS(handleDragEndInternal)(draggedCard.value);
+        // Use the finger's absolute position directly for hit detection
+        runOnJS(handleDragEndInternal)(draggedCard.value, event.absoluteX, event.absoluteY);
       }
       // Reset after a short delay to allow for action processing
       setTimeout(() => {
