@@ -7,10 +7,13 @@
  * - Shows the TOP card (last in array = most recently captured)
  */
 
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
+import { CapturedCardBounds } from '../../hooks/useDrag';
 
 interface CapturedCardsViewProps {
   /** Cards captured by the player */
@@ -19,12 +22,33 @@ interface CapturedCardsViewProps {
   opponentCaptures: Card[];
   /** Player number (0 or 1) */
   playerNumber: number;
+  /** Register captured card position */
+  registerCapturedCard?: (bounds: CapturedCardBounds) => void;
+  /** Unregister captured card */
+  unregisterCapturedCard?: () => void;
+  /** Find card at point (for detecting drag over table cards) */
+  findCardAtPoint?: (x: number, y: number, excludeId?: string) => Card | null;
+  /** Find temp stack at point */
+  findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number } | null;
+  /** Callback when drag starts */
+  onDragStart?: (card: Card) => void;
+  /** Callback when drag moves */
+  onDragMove?: (absoluteX: number, absoluteY: number) => void;
+  /** Callback when drag ends - return action to send */
+  onDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string) => void;
 }
 
 export function CapturedCardsView({
   playerCaptures,
   opponentCaptures,
   playerNumber,
+  registerCapturedCard,
+  unregisterCapturedCard,
+  findCardAtPoint,
+  findTempStackAtPoint,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
 }: CapturedCardsViewProps) {
   const playerLabel = playerNumber === 0 ? 'P1' : 'P2';
   const opponentLabel = playerNumber === 0 ? 'P2' : 'P1';
@@ -36,6 +60,109 @@ export function CapturedCardsView({
   const opponentTopCard = opponentCaptures.length > 0 
     ? opponentCaptures[opponentCaptures.length - 1] 
     : null;
+
+  // Drag state for opponent's card
+  const cardRef = useRef<View>(null);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const isDragging = useSharedValue(false);
+  const draggedCard = useSharedValue<Card | null>(null);
+
+  const handleRegisterPosition = useCallback((card: Card) => {
+    if (cardRef.current && registerCapturedCard) {
+      cardRef.current.measureInWindow((x, y, width, height) => {
+        registerCapturedCard({ x, y, width, height, card });
+      });
+    }
+  }, [registerCapturedCard]);
+
+  const handleDragStart = useCallback((card: Card) => {
+    if (onDragStart) onDragStart(card);
+  }, [onDragStart]);
+
+  const handleDragMove = useCallback((x: number, y: number) => {
+    if (onDragMove) onDragMove(x, y);
+  }, [onDragMove]);
+
+  const handleDragEnd = useCallback((card: Card) => {
+    if (!onDragEnd || !findCardAtPoint || !findTempStackAtPoint) return;
+
+    // Get current position of the dragged card
+    if (cardRef.current) {
+      cardRef.current.measureInWindow((x, y, width, height) => {
+        const centerX = x + width / 2 + translateX.value;
+        const centerY = y + height / 2 + translateY.value;
+
+        // Check if dropped on a loose card
+        const targetCard = findCardAtPoint(centerX, centerY);
+        if (targetCard) {
+          onDragEnd(card, targetCard);
+          return;
+        }
+
+        // Check if dropped on a temp stack
+        const targetStack = findTempStackAtPoint(centerX, centerY);
+        if (targetStack) {
+          // Can only add to own temp stack
+          if (targetStack.owner === playerNumber) {
+            onDragEnd(card, undefined, targetStack.stackId);
+          }
+          return;
+        }
+
+        // No valid drop target - reset position
+        translateX.value = 0;
+        translateY.value = 0;
+      });
+    }
+  }, [findCardAtPoint, findTempStackAtPoint, onDragEnd, playerNumber, translateX, translateY]);
+
+  const panGesture = Gesture.Pan()
+    .onStart(() => {
+      if (opponentTopCard) {
+        isDragging.value = true;
+        draggedCard.value = opponentTopCard;
+        runOnJS(handleDragStart)(opponentTopCard);
+        runOnJS(handleRegisterPosition)(opponentTopCard);
+      }
+    })
+    .onUpdate((event) => {
+      if (isDragging.value) {
+        translateX.value = event.translationX;
+        translateY.value = event.translationY;
+        runOnJS(handleDragMove)(event.absoluteX, event.absoluteY);
+      }
+    })
+    .onEnd(() => {
+      if (isDragging.value && draggedCard.value) {
+        runOnJS(handleDragEnd)(draggedCard.value);
+      }
+      // Reset after a short delay to allow for action processing
+      setTimeout(() => {
+        translateX.value = 0;
+        translateY.value = 0;
+        isDragging.value = false;
+        draggedCard.value = null;
+      }, 100);
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+    opacity: isDragging.value ? 0.8 : 1,
+    zIndex: isDragging.value ? 100 : 1,
+  }));
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      if (unregisterCapturedCard) {
+        unregisterCapturedCard();
+      }
+    };
+  }, [unregisterCapturedCard]);
 
   return (
     <View style={styles.container}>
@@ -57,21 +184,26 @@ export function CapturedCardsView({
         <Text style={styles.count}>{playerCaptures.length}</Text>
       </View>
 
-      {/* Opponent's captures (right side) - draggable indicator */}
+      {/* Opponent's captures (right side) - draggable */}
       <View style={styles.captureSection}>
         <Text style={styles.label}>{opponentLabel}</Text>
-        <View style={styles.cardContainer}>
-          {opponentTopCard ? (
-            <PlayingCard 
-              rank={opponentTopCard.rank} 
-              suit={opponentTopCard.suit} 
-            />
-          ) : (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyText}>-</Text>
-            </View>
-          )}
-        </View>
+        <GestureDetector gesture={panGesture}>
+          <Animated.View 
+            ref={cardRef}
+            style={[styles.cardWrapper, animatedStyle]}
+          >
+            {opponentTopCard ? (
+              <PlayingCard 
+                rank={opponentTopCard.rank} 
+                suit={opponentTopCard.suit} 
+              />
+            ) : (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>-</Text>
+              </View>
+            )}
+          </Animated.View>
+        </GestureDetector>
         <Text style={styles.count}>{opponentCaptures.length}</Text>
       </View>
     </View>
@@ -102,6 +234,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   cardContainer: {
+    width: 56,
+    height: 84,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardWrapper: {
     width: 56,
     height: 84,
     justifyContent: 'center',

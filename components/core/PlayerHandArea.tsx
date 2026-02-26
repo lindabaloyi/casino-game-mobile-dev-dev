@@ -27,6 +27,10 @@ interface Props {
   findCardAtPoint: (x: number, y: number) => Card | null;
   /** Find a stack at point — from useDrag */
   findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
+  /** Check if near any table card (proximity prevention) */
+  isNearAnyCard?: (x: number, y: number) => boolean;
+  /** Check if near any temp stack (proximity prevention) */
+  isNearAnyStack?: (x: number, y: number) => boolean;
   onTrail: (card: Card) => void;
   /** Called when the dragged card lands on a specific table card */
   onCardDrop: (handCard: Card, targetCard: Card) => void;
@@ -44,6 +48,8 @@ export function PlayerHandArea({
   dropBounds,
   findCardAtPoint,
   findTempStackAtPoint,
+  isNearAnyCard,
+  isNearAnyStack,
   onTrail,
   onCardDrop,
   onDragStart,
@@ -67,6 +73,8 @@ export function PlayerHandArea({
             dropBounds={dropBounds}
             findCardAtPoint={findCardAtPoint}
             findTempStackAtPoint={findTempStackAtPoint}
+            isNearAnyCard={isNearAnyCard}
+            isNearAnyStack={isNearAnyStack}
             isMyTurn={isMyTurn}
             onTrail={onTrail}
             onCardDrop={onCardDrop}

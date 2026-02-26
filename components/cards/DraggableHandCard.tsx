@@ -43,6 +43,10 @@ interface Props {
   findCardAtPoint: (x: number, y: number) => Card | null;
   /** Finds a stack at (x, y); returns null if no stack there */
   findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
+  /** Check if near any table card (for proximity prevention) */
+  isNearAnyCard?: (x: number, y: number) => boolean;
+  /** Check if near any temp stack (for proximity prevention) */
+  isNearAnyStack?: (x: number, y: number) => boolean;
   isMyTurn: boolean;
   onTrail: (card: Card) => void;
   /** Called when the dragged card lands on a specific table card */
@@ -62,6 +66,8 @@ export function DraggableHandCard({
   dropBounds,
   findCardAtPoint,
   findTempStackAtPoint,
+  isNearAnyCard,
+  isNearAnyStack,
   isMyTurn,
   onTrail,
   onCardDrop,
@@ -88,8 +94,9 @@ export function DraggableHandCard({
    * Priority:
    *   1. Build stack hit (opponent's) → capture
    *   2. Specific table card hit → createTemp
-   *   3. General table area hit  → trail
-   *   4. Miss → snap back
+   *   3. Near any card/stack but not directly on one → snap back (no trail!)
+   *   4. General table area hit → trail
+   *   5. Outside table → snap back
    */
   function handleDrop(absX: number, absY: number) {
     // 0. Check for a build stack under the finger (capture opponent's build)
@@ -114,7 +121,21 @@ export function DraggableHandCard({
       return;
     }
 
-    // 2. General table drop → trail
+    // 2. PROXIMITY CHECK: If near any card/stack but not directly on one, snap back
+    // This prevents accidental trailing when card is close to but not on a table item
+    const nearCard = isNearAnyCard?.(absX, absY);
+    const nearStack = isNearAnyStack?.(absX, absY);
+    
+    if (nearCard || nearStack) {
+      console.log(
+        `[DraggableHandCard] PROXIMITY — card near table item but not directly on it`,
+        `| nearCard: ${nearCard}, nearStack: ${nearStack}`,
+      );
+      handleSnapBack();
+      return;
+    }
+
+    // 3. General table drop → trail
     const b = dropBounds.current;
     const inZone =
       absX >= b.x &&

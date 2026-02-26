@@ -1,11 +1,12 @@
 /**
  * useDrag
- * Manages two position registries for drag interactions:
+ * Manages position registries for drag interactions:
  *
  *   cardPositions      — loose table cards (registered by LooseCardView)
  *   tempStackPositions — temp stacks on the table (registered by TempStackView)
+ *   capturedCardPosition — opponent's captured top card position
  *
- * Both registries are read on the JS thread inside DraggableHandCard and
+ * Registries are read on the JS thread inside DraggableHandCard and
  * DraggableTableCard to determine what the dragged card landed on.
  */
 
@@ -15,7 +16,7 @@ import { View } from 'react-native';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface DropBounds {
-  x: number;
+  x: number; 
   y: number;
   width: number;
   height: number;
@@ -37,6 +38,21 @@ export interface TempStackBounds {
   stackId: string;
   owner: number;
 }
+
+export interface CapturedCardBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  card: { rank: string; suit: string; value: number };
+}
+
+// ── Constants ───────────────────────────────────────────────────────────────
+
+// Tight tolerance for direct hit detection (cards must be dropped directly on)
+const DIRECT_HIT_TOLERANCE = 12;
+// Expanded tolerance for proximity check - cards near table items won't trail
+const PROXIMITY_TOLERANCE = 25;
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
@@ -69,28 +85,44 @@ export function useDrag() {
   }, []);
 
   /**
-   * Returns the loose card at (x, y), or null.
+   * Returns the loose card at (x, y), or null (direct hit).
    * excludeId — skip this card ID (used by DraggableTableCard to avoid matching itself).
-   *
-   * Hit detection uses a 12px tolerance on all sides to compensate for:
-   *  - Measurement timing lag (measureInWindow resolves asynchronously)
-   *  - Finger centroid vs exact drop point discrepancy on mobile
    */
-  const CARD_TOLERANCE = 12;
   const findCardAtPoint = useCallback(
     (x: number, y: number, excludeId?: string): { rank: string; suit: string; value: number } | null => {
       for (const [id, bounds] of cardPositions.current) {
         if (excludeId && id === excludeId) continue;
         if (
-          x >= bounds.x - CARD_TOLERANCE &&
-          x <= bounds.x + bounds.width  + CARD_TOLERANCE &&
-          y >= bounds.y - CARD_TOLERANCE &&
-          y <= bounds.y + bounds.height + CARD_TOLERANCE
+          x >= bounds.x - DIRECT_HIT_TOLERANCE &&
+          x <= bounds.x + bounds.width  + DIRECT_HIT_TOLERANCE &&
+          y >= bounds.y - DIRECT_HIT_TOLERANCE &&
+          y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE
         ) {
           return bounds.card;
         }
       }
       return null;
+    },
+    [],
+  );
+
+  /**
+   * Returns true if point is near any table card (proximity check).
+   * Used to prevent trailing when card is close to but not directly on a table card.
+   */
+  const isNearAnyCard = useCallback(
+    (x: number, y: number): boolean => {
+      for (const [, bounds] of cardPositions.current) {
+        if (
+          x >= bounds.x - PROXIMITY_TOLERANCE &&
+          x <= bounds.x + bounds.width  + PROXIMITY_TOLERANCE &&
+          y >= bounds.y - PROXIMITY_TOLERANCE &&
+          y <= bounds.y + bounds.height + PROXIMITY_TOLERANCE
+        ) {
+          return true;
+        }
+      }
+      return false;
     },
     [],
   );
@@ -106,19 +138,66 @@ export function useDrag() {
     tempStackPositions.current.delete(stackId);
   }, []);
 
-  /** Returns the temp stack at (x, y), or null. Same 12px tolerance as findCardAtPoint. */
-  const STACK_TOLERANCE = 12;
+  /** Returns the temp stack at (x, y), or null (direct hit). */
   const findTempStackAtPoint = useCallback(
     (x: number, y: number): { stackId: string; owner: number } | null => {
       for (const [, bounds] of tempStackPositions.current) {
         if (
-          x >= bounds.x - STACK_TOLERANCE &&
-          x <= bounds.x + bounds.width  + STACK_TOLERANCE &&
-          y >= bounds.y - STACK_TOLERANCE &&
-          y <= bounds.y + bounds.height + STACK_TOLERANCE
+          x >= bounds.x - DIRECT_HIT_TOLERANCE &&
+          x <= bounds.x + bounds.width  + DIRECT_HIT_TOLERANCE &&
+          y >= bounds.y - DIRECT_HIT_TOLERANCE &&
+          y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE
         ) {
           return { stackId: bounds.stackId, owner: bounds.owner };
         }
+      }
+      return null;
+    },
+    [],
+  );
+
+  /** Returns true if point is near any temp stack (proximity check). */
+  const isNearAnyStack = useCallback(
+    (x: number, y: number): boolean => {
+      for (const [, bounds] of tempStackPositions.current) {
+        if (
+          x >= bounds.x - PROXIMITY_TOLERANCE &&
+          x <= bounds.x + bounds.width  + PROXIMITY_TOLERANCE &&
+          y >= bounds.y - PROXIMITY_TOLERANCE &&
+          y <= bounds.y + bounds.height + PROXIMITY_TOLERANCE
+        ) {
+          return true;
+        }
+      }
+      return false;
+    },
+    [],
+  );
+
+  // ── Captured card position (opponent's top card) ─────────────────────────
+  const capturedCardPosition = useRef<CapturedCardBounds | null>(null);
+
+  const registerCapturedCard = useCallback((bounds: CapturedCardBounds) => {
+    capturedCardPosition.current = bounds;
+  }, []);
+
+  const unregisterCapturedCard = useCallback(() => {
+    capturedCardPosition.current = null;
+  }, []);
+
+  /** Returns the captured card if point is within its bounds, or null. */
+  const findCapturedCardAtPoint = useCallback(
+    (x: number, y: number): { rank: string; suit: string; value: number } | null => {
+      const bounds = capturedCardPosition.current;
+      if (!bounds) return null;
+      
+      if (
+        x >= bounds.x - DIRECT_HIT_TOLERANCE &&
+        x <= bounds.x + bounds.width  + DIRECT_HIT_TOLERANCE &&
+        y >= bounds.y - DIRECT_HIT_TOLERANCE &&
+        y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE
+      ) {
+        return bounds.card;
       }
       return null;
     },
@@ -135,11 +214,18 @@ export function useDrag() {
     registerCard,
     unregisterCard,
     findCardAtPoint,
+    isNearAnyCard,
     // Temp stack positions
     tempStackPositions,
     registerTempStack,
     unregisterTempStack,
     findTempStackAtPoint,
+    isNearAnyStack,
+    // Captured card position
+    capturedCardPosition,
+    registerCapturedCard,
+    unregisterCapturedCard,
+    findCapturedCardAtPoint,
   };
 }
 

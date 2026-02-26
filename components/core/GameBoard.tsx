@@ -30,7 +30,7 @@
  * in tableCards without advancing the turn.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { GameState } from '../../hooks/useGameState';
@@ -81,6 +81,15 @@ export function GameBoard({
   const playerCaptures = gameState.playerCaptures?.[playerNumber] ?? [];
   const opponentCaptures = gameState.playerCaptures?.[playerNumber === 0 ? 1 : 0] ?? [];
 
+  // Table version counter - increments on every change to trigger position re-measurement
+  // Uses a hash of card identifiers to detect all changes (not just count)
+  const tableVersion = useMemo(() => {
+    const cards = gameState.tableCards ?? [];
+    const cardCount = cards.length;
+    const idString = cards.map((c: any) => c.stackId || `${c.rank}${c.suit}`).join('');
+    return cardCount + idString.length;
+  }, [gameState.tableCards]);
+
   // ── Drop zone + card position tracking ───────────────────────────────────
   const {
     tableRef,
@@ -89,9 +98,14 @@ export function GameBoard({
     registerCard,
     unregisterCard,
     findCardAtPoint,
+    isNearAnyCard,
     registerTempStack,
     unregisterTempStack,
     findTempStackAtPoint,
+    isNearAnyStack,
+    registerCapturedCard,
+    unregisterCapturedCard,
+    findCapturedCardAtPoint,
   } = useDrag();
 
   // ── Drag overlay state ────────────────────────────────────────────────────
@@ -190,6 +204,42 @@ export function GameBoard({
     [sendAction],
   );
 
+  /** Handle opponent's captured card drag - stack onto loose card or add to temp stack */
+  const handleCapturedCardDragStart = useCallback((card: Card) => {
+    setDraggingCard(card);
+  }, []);
+
+  const handleCapturedCardDragMove = useCallback(
+    (absoluteX: number, absoluteY: number) => {
+      overlayX.value = absoluteX - CARD_WIDTH  / 2;
+      overlayY.value = absoluteY - CARD_HEIGHT / 2;
+    },
+    [overlayX, overlayY],
+  );
+
+  const handleCapturedCardDragEnd = useCallback(
+    (card: Card, targetCard?: Card, targetStackId?: string) => {
+      console.log(`[GameBoard] playFromCaptures: ${card.rank}${card.suit}`);
+      
+      if (targetCard) {
+        // Stack onto loose card → create temp
+        sendAction({ 
+          type: 'playFromCaptures', 
+          payload: { capturedCard: card, targetCard } as unknown as Record<string, unknown> 
+        });
+      } else if (targetStackId) {
+        // Add to existing temp stack
+        sendAction({ 
+          type: 'playFromCaptures', 
+          payload: { capturedCard: card, targetStackId } as unknown as Record<string, unknown> 
+        });
+      }
+      
+      setDraggingCard(null);
+    },
+    [sendAction],
+  );
+
   /**
    * Compute which stack (if any) should show the Accept/Cancel overlay.
    * Shows for own temp_stack only. Only on current player's turn.
@@ -223,6 +273,7 @@ export function GameBoard({
 
       <TableArea
         tableCards={table as any}
+        tableVersion={tableVersion}
         isMyTurn={isMyTurn}
         playerNumber={playerNumber}
         tableRef={tableRef}
@@ -244,6 +295,11 @@ export function GameBoard({
         onCapture={handleCapture}
         playerCaptures={playerCaptures}
         opponentCaptures={opponentCaptures}
+        registerCapturedCard={registerCapturedCard}
+        unregisterCapturedCard={unregisterCapturedCard}
+        onCapturedCardDragStart={handleCapturedCardDragStart}
+        onCapturedCardDragMove={handleCapturedCardDragMove}
+        onCapturedCardDragEnd={handleCapturedCardDragEnd}
       />
 
       <PlayerHandArea
@@ -252,6 +308,8 @@ export function GameBoard({
         dropBounds={dropBounds}
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
+        isNearAnyCard={isNearAnyCard}
+        isNearAnyStack={isNearAnyStack}
         onTrail={handleTrail}
         onCardDrop={handleCardDrop}
         onDragStart={handleDragStart}

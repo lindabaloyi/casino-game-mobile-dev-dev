@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { CardBounds, TempStackBounds } from '../../hooks/useDrag';
+import { CardBounds, TempStackBounds, CapturedCardBounds } from '../../hooks/useDrag';
 import { Card, TempStack, BuildStack, TableItem, isLooseCard, isTempStack, isBuildStack } from './types';
 import { DraggableLooseCard } from './DraggableLooseCard';
 import { TempStackView } from './TempStackView';
@@ -19,6 +19,9 @@ import { CapturedCardsView } from './CapturedCardsView';
 
 interface Props {
   tableCards:   TableItem[];
+  /** Version counter that increments on every table change (not just count). 
+   * Used to trigger re-measure of card positions when cards shift. */
+  tableVersion: number;
   isMyTurn:     boolean;
   playerNumber: number;
   tableRef:     React.RefObject<View | null>;
@@ -56,6 +59,13 @@ interface Props {
   // Captured cards arrays
   playerCaptures: Card[];
   opponentCaptures: Card[];
+
+  // Captured card callbacks (for dragging opponent's captured card)
+  registerCapturedCard?: (bounds: CapturedCardBounds) => void;
+  unregisterCapturedCard?: () => void;
+  onCapturedCardDragStart?: (card: Card) => void;
+  onCapturedCardDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onCapturedCardDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string) => void;
 }
 
 // ── Type guard for stacks ───────────────────────────────────────────────
@@ -74,6 +84,7 @@ function isTempStackForOverlay(item: TableItem): item is TempStack {
 
 export function TableArea({
   tableCards,
+  tableVersion,
   isMyTurn,
   playerNumber,
   tableRef,
@@ -95,14 +106,17 @@ export function TableArea({
   onCapture,
   playerCaptures,
   opponentCaptures,
+  registerCapturedCard,
+  unregisterCapturedCard,
+  onCapturedCardDragStart,
+  onCapturedCardDragMove,
+  onCapturedCardDragEnd,
 }: Props) {
   const looseCards = tableCards.filter(isLooseCard) as Card[];
   // Show both temp stacks and build stacks
   const stacks = tableCards.filter(isAnyStack) as (TempStack | BuildStack)[];
   // Only temp stacks need overlay (build stacks are already accepted)
   const tempStacks = tableCards.filter(isTempStackForOverlay) as TempStack[];
-  
-  const layoutVersion = tableCards.length;
 
   return (
     <View
@@ -125,7 +139,7 @@ export function TableArea({
             card={card}
             isMyTurn={isMyTurn}
             playerNumber={playerNumber}
-            layoutVersion={layoutVersion}
+            layoutVersion={tableVersion}
             registerCard={registerCard}
             unregisterCard={unregisterCard}
             findCardAtPoint={findCardAtPoint}
@@ -143,7 +157,7 @@ export function TableArea({
           <TempStackView
             key={stack.stackId}
             stack={stack}
-            layoutVersion={layoutVersion}
+            layoutVersion={tableVersion}
             registerTempStack={registerTempStack}
             unregisterTempStack={unregisterTempStack}
             onCapture={onCapture}
@@ -173,6 +187,13 @@ export function TableArea({
         playerCaptures={playerCaptures}
         opponentCaptures={opponentCaptures}
         playerNumber={playerNumber}
+        registerCapturedCard={registerCapturedCard}
+        unregisterCapturedCard={unregisterCapturedCard}
+        findCardAtPoint={findCardAtPoint}
+        findTempStackAtPoint={findTempStackAtPoint}
+        onDragStart={onCapturedCardDragStart}
+        onDragMove={onCapturedCardDragMove}
+        onDragEnd={onCapturedCardDragEnd}
       />
     </View>
   );
