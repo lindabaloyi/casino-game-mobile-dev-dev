@@ -112,8 +112,9 @@ function capture(state, payload, playerIndex) {
     throw new Error(`capture: unknown targetType "${targetType}"`);
   }
 
-  // Add all captured cards + the capturing card to player's captures
-  newState.playerCaptures[playerIndex].push(capturingCard, ...capturedCards);
+  // Add captured cards first, then the capturing card on top
+  // Example: capture 7+3 with 10 -> pile becomes [7, 3, 10] with 10 on top
+  newState.playerCaptures[playerIndex].push(...capturedCards, capturingCard);
 
   // Advance turn to opponent
   return nextTurn(newState);

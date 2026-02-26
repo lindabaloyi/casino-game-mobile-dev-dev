@@ -13,6 +13,7 @@ import { Card, TempStack, BuildStack, TableItem, isLooseCard, isTempStack, isBui
 import { DraggableLooseCard } from './DraggableLooseCard';
 import { TempStackView } from './TempStackView';
 import { StackActionStrip } from './StackActionStrip';
+import { CapturedCardsView } from './CapturedCardsView';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,10 @@ interface Props {
 
   // Capture callback
   onCapture: (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => void;
+
+  // Captured cards arrays
+  playerCaptures: Card[];
+  opponentCaptures: Card[];
 }
 
 // ── Type guard for stacks ───────────────────────────────────────────────
@@ -88,6 +93,8 @@ export function TableArea({
   onAcceptTemp,
   onCancelTemp,
   onCapture,
+  playerCaptures,
+  opponentCaptures,
 }: Props) {
   const looseCards = tableCards.filter(isLooseCard) as Card[];
   // Show both temp stacks and build stacks
@@ -160,6 +167,13 @@ export function TableArea({
           />
         );
       })()}
+
+      {/* Captured cards on left/right sides */}
+      <CapturedCardsView
+        playerCaptures={playerCaptures}
+        opponentCaptures={opponentCaptures}
+        playerNumber={playerNumber}
+      />
     </View>
   );
 }

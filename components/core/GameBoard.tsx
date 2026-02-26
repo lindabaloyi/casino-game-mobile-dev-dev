@@ -77,6 +77,10 @@ export function GameBoard({
   const table    = gameState.tableCards ?? [];
   const isMyTurn = gameState.currentPlayer === playerNumber;
 
+  // Captured cards arrays
+  const playerCaptures = gameState.playerCaptures?.[playerNumber] ?? [];
+  const opponentCaptures = gameState.playerCaptures?.[playerNumber === 0 ? 1 : 0] ?? [];
+
   // ── Drop zone + card position tracking ───────────────────────────────────
   const {
     tableRef,
@@ -238,6 +242,8 @@ export function GameBoard({
         onAcceptTemp={handleAcceptTemp}
         onCancelTemp={handleCancelTemp}
         onCapture={handleCapture}
+        playerCaptures={playerCaptures}
+        opponentCaptures={opponentCaptures}
       />
 
       <PlayerHandArea
