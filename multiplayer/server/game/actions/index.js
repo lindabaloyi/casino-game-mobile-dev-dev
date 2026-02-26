@@ -23,7 +23,9 @@ const actionHandlers = {
   acceptTemp:          require('./acceptTemp'),
   cancelTemp:          require('./cancelTemp'),
 
-  // ── Milestone 3 → capture:     require('./capture')
+  // ── Capture ────────────────────────────────────────────────────────────────
+  capture:             require('./capture'),
+
   // ── Milestone 5 → build:       require('./build')
   // ── Milestone 6 → extendBuild: require('./extendBuild')
 };

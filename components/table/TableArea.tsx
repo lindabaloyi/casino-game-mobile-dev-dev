@@ -9,7 +9,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { CardBounds, TempStackBounds } from '../../hooks/useDrag';
-import { Card, TempStack, TableItem, isLooseCard } from './types';
+import { Card, TempStack, BuildStack, TableItem, isLooseCard, isTempStack, isBuildStack } from './types';
 import { DraggableLooseCard } from './DraggableLooseCard';
 import { TempStackView } from './TempStackView';
 import { StackActionStrip } from './StackActionStrip';
@@ -48,13 +48,21 @@ interface Props {
   overlayStackId: string | null;
   onAcceptTemp:   (stackId: string) => void;
   onCancelTemp:   (stackId: string) => void;
+
+  // Capture callback
+  onCapture: (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => void;
 }
 
 // ── Type guard for stacks ───────────────────────────────────────────────
 
-// Helper to check if an item is any kind of stack (temp_stack or build_stack)
-function isStack(item: TableItem): item is TempStack {
-  return 'type' in item && (item.type === 'temp_stack' || item.type === 'build_stack');
+// Helper to check if an item is any stack (temp_stack or build_stack)
+function isAnyStack(item: TableItem): item is TempStack | BuildStack {
+  return isTempStack(item) || isBuildStack(item);
+}
+
+// Helper to check if an item is a temp stack (for overlay)
+function isTempStackForOverlay(item: TableItem): item is TempStack {
+  return isTempStack(item);
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -79,13 +87,15 @@ export function TableArea({
   overlayStackId,
   onAcceptTemp,
   onCancelTemp,
+  onCapture,
 }: Props) {
-  const looseCards     = tableCards.filter(isLooseCard) as Card[];
-  // Show both temp stacks and accepted builds
-  const stacks         = tableCards.filter(isStack);
-  // layoutVersion bumps on every tableCards change, triggering re-measurement
-  // in DraggableLooseCard and TempStackView so flex-reflow shifts are captured.
-  const layoutVersion  = tableCards.length;
+  const looseCards = tableCards.filter(isLooseCard) as Card[];
+  // Show both temp stacks and build stacks
+  const stacks = tableCards.filter(isAnyStack) as (TempStack | BuildStack)[];
+  // Only temp stacks need overlay (build stacks are already accepted)
+  const tempStacks = tableCards.filter(isTempStackForOverlay) as TempStack[];
+  
+  const layoutVersion = tableCards.length;
 
   return (
     <View
@@ -118,6 +128,7 @@ export function TableArea({
             onDragStart={onTableDragStart}
             onDragMove={onTableDragMove}
             onDragEnd={onTableDragEnd}
+            onCapture={onCapture}
           />
         ))}
 
@@ -128,22 +139,27 @@ export function TableArea({
             layoutVersion={layoutVersion}
             registerTempStack={registerTempStack}
             unregisterTempStack={unregisterTempStack}
+            onCapture={onCapture}
           />
         ))}
       </View>
 
-      {/*
+      {/* 
         Accept / Cancel strip — visible only to the owning player on their turn.
-        stackType drives the copy + colours via constants/stackActions.ts.
+        Only shows for temp_stack type (not build_stack).
       */}
-      {overlayStackId && (
-        <StackActionStrip
-          stackType="temp_stack"
-          stackId={overlayStackId}
-          onAccept={onAcceptTemp}
-          onCancel={onCancelTemp}
-        />
-      )}
+      {overlayStackId && (() => {
+        const overlayStack = tempStacks.find(s => s.stackId === overlayStackId);
+        if (!overlayStack) return null;
+        return (
+          <StackActionStrip
+            stackType={overlayStack.type}
+            stackId={overlayStackId}
+            onAccept={onAcceptTemp}
+            onCancel={onCancelTemp}
+          />
+        );
+      })()}
     </View>
   );
 }

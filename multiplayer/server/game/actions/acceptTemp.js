@@ -7,7 +7,7 @@
  *  - Player must own an active temp stack
  *  - It must be that player's turn
  *  - Player must have a card in hand matching the stack's total value
- *  - Turn advances after acceptance (stack unchanged)
+ *  - Turn advances after acceptance (stack converted to build)
  */
 
 const { cloneState, nextTurn } = require('../GameState');
@@ -59,10 +59,11 @@ function acceptTemp(state, payload, playerIndex) {
     );
   }
 
-  // Change type from 'temp_stack' to 'build_stack' so TEMP badge disappears
+  // Convert temp_stack to build_stack with hasBase: false
   stack.type = 'build_stack';
+  stack.hasBase = false;
 
-  // Stack unchanged (except type), turn advances to opponent
+  // Turn advances to opponent
   return nextTurn(newState);
 }
 

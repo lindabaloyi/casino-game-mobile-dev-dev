@@ -3,7 +3,7 @@
  * Shared domain types for all table-related components.
  *
  * Single source of truth — import from here instead of re-declaring
- * Card / TempStack / TableItem in every component.
+ * Card / TempStack / BuildStack / TableItem in every component.
  */
 
 // ── Card ──────────────────────────────────────────────────────────────────────
@@ -32,6 +32,7 @@ export interface BuildStack {
   cards: Card[];
   owner: number;
   value: number;
+  hasBase: boolean;
 }
 
 export type AnyStack = TempStack | BuildStack;

@@ -1,40 +1,42 @@
 /**
  * TempStackView
- * Renders a temp_stack (or any stack with a `type` field) as a fanned pair
- * of cards with a coloured badge label at the bottom.
- *
- * Badge colour and label are driven by `constants/stackActions.ts` —
- * no changes here when new stack types (build, extend) are added.
+ * Renders a temp_stack or build_stack as a fanned pair of cards.
+ * 
+ * - temp_stack: shows TEMP badge
+ * - build_stack: shows owner indicator (P1 or P2)
  */
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
-import { TempStack } from './types';
+import { TempStack, BuildStack } from './types';
 import { TempStackBounds } from '../../hooks/useDrag';
 import { getStackConfig } from '../../constants/stackActions';
+import { Card } from './types';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
 const CARD_W       = 56;   // matches PlayingCard width
 const CARD_H       = 84;   // matches PlayingCard height
 const STACK_OFFSET = 6;    // how much the top card is shifted right/down
-const BADGE_H      = 22;   // height reserved for the TEMP badge below the cards
+const BADGE_H      = 22;   // height reserved for the badge below the cards
 const STACK_PAD    = 4;    // extra breathing room on the right
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
-  stack: TempStack;
+  stack: TempStack | BuildStack;
   /** Re-measure when table card count changes (flex reflow). */
   layoutVersion:       number;
   registerTempStack:   (stackId: string, bounds: TempStackBounds) => void;
   unregisterTempStack: (stackId: string) => void;
+  /** Capture callback - for when a hand card is dropped on this stack */
+  onCapture?: (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function TempStackView({ stack, layoutVersion, registerTempStack, unregisterTempStack }: Props) {
+export function TempStackView({ stack, layoutVersion, registerTempStack, unregisterTempStack, onCapture }: Props) {
   const viewRef = useRef<View>(null);
 
   // bottom = highest-value card (set at creation)
@@ -78,6 +80,10 @@ export function TempStackView({ stack, layoutVersion, registerTempStack, unregis
   const badgeColor = config?.badgeColor ?? '#17a2b8';
   const badgeLabel = config?.label      ?? stack.type.toUpperCase();
 
+  // Determine owner label for build_stack
+  const isBuild = stack.type === 'build_stack';
+  const ownerLabel = `P${stack.owner + 1}`;
+
   if (!bottom || !top) return null;
 
   return (
@@ -97,12 +103,19 @@ export function TempStackView({ stack, layoutVersion, registerTempStack, unregis
         <Text style={styles.valueText}>{stack.value}</Text>
       </View>
 
-      {/* Badge — only show for temp_stack type */}
+      {/* Badge — show for temp_stack type only */}
       {stack.type === 'temp_stack' && (
         <View style={styles.badge}>
           <Text style={[styles.badgeText, { backgroundColor: badgeColor }]}>
             {badgeLabel}
           </Text>
+        </View>
+      )}
+
+      {/* Owner indicator — show for build_stack type only */}
+      {isBuild && (
+        <View style={styles.ownerBadge}>
+          <Text style={styles.ownerText}>{ownerLabel}</Text>
         </View>
       )}
     </View>
@@ -171,6 +184,24 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: 'bold',
     letterSpacing: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  // Owner badge for build stacks (P1 or P2 indicator)
+  ownerBadge: {
+    position: 'absolute',
+    bottom:   0,
+    left:     0,
+    right:    0,
+    alignItems: 'center',
+  },
+  ownerText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    backgroundColor: '#f59e0b', // amber
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,

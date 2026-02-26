@@ -25,6 +25,8 @@ interface Props {
   dropBounds: MutableRefObject<DropBounds>;
   /** Find a specific table card under the finger — from useDrag */
   findCardAtPoint: (x: number, y: number) => Card | null;
+  /** Find a stack at point — from useDrag */
+  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
   onTrail: (card: Card) => void;
   /** Called when the dragged card lands on a specific table card */
   onCardDrop: (handCard: Card, targetCard: Card) => void;
@@ -32,6 +34,8 @@ interface Props {
   onDragStart: (card: Card) => void;
   onDragMove: (absoluteX: number, absoluteY: number) => void;
   onDragEnd: () => void;
+  /** Capture callback */
+  onCapture: (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => void;
 }
 
 export function PlayerHandArea({
@@ -39,11 +43,13 @@ export function PlayerHandArea({
   isMyTurn,
   dropBounds,
   findCardAtPoint,
+  findTempStackAtPoint,
   onTrail,
   onCardDrop,
   onDragStart,
   onDragMove,
   onDragEnd,
+  onCapture,
 }: Props) {
   return (
     <View style={styles.container}>
@@ -60,12 +66,14 @@ export function PlayerHandArea({
             card={card}
             dropBounds={dropBounds}
             findCardAtPoint={findCardAtPoint}
+            findTempStackAtPoint={findTempStackAtPoint}
             isMyTurn={isMyTurn}
             onTrail={onTrail}
             onCardDrop={onCardDrop}
             onDragStart={onDragStart}
             onDragMove={onDragMove}
             onDragEnd={onDragEnd}
+            onCapture={onCapture}
           />
         ))}
       </ScrollView>

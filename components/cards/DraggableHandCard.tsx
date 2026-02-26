@@ -41,6 +41,8 @@ interface Props {
   dropBounds: MutableRefObject<DropBounds>;
   /** Finds a specific table card at (x, y); returns null if no card there */
   findCardAtPoint: (x: number, y: number) => Card | null;
+  /** Finds a stack at (x, y); returns null if no stack there */
+  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
   isMyTurn: boolean;
   onTrail: (card: Card) => void;
   /** Called when the dragged card lands on a specific table card */
@@ -49,6 +51,8 @@ interface Props {
   onDragStart: (card: Card) => void;
   onDragMove: (absoluteX: number, absoluteY: number) => void;
   onDragEnd: () => void;
+  /** Capture - for capturing loose cards or opponent's builds */
+  onCapture: (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -57,12 +61,14 @@ export function DraggableHandCard({
   card,
   dropBounds,
   findCardAtPoint,
+  findTempStackAtPoint,
   isMyTurn,
   onTrail,
   onCardDrop,
   onDragStart,
   onDragMove,
   onDragEnd,
+  onCapture,
 }: Props) {
   const opacity = useSharedValue(1);
 
@@ -80,11 +86,23 @@ export function DraggableHandCard({
    * handleDrop — runs on the JS thread.
    *
    * Priority:
-   *   1. Specific table card hit → createTemp
-   *   2. General table area hit  → trail
-   *   3. Miss → snap back
+   *   1. Build stack hit (opponent's) → capture
+   *   2. Specific table card hit → createTemp
+   *   3. General table area hit  → trail
+   *   4. Miss → snap back
    */
   function handleDrop(absX: number, absY: number) {
+    // 0. Check for a build stack under the finger (capture opponent's build)
+    const stackHit = findTempStackAtPoint(absX, absY);
+    if (stackHit) {
+      console.log(
+        `[DraggableHandCard] CAPTURE BUILD — ${card.rank}${card.suit} → stack ${stackHit.stackId}`,
+      );
+      onDragEnd();
+      onCapture(card, 'build', undefined, undefined, stackHit.stackId);
+      return;
+    }
+
     // 1. Check for a specific table card under the finger
     const targetCard = findCardAtPoint(absX, absY);
     if (targetCard) {

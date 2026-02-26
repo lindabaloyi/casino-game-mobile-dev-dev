@@ -41,6 +41,8 @@ interface Props {
   onDragStart: (card: Card) => void;
   onDragMove:  (absoluteX: number, absoluteY: number) => void;
   onDragEnd:   () => void;
+  /** Capture - for capturing opponent's builds */
+  onCapture: (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -56,6 +58,7 @@ export function DraggableTableCard({
   onDragStart,
   onDragMove,
   onDragEnd,
+  onCapture,
 }: Props) {
   const opacity = useSharedValue(1);
   const cardId  = `${card.rank}${card.suit}`;
@@ -75,7 +78,15 @@ export function DraggableTableCard({
       return;
     }
 
-    // 2. Check if dropped on another loose table card (exclude self)
+    // 2. Check if dropped on opponent's build (capture!)
+    if (tempHit && tempHit.owner !== playerNumber) {
+      console.log(`[DraggableTableCard] CAPTURE BUILD — ${cardId} → stack ${tempHit.stackId}`);
+      onDragEnd();
+      onCapture(card, 'build', undefined, undefined, tempHit.stackId);
+      return;
+    }
+
+    // 3. Check if dropped on another loose table card (exclude self)
     const cardHit = findCardAtPoint(absX, absY, cardId);
     if (cardHit) {
       console.log(`[DraggableTableCard] DROP ON CARD — ${cardId} → ${cardHit.rank}${cardHit.suit}`);
@@ -84,7 +95,7 @@ export function DraggableTableCard({
       return;
     }
 
-    // 3. Miss — card stays on table, restore opacity
+    // 4. Miss — card stays on table, restore opacity
     console.log(`[DraggableTableCard] MISS — ${cardId} snapping back`);
     opacity.value = withSpring(1);
     onDragEnd();

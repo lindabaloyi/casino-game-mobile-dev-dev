@@ -48,6 +48,9 @@ export interface DraggableLooseCardProps {
   onDragStart: (card: Card)                       => void;
   onDragMove:  (absoluteX: number, absoluteY: number) => void;
   onDragEnd:   ()                                 => void;
+
+  // Capture — for capturing opponent's builds
+  onCapture: (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -66,6 +69,7 @@ export function DraggableLooseCard({
   onDragStart,
   onDragMove,
   onDragEnd,
+  onCapture,
 }: DraggableLooseCardProps) {
   const viewRef = useRef<View>(null);
   const cardId  = `${card.rank}${card.suit}`;
@@ -108,6 +112,7 @@ export function DraggableLooseCard({
         onDragStart={onDragStart}
         onDragMove={onDragMove}
         onDragEnd={onDragEnd}
+        onCapture={onCapture}
       />
     </View>
   );

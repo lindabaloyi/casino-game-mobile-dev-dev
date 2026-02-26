@@ -20,7 +20,7 @@ export const STACK_CONFIG = {
     cancelTheme: { bg: '#f8d7da', border: '#dc3545' },
   },
 
-  // ── Build stack (player is building, pending confirm) ─────────────────────
+  // ── Build stack (accepted build, shows owner indicator) ─────────────────────
   build_stack: {
     label:       'BUILD',
     badgeColor:  '#f59e0b',   // amber

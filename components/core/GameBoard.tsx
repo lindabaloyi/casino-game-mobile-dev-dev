@@ -174,12 +174,25 @@ export function GameBoard({
     [sendAction],
   );
 
+  /** Capture: hand card dropped onto loose card or opponent's temp stack */
+  const handleCapture = useCallback(
+    (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => {
+      console.log(`[GameBoard] capture: ${card.rank}${card.suit} → ${targetType}`);
+      sendAction({ 
+        type: 'capture', 
+        payload: { card, targetType, targetRank, targetSuit, targetStackId } as unknown as Record<string, unknown> 
+      });
+    },
+    [sendAction],
+  );
+
   /**
-   * Compute which temp stack (if any) should show the Accept/Cancel overlay.
-   * Only show on the current player's own temp stack, and only on their turn.
+   * Compute which stack (if any) should show the Accept/Cancel overlay.
+   * Shows for own temp_stack only. Only on current player's turn.
    */
   const overlayStackId: string | null = (() => {
     if (!isMyTurn) return null;
+    // Check for own temp stack
     const myTemp = (table as any[]).find(
       (tc: any) => tc.type === 'temp_stack' && tc.owner === playerNumber,
     );
@@ -224,6 +237,7 @@ export function GameBoard({
         overlayStackId={overlayStackId}
         onAcceptTemp={handleAcceptTemp}
         onCancelTemp={handleCancelTemp}
+        onCapture={handleCapture}
       />
 
       <PlayerHandArea
@@ -231,11 +245,13 @@ export function GameBoard({
         isMyTurn={isMyTurn}
         dropBounds={dropBounds}
         findCardAtPoint={findCardAtPoint}
+        findTempStackAtPoint={findTempStackAtPoint}
         onTrail={handleTrail}
         onCardDrop={handleCardDrop}
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
+        onCapture={handleCapture}
       />
 
       {/*
