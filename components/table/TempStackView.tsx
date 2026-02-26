@@ -2,7 +2,7 @@
  * TempStackView
  * Renders a temp_stack or build_stack as a fanned pair of cards.
  * 
- * - temp_stack: shows TEMP badge
+ * - temp_stack: shows build value with preview
  * - build_stack: shows owner indicator (P1 or P2)
  */
 
@@ -13,6 +13,7 @@ import { TempStack, BuildStack } from './types';
 import { TempStackBounds } from '../../hooks/useDrag';
 import { getStackConfig } from '../../constants/stackActions';
 import { Card } from './types';
+import { getTempStackPreview } from '../../utils/buildUtils';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -43,6 +44,11 @@ export function TempStackView({ stack, layoutVersion, registerTempStack, unregis
   // top    = most recently added card
   const bottom = stack.cards[0];
   const top    = stack.cards[stack.cards.length - 1];
+
+  // Calculate build preview using the new logic
+  const preview = getTempStackPreview(stack.cards);
+  const displayValue = preview.icon;
+  const badgeColor = preview.isRed ? '#E53935' : '#9C27B0'; // Red for incomplete, Purple for valid
 
   // ── Position registration ─────────────────────────────────────────────────
   const onLayout = useCallback(() => {
@@ -77,8 +83,7 @@ export function TempStackView({ stack, layoutVersion, registerTempStack, unregis
 
   // ── Resolve badge config from design tokens ───────────────────────────────
   const config = getStackConfig(stack.type);
-  const badgeColor = config?.badgeColor ?? '#17a2b8';
-  const badgeLabel = config?.label      ?? stack.type.toUpperCase();
+  const badgeLabel = config?.label ?? stack.type.toUpperCase();
 
   // Determine owner label for build_stack
   const isBuild = stack.type === 'build_stack';
@@ -98,15 +103,15 @@ export function TempStackView({ stack, layoutVersion, registerTempStack, unregis
         <PlayingCard rank={top.rank} suit={top.suit} />
       </View>
 
-      {/* Value indicator - shows running total from stack.value */}
-      <View style={styles.valueBadge}>
-        <Text style={styles.valueText}>{stack.value}</Text>
+      {/* Build indicator - shows build value with color */}
+      <View style={[styles.valueBadge, { backgroundColor: badgeColor }]}>
+        <Text style={styles.valueText}>{displayValue}</Text>
       </View>
 
       {/* Badge — show for temp_stack type only */}
       {stack.type === 'temp_stack' && (
         <View style={styles.badge}>
-          <Text style={[styles.badgeText, { backgroundColor: badgeColor }]}>
+          <Text style={[styles.badgeText, { backgroundColor: config?.badgeColor ?? '#17a2b8' }]}>
             {badgeLabel}
           </Text>
         </View>
@@ -143,14 +148,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 2, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius:  3,
-    elevation:     4,
+    elevation:    4,
   },
-  // Value badge - shows the running total (top-right corner)
+  // Value badge - shows build value (top-right corner)
   valueBadge: {
     position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: '#9C27B0', // Purple
     borderRadius: 12,
     minWidth: 24,
     height: 24,

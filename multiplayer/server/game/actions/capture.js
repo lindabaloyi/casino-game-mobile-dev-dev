@@ -2,7 +2,7 @@
  * capture
  * Player captures either:
  *   1. A loose table card (matching the hand card's value)
- *   2. A build stack (own or opponent's, matching the build's total value)
+ *   2. A build stack (matching the build's total value)
  *
  * Rules:
  *  - Card must be in player's hand
@@ -87,9 +87,9 @@ function capture(state, payload, playerIndex) {
       throw new Error('capture: build target missing stackId');
     }
 
-    // Find the build stack
+    // Find the stack (either build_stack or temp_stack)
     const stackIdx = newState.tableCards.findIndex(
-      tc => tc.type === 'build_stack' && tc.stackId === targetStackId,
+      tc => (tc.type === 'build_stack' || tc.type === 'temp_stack') && tc.stackId === targetStackId,
     );
     if (stackIdx === -1) {
       throw new Error(`capture: build stack "${targetStackId}" not found`);
@@ -97,7 +97,7 @@ function capture(state, payload, playerIndex) {
 
     const buildStack = newState.tableCards[stackIdx];
 
-    // Validate: card value must match build's total value
+    // Validate: card value must match stack's total value
     if (capturingCard.value !== buildStack.value) {
       throw new Error(
         `capture: card value ${capturingCard.value} does not match build value ${buildStack.value}`,

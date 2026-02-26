@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   container: {
     height: 65,
     backgroundColor: '#2E7D32',
-    paddingHorizontal: 12,
+    paddingHorizontal: 20,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#388E3C',
@@ -105,6 +105,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     alignItems: 'flex-start',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
   },
 });
 

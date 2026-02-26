@@ -59,6 +59,9 @@ function addToTemp(state, payload, playerIndex) {
   stack.cards.push({ ...looseCard, source: 'table' });
   stack.value += looseCard.value;
 
+  // Log the number of cards in temp stack
+  console.log(`[addToTemp] Stack "${stackId}" now has ${stack.cards.length} cards:`, stack.cards.map(c => `${c.rank}${c.suit}`));
+
   // ⚠️  No nextTurn() — turn advances when player Accepts
   return newState;
 }

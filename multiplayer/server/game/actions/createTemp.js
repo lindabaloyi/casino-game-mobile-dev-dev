@@ -48,6 +48,7 @@ function createTemp(state, payload, playerIndex) {
     const [handCard] = hand.splice(hIdx, 1);
     existingTemp.cards.push({ ...handCard, source: 'hand' });
     existingTemp.value += handCard.value;
+    console.log(`[createTemp] Added to existing stack, now has ${existingTemp.cards.length} cards:`, existingTemp.cards.map(c => `${c.rank}${c.suit}`));
     return newState; // target table card remains loose; no new stack created
   }
 
@@ -88,6 +89,10 @@ function createTemp(state, payload, playerIndex) {
     owner: playerIndex,
     value: tableCard.value + handCard.value,
   });
+
+  // Log temp stack info
+  const newStack = newState.tableCards[newState.tableCards.length - 1];
+  console.log(`[createTemp] Created stack with ${newStack.cards.length} cards:`, newStack.cards.map(c => `${c.rank}${c.suit}`));
 
   // ⚠️  No nextTurn() — turn advances when the overlay Accept/Cancel is added
   return newState;

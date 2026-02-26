@@ -55,6 +55,7 @@ function createTempFromTable(state, payload, playerIndex) {
     const [dragged] = newState.tableCards.splice(dIdx, 1);
     existingTemp.cards.push({ ...dragged, source: 'table' });
     existingTemp.value += dragged.value;
+    console.log(`[createTempFromTable] Added to existing stack, now has ${existingTemp.cards.length} cards:`, existingTemp.cards.map(c => `${c.rank}${c.suit}`));
     return newState; // target card remains loose; no new stack created
   }
 
@@ -95,6 +96,10 @@ function createTempFromTable(state, payload, playerIndex) {
     owner: playerIndex,
     value: tableCard.value + draggedCard.value,
   });
+
+  // Log temp stack info
+  const newStack = newState.tableCards[newState.tableCards.length - 1];
+  console.log(`[createTempFromTable] Created stack with ${newStack.cards.length} cards:`, newStack.cards.map(c => `${c.rank}${c.suit}`));
 
   // ⚠️  No nextTurn() — turn advances when player Accepts
   return newState;
