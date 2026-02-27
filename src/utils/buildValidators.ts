@@ -47,14 +47,24 @@ export interface ActionOption {
  * 
  * Direct capture when:
  * - card.value === targetCard.value (same value)
- * - Player CANNOT build: no card with value = card.value * 2 in hand
+ * - Player OWNS an active build (temp_stack) → ALWAYS direct capture
+ * - OR Player CANNOT build: no card with value = card.value * 2 in hand
  *   (e.g., dropping 4, player has no 8)
  * 
  * @param cardValue - The value of the card being dropped
  * @param playerHand - Player's current hand
+ * @param hasActiveBuild - Whether player owns an active temp_stack
  * @returns true if this should be a direct capture
  */
-export function isDirectCapture(cardValue: number, playerHand: Card[]): boolean {
+export function isDirectCapture(
+  cardValue: number, 
+  playerHand: Card[], 
+  hasActiveBuild: boolean = false
+): boolean {
+  // If player owns an active build, ALWAYS direct capture (for any card value)
+  // This allows capturing with identical cards even if they have build option
+  if (hasActiveBuild) return true;
+  
   // Only applies to cards 1-5 (since 6*2=12 > 10)
   if (cardValue > 5) return false;
   

@@ -143,14 +143,22 @@ export function GameBoard({
     [sendAction],
   );
 
+  // Check if player owns an active temp stack (build)
+  const hasActiveBuild = useMemo(() => {
+    return (table as any[]).some(
+      (tc: any) => tc.type === 'temp_stack' && tc.owner === playerNumber,
+    );
+  }, [table, playerNumber]);
+
   const handleCardDrop = useCallback(
     (handCard: Card, targetCard: Card) => {
       // FIRST CHECK: Direct capture - when dropping on loose card with same value
-      // and player has NO build option (no card with value * 2)
+      // If player owns active build → always direct capture
+      // OR if player has NO build option (no card with value * 2)
       if (handCard.value === targetCard.value) {
-        const shouldDirectCapture = isDirectCapture(handCard.value, myHand);
+        const shouldDirectCapture = isDirectCapture(handCard.value, myHand, hasActiveBuild);
         if (shouldDirectCapture) {
-          console.log(`[GameBoard] Direct capture: ${handCard.rank}${handCard.suit} on ${targetCard.rank}${targetCard.suit}`);
+          console.log(`[GameBoard] Direct capture: ${handCard.rank}${handCard.suit} on ${targetCard.rank}${targetCard.suit} (hasActiveBuild: ${hasActiveBuild})`);
           sendAction({ type: 'directCapture', payload: { card: handCard, targetCard } as unknown as Record<string, unknown> });
           return;
         }
@@ -159,7 +167,7 @@ export function GameBoard({
       // Normal flow: create temp stack
       sendAction({ type: 'createTemp', payload: { card: handCard, targetCard } as unknown as Record<string, unknown> });
     },
-    [sendAction, myHand],
+    [sendAction, myHand, hasActiveBuild],
   );
 
   const handleTableCardDropOnCard = useCallback(
