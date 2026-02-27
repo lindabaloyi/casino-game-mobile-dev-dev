@@ -33,6 +33,7 @@ import { PlayerHandArea } from './PlayerHandArea';
 import { PlayingCard } from '../cards/PlayingCard';
 import { AcceptValidationModal } from '../table/AcceptValidationModal';
 import type { Card } from '../table/types';
+import { isDirectCapture } from '../../src/utils/buildValidators';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -144,9 +145,21 @@ export function GameBoard({
 
   const handleCardDrop = useCallback(
     (handCard: Card, targetCard: Card) => {
+      // FIRST CHECK: Direct capture - when dropping on loose card with same value
+      // and player has NO build option (no card with value * 2)
+      if (handCard.value === targetCard.value) {
+        const shouldDirectCapture = isDirectCapture(handCard.value, myHand);
+        if (shouldDirectCapture) {
+          console.log(`[GameBoard] Direct capture: ${handCard.rank}${handCard.suit} on ${targetCard.rank}${targetCard.suit}`);
+          sendAction({ type: 'directCapture', payload: { card: handCard, targetCard } as unknown as Record<string, unknown> });
+          return;
+        }
+      }
+      
+      // Normal flow: create temp stack
       sendAction({ type: 'createTemp', payload: { card: handCard, targetCard } as unknown as Record<string, unknown> });
     },
-    [sendAction],
+    [sendAction, myHand],
   );
 
   const handleTableCardDropOnCard = useCallback(

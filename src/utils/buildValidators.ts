@@ -43,6 +43,31 @@ export interface ActionOption {
 }
 
 /**
+ * Check if dropping card on loose card with same value should be a direct capture.
+ * 
+ * Direct capture when:
+ * - card.value === targetCard.value (same value)
+ * - Player CANNOT build: no card with value = card.value * 2 in hand
+ *   (e.g., dropping 4, player has no 8)
+ * 
+ * @param cardValue - The value of the card being dropped
+ * @param playerHand - Player's current hand
+ * @returns true if this should be a direct capture
+ */
+export function isDirectCapture(cardValue: number, playerHand: Card[]): boolean {
+  // Only applies to cards 1-5 (since 6*2=12 > 10)
+  if (cardValue > 5) return false;
+  
+  const doubleValue = cardValue * 2;
+  
+  // Check if player can build: do they have card.value * 2?
+  const hasDouble = playerHand.some(c => c.value === doubleValue);
+  
+  // Direct capture if NO build possible
+  return !hasDouble;
+}
+
+/**
  * Calculate the base build target value using build icon logic
  * This is the source of truth - uses base + subset sum algorithm
  * For cards [10, 9, 1]: base=10, others sum=10, target=10

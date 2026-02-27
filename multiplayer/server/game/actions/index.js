@@ -26,6 +26,7 @@ const actionHandlers = {
   // ── Capture ────────────────────────────────────────────────────────────────
   capture:             require('./capture'),
   playFromCaptures:    require('./playFromCaptures'),
+  directCapture:       require('./directCapture'),
 
   // ── Milestone 5 → build:       require('./build')
   // ── Milestone 6 → extendBuild: require('./extendBuild')
