@@ -8,6 +8,11 @@
  *  - It must be that player's turn
  *  - Player must have a card in hand matching the stack's build target value
  *  - Turn advances after acceptance (stack converted to build)
+ *
+ * Payload can include:
+ *  - stackId: required
+ *  - targetValue: optional - if provided, use this as the build target
+ *    (used when player selects from modal with multiple options)
  */
 
 const { cloneState, nextTurn } = require('../GameState');
@@ -70,13 +75,49 @@ function findBestSubsetSum(cards, target) {
 }
 
 /**
+ * Calculate all possible targets from a temp stack (for duplicate cards like 4,4)
+ */
+function calculateAllPossibleTargets(cards) {
+  if (!cards || cards.length === 0) return [];
+  
+  // Get card values and counts
+  const valueCounts = new Map();
+  for (const card of cards) {
+    valueCounts.set(card.value, (valueCounts.get(card.value) || 0) + 1);
+  }
+  
+  const targets = [];
+  
+  for (const [value, count] of valueCounts) {
+    // For duplicate cards 1-5, can make value OR value*2
+    if (count >= 2 && value <= 5) {
+      targets.push(value);      // e.g., 4
+      targets.push(value * 2);  // e.g., 8
+    } else {
+      targets.push(value);
+    }
+  }
+  
+  return [...new Set(targets)].sort((a, b) => a - b);
+}
+
+/**
+ * Check if player has spare card for target (not used in stack)
+ */
+function hasSpareCardForTarget(hand, stackCards, targetValue) {
+  const handCount = hand.filter(c => c.value === targetValue).length;
+  const stackCount = stackCards.filter(c => c.value === targetValue).length;
+  return handCount > stackCount;
+}
+
+/**
  * @param {object} state
- * @param {{ stackId: string }} payload
+ * @param {{ stackId: string, targetValue?: number }} payload
  * @param {number} playerIndex
  * @returns {object} New game state
  */
 function acceptTemp(state, payload, playerIndex) {
-  const { stackId } = payload;
+  const { stackId, targetValue: requestedTarget } = payload;
 
   if (!stackId) throw new Error('acceptTemp: missing stackId');
 
@@ -101,20 +142,47 @@ function acceptTemp(state, payload, playerIndex) {
   // Get player's hand
   const playerHand = newState.playerHands[playerIndex];
   
-  // Calculate the build target value using same logic as frontend
-  const targetValue = calculateBuildTarget(stack.cards);
+  // Calculate all possible targets
+  const allTargets = calculateAllPossibleTargets(stack.cards);
+  console.log(`[acceptTemp] All possible targets:`, allTargets);
+  
+  // Find available capture options (targets player has spare card for)
+  const availableOptions = allTargets.filter(t => 
+    hasSpareCardForTarget(playerHand, stack.cards, t)
+  );
+  console.log(`[acceptTemp] Available capture options:`, availableOptions);
+
+  // Determine which target to use
+  let targetValue;
+  
+  if (requestedTarget !== undefined) {
+    // Player selected from modal - use their selection
+    targetValue = requestedTarget;
+    console.log(`[acceptTemp] Using player-selected target: ${targetValue}`);
+  } else if (availableOptions.length === 1) {
+    // Only one option - use it
+    targetValue = availableOptions[0];
+    console.log(`[acceptTemp] Single option, using: ${targetValue}`);
+  } else if (availableOptions.length > 1) {
+    // Multiple options - throw error with options info
+    throw new Error(`MULTIPLE_OPTIONS:${JSON.stringify(availableOptions)}`);
+  } else {
+    // No capture options - try default calculation
+    targetValue = calculateBuildTarget(stack.cards);
+    console.log(`[acceptTemp] No capture options, using calculated target: ${targetValue}`);
+  }
   
   console.log(`[acceptTemp] Stack cards:`, stack.cards.map(c => `${c.rank}${c.suit}`));
-  console.log(`[acceptTemp] Calculated target value: ${targetValue}`);
+  console.log(`[acceptTemp] Final target value: ${targetValue}`);
 
-  // Check if player has a card matching the build target
+  // Check if player has a card matching the target
   if (!hasCardWithValue(playerHand, targetValue)) {
     throw new Error(
       `acceptTemp: Player does not have a card with value ${targetValue} in hand`
     );
   }
 
-  // Update stack value to match the calculated target
+  // Update stack value to match the selected target
   stack.value = targetValue;
 
   // Convert temp_stack to build_stack with hasBase: false

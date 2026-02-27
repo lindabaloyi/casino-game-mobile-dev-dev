@@ -31,6 +31,8 @@ import { GameStatusBar } from './GameStatusBar';
 import { TableArea } from '../table/TableArea';
 import { PlayerHandArea } from './PlayerHandArea';
 import { PlayingCard } from '../cards/PlayingCard';
+import { AcceptValidationModal } from '../table/AcceptValidationModal';
+import type { Card } from '../table/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -38,12 +40,6 @@ const CARD_WIDTH  = 56;
 const CARD_HEIGHT = 84;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-interface Card {
-  rank: string;
-  suit: string;
-  value: number;
-}
 
 type DragSource = 'hand' | 'captured' | null;
 
@@ -106,6 +102,10 @@ export function GameBoard({
   const overlayX = useSharedValue(0);
   const overlayY = useSharedValue(0);
 
+  // ── Accept validation modal state ────────────────────────────────────────
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [selectedTempStack, setSelectedTempStack] = useState<any>(null);
+
   const handleDragStart = useCallback((card: Card) => {
     setDraggingCard(card);
     setDragSource('hand');
@@ -163,12 +163,27 @@ export function GameBoard({
     [sendAction],
   );
 
+  // ── Accept validation modal handlers ─────────────────────────────────────
   const handleAcceptTemp = useCallback(
     (stackId: string) => {
-      sendAction({ type: 'acceptTemp', payload: { stackId } as unknown as Record<string, unknown> });
+      // Find the temp stack
+      const tempStack = table.find(
+        (tc: any) => tc.type === 'temp_stack' && tc.stackId === stackId,
+      );
+      
+      if (!tempStack) return;
+      
+      // Set the selected temp stack and show modal
+      setSelectedTempStack(tempStack);
+      setShowAcceptModal(true);
     },
-    [sendAction],
+    [table],
   );
+
+  const handleAcceptModalClose = useCallback(() => {
+    setShowAcceptModal(false);
+    setSelectedTempStack(null);
+  }, []);
 
   const handleCancelTemp = useCallback(
     (stackId: string) => {
@@ -301,6 +316,15 @@ export function GameBoard({
           />
         </Animated.View>
       )}
+
+      {/* Accept Validation Modal - shows build/capture options */}
+      <AcceptValidationModal
+        visible={showAcceptModal}
+        onClose={handleAcceptModalClose}
+        tempStack={selectedTempStack}
+        playerHand={myHand}
+        sendAction={sendAction}
+      />
     </View>
   );
 }

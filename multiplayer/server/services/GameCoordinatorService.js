@@ -54,6 +54,26 @@ class GameCoordinatorService {
       this.broadcaster.broadcastGameUpdate(gameId, newState);
     } catch (err) {
       console.error(`[Coordinator] game-action failed: ${err.message}`);
+      
+      // Check for special MULTIPLE_OPTIONS error
+      if (err.message && err.message.startsWith('MULTIPLE_OPTIONS:')) {
+        // Parse the options from the error message
+        try {
+          const options = JSON.parse(err.message.replace('MULTIPLE_OPTIONS:', ''));
+          console.log(`[Coordinator] Multiple options detected:`, options);
+          
+          // Send a special event to the client instead of error
+          socket.emit('game-action-response', {
+            type: 'MULTIPLE_OPTIONS',
+            options: options,
+            action: data.type,
+          });
+          return;
+        } catch (parseErr) {
+          console.error(`[Coordinator] Failed to parse options:`, parseErr);
+        }
+      }
+      
       this.broadcaster.sendError(socket, err.message);
     }
   }
