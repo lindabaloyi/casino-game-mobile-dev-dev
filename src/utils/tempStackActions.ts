@@ -1,6 +1,7 @@
 /**
  * Temp Stack Actions
  * Handles sending build/capture actions to the server.
+ * Uses centralized targetValue for both build and capture.
  */
 
 export async function handleTempStackAction(
@@ -15,23 +16,14 @@ export async function handleTempStackAction(
   },
   sendAction: (action: any) => void
 ): Promise<void> {
-  if (actionType === 'build') {
-    sendAction({
-      type: 'acceptTemp',
-      payload: {
-        stackId: payload.tempStackId,
-        buildValue: payload.buildValue,
-        buildType: payload.buildType,
-        hasBase: payload.hasBase,
-      },
-    });
-  } else if (actionType === 'capture') {
-    sendAction({
-      type: 'acceptTemp',
-      payload: {
-        stackId: payload.tempStackId,
-        captureValue: payload.captureValue,
-      },
-    });
-  }
+  // Centralize: use targetValue for both build and capture
+  const targetValue = payload.buildValue ?? payload.captureValue;
+  
+  sendAction({
+    type: 'acceptTemp',
+    payload: {
+      stackId: payload.tempStackId,
+      targetValue: targetValue,
+    },
+  });
 }

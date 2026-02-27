@@ -13,7 +13,7 @@ import { TempStack, BuildStack } from './types';
 import { TempStackBounds } from '../../hooks/useDrag';
 import { getStackConfig } from '../../constants/stackActions';
 import { Card } from './types';
-import { getTempStackPreview } from '../../utils/buildUtils';
+import { getBaseBuildStackPreview } from '../../utils/buildUtils';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -46,7 +46,7 @@ export function TempStackView({ stack, layoutVersion, registerTempStack, unregis
   const top    = stack.cards[stack.cards.length - 1];
 
   // Calculate build preview using the new logic
-  const preview = getTempStackPreview(stack.cards);
+  const preview = getBaseBuildStackPreview(stack.cards);
   const displayValue = preview.icon;
   const badgeColor = preview.isRed ? '#E53935' : '#9C27B0'; // Red for incomplete, Purple for valid
 

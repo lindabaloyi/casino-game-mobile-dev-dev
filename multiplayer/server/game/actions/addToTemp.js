@@ -66,7 +66,6 @@ function addToTemp(state, payload, playerIndex) {
     
     // Append to stack - tag as 'table' so cancelTemp returns it correctly
     stack.cards.push({ ...looseCard, source: 'table' });
-    stack.value += looseCard.value;
     
     console.log(`[addToTemp] Added table card ${looseCard.rank}${looseCard.suit} to stack "${stackId}"`);
   } 
@@ -85,13 +84,15 @@ function addToTemp(state, payload, playerIndex) {
     
     // Append to stack - tag as 'hand' so cancelTemp returns it correctly
     stack.cards.push({ ...handCard, source: 'hand' });
-    stack.value += handCard.value;
     
     console.log(`[addToTemp] Added hand card ${handCard.rank}${handCard.suit} to stack "${stackId}"`);
   }
 
+  // Recalculate stack value from all cards (hand + table)
+  stack.value = stack.cards.reduce((sum, c) => sum + c.value, 0);
+
   // Log the number of cards in temp stack
-  console.log(`[addToTemp] Stack "${stackId}" now has ${stack.cards.length} cards:`, stack.cards.map(c => `${c.rank}${c.suit}`));
+  console.log(`[addToTemp] Stack "${stackId}" now has ${stack.cards.length} cards:`, stack.cards.map(c => `${c.rank}${c.suit}`), `value: ${stack.value}`);
 
   // ⚠️  No nextTurn() — turn advances when player Accepts
   return newState;

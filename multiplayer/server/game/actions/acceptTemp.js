@@ -75,19 +75,23 @@ function findBestSubsetSum(cards, target) {
 }
 
 /**
- * Calculate all possible targets from a temp stack (for duplicate cards like 4,4)
+ * Calculate all possible targets from a temp stack
+ * Includes:
+ * - Single card values (for same-value stacks like 4,4)
+ * - Combined sum (for normal builds like 3+7=10)
  */
 function calculateAllPossibleTargets(cards) {
   if (!cards || cards.length === 0) return [];
   
-  // Get card values and counts
+  const targets = [];
+  
+  // Get card values and counts for same-value detection
   const valueCounts = new Map();
   for (const card of cards) {
     valueCounts.set(card.value, (valueCounts.get(card.value) || 0) + 1);
   }
   
-  const targets = [];
-  
+  // Add single card values (for same-value stacks like 4,4)
   for (const [value, count] of valueCounts) {
     // For duplicate cards 1-5, can make value OR value*2
     if (count >= 2 && value <= 5) {
@@ -96,6 +100,19 @@ function calculateAllPossibleTargets(cards) {
     } else {
       targets.push(value);
     }
+  }
+  
+  // Add combined sum for ALL normal builds (not same-value stacks)
+  // Get all unique card values from stack
+  const cardValues = [...new Set(cards.map(c => c.value))];
+  
+  // Calculate sum of all cards
+  const totalSum = cards.reduce((sum, c) => sum + c.value, 0);
+  
+  // Add the combined sum as a target (this is what players build!)
+  // Only add if it's not already in targets
+  if (!targets.includes(totalSum)) {
+    targets.push(totalSum);
   }
   
   return [...new Set(targets)].sort((a, b) => a - b);
@@ -175,8 +192,14 @@ function acceptTemp(state, payload, playerIndex) {
   console.log(`[acceptTemp] Stack cards:`, stack.cards.map(c => `${c.rank}${c.suit}`));
   console.log(`[acceptTemp] Final target value: ${targetValue}`);
 
-  // Check if player has a card matching the target
-  if (!hasCardWithValue(playerHand, targetValue)) {
+  // Check if player has a card matching the target in hand
+  const playerHasCard = hasCardWithValue(playerHand, targetValue);
+  
+  // Check if any card in stack equals targetValue (base card exists in stack)
+  const baseInStack = stack.cards.some(c => c.value === targetValue);
+  
+  // Allow build if player has card in hand OR if base exists in stack
+  if (!playerHasCard && !baseInStack) {
     throw new Error(
       `acceptTemp: Player does not have a card with value ${targetValue} in hand`
     );
@@ -185,9 +208,12 @@ function acceptTemp(state, payload, playerIndex) {
   // Update stack value to match the selected target
   stack.value = targetValue;
 
-  // Convert temp_stack to build_stack with hasBase: false
+  // Convert temp_stack to build_stack
+  // hasBase is true if base card exists in stack (from table), false if player provides card
   stack.type = 'build_stack';
-  stack.hasBase = false;
+  stack.hasBase = baseInStack;
+  
+  console.log(`[acceptTemp] Build accepted, hasBase: ${stack.hasBase}`);
 
   // Turn advances to opponent
   return nextTurn(newState);

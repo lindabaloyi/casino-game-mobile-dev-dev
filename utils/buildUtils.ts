@@ -66,7 +66,7 @@ export interface PlayOption {
  * 4. If diff = 0 → valid build
  * 5. If diff > 0 → incomplete, show "-${diff}"
  */
-export function getTempStackPreview(cards: { value: number }[]): BuildPreviewResult {
+export function getBaseBuildStackPreview(cards: { value: number }[]): BuildPreviewResult {
   if (!cards || cards.length === 0) {
     return { icon: '-', isRed: false };
   }
@@ -238,7 +238,7 @@ export function validateTempStack(tempStack: TempStack, playerHand: Card[]): Val
 
 /**
  * Calculate the build target value from a stack of cards.
- * Uses the same logic as getTempStackPreview.
+ * Uses the same logic as getBaseBuildStackPreview.
  */
 export function calculateBuildTarget(cards: Card[]): number {
   if (!cards || cards.length === 0) return 0;
@@ -247,7 +247,7 @@ export function calculateBuildTarget(cards: Card[]): number {
     return cards[0].value;
   }
 
-  const preview = getTempStackPreview(cards);
+  const preview = getBaseBuildStackPreview(cards);
   // Extract numeric value from icon (handle negative diffs)
   const icon = preview.icon;
   if (icon.startsWith('-')) {
