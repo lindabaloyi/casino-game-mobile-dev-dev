@@ -7,67 +7,15 @@
  *  - Player must own an active temp stack
  *  - It must be that player's turn
  *  - Player must have a card in hand matching the stack's build target value
+ *  - After acceptance, checks for capture/extend options and returns them
  *  - Turn advances after acceptance (stack converted to build)
  */
 
 const { cloneState, nextTurn } = require('../GameState');
-
-/**
- * Helper to check if player has a card with a specific value in hand
- */
-function hasCardWithValue(hand, targetValue) {
-  return hand.some(card => card.value === targetValue);
-}
-
-/**
- * Calculate the build target value from a stack of cards.
- * Uses the same logic as the frontend build icon:
- * - Find largest card = base
- * - Find subset of other cards that sums closest to base
- * - If exact match (diff=0), target = base
- * - Otherwise, target = best achievable sum
- */
-function calculateBuildTarget(cards) {
-  if (!cards || cards.length === 0) return 0;
-  
-  if (cards.length === 1) {
-    return cards[0].value;
-  }
-
-  // Sort descending
-  const sorted = [...cards].sort((a, b) => b.value - a.value);
-  const base = sorted[0].value;
-  const otherCards = sorted.slice(1);
-
-  // Find best subset sum
-  const bestSum = findBestSubsetSum(otherCards, base);
-  const diff = base - bestSum;
-
-  if (diff === 0) {
-    // Exact match - target is the base value
-    return base;
-  } else {
-    // Incomplete - target is the best achievable sum
-    return bestSum;
-  }
-}
-
-/**
- * Find the maximum sum from subset of cards that doesn't exceed target.
- */
-function findBestSubsetSum(cards, target) {
-  if (cards.length === 0) return 0;
-
-  const dp = new Array(target + 1).fill(0);
-
-  for (const card of cards) {
-    for (let s = target; s >= card.value; s--) {
-      dp[s] = Math.max(dp[s], dp[s - card.value] + card.value);
-    }
-  }
-
-  return dp[target];
-}
+const { 
+  calculateOptimalBuildValue, 
+  calculateValidCaptureValues 
+} = require('../utils/buildCalculations');
 
 /**
  * @param {object} state
@@ -101,14 +49,16 @@ function acceptTemp(state, payload, playerIndex) {
   // Get player's hand
   const playerHand = newState.playerHands[playerIndex];
   
-  // Calculate the build target value using same logic as frontend
-  const targetValue = calculateBuildTarget(stack.cards);
+  // Calculate the build target value using shared buildCalculations
+  const buildResult = calculateOptimalBuildValue(stack.cards);
+  const targetValue = buildResult.base; // Use the base (largest card) as target
   
   console.log(`[acceptTemp] Stack cards:`, stack.cards.map(c => `${c.rank}${c.suit}`));
-  console.log(`[acceptTemp] Calculated target value: ${targetValue}`);
+  console.log(`[acceptTemp] Build result:`, buildResult);
+  console.log(`[acceptTemp] Target value: ${targetValue}`);
 
   // Check if player has a card matching the build target
-  if (!hasCardWithValue(playerHand, targetValue)) {
+  if (!playerHand.some(card => card.value === targetValue)) {
     throw new Error(
       `acceptTemp: Player does not have a card with value ${targetValue} in hand`
     );
@@ -120,6 +70,17 @@ function acceptTemp(state, payload, playerIndex) {
   // Convert temp_stack to build_stack with hasBase: false
   stack.type = 'build_stack';
   stack.hasBase = false;
+
+  // Calculate capture options for the new build
+  const validCaptures = calculateValidCaptureValues(
+    { value: targetValue, cards: stack.cards },
+    playerHand
+  );
+  
+  // Log capture options for debugging
+  if (validCaptures.length > 0) {
+    console.log(`[acceptTemp] Valid capture options:`, validCaptures.map(c => `${c.rank}${c.suit}`));
+  }
 
   // Turn advances to opponent
   return nextTurn(newState);

@@ -13,7 +13,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
-import { CapturedCardBounds } from '../../hooks/useDrag';
+import { CapturePileBounds, CapturedCardBounds } from '../../hooks/useDrag';
 
 interface CapturedCardsViewProps {
   /** Cards captured by the player */
@@ -28,6 +28,10 @@ interface CapturedCardsViewProps {
   registerCapturedCard?: (bounds: CapturedCardBounds) => void;
   /** Unregister captured card */
   unregisterCapturedCard?: () => void;
+  /** Register capture pile bounds */
+  registerCapturePile?: (bounds: CapturePileBounds) => void;
+  /** Unregister capture pile */
+  unregisterCapturePile?: () => void;
   /** Find card at point (for detecting drag over table cards) */
   findCardAtPoint?: (x: number, y: number, excludeId?: string) => Card | null;
   /** Find temp stack at point */
@@ -47,6 +51,8 @@ export function CapturedCardsView({
   isMyTurn = false,
   registerCapturedCard,
   unregisterCapturedCard,
+  registerCapturePile,
+  unregisterCapturePile,
   findCardAtPoint,
   findTempStackAtPoint,
   onDragStart,
@@ -66,6 +72,7 @@ export function CapturedCardsView({
 
   // Drag state for opponent's card
   const cardRef = useRef<View>(null);
+  const playerCaptureRef = useRef<View>(null);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const isDragging = useSharedValue(false);
@@ -81,6 +88,16 @@ export function CapturedCardsView({
     }
   }, [registerCapturedCard, opponentTopCard]);
 
+  // Register player capture pile bounds
+  const handlePlayerCaptureLayout = useCallback(() => {
+    if (playerCaptureRef.current && registerCapturePile) {
+      playerCaptureRef.current.measureInWindow((x, y, width, height) => {
+        console.log('[CapturedCardsView] Registering player capture pile:', { x, y, width, height, playerIndex: playerNumber });
+        registerCapturePile({ x, y, width, height, playerIndex: playerNumber });
+      });
+    }
+  }, [registerCapturePile, playerNumber]);
+
   // Re-register when opponent's top card changes
   useEffect(() => {
     if (cardRef.current && registerCapturedCard && opponentTopCard) {
@@ -93,6 +110,18 @@ export function CapturedCardsView({
       }, 100);
     }
   }, [registerCapturedCard, opponentTopCard]);
+
+  // Register player capture pile on mount
+  useEffect(() => {
+    if (playerCaptureRef.current && registerCapturePile) {
+      setTimeout(() => {
+        playerCaptureRef.current?.measureInWindow((x, y, width, height) => {
+          console.log('[CapturedCardsView] Registering player capture pile:', { x, y, width, height, playerIndex: playerNumber });
+          registerCapturePile({ x, y, width, height, playerIndex: playerNumber });
+        });
+      }, 100);
+    }
+  }, [registerCapturePile, playerNumber]);
 
   const handleDragStartInternal = useCallback((card: Card) => {
     console.log('[CapturedCardsView] Drag started:', card);
@@ -184,52 +213,80 @@ export function CapturedCardsView({
       if (unregisterCapturedCard) {
         unregisterCapturedCard();
       }
+      if (unregisterCapturePile) {
+        unregisterCapturePile();
+      }
     };
-  }, [unregisterCapturedCard]);
+  }, [unregisterCapturedCard, unregisterCapturePile]);
 
-  return (
-    <View style={styles.container} pointerEvents="box-none">
-      {/* Player's captures (left side) - view only */}
-      <View style={styles.captureSection} pointerEvents="none">
-        <Text style={styles.label}>{playerLabel}</Text>
-        <View style={styles.cardContainer}>
-          {playerTopCard ? (
+  // Determine layout based on player number
+  // Player 0: left side of screen = own pile, right side = opponent
+  // Player 1: right side of screen = own pile, left side = opponent
+  const isPlayerOnLeft = playerNumber === 0;
+
+  // Create the two sections
+  const playerSection = (
+    <View 
+      style={styles.captureSection} 
+      ref={playerCaptureRef} 
+      onLayout={handlePlayerCaptureLayout}
+      key="player"
+    >
+      <Text style={styles.label}>{playerLabel}</Text>
+      <View style={styles.cardContainer}>
+        {playerTopCard ? (
+          <PlayingCard 
+            rank={playerTopCard.rank} 
+            suit={playerTopCard.suit} 
+          />
+        ) : (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>-</Text>
+          </View>
+        )}
+      </View>
+      <Text style={styles.count}>{playerCaptures.length}</Text>
+    </View>
+  );
+
+  const opponentSection = (
+    <View style={styles.captureSection} pointerEvents="box-none" key="opponent">
+      <Text style={styles.label}>{opponentLabel}</Text>
+      <GestureDetector gesture={panGesture}>
+        <Animated.View 
+          ref={cardRef}
+          onLayout={handleLayout}
+          style={[styles.cardWrapper, animatedStyle]}
+        >
+          {opponentTopCard ? (
             <PlayingCard 
-              rank={playerTopCard.rank} 
-              suit={playerTopCard.suit} 
+              rank={opponentTopCard.rank} 
+              suit={opponentTopCard.suit} 
             />
           ) : (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyText}>-</Text>
             </View>
           )}
-        </View>
-        <Text style={styles.count}>{playerCaptures.length}</Text>
-      </View>
+        </Animated.View>
+      </GestureDetector>
+      <Text style={styles.count}>{opponentCaptures.length}</Text>
+    </View>
+  );
 
-      {/* Opponent's captures (right side) - draggable */}
-      <View style={styles.captureSection} pointerEvents="box-none">
-        <Text style={styles.label}>{opponentLabel}</Text>
-        <GestureDetector gesture={panGesture}>
-          <Animated.View 
-            ref={cardRef}
-            onLayout={handleLayout}
-            style={[styles.cardWrapper, animatedStyle]}
-          >
-            {opponentTopCard ? (
-              <PlayingCard 
-                rank={opponentTopCard.rank} 
-                suit={opponentTopCard.suit} 
-              />
-            ) : (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>-</Text>
-              </View>
-            )}
-          </Animated.View>
-        </GestureDetector>
-        <Text style={styles.count}>{opponentCaptures.length}</Text>
-      </View>
+  return (
+    <View style={styles.container} pointerEvents="box-none">
+      {isPlayerOnLeft ? (
+        <>
+          {playerSection}
+          {opponentSection}
+        </>
+      ) : (
+        <>
+          {opponentSection}
+          {playerSection}
+        </>
+      )}
     </View>
   );
 }

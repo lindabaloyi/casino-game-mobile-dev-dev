@@ -98,6 +98,9 @@ export function GameBoard({
     isNearAnyStack,
     registerCapturedCard,
     unregisterCapturedCard,
+    findCapturePileAtPoint,
+    registerCapturePile,
+    unregisterCapturePile,
   } = useDrag();
 
   // ── Drag overlay state ────────────────────────────────────────────────────
@@ -120,6 +123,52 @@ export function GameBoard({
     [overlayX, overlayY],
   );
 
+  const handleTableDragEnd = useCallback(
+    () => {
+      // Get the last known drag position
+      const absX = overlayX.value + CARD_WIDTH / 2;
+      const absY = overlayY.value + CARD_HEIGHT / 2;
+
+      // Check if dropped on capture pile
+      if (findCapturePileAtPoint) {
+        const capturePile = findCapturePileAtPoint(absX, absY);
+        if (capturePile) {
+          console.log('[GameBoard] Dropped on own capture pile:', capturePile);
+          setDraggingCard(null);
+          setDragSource(null);
+          return;
+        }
+      }
+
+      // Check if dropped on a loose card
+      const targetCard = findCardAtPoint(absX, absY);
+      if (targetCard && draggingCard) {
+        sendAction({ type: 'createTemp', payload: { card: draggingCard, targetCard } as unknown as Record<string, unknown> });
+        setDraggingCard(null);
+        setDragSource(null);
+        return;
+      }
+
+      // Check if dropped on a temp stack
+      const targetStack = findTempStackAtPoint(absX, absY);
+      if (targetStack && draggingCard) {
+        // Can only add to own temp stack
+        if (targetStack.owner === playerNumber) {
+          sendAction({ type: 'addToTemp', payload: { tableCard: draggingCard, stackId: targetStack.stackId } as unknown as Record<string, unknown> });
+        }
+        setDraggingCard(null);
+        setDragSource(null);
+        return;
+      }
+
+      // No valid drop target - reset
+      setDraggingCard(null);
+      setDragSource(null);
+    },
+    [sendAction, findCardAtPoint, findTempStackAtPoint, findCapturePileAtPoint, playerNumber, overlayX, overlayY, draggingCard],
+  );
+
+  // Original handleDragEnd for backwards compatibility
   const handleDragEnd = useCallback(() => {
     setDraggingCard(null);
     setDragSource(null);
@@ -219,6 +268,62 @@ export function GameBoard({
     [sendAction],
   );
 
+  // Handle dropping to player's own capture pile
+  const handleDropToCapture = useCallback(
+    (card: Card, source: 'hand' | 'captured', stackId?: string) => {
+      console.log('[GameBoard] Drop to capture:', { card, source, stackId });
+      sendAction({ 
+        type: 'dropToCapture', 
+        payload: { card, source, stackId } as unknown as Record<string, unknown> 
+      });
+      setDraggingCard(null);
+      setDragSource(null);
+    },
+    [sendAction],
+  );
+
+  // Handle temp stack drag start
+  const handleTempStackDragStart = useCallback(
+    (stack: any) => {
+      console.log('[GameBoard] Temp stack drag start:', stack);
+    },
+    [],
+  );
+
+  // Handle temp stack drag move
+  const handleTempStackDragMove = useCallback(
+    (absoluteX: number, absoluteY: number) => {
+      // Position overlay for the ghost if needed
+      overlayX.value = absoluteX - CARD_WIDTH / 2;
+      overlayY.value = absoluteY - CARD_HEIGHT / 2;
+    },
+    [overlayX, overlayY],
+  );
+
+  // Handle temp stack drag end - check for capture pile drop
+  const handleTempStackDragEnd = useCallback(
+    (stack: any) => {
+      console.log('[GameBoard] Temp stack drag end:', stack);
+      const absX = overlayX.value + CARD_WIDTH / 2;
+      const absY = overlayY.value + CARD_HEIGHT / 2;
+
+      // Check if dropped on capture pile
+      if (findCapturePileAtPoint) {
+        const capturePile = findCapturePileAtPoint(absX, absY);
+        if (capturePile) {
+          console.log('[GameBoard] Temp stack dropped on capture pile:', capturePile);
+          sendAction({ 
+            type: 'dropToCapture', 
+            payload: { stackId: stack.stackId } as unknown as Record<string, unknown> 
+          });
+          return;
+        }
+      }
+      console.log('[GameBoard] Temp stack not dropped on capture pile');
+    },
+    [sendAction, findCapturePileAtPoint, overlayX, overlayY],
+  );
+
   // Find overlay stack
   const overlayStackId: string | null = (() => {
     if (!isMyTurn) return null;
@@ -262,7 +367,7 @@ export function GameBoard({
         onTableCardDropOnTemp={handleTableCardDropOnTemp}
         onTableDragStart={handleDragStart}
         onTableDragMove={handleDragMove}
-        onTableDragEnd={handleDragEnd}
+        onTableDragEnd={handleTableDragEnd}
         overlayStackId={overlayStackId}
         onAcceptTemp={handleAcceptTemp}
         onCancelTemp={handleCancelTemp}
@@ -274,6 +379,13 @@ export function GameBoard({
         onCapturedCardDragStart={handleCapturedCardDragStart}
         onCapturedCardDragMove={handleCapturedCardDragMove}
         onCapturedCardDragEnd={handleCapturedCardDragEnd}
+        findCapturePileAtPoint={findCapturePileAtPoint}
+        registerCapturePile={registerCapturePile}
+        unregisterCapturePile={unregisterCapturePile}
+        onDropToCapture={handleDropToCapture}
+        onTempStackDragStart={handleTempStackDragStart}
+        onTempStackDragMove={handleTempStackDragMove}
+        onTempStackDragEnd={handleTempStackDragEnd}
       />
 
       <PlayerHandArea

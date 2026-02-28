@@ -4,13 +4,16 @@
  * 
  * - temp_stack: shows build value with preview
  * - build_stack: shows owner indicator (P1 or P2)
+ * - Can be dragged to capture pile (temp_stack only, owner's turn)
  */
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { PlayingCard } from '../cards/PlayingCard';
 import { TempStack, BuildStack } from './types';
-import { TempStackBounds } from '../../hooks/useDrag';
+import { TempStackBounds, CapturePileBounds } from '../../hooks/useDrag';
 import { getStackConfig } from '../../constants/stackActions';
 import { Card } from './types';
 import { getTempStackPreview } from '../../utils/buildUtils';
@@ -33,12 +36,38 @@ interface Props {
   unregisterTempStack: (stackId: string) => void;
   /** Capture callback - for when a hand card is dropped on this stack */
   onCapture?: (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => void;
+  
+  // Drag callbacks (for dragging temp stack to capture pile)
+  isMyTurn?: boolean;
+  playerNumber?: number;
+  findCapturePileAtPoint?: (x: number, y: number) => CapturePileBounds | null;
+  onDragStart?: (stack: TempStack) => void;
+  onDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onDragEnd?: (stack: TempStack) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function TempStackView({ stack, layoutVersion, registerTempStack, unregisterTempStack, onCapture }: Props) {
+export function TempStackView({ 
+  stack, 
+  layoutVersion, 
+  registerTempStack, 
+  unregisterTempStack, 
+  onCapture,
+  isMyTurn,
+  playerNumber,
+  findCapturePileAtPoint,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+}: Props) {
   const viewRef = useRef<View>(null);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const isDragging = useSharedValue(false);
+
+  // Only temp_stack can be dragged, and only by the owner on their turn
+  const canDrag = isMyTurn && playerNumber !== undefined && stack.owner === playerNumber && stack.type === 'temp_stack';
 
   // bottom = highest-value card (set at creation)
   // top    = most recently added card
@@ -89,10 +118,58 @@ export function TempStackView({ stack, layoutVersion, registerTempStack, unregis
   const isBuild = stack.type === 'build_stack';
   const ownerLabel = `P${stack.owner + 1}`;
 
+  // Drag handlers - must be before early return per React Hooks rules
+  const handleDragStartInternal = useCallback(() => {
+    if (onDragStart && stack.type === 'temp_stack') {
+      onDragStart(stack);
+    }
+  }, [onDragStart, stack]);
+
+  const handleDragMoveInternal = useCallback((x: number, y: number) => {
+    if (onDragMove) {
+      onDragMove(x, y);
+    }
+  }, [onDragMove]);
+
+  const handleDragEndInternal = useCallback(() => {
+    translateX.value = 0;
+    translateY.value = 0;
+    isDragging.value = false;
+    if (onDragEnd && stack.type === 'temp_stack') {
+      onDragEnd(stack);
+    }
+  }, [onDragEnd, stack, translateX, translateY, isDragging]);
+
+  const panGesture = Gesture.Pan()
+    .enabled(!!canDrag)
+    .onStart(() => {
+      isDragging.value = true;
+      runOnJS(handleDragStartInternal)();
+    })
+    .onUpdate((event) => {
+      if (isDragging.value) {
+        translateX.value = event.translationX;
+        translateY.value = event.translationY;
+        runOnJS(handleDragMoveInternal)(event.absoluteX, event.absoluteY);
+      }
+    })
+    .onEnd(() => {
+      runOnJS(handleDragEndInternal)();
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+    zIndex: isDragging.value ? 100 : 1,
+  }));
+
   if (!bottom || !top) return null;
 
   return (
-    <View ref={viewRef} style={styles.container} onLayout={onLayout}>
+    <GestureDetector gesture={panGesture}>
+      <Animated.View ref={viewRef} style={[styles.container, animatedStyle]} onLayout={onLayout}>
       {/* Base card — highest value */}
       <View style={styles.cardBottom}>
         <PlayingCard rank={bottom.rank} suit={bottom.suit} />
@@ -123,7 +200,8 @@ export function TempStackView({ stack, layoutVersion, registerTempStack, unregis
           <Text style={styles.ownerText}>{ownerLabel}</Text>
         </View>
       )}
-    </View>
+    </Animated.View>
+    </GestureDetector>
   );
 }
 

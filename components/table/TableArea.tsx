@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { CardBounds, TempStackBounds, CapturedCardBounds } from '../../hooks/useDrag';
+import { CardBounds, TempStackBounds, CapturedCardBounds, CapturePileBounds } from '../../hooks/useDrag';
 import { Card, TempStack, BuildStack, TableItem, isLooseCard, isTempStack, isBuildStack } from './types';
 import { DraggableLooseCard } from './DraggableLooseCard';
 import { TempStackView } from './TempStackView';
@@ -66,6 +66,17 @@ interface Props {
   onCapturedCardDragStart?: (card: Card) => void;
   onCapturedCardDragMove?: (absoluteX: number, absoluteY: number) => void;
   onCapturedCardDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string) => void;
+
+  // Capture pile drop target
+  findCapturePileAtPoint?: (x: number, y: number) => CapturePileBounds | null;
+  registerCapturePile?: (bounds: CapturePileBounds) => void;
+  unregisterCapturePile?: () => void;
+  onDropToCapture?: (card: Card, source: 'hand' | 'captured') => void;
+  
+  // Temp stack drag handlers
+  onTempStackDragStart?: (stack: TempStack) => void;
+  onTempStackDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onTempStackDragEnd?: (stack: TempStack) => void;
 }
 
 // ── Type guard for stacks ───────────────────────────────────────────────
@@ -111,6 +122,13 @@ export function TableArea({
   onCapturedCardDragStart,
   onCapturedCardDragMove,
   onCapturedCardDragEnd,
+  findCapturePileAtPoint,
+  registerCapturePile,
+  unregisterCapturePile,
+  onDropToCapture,
+  onTempStackDragStart,
+  onTempStackDragMove,
+  onTempStackDragEnd,
 }: Props) {
   const looseCards = tableCards.filter(isLooseCard) as Card[];
   // Show both temp stacks and build stacks
@@ -161,6 +179,12 @@ export function TableArea({
             registerTempStack={registerTempStack}
             unregisterTempStack={unregisterTempStack}
             onCapture={onCapture}
+            isMyTurn={isMyTurn}
+            playerNumber={playerNumber}
+            findCapturePileAtPoint={findCapturePileAtPoint}
+            onDragStart={onTempStackDragStart}
+            onDragMove={onTempStackDragMove}
+            onDragEnd={onTempStackDragEnd}
           />
         ))}
       </View>
@@ -195,6 +219,8 @@ export function TableArea({
         onDragStart={onCapturedCardDragStart}
         onDragMove={onCapturedCardDragMove}
         onDragEnd={onCapturedCardDragEnd}
+        registerCapturePile={registerCapturePile}
+        unregisterCapturePile={unregisterCapturePile}
       />
     </View>
   );

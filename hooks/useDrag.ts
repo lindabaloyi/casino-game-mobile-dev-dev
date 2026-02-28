@@ -47,6 +47,15 @@ export interface CapturedCardBounds {
   card: { rank: string; suit: string; value: number };
 }
 
+// Capture pile bounds for player's own capture pile
+export interface CapturePileBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  playerIndex: number;
+}
+
 // ── Constants ───────────────────────────────────────────────────────────────
 
 // Increased tolerance for better hit detection during drag & drop
@@ -214,6 +223,40 @@ export function useDrag() {
     [],
   );
 
+  // ── Capture pile position (player's own capture pile) ───────────────────────
+  const capturePilePosition = useRef<CapturePileBounds | null>(null);
+
+  const registerCapturePile = useCallback((bounds: CapturePileBounds) => {
+    console.log('[useDrag] registerCapturePile:', bounds);
+    capturePilePosition.current = bounds;
+  }, []);
+
+  const unregisterCapturePile = useCallback(() => {
+    capturePilePosition.current = null;
+  }, []);
+
+  /** Returns the capture pile bounds if point is within it, or null. */
+  const findCapturePileAtPoint = useCallback(
+    (x: number, y: number): CapturePileBounds | null => {
+      const bounds = capturePilePosition.current;
+      if (!bounds) {
+        console.log('[useDrag] findCapturePileAtPoint: no bounds registered');
+        return null;
+      }
+      
+      const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
+      const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
+      
+      console.log('[useDrag] findCapturePileAtPoint:', { x, y, bounds, inX, inY });
+      
+      if (inX && inY) {
+        return bounds;
+      }
+      return null;
+    },
+    [],
+  );
+
   return {
     // Table drop zone
     tableRef,
@@ -236,6 +279,11 @@ export function useDrag() {
     registerCapturedCard,
     unregisterCapturedCard,
     findCapturedCardAtPoint,
+    // Capture pile position
+    capturePilePosition,
+    registerCapturePile,
+    unregisterCapturePile,
+    findCapturePileAtPoint,
   };
 }
 
