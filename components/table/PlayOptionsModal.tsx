@@ -1,15 +1,14 @@
 /**
  * PlayOptionsModal
- * Shows dynamic build options based on player's hand.
+ * Shows build options when accepting a temp stack.
  * 
- * Logic:
- * - Normal stacks (like [5,3]): Only 1 possible value (5+3=8)
- * - Pair stacks (like [4,4]): 2 possible values (4 and 4+4=8)
- * - Show only options where player has matching card in hand
+ * Style: Green/orange casino theme
+ * Shows: Combined card preview with + indicator for card being added
  */
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
 
 interface PlayOptionsModalProps {
@@ -28,34 +27,15 @@ export function PlayOptionsModal({
   onCancel,
 }: PlayOptionsModalProps) {
   // Calculate available build options based on cards and player's hand
-  const options = useMemo(() => {
-    if (!cards || cards.length === 0) return [];
-    
-    const handValues = new Set(playerHand.map(c => c.value));
-    const cardValues = cards.map(c => c.value);
-    const opts: number[] = [];
-    
-    // Check: total sum (e.g., [5,3] → 8)
-    const totalSum = cardValues.reduce((sum, v) => sum + v, 0);
-    if (handValues.has(totalSum)) {
-      opts.push(totalSum);
-    }
-    
-    // Check for pairs: if all cards have same rank, also allow single card value
-    // e.g., [4,4] → can build 4 (single 4) or 8 (4+4)
-    const allSameRank = cards.length > 1 && cards.every(c => c.rank === cards[0].rank);
-    if (allSameRank) {
-      const singleValue = cardValues[0];
-      if (handValues.has(singleValue) && !opts.includes(singleValue)) {
-        opts.push(singleValue);
-      }
-    }
-    
-    // Sort descending
-    return opts.sort((a, b) => b - a);
-  }, [cards, playerHand]);
-
-  const hasOptions = options.length > 0;
+  const buildValue = cards.reduce((sum, c) => sum + c.value, 0);
+  
+  // Check: total sum (e.g., [5,3] → 8)
+  const hasTotalMatch = playerHand.some(c => c.value === buildValue);
+  
+  // Check for pairs: if all cards have same rank, also allow single card value
+  const allSameRank = cards.length > 1 && cards.every(c => c.rank === cards[0].rank);
+  const singleValue = allSameRank ? cards[0].value : null;
+  const hasSingleMatch = singleValue && playerHand.some(c => c.value === singleValue);
 
   return (
     <Modal
@@ -65,32 +45,61 @@ export function PlayOptionsModal({
       onRequestClose={onCancel}
     >
       <View style={styles.overlay}>
+        <TouchableOpacity 
+          style={styles.clickOutside} 
+          activeOpacity={1} 
+          onPress={onCancel}
+        />
         <View style={styles.modalContent}>
           {/* Header */}
           <Text style={styles.title}>Build Options</Text>
           
-          {/* Show options or "cannot accept" message */}
-          {hasOptions ? (
-            <>
-              <Text style={styles.subtitle}>Select build value:</Text>
-              {options.map((value) => (
-                <TouchableOpacity 
-                  key={value}
-                  style={styles.optionButton}
-                  onPress={() => onConfirm(value)}
-                >
-                  <Text style={styles.optionText}>Build {value}</Text>
-                </TouchableOpacity>
-              ))}
-            </>
-          ) : (
-            <View style={styles.noOptions}>
-              <Text style={styles.noOptionsText}>No matching cards</Text>
-              <Text style={styles.noOptionsSubtext}>Cannot accept this build</Text>
-            </View>
-          )}
+          {/* Description */}
+          <Text style={styles.subtitle}>Use stack to build the following:</Text>
           
-          {/* Cancel */}
+          {/* Combined card preview - all cards in one row with + indicator */}
+          <View style={styles.cardsSection}>
+            <View style={styles.cardsRow}>
+              {cards.map((card, index) => (
+                <View key={index} style={styles.cardWrapper}>
+                  <PlayingCard rank={card.rank} suit={card.suit} />
+                </View>
+              ))}
+              {/* + indicator */}
+              <Text style={styles.plusSign}>+</Text>
+              {/* Placeholder for card to be added - will be shown by user selecting */}
+            </View>
+            <Text style={styles.buildValue}>Total: {buildValue}</Text>
+          </View>
+          
+          {/* Options - show multiple options */}
+          <View style={styles.optionsSection}>
+            {hasTotalMatch && (
+              <TouchableOpacity 
+                style={styles.optionButton} 
+                onPress={() => onConfirm(buildValue)}
+              >
+                <Text style={styles.optionText}>Build {buildValue}</Text>
+              </TouchableOpacity>
+            )}
+            
+            {hasSingleMatch && singleValue !== buildValue && (
+              <TouchableOpacity 
+                style={styles.optionButton} 
+                onPress={() => onConfirm(singleValue!)}
+              >
+                <Text style={styles.optionText}>Build {singleValue}</Text>
+              </TouchableOpacity>
+            )}
+            
+            {!hasTotalMatch && !hasSingleMatch && (
+              <View style={styles.noOptions}>
+                <Text style={styles.noOptionsText}>No matching cards</Text>
+              </View>
+            )}
+          </View>
+          
+          {/* Cancel button */}
           <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
@@ -103,73 +112,109 @@ export function PlayOptionsModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 2000,
+  },
+  clickOutside: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   modalContent: {
     backgroundColor: '#1a472a',
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#2e7d32',
-    padding: 24,
-    minWidth: 220,
+    borderColor: '#28a745',
+    padding: 16,
+    width: '75%',
+    maxWidth: 260,
     alignItems: 'center',
+    zIndex: 2001,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#fbbf24',
-    marginBottom: 8,
+    color: '#f59e0b',
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#9ca3af',
+    marginBottom: 12,
+  },
+  cardsSection: {
+    alignItems: 'center',
+    marginBottom: 12,
+    width: '100%',
+  },
+  cardsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 2,
+  },
+  cardWrapper: {
+    marginHorizontal: -4,
+  },
+  plusSign: {
+    fontSize: 20,
+    color: '#f59e0b',
+    fontWeight: 'bold',
+    marginHorizontal: 4,
+  },
+  buildValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fbbf24',
+    marginTop: 8,
+  },
+  optionsSection: {
+    width: '100%',
+    alignItems: 'center',
     marginBottom: 12,
   },
   optionButton: {
     backgroundColor: '#28a745',
-    borderRadius: 10,
+    borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 32,
-    marginBottom: 10,
+    paddingHorizontal: 24,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: '#34d058',
     width: '100%',
+    alignItems: 'center',
   },
   optionText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
-    textAlign: 'center',
   },
   noOptions: {
-    paddingVertical: 16,
-    marginBottom: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
   },
   noOptionsText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#f87171',
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  noOptionsSubtext: {
-    fontSize: 13,
-    color: '#9ca3af',
-    textAlign: 'center',
-    marginTop: 4,
-  },
   cancelButton: {
     backgroundColor: '#374151',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
     width: '100%',
+    alignItems: 'center',
   },
   cancelText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#9ca3af',
-    textAlign: 'center',
   },
 });
 

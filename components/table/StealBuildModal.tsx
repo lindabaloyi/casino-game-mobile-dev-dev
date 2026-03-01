@@ -2,10 +2,8 @@
  * StealBuildModal
  * Confirmation dialog for stealing an opponent's build.
  * 
- * Shows:
- * - Card from player's hand being used
- * - Opponent's build being stolen
- * - Confirm and Cancel buttons
+ * Style: Green/orange casino theme
+ * Shows: Combined card preview in one row with + indicator
  */
 
 import React from 'react';
@@ -50,40 +48,30 @@ export function StealBuildModal({
         <View style={styles.modalContent}>
           {/* Header */}
           <Text style={styles.title}>STEAL Build</Text>
-          <Text style={styles.subtitle}>Take ownership of opponent&apos;s build</Text>
           
-          {/* Build being stolen */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Opponent&apos;s Build:</Text>
-            <View style={styles.buildCards}>
+          {/* Combined card preview - all cards in one row */}
+          <View style={styles.cardsSection}>
+            <Text style={styles.label}>Combined Build:</Text>
+            <View style={styles.cardsRow}>
               {buildCards.map((card, index) => (
-                <View key={index} style={styles.miniCard}>
-                  <PlayingCard rank={card.rank} suit={card.suit} style={{ transform: [{ scale: 0.5 }] }} />
+                <View key={index} style={styles.cardWrapper}>
+                  <PlayingCard rank={card.rank} suit={card.suit} />
                 </View>
               ))}
+              {/* + indicator */}
+              <Text style={styles.plusSign}>+</Text>
+              {/* Card being added */}
+              <View style={styles.cardWrapper}>
+                <PlayingCard rank={handCard.rank} suit={handCard.suit} />
+              </View>
             </View>
-            <Text style={styles.buildValue}>Value: {buildValue}</Text>
-            <Text style={styles.ownerText}>Owner: Player {buildOwner}</Text>
-          </View>
-          
-          {/* Arrow indicator */}
-          <View style={styles.arrowContainer}>
-            <Text style={styles.arrow}>+</Text>
-          </View>
-          
-          {/* Card being used */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Your Card:</Text>
-            <View style={styles.cardWrapper}>
-              <PlayingCard rank={handCard.rank} suit={handCard.suit} />
-            </View>
-            <Text style={styles.cardValue}>Value: {handCard.value}</Text>
+            <Text style={styles.buildValue}>New Value: {buildValue + handCard.value}</Text>
           </View>
           
           {/* Result preview */}
           <View style={styles.resultSection}>
             <Text style={styles.resultText}>
-              New build will belong to you!
+              Build will belong to you!
             </Text>
           </View>
           
@@ -93,7 +81,6 @@ export function StealBuildModal({
             onPress={onConfirm}
           >
             <Text style={styles.confirmButtonText}>✓ Confirm</Text>
-            <Text style={styles.confirmButtonSub}>Steal this build</Text>
           </TouchableOpacity>
           
           {/* Cancel button */}
@@ -122,97 +109,77 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   modalContent: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 20,
+    backgroundColor: '#1a472a',
+    borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#e94560',
-    padding: 24,
-    minWidth: 300,
+    borderColor: '#28a745',
+    padding: 16,
+    width: '75%',
+    maxWidth: 260,
     alignItems: 'center',
     zIndex: 2001,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#e94560',
+    color: '#f59e0b',
     marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginBottom: 20,
-  },
-  section: {
+  cardsSection: {
     alignItems: 'center',
     marginBottom: 12,
     width: '100%',
   },
   label: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#9ca3af',
-    marginBottom: 8,
+    marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  buildCards: {
+  cardsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 4,
-  },
-  miniCard: {
-    transform: [{ scale: 0.5 }],
-    marginHorizontal: -12,
-  },
-  buildValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fbbf24',
-    marginTop: 8,
-  },
-  ownerText: {
-    fontSize: 12,
-    color: '#ef4444',
-    marginTop: 4,
-  },
-  arrowContainer: {
-    marginVertical: 8,
-  },
-  arrow: {
-    fontSize: 24,
-    color: '#e94560',
-    fontWeight: 'bold',
+    gap: 2,
   },
   cardWrapper: {
-    transform: [{ rotate: '-5deg' }],
+    marginHorizontal: -4,
   },
-  cardValue: {
+  plusSign: {
+    fontSize: 20,
+    color: '#f59e0b',
+    fontWeight: 'bold',
+    marginHorizontal: 4,
+  },
+  buildValue: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fbbf24',
     marginTop: 8,
   },
   resultSection: {
-    backgroundColor: 'rgba(233, 69, 96, 0.2)',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    backgroundColor: 'rgba(40, 167, 69, 0.2)',
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 12,
     width: '100%',
     alignItems: 'center',
   },
   resultText: {
-    fontSize: 14,
-    color: '#e94560',
+    fontSize: 13,
+    color: '#28a745',
     fontWeight: 'bold',
   },
   confirmButton: {
-    backgroundColor: '#e94560',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    marginBottom: 10,
+    backgroundColor: '#28a745',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#ff6b8a',
+    borderColor: '#34d058',
     width: '100%',
     alignItems: 'center',
   },
@@ -221,21 +188,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
-  confirmButtonSub: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: 2,
-  },
   cancelButton: {
     backgroundColor: '#374151',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
     width: '100%',
     alignItems: 'center',
   },
   cancelText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#9ca3af',
   },
 });
