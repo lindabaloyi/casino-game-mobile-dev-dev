@@ -119,6 +119,9 @@ export function TempStackView({
   // Determine owner label for build_stack
   const isBuild = stack.type === 'build_stack';
   const ownerLabel = `P${stack.owner + 1}`;
+  
+  // Card count badge
+  const cardCount = stack.cards?.length ?? 0;
 
   // Drag handlers - must be before early return per React Hooks rules
   const handleDragStartInternal = useCallback(() => {
@@ -205,6 +208,13 @@ export function TempStackView({
         <Text style={styles.valueText}>{displayValue}</Text>
       </View>
 
+      {/* Card count badge - white circle with black text, left side */}
+      {cardCount > 0 && (
+        <View style={styles.cardCountBadge}>
+          <Text style={styles.cardCountText}>+{cardCount}</Text>
+      </View>
+      )}
+
       {/* Badge — show for temp_stack type only */}
       {stack.type === 'temp_stack' && (
         <View style={styles.badge}>
@@ -273,6 +283,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     paddingHorizontal: 4,
+  },
+  // Card count badge - white circle with black text (left side)
+  cardCountBadge: {
+    position: 'absolute',
+    top: -6,
+    left: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#000000',
+    zIndex: 21,
+  },
+  cardCountText: {
+    color: '#000000',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   badge: {
     position: 'absolute',
