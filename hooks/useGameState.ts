@@ -102,6 +102,10 @@ export function useGameState(): UseGameStateResult {
 
     socket.on('error', (data: { message: string }) => {
       setError(data.message);
+      // Request fresh state after error to stay in sync
+      setTimeout(() => {
+        socket.emit('request-sync');
+      }, 100);
     });
 
     return () => {

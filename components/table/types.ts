@@ -24,6 +24,9 @@ export interface TempStack {
   cards: Card[];
   owner: number;
   value: number;
+  base: number;
+  need: number;
+  buildType?: 'sum' | 'diff';
 }
 
 export interface BuildStack {

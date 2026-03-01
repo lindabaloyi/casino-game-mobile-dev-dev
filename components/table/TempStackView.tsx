@@ -12,11 +12,9 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { PlayingCard } from '../cards/PlayingCard';
-import { TempStack, BuildStack } from './types';
+import { TempStack, BuildStack, Card } from './types';
 import { TempStackBounds, CapturePileBounds } from '../../hooks/useDrag';
 import { getStackConfig } from '../../constants/stackActions';
-import { Card } from './types';
-import { getTempStackPreview } from '../../utils/buildUtils';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -74,10 +72,12 @@ export function TempStackView({
   const bottom = stack.cards[0];
   const top    = stack.cards[stack.cards.length - 1];
 
-  // Calculate build preview using the new logic
-  const preview = getTempStackPreview(stack.cards);
-  const displayValue = preview.icon;
-  const badgeColor = preview.isRed ? '#E53935' : '#9C27B0'; // Red for incomplete, Purple for valid
+  // Use server-provided values (value and need)
+  // Server calculates: sum builds (total≤10) or diff builds (total>10)
+  // Only temp_stack has need, build_stack doesn't
+  const need = 'need' in stack ? stack.need : 0;
+  const displayValue = need > 0 ? `-${need}` : stack.value?.toString() ?? '-';
+  const badgeColor = need > 0 ? '#E53935' : '#9C27B0'; // Red for incomplete, Purple for complete
 
   // ── Position registration ─────────────────────────────────────────────────
   const onLayout = useCallback(() => {
