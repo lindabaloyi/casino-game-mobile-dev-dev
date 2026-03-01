@@ -1,7 +1,7 @@
 /**
  * DraggableTableCard
  * A loose table card the current player can drag to:
- *   → Another loose table card  → createTempFromTable action
+ *   → Another loose table card  → createTemp action
  *   → Their own temp stack      → addToTemp action
  *   → Miss                      → no server call, opacity restored
  *
@@ -33,7 +33,7 @@ interface Props {
    */
   findCardAtPoint:     (x: number, y: number, excludeId?: string) => Card | null;
   findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number } | null;
-  /** Dragged loose card dropped on another loose card → createTempFromTable */
+  /** Dragged loose card dropped on another loose card → createTemp */
   onDropOnCard: (card: Card, targetCard: Card) => void;
   /** Dragged loose card dropped on own temp stack → addToTemp */
   onDropOnTemp: (card: Card, stackId: string)  => void;

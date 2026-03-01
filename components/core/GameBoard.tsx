@@ -200,7 +200,7 @@ export function GameBoard({
 
   const handleTableCardDropOnCard = useCallback(
     (card: Card, targetCard: Card) => {
-      sendAction({ type: 'createTempFromTable', payload: { card, targetCard } as unknown as Record<string, unknown> });
+      sendAction({ type: 'createTemp', payload: { card, targetCard } as unknown as Record<string, unknown> });
     },
     [sendAction],
   );

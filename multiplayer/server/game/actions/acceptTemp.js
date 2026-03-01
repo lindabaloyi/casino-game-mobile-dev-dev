@@ -6,16 +6,13 @@
  * Rules:
  *  - Player must own an active temp stack
  *  - It must be that player's turn
+ *  - Stack must have base and need values (valid build or incomplete)
  *  - Player must have a card in hand matching the stack's build target value
  *  - After acceptance, checks for capture/extend options and returns them
  *  - Turn advances after acceptance (stack converted to build)
  */
 
 const { cloneState, nextTurn } = require('../GameState');
-const { 
-  calculateOptimalBuildValue, 
-  calculateValidCaptureValues 
-} = require('../utils/buildCalculations');
 
 /**
  * @param {object} state
@@ -48,14 +45,18 @@ function acceptTemp(state, payload, playerIndex) {
 
   // Get player's hand
   const playerHand = newState.playerHands[playerIndex];
+
+  // Use stored base and need values
+  const targetValue = stack.base;
+  const need = stack.need;
   
-  // Calculate the build target value using shared buildCalculations
-  const buildResult = calculateOptimalBuildValue(stack.cards);
-  const targetValue = buildResult.base; // Use the base (largest card) as target
+  // Validate stack has required build parameters
+  if (!targetValue || need === undefined) {
+    throw new Error(`acceptTemp: stack "${stackId}" missing build parameters`);
+  }
   
   console.log(`[acceptTemp] Stack cards:`, stack.cards.map(c => `${c.rank}${c.suit}`));
-  console.log(`[acceptTemp] Build result:`, buildResult);
-  console.log(`[acceptTemp] Target value: ${targetValue}`);
+  console.log(`[acceptTemp] Target value: ${targetValue}, need: ${need}`);
 
   // Check if player has a card matching the build target
   if (!playerHand.some(card => card.value === targetValue)) {
@@ -64,18 +65,15 @@ function acceptTemp(state, payload, playerIndex) {
     );
   }
 
-  // Update stack value to match the calculated target
+  // Update stack value to match the target (should already be base)
   stack.value = targetValue;
 
   // Convert temp_stack to build_stack with hasBase: false
   stack.type = 'build_stack';
   stack.hasBase = false;
 
-  // Calculate capture options for the new build
-  const validCaptures = calculateValidCaptureValues(
-    { value: targetValue, cards: stack.cards },
-    playerHand
-  );
+  // Simple capture validation: find cards in hand matching the build value
+  const validCaptures = playerHand.filter(card => card.value === targetValue);
   
   // Log capture options for debugging
   if (validCaptures.length > 0) {

@@ -18,7 +18,6 @@ const actionHandlers = {
 
   // ── Milestone 4 ──────────────────────────────────────────────────────────
   createTemp:          require('./createTemp'),
-  createTempFromTable: require('./createTempFromTable'),
   addToTemp:           require('./addToTemp'),
   acceptTemp:          require('./acceptTemp'),
   cancelTemp:          require('./cancelTemp'),

@@ -45,37 +45,28 @@ class ActionRouter {
       throw new Error(`Not your turn (current player: ${state.currentPlayer})`);
     }
 
-    // 4. Special routing for capture action on build targets
-    let finalActionType = type;
+    // 4. Smart routing: check if capture should become addToTemp
+    let finalType = type;
     let finalPayload = payload;
 
     if (type === 'capture' && payload?.targetType === 'build' && payload?.targetStackId) {
-      // Find the stack to check if card value matches stack value
       const stack = state.tableCards.find(
         tc => (tc.type === 'build_stack' || tc.type === 'temp_stack') && tc.stackId === payload.targetStackId,
       );
-
-      if (stack) {
-        console.log(`[ActionRouter] Capture check: card value ${payload.card.value} vs stack value ${stack.value}`);
-        
-        if (payload.card.value === stack.value) {
-          // Values match - proceed with capture
-          finalActionType = 'capture';
-          console.log(`[ActionRouter] Values match - calling capture`);
-        } else {
-          // Values don't match - route to addToTemp instead
-          finalActionType = 'addToTemp';
-          finalPayload = {
-            tableCard: payload.card,
-            stackId: payload.targetStackId,
-          };
-          console.log(`[ActionRouter] Values don't match - routing to addToTemp`);
-        }
+      
+      if (stack && payload.card.value !== stack.value) {
+        // Card value doesn't match - route to addToTemp instead
+        console.log(`[ActionRouter] Routing capture → addToTemp (card ${payload.card.value} vs stack ${stack.value})`);
+        finalType = 'addToTemp';
+        finalPayload = {
+          card: payload.card,
+          stackId: payload.targetStackId,
+        };
       }
     }
 
     // 5. Execute handler — pure function returns new state
-    const handler = this.handlers[finalActionType];
+    const handler = this.handlers[finalType];
     const newState = handler(state, finalPayload || {}, playerIndex);
 
     // 6. Persist updated state

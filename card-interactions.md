@@ -16,7 +16,7 @@ Here are the main actions that can be triggered by a card drop:
 
 *   **`handleTrail`**: A hand card is dropped anywhere on the table. This sends a `trail` action to the server.
 *   **`handleCardDrop`**: A hand card is dropped onto a specific table card. This sends a `createTemp` action to the server.
-*   **`handleTableCardDropOnCard`**: A table card is dropped onto another loose table card. This sends a `createTempFromTable` action to the server.
+*   **`handleTableCardDropOnCard`**: A table card is dropped onto another loose table card. This sends a `createTemp` action to the server.
 *   **`handleTableCardDropOnTemp`**: A table card is dropped onto its own temp stack. This sends an `addToTemp` action to the server.
 
 ### `useDrag` Hook
