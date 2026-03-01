@@ -22,13 +22,14 @@ const actionHandlers = {
   acceptTemp:          require('./acceptTemp'),
   cancelTemp:          require('./cancelTemp'),
 
+  // ── Build actions ─────────────────────────────────────────────────────────
+  addToBuild:          require('./addToBuild'),
+  stealBuild:          require('./stealBuild'),
+
   // ── Capture ────────────────────────────────────────────────────────────────
   capture:             require('./capture'),
   playFromCaptures:    require('./playFromCaptures'),
   dropToCapture:       require('./dropToCapture'),
-
-  // ── Milestone 5 → build:       require('./build')
-  // ── Milestone 6 → extendBuild: require('./extendBuild')
 };
 
 module.exports = actionHandlers;

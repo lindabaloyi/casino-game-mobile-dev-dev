@@ -45,7 +45,7 @@ class ActionRouter {
       throw new Error(`Not your turn (current player: ${state.currentPlayer})`);
     }
 
-    // 4. Smart routing: check if capture should become addToTemp
+    // 4. Smart routing: check if capture should become addToTemp or stealBuild
     let finalType = type;
     let finalPayload = payload;
 
@@ -54,14 +54,61 @@ class ActionRouter {
         tc => (tc.type === 'build_stack' || tc.type === 'temp_stack') && tc.stackId === payload.targetStackId,
       );
       
-      if (stack && payload.card.value !== stack.value) {
-        // Card value doesn't match - route to addToTemp instead
-        console.log(`[ActionRouter] Routing capture → addToTemp (card ${payload.card.value} vs stack ${stack.value})`);
-        finalType = 'addToTemp';
-        finalPayload = {
-          card: payload.card,
-          stackId: payload.targetStackId,
-        };
+      if (stack) {
+        const isOwnBuild = stack.owner === playerIndex;
+        
+        if (isOwnBuild) {
+          // Own build - can only add to temp (or extend if temp)
+          if (payload.card.value !== stack.value) {
+            // Card value doesn't match - route to addToTemp
+            console.log(`[ActionRouter] Routing capture → addToTemp (own build, card ${payload.card.value} vs stack ${stack.value})`);
+            finalType = 'addToTemp';
+            finalPayload = {
+              card: payload.card,
+              stackId: payload.targetStackId,
+            };
+          }
+          // If value matches, capture handles it
+        } else {
+          // Opponent's build - can steal if adding card creates valid new build
+          // Check if the new build would be valid by calculating the new build value
+          const currentCards = [...(stack.cards || []), payload.card];
+          const newTotalSum = currentCards.reduce((sum, c) => sum + c.value, 0);
+          
+          let newBase, newNeed, newBuildType;
+          
+          if (newTotalSum <= 10) {
+            // SUM BUILD
+            newBase = newTotalSum;
+            newNeed = 0;
+            newBuildType = 'sum';
+          } else {
+            // DIFF BUILD - largest is base
+            const sorted = [...currentCards].sort((a, b) => b.value - a.value);
+            newBase = sorted[0].value;
+            const otherSum = sorted.slice(1).reduce((sum, c) => sum + c.value, 0);
+            newNeed = newBase - otherSum;
+            newBuildType = 'diff';
+          }
+          
+          console.log(`[ActionRouter] Testing stealBuild: newTotalSum=${newTotalSum}, newBase=${newBase}, newNeed=${newNeed}, newBuildType=${newBuildType}`);
+          
+          // Allow steal if new build is valid (need >= 0)
+          // For sum builds: need is always 0 (complete)
+          // For diff builds: need must be >= 0 (others can sum to base)
+          if (newNeed >= 0) {
+            console.log(`[ActionRouter] Routing capture → stealBuild (opponent's build, adding ${payload.card.value} creates valid ${newBuildType} build)`);
+            finalType = 'stealBuild';
+            finalPayload = {
+              card: payload.card,
+              stackId: payload.targetStackId,
+            };
+          } else {
+            // Adding card creates invalid build (need < 0 means cards exceed base)
+            console.log(`[ActionRouter] Cannot steal: adding card ${payload.card.value} would create invalid build (need=${newNeed})`);
+            throw new Error(`Cannot steal: adding ${payload.card.rank} would make the build invalid (cards exceed base)`);
+          }
+        }
       }
     }
 
