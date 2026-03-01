@@ -2,8 +2,8 @@
  * CapturedCardsView
  * Displays captured cards on the sides of the table area.
  * 
- * - Left side: Player's own captures (view only)
- * - Right side: Opponent's captures (draggable)
+ * - LEFT side: Opponent's captures (draggable - can play from)
+ * - RIGHT side: Your captures (drop target - can capture to)
  * - Shows the TOP card (last in array = most recently captured)
  */
 
@@ -219,10 +219,8 @@ export function CapturedCardsView({
     };
   }, [unregisterCapturedCard, unregisterCapturePile]);
 
-  // Determine layout based on player number
-  // Player 0: left side of screen = own pile, right side = opponent
-  // Player 1: right side of screen = own pile, left side = opponent
-  const isPlayerOnLeft = playerNumber === 0;
+  // Always show: LEFT = opponent captures, RIGHT = your captures
+  // (regardless of playerNumber, each player sees their own pile on the right)
 
   // Create the two sections
   const playerSection = (
@@ -274,19 +272,13 @@ export function CapturedCardsView({
     </View>
   );
 
+  // Always: LEFT = opponent captures (draggable), RIGHT = your captures (drop target)
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {isPlayerOnLeft ? (
-        <>
-          {playerSection}
-          {opponentSection}
-        </>
-      ) : (
-        <>
-          {opponentSection}
-          {playerSection}
-        </>
-      )}
+      {/* LEFT: opponent's captures (draggable) */}
+      {opponentSection}
+      {/* RIGHT: your captures (drop target) */}
+      {playerSection}
     </View>
   );
 }
