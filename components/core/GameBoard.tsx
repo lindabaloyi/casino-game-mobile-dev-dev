@@ -22,9 +22,9 @@
  *      state updates, no re-renders per frame).
  */
 
-import React, { useCallback, useState, useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { GameState } from '../../hooks/useGameState';
 import { useDrag } from '../../hooks/useDrag';
 import { GameStatusBar } from './GameStatusBar';
@@ -32,7 +32,15 @@ import { TableArea } from '../table/TableArea';
 import { PlayerHandArea } from './PlayerHandArea';
 import { PlayingCard } from '../cards/PlayingCard';
 import { PlayOptionsModal } from '../table/PlayOptionsModal';
-import { TempStack, Card as TableCard } from '../table/types';
+import { StealBuildModal } from '../table/StealBuildModal';
+import { StealOverlay } from '../table/StealOverlay';
+import { TempStack, Card as TableCard, BuildStack } from '../table/types';
+
+// Hooks
+import { useDragOverlay } from './hooks/useDragOverlay';
+import { useStealDetection } from './hooks/useStealDetection';
+import { useModalManager } from './hooks/useModalManager';
+import { useGameActions } from './hooks/useGameActions';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -40,14 +48,6 @@ const CARD_WIDTH  = 56;
 const CARD_HEIGHT = 84;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-interface Card {
-  rank: string;
-  suit: string;
-  value: number;
-}
-
-type DragSource = 'hand' | 'captured' | null;
 
 interface GameBoardProps {
   gameState: GameState;
@@ -59,7 +59,7 @@ interface GameBoardProps {
   onServerErrorClose?: () => void;
 }
 
-// ── Component ──────────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function GameBoard({
   gameState,
@@ -68,14 +68,16 @@ export function GameBoard({
   serverError,
   onServerErrorClose,
 }: GameBoardProps) {
-  // ── Derived data ──────────────────────────────────────────────────────────
-  const myHand   = gameState.playerHands?.[playerNumber] ?? [];
-  const table    = gameState.tableCards ?? [];
-  const isMyTurn = gameState.currentPlayer === playerNumber;
+  // ── Context Value ─────────────────────────────────────────────────────────
+  // (We don't use context provider - passing sendAction directly to hooks)
 
-  // Captured cards arrays
-  const playerCaptures = gameState.playerCaptures?.[playerNumber] ?? [];
-  const opponentCaptures = gameState.playerCaptures?.[playerNumber === 0 ? 1 : 0] ?? [];
+  // ── Derived data ──────────────────────────────────────────────────────────
+  const isMyTurn = gameState.currentPlayer === playerNumber;
+  const myHand = useMemo(() => gameState.playerHands?.[playerNumber] ?? [], [gameState.playerHands, playerNumber]);
+  const table = useMemo(() => gameState.tableCards ?? [], [gameState.tableCards]);
+  
+  const playerCaptures = useMemo(() => gameState.playerCaptures?.[playerNumber] ?? [], [gameState.playerCaptures, playerNumber]);
+  const opponentCaptures = useMemo(() => gameState.playerCaptures?.[playerNumber === 0 ? 1 : 0] ?? [], [gameState.playerCaptures, playerNumber]);
 
   // Table version counter
   const tableVersion = useMemo(() => {
@@ -85,7 +87,7 @@ export function GameBoard({
     return cardCount + idString.length;
   }, [gameState.tableCards]);
 
-  // ── Drop zone + card position tracking ───────────────────────────────────
+  // ── Hooks ──────────────────────────────────────────────────────────────────
   const {
     tableRef,
     dropBounds,
@@ -105,280 +107,144 @@ export function GameBoard({
     unregisterCapturePile,
   } = useDrag();
 
-  // ── Drag overlay state ────────────────────────────────────────────────────
-  const [draggingCard, setDraggingCard] = useState<Card | null>(null);
-  const [dragSource, setDragSource] = useState<DragSource>(null);
-  const overlayX = useSharedValue(0);
-  const overlayY = useSharedValue(0);
+  const dragOverlay = useDragOverlay();
+  const stealDetection = useStealDetection(playerNumber);
+  const modals = useModalManager();
+  const actions = useGameActions(sendAction);
 
-  const handleDragStart = useCallback((card: Card) => {
-    setDraggingCard(card);
-    setDragSource('hand');
-  }, []);
+  // ── Computed values ───────────────────────────────────────────────────────
+  // Find overlay stack (player's temp stack that needs accepting)
+  const overlayStackId: string | null = useMemo(() => {
+    if (!isMyTurn) return null;
+    const myTemp = table.find(
+      (tc: any) => tc.type === 'temp_stack' && tc.owner === playerNumber,
+    ) as TempStack | undefined;
+    return myTemp?.stackId ?? null;
+  }, [table, isMyTurn, playerNumber]);
+
+  // ── Drag Handlers ─────────────────────────────────────────────────────────
+  
+  // Wrapper for table drag start (single arg)
+  const handleTableDragStart = useCallback((card: any) => {
+    dragOverlay.startDrag(card, 'hand');
+  }, [dragOverlay]);
+
+  // Wrapper for captured card drag start (single arg)
+  const handleCapturedDragStart = useCallback((card: any) => {
+    dragOverlay.startDrag(card, 'captured');
+  }, [dragOverlay]);
 
   const handleDragMove = useCallback(
     (absoluteX: number, absoluteY: number) => {
-      // Position ghost centered on finger
-      overlayX.value = absoluteX - CARD_WIDTH / 2;
-      overlayY.value = absoluteY - CARD_HEIGHT / 2;
-    },
-    [overlayX, overlayY],
-  );
+      dragOverlay.moveDrag(absoluteX, absoluteY);
 
-  const handleTableDragEnd = useCallback(
-    () => {
-      // Get the last known drag position
-      const absX = overlayX.value + CARD_WIDTH / 2;
-      const absY = overlayY.value + CARD_HEIGHT / 2;
-
-      // Check if dropped on capture pile
-      if (findCapturePileAtPoint) {
-        const capturePile = findCapturePileAtPoint(absX, absY);
-        if (capturePile) {
-          console.log('[GameBoard] Dropped on own capture pile:', capturePile);
-          setDraggingCard(null);
-          setDragSource(null);
+      // Check if over opponent's build - show steal overlay
+      const stackHit = findTempStackAtPoint?.(absoluteX, absoluteY);
+      if (stackHit) {
+        const stack = table.find(
+          (tc: any) => tc.stackId === stackHit.stackId && tc.type === 'build_stack',
+        ) as BuildStack | undefined;
+        
+        if (stack && stack.owner !== playerNumber) {
+          stealDetection.showOverlay(stack, absoluteX, absoluteY);
           return;
         }
       }
-
-      // Check if dropped on a loose card
-      const targetCard = findCardAtPoint(absX, absY);
-      if (targetCard && draggingCard) {
-        sendAction({ type: 'createTemp', payload: { card: draggingCard, targetCard } as unknown as Record<string, unknown> });
-        setDraggingCard(null);
-        setDragSource(null);
-        return;
+      
+      // Not over opponent's build - hide overlay
+      if (stealDetection.showStealOverlay) {
+        stealDetection.hideOverlay();
       }
-
-      // Check if dropped on a temp stack
-      const targetStack = findTempStackAtPoint(absX, absY);
-      if (targetStack && draggingCard) {
-        // Can only add to own temp stack
-        if (targetStack.owner === playerNumber) {
-          sendAction({ type: 'addToTemp', payload: { tableCard: draggingCard, stackId: targetStack.stackId } as unknown as Record<string, unknown> });
-        }
-        setDraggingCard(null);
-        setDragSource(null);
-        return;
-      }
-
-      // No valid drop target - reset
-      setDraggingCard(null);
-      setDragSource(null);
     },
-    [sendAction, findCardAtPoint, findTempStackAtPoint, findCapturePileAtPoint, playerNumber, overlayX, overlayY, draggingCard],
+    [dragOverlay, findTempStackAtPoint, table, playerNumber, stealDetection],
   );
 
-  // Original handleDragEnd for backwards compatibility
   const handleDragEnd = useCallback(() => {
-    setDraggingCard(null);
-    setDragSource(null);
-  }, []);
+    dragOverlay.endDrag();
+    stealDetection.hideOverlay();
+  }, [dragOverlay, stealDetection]);
 
-  // Ghost style - simple positioning, no transforms
-  const ghostStyle = useAnimatedStyle(() => ({
-    position: 'absolute',
-    left: overlayX.value,
-    top: overlayY.value,
-    zIndex: 1000,
-  }));
+  const handleTableDragEnd = useCallback(() => {
+    const absX = dragOverlay.overlayX.value + CARD_WIDTH / 2;
+    const absY = dragOverlay.overlayY.value + CARD_HEIGHT / 2;
 
-  // ── Action callbacks ──────────────────────────────────────────────────────
-
-  const handleTrail = useCallback(
-    (card: Card) => {
-      sendAction({ type: 'trail', payload: { card } as unknown as Record<string, unknown> });
-    },
-    [sendAction],
-  );
-
-  const handleCardDrop = useCallback(
-    (handCard: Card, targetCard: Card) => {
-      sendAction({ type: 'createTemp', payload: { card: handCard, targetCard } as unknown as Record<string, unknown> });
-    },
-    [sendAction],
-  );
-
-  const handleTableCardDropOnCard = useCallback(
-    (card: Card, targetCard: Card) => {
-      sendAction({ type: 'createTemp', payload: { card, targetCard } as unknown as Record<string, unknown> });
-    },
-    [sendAction],
-  );
-
-  const handleTableCardDropOnTemp = useCallback(
-    (tableCard: Card, stackId: string) => {
-      sendAction({ type: 'addToTemp', payload: { tableCard, stackId } as unknown as Record<string, unknown> });
-    },
-    [sendAction],
-  );
-
-  const handleAcceptTemp = useCallback(
-    (stackId: string) => {
-      sendAction({ type: 'acceptTemp', payload: { stackId } as unknown as Record<string, unknown> });
-    },
-    [sendAction],
-  );
-
-  const handleCancelTemp = useCallback(
-    (stackId: string) => {
-      sendAction({ type: 'cancelTemp', payload: { stackId } as unknown as Record<string, unknown> });
-    },
-    [sendAction],
-  );
-
-  const handleCapture = useCallback(
-    (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => {
-      sendAction({ 
-        type: 'capture', 
-        payload: { card, targetType, targetRank, targetSuit, targetStackId } as unknown as Record<string, unknown> 
-      });
-    },
-    [sendAction],
-  );
-
-  const handleCapturedCardDragStart = useCallback((card: Card) => {
-    setDraggingCard(card);
-    setDragSource('captured');
-  }, []);
-
-  const handleCapturedCardDragMove = useCallback(
-    (absoluteX: number, absoluteY: number) => {
-      overlayX.value = absoluteX - CARD_WIDTH / 2;
-      overlayY.value = absoluteY - CARD_HEIGHT / 2;
-    },
-    [overlayX, overlayY],
-  );
-
-  const handleCapturedCardDragEnd = useCallback(
-    (card: Card, targetCard?: Card, targetStackId?: string) => {
-      if (targetCard) {
-        sendAction({ 
-          type: 'playFromCaptures', 
-          payload: { capturedCard: card, targetCard } as unknown as Record<string, unknown> 
-        });
-      } else if (targetStackId) {
-        sendAction({ 
-          type: 'playFromCaptures', 
-          payload: { capturedCard: card, targetStackId } as unknown as Record<string, unknown> 
-        });
+    // Check capture pile
+    if (findCapturePileAtPoint) {
+      const capturePile = findCapturePileAtPoint(absX, absY);
+      if (capturePile) {
+        handleDragEnd();
+        return;
       }
-      setDraggingCard(null);
-      setDragSource(null);
-    },
-    [sendAction],
-  );
+    }
 
-  // Handle dropping to player's own capture pile
-  const handleDropToCapture = useCallback(
-    (card: Card, source: 'hand' | 'captured', stackId?: string) => {
-      console.log('[GameBoard] Drop to capture:', { card, source, stackId });
-      sendAction({ 
-        type: 'dropToCapture', 
-        payload: { card, source, stackId } as unknown as Record<string, unknown> 
-      });
-      setDraggingCard(null);
-      setDragSource(null);
-    },
-    [sendAction],
-  );
+    // Check loose cards
+    const targetCard = findCardAtPoint?.(absX, absY);
+    if (targetCard && dragOverlay.draggingCard) {
+      actions.createTemp(dragOverlay.draggingCard, targetCard);
+      handleDragEnd();
+      return;
+    }
 
-  // Handle temp stack drag start
-  const handleTempStackDragStart = useCallback(
-    (stack: any) => {
-      console.log('[GameBoard] Temp stack drag start:', stack);
-    },
-    [],
-  );
+    // Check temp stacks
+    const targetStack = findTempStackAtPoint?.(absX, absY);
+    if (targetStack && dragOverlay.draggingCard) {
+      if (targetStack.owner === playerNumber) {
+        actions.addToTemp(dragOverlay.draggingCard, targetStack.stackId);
+      }
+      handleDragEnd();
+      return;
+    }
 
-  // Handle temp stack drag move
-  const handleTempStackDragMove = useCallback(
-    (absoluteX: number, absoluteY: number) => {
-      // Position overlay for the ghost if needed
-      overlayX.value = absoluteX - CARD_WIDTH / 2;
-      overlayY.value = absoluteY - CARD_HEIGHT / 2;
-    },
-    [overlayX, overlayY],
-  );
+    handleDragEnd();
+  }, [dragOverlay, findCapturePileAtPoint, findCardAtPoint, findTempStackAtPoint, playerNumber, actions, handleDragEnd]);
 
-  // Handle temp stack drag end - check for capture pile drop
-  const handleTempStackDragEnd = useCallback(
-    (stack: any) => {
-      console.log('[GameBoard] Temp stack drag end:', stack);
-      const absX = overlayX.value + CARD_WIDTH / 2;
-      const absY = overlayY.value + CARD_HEIGHT / 2;
-
-      // Check if dropped on capture pile
-      if (findCapturePileAtPoint) {
-        const capturePile = findCapturePileAtPoint(absX, absY);
-        if (capturePile) {
-          console.log('[GameBoard] Temp stack dropped on capture pile:', capturePile);
-          sendAction({ 
-            type: 'dropToCapture', 
-            payload: { stackId: stack.stackId } as unknown as Record<string, unknown> 
-          });
+  // ── Action Handlers ───────────────────────────────────────────────────────
+  const handleCapture = useCallback(
+    (card: any, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => {
+      if (targetType === 'build' && targetStackId) {
+        const targetStack = table.find(
+          (tc: any) => tc.stackId === targetStackId && tc.type === 'build_stack',
+        ) as BuildStack | undefined;
+        
+        if (targetStack && targetStack.owner !== playerNumber) {
+          modals.openStealModal(card, targetStack);
           return;
         }
       }
-      console.log('[GameBoard] Temp stack not dropped on capture pile');
+      actions.capture(card, targetType, targetRank, targetSuit, targetStackId);
     },
-    [sendAction, findCapturePileAtPoint, overlayX, overlayY],
+    [table, playerNumber, modals, actions],
   );
 
-  // Find overlay stack
-  const overlayStackId: string | null = (() => {
-    if (!isMyTurn) return null;
-    const myTemp = (table as any[]).find(
-      (tc: any) => tc.type === 'temp_stack' && tc.owner === playerNumber,
-    );
-    return myTemp?.stackId ?? null;
-  })();
-
-  // Modal state for play options
-  const [showPlayModal, setShowPlayModal] = useState(false);
-  const [selectedTempStack, setSelectedTempStack] = useState<TempStack | null>(null);
-
-  // Get current temp stack data for modal
-  const currentTempStack: TempStack | null = useMemo(() => {
-    if (!overlayStackId) return null;
-    return (table as any[]).find(
-      (tc: any) => tc.stackId === overlayStackId,
-    ) as TempStack | null;
-  }, [table, overlayStackId]);
-
-  // Handle opening the play options modal
   const handleAcceptClick = useCallback((stackId: string) => {
-    const stack = (table as any[]).find((tc: any) => tc.stackId === stackId) as TempStack | undefined;
+    const stack = table.find((tc: any) => tc.stackId === stackId) as TempStack | undefined;
     if (stack) {
-      setSelectedTempStack(stack);
-      setShowPlayModal(true);
+      modals.openPlayModal(stack);
     }
-  }, [table]);
+  }, [table, modals]);
 
-  // Handle confirming the modal selection (with selected build value)
   const handleConfirmPlay = useCallback((buildValue: number) => {
-    if (selectedTempStack) {
-      // Include the selected build value in the payload
-      sendAction({ 
-        type: 'acceptTemp', 
-        payload: { 
-          stackId: selectedTempStack.stackId,
-          buildValue 
-        } as unknown as Record<string, unknown> 
-      });
+    if (modals.selectedTempStack) {
+      actions.acceptTemp(modals.selectedTempStack.stackId, buildValue);
     }
-    setShowPlayModal(false);
-    setSelectedTempStack(null);
-  }, [selectedTempStack, sendAction]);
+    modals.closePlayModal();
+  }, [modals, actions]);
 
-  // Handle canceling the modal
-  const handleCancelPlay = useCallback(() => {
-    setShowPlayModal(false);
-    setSelectedTempStack(null);
-  }, []);
+  const handleConfirmSteal = useCallback(() => {
+    if (modals.stealTargetCard && modals.stealTargetStack) {
+      actions.stealBuild(modals.stealTargetCard, modals.stealTargetStack.stackId);
+    }
+    modals.closeStealModal();
+  }, [modals, actions]);
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  const handleStealOverlayPress = useCallback(() => {
+    if (dragOverlay.draggingCard && stealDetection.stealOverlayStack) {
+      modals.openStealModal(dragOverlay.draggingCard, stealDetection.stealOverlayStack);
+      stealDetection.hideOverlay();
+    }
+  }, [dragOverlay, stealDetection, modals]);
+
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
       {serverError && (
@@ -396,7 +262,7 @@ export function GameBoard({
       />
 
       <TableArea
-        tableCards={table as any}
+        tableCards={table}
         tableVersion={tableVersion}
         isMyTurn={isMyTurn}
         playerNumber={playerNumber}
@@ -408,29 +274,26 @@ export function GameBoard({
         unregisterTempStack={unregisterTempStack}
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
-        onTableCardDropOnCard={handleTableCardDropOnCard}
-        onTableCardDropOnTemp={handleTableCardDropOnTemp}
-        onTableDragStart={handleDragStart}
+        onTableCardDropOnCard={actions.createTemp}
+        onTableCardDropOnTemp={actions.addToTemp}
+        onTableDragStart={handleTableDragStart}
         onTableDragMove={handleDragMove}
         onTableDragEnd={handleTableDragEnd}
         overlayStackId={overlayStackId}
         onAcceptTemp={handleAcceptClick}
-        onCancelTemp={handleCancelTemp}
+        onCancelTemp={actions.cancelTemp}
         onCapture={handleCapture}
         playerCaptures={playerCaptures}
         opponentCaptures={opponentCaptures}
         registerCapturedCard={registerCapturedCard}
         unregisterCapturedCard={unregisterCapturedCard}
-        onCapturedCardDragStart={handleCapturedCardDragStart}
-        onCapturedCardDragMove={handleCapturedCardDragMove}
-        onCapturedCardDragEnd={handleCapturedCardDragEnd}
+        onCapturedCardDragStart={handleCapturedDragStart}
+        onCapturedCardDragMove={dragOverlay.moveDrag}
+        onCapturedCardDragEnd={actions.playFromCaptures}
         findCapturePileAtPoint={findCapturePileAtPoint}
         registerCapturePile={registerCapturePile}
         unregisterCapturePile={unregisterCapturePile}
-        onDropToCapture={handleDropToCapture}
-        onTempStackDragStart={handleTempStackDragStart}
-        onTempStackDragMove={handleTempStackDragMove}
-        onTempStackDragEnd={handleTempStackDragEnd}
+        onDropToCapture={actions.dropToCapture}
       />
 
       <PlayerHandArea
@@ -441,32 +304,57 @@ export function GameBoard({
         findTempStackAtPoint={findTempStackAtPoint}
         isNearAnyCard={isNearAnyCard}
         isNearAnyStack={isNearAnyStack}
-        onTrail={handleTrail}
-        onCardDrop={handleCardDrop}
-        onDragStart={handleDragStart}
+        onTrail={actions.trail}
+        onCardDrop={actions.createTemp}
+        onDragStart={handleTableDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onCapture={handleCapture}
       />
 
-      {/* Ghost overlay - only for hand card drags */}
-      {draggingCard && dragSource === 'hand' && (
-        <Animated.View style={ghostStyle} pointerEvents="none">
+      {/* Ghost overlay */}
+      {dragOverlay.draggingCard && (
+        <Animated.View style={dragOverlay.ghostStyle} pointerEvents="none">
           <PlayingCard
-            rank={draggingCard.rank}
-            suit={draggingCard.suit}
+            rank={dragOverlay.draggingCard.rank}
+            suit={dragOverlay.draggingCard.suit}
           />
         </Animated.View>
       )}
 
       {/* Play Options Modal */}
-      {showPlayModal && selectedTempStack && (
+      {modals.showPlayModal && modals.selectedTempStack && (
         <PlayOptionsModal
-          visible={showPlayModal}
-          cards={selectedTempStack.cards}
+          visible={modals.showPlayModal}
+          cards={modals.selectedTempStack.cards}
           playerHand={myHand as TableCard[]}
           onConfirm={handleConfirmPlay}
-          onCancel={handleCancelPlay}
+          onCancel={modals.closePlayModal}
+        />
+      )}
+
+      {/* Steal Build Confirmation Modal */}
+      {modals.showStealModal && modals.stealTargetCard && modals.stealTargetStack && (
+        <StealBuildModal
+          visible={modals.showStealModal}
+          handCard={modals.stealTargetCard}
+          buildCards={modals.stealTargetStack.cards}
+          buildValue={modals.stealTargetStack.value}
+          buildOwner={modals.stealTargetStack.owner}
+          playerNumber={playerNumber}
+          onConfirm={handleConfirmSteal}
+          onCancel={modals.closeStealModal}
+        />
+      )}
+
+      {/* Steal Overlay */}
+      {stealDetection.showStealOverlay && stealDetection.stealOverlayStack && (
+        <StealOverlay
+          visible={stealDetection.showStealOverlay}
+          stackValue={stealDetection.stealOverlayStack.value}
+          onStealPress={handleStealOverlayPress}
+          positionX={stealDetection.stealOverlayPosition.x}
+          positionY={stealDetection.stealOverlayPosition.y}
         />
       )}
     </View>
