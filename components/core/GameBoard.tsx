@@ -31,6 +31,8 @@ import { GameStatusBar } from './GameStatusBar';
 import { TableArea } from '../table/TableArea';
 import { PlayerHandArea } from './PlayerHandArea';
 import { PlayingCard } from '../cards/PlayingCard';
+import { PlayOptionsModal } from '../table/PlayOptionsModal';
+import { TempStack, Card as TableCard } from '../table/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -333,6 +335,49 @@ export function GameBoard({
     return myTemp?.stackId ?? null;
   })();
 
+  // Modal state for play options
+  const [showPlayModal, setShowPlayModal] = useState(false);
+  const [selectedTempStack, setSelectedTempStack] = useState<TempStack | null>(null);
+
+  // Get current temp stack data for modal
+  const currentTempStack: TempStack | null = useMemo(() => {
+    if (!overlayStackId) return null;
+    return (table as any[]).find(
+      (tc: any) => tc.stackId === overlayStackId,
+    ) as TempStack | null;
+  }, [table, overlayStackId]);
+
+  // Handle opening the play options modal
+  const handleAcceptClick = useCallback((stackId: string) => {
+    const stack = (table as any[]).find((tc: any) => tc.stackId === stackId) as TempStack | undefined;
+    if (stack) {
+      setSelectedTempStack(stack);
+      setShowPlayModal(true);
+    }
+  }, [table]);
+
+  // Handle confirming the modal selection (with selected build value)
+  const handleConfirmPlay = useCallback((buildValue: number) => {
+    if (selectedTempStack) {
+      // Include the selected build value in the payload
+      sendAction({ 
+        type: 'acceptTemp', 
+        payload: { 
+          stackId: selectedTempStack.stackId,
+          buildValue 
+        } as unknown as Record<string, unknown> 
+      });
+    }
+    setShowPlayModal(false);
+    setSelectedTempStack(null);
+  }, [selectedTempStack, sendAction]);
+
+  // Handle canceling the modal
+  const handleCancelPlay = useCallback(() => {
+    setShowPlayModal(false);
+    setSelectedTempStack(null);
+  }, []);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
@@ -369,7 +414,7 @@ export function GameBoard({
         onTableDragMove={handleDragMove}
         onTableDragEnd={handleTableDragEnd}
         overlayStackId={overlayStackId}
-        onAcceptTemp={handleAcceptTemp}
+        onAcceptTemp={handleAcceptClick}
         onCancelTemp={handleCancelTemp}
         onCapture={handleCapture}
         playerCaptures={playerCaptures}
@@ -412,6 +457,17 @@ export function GameBoard({
             suit={draggingCard.suit}
           />
         </Animated.View>
+      )}
+
+      {/* Play Options Modal */}
+      {showPlayModal && selectedTempStack && (
+        <PlayOptionsModal
+          visible={showPlayModal}
+          cards={selectedTempStack.cards}
+          playerHand={myHand as TableCard[]}
+          onConfirm={handleConfirmPlay}
+          onCancel={handleCancelPlay}
+        />
       )}
     </View>
   );

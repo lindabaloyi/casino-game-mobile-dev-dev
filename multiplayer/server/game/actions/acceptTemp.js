@@ -1,27 +1,26 @@
 /**
  * acceptTemp
- * Player accepts their pending temp stack — the stack stays on the table
- * and the turn advances to the opponent.
- *
- * Rules:
- *  - Player must own an active temp stack
- *  - It must be that player's turn
- *  - Stack must have base and need values (valid build or incomplete)
- *  - Player must have a card in hand matching the stack's build target value
- *  - After acceptance, checks for capture/extend options and returns them
- *  - Turn advances after acceptance (stack converted to build)
+ * Player accepts their pending temp stack.
+ * 
+ * Payload:
+ * - stackId: required
+ * - buildValue: optional - selected build value (for pairs, e.g., 4 or 8)
+ * 
+ * Flow:
+ * - Converts temp_stack to build_stack with selected value
+ * - Advances turn to opponent
  */
 
 const { cloneState, nextTurn } = require('../GameState');
 
 /**
  * @param {object} state
- * @param {{ stackId: string }} payload
+ * @param {{ stackId: string, buildValue?: number }} payload
  * @param {number} playerIndex
  * @returns {object} New game state
  */
 function acceptTemp(state, payload, playerIndex) {
-  const { stackId } = payload;
+  const { stackId, buildValue } = payload;
 
   if (!stackId) throw new Error('acceptTemp: missing stackId');
 
@@ -43,42 +42,18 @@ function acceptTemp(state, payload, playerIndex) {
     throw new Error(`acceptTemp: player ${playerIndex} does not own stack "${stackId}"`);
   }
 
-  // Get player's hand
-  const playerHand = newState.playerHands[playerIndex];
+  console.log(`[acceptTemp] Accepting stack:`, stack.cards.map(c => `${c.rank}${c.suit}`));
+  console.log(`[acceptTemp] Original build value: ${stack.value}, selected: ${buildValue || stack.value}`);
 
-  // Use stored base and need values
-  const targetValue = stack.base;
-  const need = stack.need;
-  
-  // Validate stack has required build parameters
-  if (!targetValue || need === undefined) {
-    throw new Error(`acceptTemp: stack "${stackId}" missing build parameters`);
-  }
-  
-  console.log(`[acceptTemp] Stack cards:`, stack.cards.map(c => `${c.rank}${c.suit}`));
-  console.log(`[acceptTemp] Target value: ${targetValue}, need: ${need}`);
+  // Use selected buildValue if provided (for pairs), otherwise use stack's value
+  const finalValue = buildValue || stack.value;
+  stack.value = finalValue;
 
-  // Check if player has a card matching the build target
-  if (!playerHand.some(card => card.value === targetValue)) {
-    throw new Error(
-      `acceptTemp: Player does not have a card with value ${targetValue} in hand`
-    );
-  }
-
-  // Update stack value to match the target (should already be base)
-  stack.value = targetValue;
-
-  // Convert temp_stack to build_stack with hasBase: false
+  // Convert temp_stack to build_stack
   stack.type = 'build_stack';
-  stack.hasBase = false;
+  stack.hasBase = true;
 
-  // Simple capture validation: find cards in hand matching the build value
-  const validCaptures = playerHand.filter(card => card.value === targetValue);
-  
-  // Log capture options for debugging
-  if (validCaptures.length > 0) {
-    console.log(`[acceptTemp] Valid capture options:`, validCaptures.map(c => `${c.rank}${c.suit}`));
-  }
+  console.log(`[acceptTemp] Converted to build_stack with value ${finalValue}, turn advances`);
 
   // Turn advances to opponent
   return nextTurn(newState);

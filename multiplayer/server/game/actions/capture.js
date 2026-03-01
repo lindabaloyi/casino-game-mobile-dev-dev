@@ -70,10 +70,10 @@ function capture(state, payload, playerIndex) {
 
     const targetCard = newState.tableCards[tableIdx];
 
-    // Validate: card value must match target value
-    if (capturingCard.value !== targetCard.value) {
+    // Validate: card RANK must match target RANK (identical cards only)
+    if (capturingCard.rank !== targetCard.rank) {
       throw new Error(
-        `capture: card value ${capturingCard.value} does not match target ${targetCard.value}`,
+        `capture: can only capture identical cards (${capturingCard.rank}${capturingCard.suit} vs ${targetRank}${targetSuit})`,
       );
     }
 
@@ -97,11 +97,23 @@ function capture(state, payload, playerIndex) {
 
     const buildStack = newState.tableCards[stackIdx];
 
-    // Validate: card value must match stack's total value
-    if (capturingCard.value !== buildStack.value) {
-      throw new Error(
-        `capture: card value ${capturingCard.value} does not match build value ${buildStack.value}`,
-      );
+    // Validate: card RANK must match stack's RANK (identical cards only)
+    // For builds, check that all cards in build have same rank
+    if (buildStack.cards.length > 0) {
+      const buildRank = buildStack.cards[0].rank;
+      const allSameRank = buildStack.cards.every(c => c.rank === buildRank);
+      if (!allSameRank || capturingCard.rank !== buildRank) {
+        throw new Error(
+          `capture: can only capture builds of identical cards (need ${buildRank}, have ${capturingCard.rank})`,
+        );
+      }
+    } else {
+      // Empty build - use value check
+      if (capturingCard.value !== buildStack.value) {
+        throw new Error(
+          `capture: card value ${capturingCard.value} does not match build value ${buildStack.value}`,
+        );
+      }
     }
 
     // Remove stack from table and add all its cards to captured

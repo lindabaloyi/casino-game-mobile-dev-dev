@@ -79,12 +79,19 @@ function playFromCaptures(state, payload, playerIndex) {
   }
   const [tableCard] = newState.tableCards.splice(tableIdx, 1);
 
-  // Sort: higher-value card is base (bottom), lower-value on top
-  const taggedCaptured = { ...usedCard, source: 'captured' };
-  const taggedTable = { ...tableCard, source: 'table' };
-  const [bottom, top] = taggedCaptured.value >= taggedTable.value
-    ? [taggedCaptured, taggedTable]
-    : [taggedTable, taggedCaptured];
+  // Validate: Only allow identical ranks (pairs like 7+7, 10+10)
+  if (usedCard.rank !== tableCard.rank) {
+    throw new Error(
+      `playFromCaptures: can only combine identical cards (${usedCard.rank} + ${tableCard.rank})`,
+    );
+  }
+
+  // Tag cards with source and sort: higher-value card is base (bottom), lower-value on top
+  const taggedCapturedCard = { ...usedCard, source: 'captured' };
+  const taggedTableCard = { ...tableCard, source: 'table' };
+  const [bottom, top] = taggedCapturedCard.value >= taggedTableCard.value
+    ? [taggedCapturedCard, taggedTableCard]
+    : [taggedTableCard, taggedCapturedCard];
 
   newState.tableCards.push({
     type: 'temp_stack',

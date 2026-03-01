@@ -63,9 +63,10 @@ function addToTemp(state, payload, playerIndex) {
     }
   }
 
-  // If card wasn't found anywhere, throw error
+  // If card wasn't found anywhere, log warning and return unchanged state
   if (!cardFound) {
-    throw new Error(`addToTemp: card ${card.rank}${card.suit} not found in hand or on table`);
+    console.log(`[addToTemp] Warning: card ${card.rank}${card.suit} not found in hand or on table`);
+    return state;
   }
 
   // Add card to stack with source

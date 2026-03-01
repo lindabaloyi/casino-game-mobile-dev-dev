@@ -5,7 +5,7 @@
  * No game logic here — delegates to ActionRouter.
  */
 
-const { initializeGame } = require('./GameState.js');
+const { initializeGame, initializeTestGame } = require('./GameState.js');
 
 class GameManager {
   constructor() {
@@ -22,16 +22,27 @@ class GameManager {
 
   /**
    * Create a new game, deal cards, store state.
+   * Set USE_TEST_GAME = true for debugging with specific cards.
    * @returns {{ gameId: number, gameState: object }}
    */
   startGame() {
     const gameId = this._nextId++;
-    const gameState = initializeGame();
+    
+    // Set to true to use test deal with specific cards
+    const USE_TEST_GAME = true;
+    
+    const gameState = USE_TEST_GAME ? initializeTestGame() : initializeGame();
 
     this.activeGames.set(gameId, gameState);
     this.socketPlayerMap.set(gameId, new Map());
 
     console.log(`[GameManager] Game ${gameId} started — deck: ${gameState.deck.length} remaining`);
+    
+    // Log player hands for debugging
+    console.log(`[GameManager] Player 0 hand:`, gameState.playerHands[0].map(c => `${c.rank}${c.suit}`).join(', '));
+    console.log(`[GameManager] Player 1 hand:`, gameState.playerHands[1].map(c => `${c.rank}${c.suit}`).join(', '));
+    console.log(`[GameManager] Table cards:`, gameState.tableCards.map(c => `${c.rank}${c.suit}`).join(', '));
+    
     return { gameId, gameState };
   }
 

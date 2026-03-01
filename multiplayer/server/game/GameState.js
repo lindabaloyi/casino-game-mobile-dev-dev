@@ -73,6 +73,64 @@ function initializeGame() {
 }
 
 /**
+ * Create a test game state with specific cards for testing.
+ * Player 0 gets: three 5's (5♠, 5♥, 5♦) and a 10♣
+ * Player 1 gets: random cards
+ * Table gets: some loose cards
+ */
+function initializeTestGame() {
+  const fullDeck = [];
+  for (const suit of SUITS) {
+    for (const rank of RANKS) {
+      fullDeck.push({ suit, rank, value: rankValue(rank) });
+    }
+  }
+
+  // Create specific cards for player 0
+  const player0Cards = [
+    { suit: '♠', rank: '5', value: 5 },
+    { suit: '♥', rank: '5', value: 5 },
+    { suit: '♦', rank: '5', value: 5 },
+    { suit: '♣', rank: '10', value: 10 },
+  ];
+
+  // Remove these cards from the full deck
+  const remainingDeck = fullDeck.filter(
+    c => !(c.rank === '5' && (c.suit === '♠' || c.suit === '♥' || c.suit === '♦')) &&
+         !(c.rank === '10' && c.suit === '♣')
+  );
+
+  // Shuffle remaining deck
+  for (let i = remainingDeck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [remainingDeck[i], remainingDeck[j]] = [remainingDeck[j], remainingDeck[i]];
+  }
+
+  // Fill player 0's hand to 10 cards
+  while (player0Cards.length < 10) {
+    player0Cards.push(remainingDeck.pop());
+  }
+
+  // Player 1 gets 10 random cards
+  const player1Cards = remainingDeck.splice(0, 10);
+
+  // Table gets 4 loose cards
+  const tableCards = remainingDeck.splice(0, 4);
+
+  return {
+    deck: remainingDeck,
+    playerHands: [player0Cards, player1Cards],
+    tableCards: tableCards,
+    playerCaptures: [[], []],
+    currentPlayer: 0,
+    round: 1,
+    scores: [0, 0],
+    turnCounter: 1,
+    gameOver: false,
+  };
+}
+
+/**
  * Return a deep clone of the state (safe to mutate in rule functions).
  */
 function cloneState(state) {
@@ -90,6 +148,7 @@ function nextTurn(state) {
 
 module.exports = {
   initializeGame,
+  initializeTestGame,
   cloneState,
   nextTurn,
   rankValue,
