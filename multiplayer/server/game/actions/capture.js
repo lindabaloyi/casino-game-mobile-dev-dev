@@ -1,4 +1,34 @@
 /**
+ * Helper: Calculate all possible capture values for identical card builds
+ * For n cards of rank R, possible values = R, 2R, 3R, ..., nR
+ * Handles Ace (1 or 11, treated as 1 for multiplication)
+ */
+function getPossibleCaptureValues(cards) {
+  if (cards.length === 0) return [];
+  
+  const cardValue = cards[0].value;
+  const count = cards.length;
+  const possibleValues = [];
+  
+  // For each possible count from 1 to number of cards
+  for (let i = 1; i <= count; i++) {
+    const sum = cardValue * i;
+    possibleValues.push(sum);
+    
+    // Special case for Ace: if sum <= 10 or sum > 10, also consider Ace as 14
+    if (cards[0].rank === 'A') {
+      // If using Ace as 14 (when sum would be > 10)
+      const altSum = 14 + (cardValue - 1) * (i - 1); // Replace one Ace with 14
+      if (!possibleValues.includes(altSum) && altSum <= 14) {
+        possibleValues.push(altSum);
+      }
+    }
+  }
+  
+  return [...new Set(possibleValues)].sort((a, b) => a - b);
+}
+
+/**
  * capture
  * Player captures either:
  *   1. A loose table card (matching the hand card's value)
@@ -9,6 +39,10 @@
  *  - Card value must match target value
  *  - Player can capture their own builds or opponent's builds
  *  - Turn advances after capture
+ *
+ * For identical card builds (e.g., [5,5]):
+ *  - Can capture by rank: 5
+ *  - Can capture by sum: 10 (5+5)
  *
  * Contract: (state, payload, playerIndex) => newState  (pure, no side effects)
  */
@@ -97,15 +131,31 @@ function capture(state, payload, playerIndex) {
 
     const buildStack = newState.tableCards[stackIdx];
 
-    // Validate: card RANK must match stack's RANK (identical cards only)
-    // For builds, check that all cards in build have same rank
+    // Validate capture based on build type
     if (buildStack.cards.length > 0) {
       const buildRank = buildStack.cards[0].rank;
       const allSameRank = buildStack.cards.every(c => c.rank === buildRank);
-      if (!allSameRank || capturingCard.rank !== buildRank) {
-        throw new Error(
-          `capture: can only capture builds of identical cards (need ${buildRank}, have ${capturingCard.rank})`,
-        );
+      
+      if (allSameRank) {
+        // Identical cards: can capture by rank OR by sum of any subset
+        // Example: [5,5] → can capture with 5 (rank) or 10 (5+5)
+        // Example: [3,3,3] → can capture with 3, 6, or 9
+        const possibleValues = getPossibleCaptureValues(buildStack.cards);
+        
+        if (!possibleValues.includes(capturingCard.value)) {
+          // Build the card list string for error message
+          const cardList = buildStack.cards.map(c => c.rank).join(',');
+          throw new Error(
+            `capture: build with ${cardList} can be captured with [${possibleValues.join(', ')}], have ${capturingCard.value}`,
+          );
+        }
+      } else {
+        // Different cards: must match build VALUE (e.g., 9+7+2=9 can be captured with 9)
+        if (capturingCard.value !== buildStack.value) {
+          throw new Error(
+            `capture: build value is ${buildStack.value}, have ${capturingCard.value}`,
+          );
+        }
       }
     } else {
       // Empty build - use value check
