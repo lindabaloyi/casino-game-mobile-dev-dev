@@ -71,7 +71,8 @@ interface Props {
   findCapturePileAtPoint?: (x: number, y: number) => CapturePileBounds | null;
   registerCapturePile?: (bounds: CapturePileBounds) => void;
   unregisterCapturePile?: () => void;
-  onDropToCapture?: (card: Card, source: 'hand' | 'captured') => void;
+  /** Callback for dropping a temp stack onto capture pile */
+  onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
   
   // Temp stack drag handlers
   onTempStackDragStart?: (stack: TempStack) => void;
@@ -185,6 +186,7 @@ export function TableArea({
             onDragStart={onTempStackDragStart}
             onDragMove={onTempStackDragMove}
             onDragEnd={onTempStackDragEnd}
+            onDropToCapture={onDropToCapture}
           />
         ))}
       </View>

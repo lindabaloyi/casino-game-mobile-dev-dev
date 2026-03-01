@@ -42,6 +42,7 @@ interface Props {
   onDragStart?: (stack: TempStack) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: (stack: TempStack) => void;
+  onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ export function TempStackView({
   onDragStart,
   onDragMove,
   onDragEnd,
+  onDropToCapture,
 }: Props) {
   const viewRef = useRef<View>(null);
   const translateX = useSharedValue(0);
@@ -131,14 +133,31 @@ export function TempStackView({
     }
   }, [onDragMove]);
 
-  const handleDragEndInternal = useCallback(() => {
+  const handleDragEndInternal = useCallback((absX: number, absY: number) => {
     translateX.value = 0;
     translateY.value = 0;
     isDragging.value = false;
-    if (onDragEnd && stack.type === 'temp_stack') {
+
+    if (stack.type !== 'temp_stack') return;
+
+    // Check if dropped on player's own capture pile
+    if (findCapturePileAtPoint && playerNumber !== undefined) {
+      const pile = findCapturePileAtPoint(absX, absY);
+      if (pile && pile.playerIndex === playerNumber) {
+        // Dropped on own capture pile - use onDropToCapture
+        console.log('[TempStackView] Dropped on own capture pile:', pile);
+        if (onDropToCapture) {
+          onDropToCapture(stack, 'hand');
+        }
+        return;
+      }
+    }
+
+    // Otherwise, call normal onDragEnd
+    if (onDragEnd) {
       onDragEnd(stack);
     }
-  }, [onDragEnd, stack, translateX, translateY, isDragging]);
+  }, [findCapturePileAtPoint, onDropToCapture, onDragEnd, stack, playerNumber, translateX, translateY, isDragging]);
 
   const panGesture = Gesture.Pan()
     .enabled(!!canDrag)
@@ -153,8 +172,9 @@ export function TempStackView({
         runOnJS(handleDragMoveInternal)(event.absoluteX, event.absoluteY);
       }
     })
-    .onEnd(() => {
-      runOnJS(handleDragEndInternal)();
+    .onEnd((event) => {
+      // Use the finger's absolute position for hit detection
+      runOnJS(handleDragEndInternal)(event.absoluteX, event.absoluteY);
     });
 
   const animatedStyle = useAnimatedStyle(() => ({

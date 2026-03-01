@@ -65,10 +65,10 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
-  const dropToCapture = useCallback((card: any, source: 'hand' | 'captured', stackId?: string) => {
+  const dropToCapture = useCallback((stack: any, source: 'hand' | 'captured') => {
     sendAction({ 
       type: 'dropToCapture', 
-      payload: { card, source, stackId } as unknown as Record<string, unknown> 
+      payload: { stackId: stack.stackId } as unknown as Record<string, unknown> 
     });
   }, [sendAction]);
 
