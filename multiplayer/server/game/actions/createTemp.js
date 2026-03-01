@@ -1,9 +1,10 @@
 /**
  * createTemp
- * Creates a temporary stack from two loose table cards.
+ * Creates a temporary stack from:
+ * - hand card + loose table card, OR
+ * - loose table card + loose table card
  *
  * Rules:
- *  - Two loose table cards only
  *  - Turn does NOT advance — player must Accept/Cancel
  *
  * Contract: (state, payload, playerIndex) => newState  (pure, no side effects)
@@ -50,30 +51,48 @@ function createTemp(state, payload, playerIndex) {
 
   const newState = cloneState(state);
 
-  // Find first card on table (must be loose - no type)
-  const firstIdx = newState.tableCards.findIndex(
+  // Find first card: check table first, then hand
+  let firstCard = null;
+  let firstSource = '';
+  
+  // Check table first (loose cards only)
+  const tableIdx = newState.tableCards.findIndex(
     tc => !tc.type && tc.rank === card.rank && tc.suit === card.suit,
   );
-  if (firstIdx === -1) {
-    console.log(`[createTemp] Warning: card ${card.rank}${card.suit} not found on table`);
-    return state; // Return unchanged state instead of throwing
+  if (tableIdx !== -1) {
+    [firstCard] = newState.tableCards.splice(tableIdx, 1);
+    firstSource = 'table';
+  } else {
+    // Check player's hand
+    const hand = newState.playerHands[playerIndex];
+    const handIdx = hand.findIndex(
+      c => c.rank === card.rank && c.suit === card.suit,
+    );
+    if (handIdx !== -1) {
+      [firstCard] = hand.splice(handIdx, 1);
+      firstSource = 'hand';
+    }
   }
-  const [firstCard] = newState.tableCards.splice(firstIdx, 1);
+  
+  if (!firstCard) {
+    console.log(`[createTemp] Warning: card ${card.rank}${card.suit} not found on table or hand`);
+    return state;
+  }
 
-  // Find target card on table (must be loose - no type)
+  // Find target card on table (must be loose)
   const targetIdx = newState.tableCards.findIndex(
     tc => !tc.type && tc.rank === targetCard.rank && tc.suit === targetCard.suit,
   );
   if (targetIdx === -1) {
     console.log(`[createTemp] Warning: targetCard ${targetCard.rank}${targetCard.suit} not found on table`);
-    return state; // Return unchanged state instead of throwing
+    return state;
   }
   const [tableCard] = newState.tableCards.splice(targetIdx, 1);
 
   // Sort: higher-value card is the base (bottom), lower-value sits on top.
   const [bottom, top] = firstCard.value >= tableCard.value
-    ? [{ ...firstCard, source: 'table' }, { ...tableCard, source: 'table' }]
-    : [{ ...tableCard, source: 'table' }, { ...firstCard, source: 'table' }];
+    ? [{ ...firstCard, source: firstSource }, { ...tableCard, source: 'table' }]
+    : [{ ...tableCard, source: 'table' }, { ...firstCard, source: firstSource }];
 
   // Calculate build parameters: base (largest card) and need (what's needed to complete)
   const { base, need } = calculateBuildParams([bottom, top]);
