@@ -90,10 +90,11 @@ export function TempStackView({
           x, y, width, height,
           stackId: stack.stackId,
           owner:   stack.owner,
+          stackType: stack.type,
         });
       });
     });
-  }, [stack.stackId, stack.owner, registerTempStack]);
+  }, [stack.stackId, stack.owner, stack.type, registerTempStack]);
 
   // Re-measure on table reflow (sibling card changes shift this stack's position).
   useEffect(() => {
@@ -103,10 +104,11 @@ export function TempStackView({
           x, y, width, height,
           stackId: stack.stackId,
           owner:   stack.owner,
+          stackType: stack.type,
         });
       });
     });
-  }, [layoutVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [layoutVersion, stack.stackId, stack.owner, stack.type, registerTempStack]);
 
   useEffect(() => {
     return () => unregisterTempStack(stack.stackId);
@@ -116,12 +118,10 @@ export function TempStackView({
   const config = getStackConfig(stack.type);
   const badgeLabel = config?.label ?? stack.type.toUpperCase();
 
-  // Determine owner label for build_stack
+  // Card count for badge (not displayed, just placeholder)
+  const cardCount = 0;
   const isBuild = stack.type === 'build_stack';
   const ownerLabel = `P${stack.owner + 1}`;
-  
-  // Card count badge
-  const cardCount = stack.cards?.length ?? 0;
 
   // Drag handlers - must be before early return per React Hooks rules
   const handleDragStartInternal = useCallback(() => {
@@ -208,7 +208,7 @@ export function TempStackView({
         <Text style={styles.valueText}>{displayValue}</Text>
       </View>
 
-      {/* Card count badge - white circle with black text, left side */}
+      {/* Badge — show with black text, left side */}
       {cardCount > 0 && (
         <View style={styles.cardCountBadge}>
           <Text style={styles.cardCountText}>+{cardCount}</Text>

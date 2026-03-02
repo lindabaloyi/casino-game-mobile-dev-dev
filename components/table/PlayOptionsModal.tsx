@@ -26,6 +26,11 @@ export function PlayOptionsModal({
   onConfirm,
   onCancel,
 }: PlayOptionsModalProps) {
+  // Handle undefined cards gracefully
+  if (!cards || !Array.isArray(cards) || cards.length === 0) {
+    return null;
+  }
+  
   // Calculate available build options based on cards and player's hand
   // Use the same diff/sum logic as the server
   const totalSum = cards.reduce((sum, c) => sum + c.value, 0);

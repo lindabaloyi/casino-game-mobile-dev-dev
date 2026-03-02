@@ -37,12 +37,17 @@ function acceptTemp(state, payload, playerIndex) {
 
   const stack = newState.tableCards[stackIdx];
   
+  // Validate stack has cards
+  if (!stack.cards || !Array.isArray(stack.cards)) {
+    throw new Error(`acceptTemp: stack "${stackId}" has no cards`);
+  }
+  
   // Validate ownership
   if (stack.owner !== playerIndex) {
     throw new Error(`acceptTemp: player ${playerIndex} does not own stack "${stackId}"`);
   }
 
-  console.log(`[acceptTemp] Accepting stack:`, stack.cards.map(c => `${c.rank}${c.suit}`));
+  console.log(`[acceptTemp] Accepting stack:`, stack.cards?.map ? stack.cards.map(c => `${c.rank}${c.suit}`) : 'NO_CARDS');
   console.log(`[acceptTemp] Original build value: ${stack.value}, selected: ${buildValue || stack.value}`);
 
   // Use selected buildValue if provided (for pairs), otherwise use stack's value

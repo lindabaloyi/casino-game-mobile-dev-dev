@@ -19,7 +19,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { PlayingCard } from '../cards/PlayingCard';
-import { Card } from './types';
+import { Card, TableItem, BuildStack, isBuildStack } from './types';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -32,11 +32,17 @@ interface Props {
    * in the card position registry.
    */
   findCardAtPoint:     (x: number, y: number, excludeId?: string) => Card | null;
-  findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number } | null;
+  findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack'; value?: number } | null;
+  /** Player's hand - needed for capture vs extend logic */
+  playerHand?: Card[];
+  /** Table cards - needed to find build stack value */
+  tableCards?: TableItem[];
   /** Dragged loose card dropped on another loose card → createTemp */
   onDropOnCard: (card: Card, targetCard: Card) => void;
   /** Dragged loose card dropped on own temp stack → addToTemp */
   onDropOnTemp: (card: Card, stackId: string)  => void;
+  /** Dragged loose card dropped on own build stack → startBuildExtension */
+  onExtendBuild?: (card: Card, stackId: string) => void;
   /** Ghost overlay callbacks */
   onDragStart: (card: Card) => void;
   onDragMove:  (absoluteX: number, absoluteY: number) => void;
@@ -53,8 +59,11 @@ export function DraggableTableCard({
   playerNumber,
   findCardAtPoint,
   findTempStackAtPoint,
+  playerHand,
+  tableCards,
   onDropOnCard,
   onDropOnTemp,
+  onExtendBuild,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -63,30 +72,68 @@ export function DraggableTableCard({
   const opacity = useSharedValue(1);
   const cardId  = `${card.rank}${card.suit}`;
 
+  // Helper: Find a build stack from tableCards by stackId
+  const findBuildStack = (stackId: string): BuildStack | null => {
+    if (!tableCards) return null;
+    for (const tc of tableCards) {
+      if (isBuildStack(tc) && tc.stackId === stackId) {
+        return tc;
+      }
+    }
+    return null;
+  };
+
+  // Helper: Check if player has any card in hand that can capture the build
+  const hasCaptureCardInHand = (buildValue: number) => {
+    if (!playerHand) return false;
+    // Player has a capture card if any card in hand matches the build value
+    return playerHand.some(c => c.value === buildValue);
+  };
+
   // ── JS-thread handlers ────────────────────────────────────────────────────
 
   function _onDragStart()                        { onDragStart(card); }
   function _onDragMove(x: number, y: number)     { onDragMove(x, y); }
 
   function handleDrop(absX: number, absY: number) {
-    // 1. Check if dropped on own temp stack
+    // 1. Check if dropped on a stack (temp or build)
     const tempHit = findTempStackAtPoint(absX, absY);
-    if (tempHit && tempHit.owner === playerNumber) {
-      console.log(`[DraggableTableCard] DROP ON TEMP — ${cardId} → stack ${tempHit.stackId}`);
-      onDragEnd();
-      onDropOnTemp(card, tempHit.stackId);
-      return;
+    if (tempHit) {
+      // Own temp stack - add to temp
+      if (tempHit.stackType === 'temp_stack' && tempHit.owner === playerNumber) {
+        console.log(`[DraggableTableCard] DROP ON TEMP — ${cardId} → stack ${tempHit.stackId}`);
+        onDragEnd();
+        onDropOnTemp(card, tempHit.stackId);
+        return;
+      }
+      
+      // Own build stack - ALWAYS EXTEND (loose cards can only extend, never capture own builds)
+      if (tempHit.stackType === 'build_stack' && tempHit.owner === playerNumber) {
+        // Find the build stack to get its value
+        const buildStack = findBuildStack(tempHit.stackId);
+        const buildValue = buildStack?.value ?? tempHit.value ?? 0;
+        
+        console.log(`[DraggableTableCard] EXTEND BUILD — ${cardId} → stack ${tempHit.stackId}, buildValue=${buildValue}`);
+        
+        // Loose cards can only EXTEND builds (not capture them)
+        // Hand cards are the ones that can capture
+        onDragEnd();
+        if (onExtendBuild) {
+          onExtendBuild(card, tempHit.stackId);
+        }
+        return;
+      }
+      
+      // Opponent's build - capture!
+      if (tempHit.owner !== playerNumber) {
+        console.log(`[DraggableTableCard] CAPTURE BUILD — ${cardId} → stack ${tempHit.stackId}`);
+        onDragEnd();
+        onCapture(card, 'build', undefined, undefined, tempHit.stackId);
+        return;
+      }
     }
 
-    // 2. Check if dropped on opponent's build (capture!)
-    if (tempHit && tempHit.owner !== playerNumber) {
-      console.log(`[DraggableTableCard] CAPTURE BUILD — ${cardId} → stack ${tempHit.stackId}`);
-      onDragEnd();
-      onCapture(card, 'build', undefined, undefined, tempHit.stackId);
-      return;
-    }
-
-    // 3. Check if dropped on another loose table card (exclude self)
+    // 2. Check if dropped on another loose table card (exclude self)
     const cardHit = findCardAtPoint(absX, absY, cardId);
     if (cardHit) {
       console.log(`[DraggableTableCard] DROP ON CARD — ${cardId} → ${cardHit.rank}${cardHit.suit}`);
@@ -95,7 +142,7 @@ export function DraggableTableCard({
       return;
     }
 
-    // 4. Miss — card stays on table, restore opacity
+    // 3. Miss — card stays on table, restore opacity
     console.log(`[DraggableTableCard] MISS — ${cardId} snapping back`);
     opacity.value = withSpring(1);
     onDragEnd();

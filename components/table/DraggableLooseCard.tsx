@@ -16,7 +16,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { CardBounds, TempStackBounds } from '../../hooks/useDrag';
-import { Card } from './types';
+import { Card, TableItem } from './types';
 import { DraggableTableCard } from './DraggableTableCard';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -38,11 +38,16 @@ export interface DraggableLooseCardProps {
 
   // Hit detection — forwarded to DraggableTableCard
   findCardAtPoint:     (x: number, y: number, excludeId?: string) => Card | null;
-  findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number } | null;
+  findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack'; value?: number } | null;
+
+  // Player hand and table cards - needed for capture vs extend logic
+  playerHand?: Card[];
+  tableCards?: TableItem[];
 
   // Drop outcomes — forwarded to DraggableTableCard
   onDropOnCard: (card: Card, targetCard: Card)  => void;
   onDropOnTemp: (card: Card, stackId: string)   => void;
+  onExtendBuild?: (card: Card, stackId: string) => void;
 
   // Ghost overlay — forwarded to DraggableTableCard
   onDragStart: (card: Card)                       => void;
@@ -64,8 +69,11 @@ export function DraggableLooseCard({
   unregisterCard,
   findCardAtPoint,
   findTempStackAtPoint,
+  playerHand,
+  tableCards,
   onDropOnCard,
   onDropOnTemp,
+  onExtendBuild,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -107,8 +115,11 @@ export function DraggableLooseCard({
         playerNumber={playerNumber}
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
+        playerHand={playerHand}
+        tableCards={tableCards}
         onDropOnCard={onDropOnCard}
         onDropOnTemp={onDropOnTemp}
+        onExtendBuild={onExtendBuild}
         onDragStart={onDragStart}
         onDragMove={onDragMove}
         onDragEnd={onDragEnd}

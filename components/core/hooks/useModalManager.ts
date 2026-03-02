@@ -40,6 +40,20 @@ export function useModalManager() {
     setStealTargetStack(null);
   }, []);
 
+  // Extend build modal
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [extendTargetBuild, setExtendTargetBuild] = useState<BuildStack | null>(null);
+
+  const openExtendModal = useCallback((stack: BuildStack) => {
+    setExtendTargetBuild(stack);
+    setShowExtendModal(true);
+  }, []);
+
+  const closeExtendModal = useCallback(() => {
+    setShowExtendModal(false);
+    setExtendTargetBuild(null);
+  }, []);
+
   return {
     // Play modal
     showPlayModal,
@@ -52,5 +66,10 @@ export function useModalManager() {
     stealTargetStack,
     openStealModal,
     closeStealModal,
+    // Extend build modal
+    showExtendModal,
+    extendTargetBuild,
+    openExtendModal,
+    closeExtendModal,
   };
 }

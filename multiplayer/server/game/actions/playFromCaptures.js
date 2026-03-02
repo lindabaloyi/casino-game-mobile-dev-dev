@@ -79,12 +79,8 @@ function playFromCaptures(state, payload, playerIndex) {
   }
   const [tableCard] = newState.tableCards.splice(tableIdx, 1);
 
-  // Validate: Only allow identical ranks (pairs like 7+7, 10+10)
-  if (usedCard.rank !== tableCard.rank) {
-    throw new Error(
-      `playFromCaptures: can only combine identical cards (${usedCard.rank} + ${tableCard.rank})`,
-    );
-  }
+  // Allow combining ANY cards (like createTemp does) - not just identical ranks
+  // This allows creating sum or diff builds from captured cards + table cards
 
   // Tag cards with source and sort: higher-value card is base (bottom), lower-value on top
   const taggedCapturedCard = { ...usedCard, source: 'captured' };
@@ -93,12 +89,34 @@ function playFromCaptures(state, payload, playerIndex) {
     ? [taggedCapturedCard, taggedTableCard]
     : [taggedTableCard, taggedCapturedCard];
 
+  // Calculate build value using same sum/diff logic as createTemp
+  const cards = [bottom, top];
+  const totalSum = cards.reduce((sum, c) => sum + c.value, 0);
+  
+  let base, need, buildType;
+  if (totalSum <= 10) {
+    // SUM BUILD: all cards add together
+    base = totalSum;
+    need = 0;
+    buildType = 'sum';
+  } else {
+    // DIFF BUILD: largest is base
+    const sorted = [...cards].sort((a, b) => b.value - a.value);
+    base = sorted[0].value;
+    const otherSum = sorted.slice(1).reduce((sum, c) => sum + c.value, 0);
+    need = base - otherSum;
+    buildType = 'diff';
+  }
+
   newState.tableCards.push({
     type: 'temp_stack',
     stackId: `temp_${Date.now()}_p${playerIndex}`,
     cards: [bottom, top],
     owner: playerIndex,
-    value: tableCard.value + usedCard.value,
+    value: base,
+    base: base,
+    need: need,
+    buildType: buildType,
   });
 
   // No turn advance — player continues

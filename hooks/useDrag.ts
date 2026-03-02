@@ -37,6 +37,7 @@ export interface TempStackBounds {
   height: number;
   stackId: string;
   owner: number;
+  stackType: 'temp_stack' | 'build_stack';
 }
 
 export interface CapturedCardBounds {
@@ -155,7 +156,7 @@ export function useDrag() {
 
   /** Returns the temp stack at (x, y), or null (direct hit). */
   const findTempStackAtPoint = useCallback(
-    (x: number, y: number): { stackId: string; owner: number } | null => {
+    (x: number, y: number): { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null => {
       // Debug: log all registered stacks
       const stackList = Array.from(tempStackPositions.current.entries()).map(([id, b]) => ({ id, ...b }));
       console.log('[useDrag] findTempStackAtPoint - checking:', { x, y, registeredStacks: stackList });
@@ -166,7 +167,7 @@ export function useDrag() {
         console.log('[useDrag] findTempStackAtPoint - checking stack:', { stackId: bounds.stackId, x, y, bounds, inX, inY });
         if (inX && inY) {
           console.log('[useDrag] findTempStackAtPoint - HIT:', { bounds, x, y, tolerance: DIRECT_HIT_TOLERANCE });
-          return { stackId: bounds.stackId, owner: bounds.owner };
+          return { stackId: bounds.stackId, owner: bounds.owner, stackType: bounds.stackType };
         }
       }
       console.log('[useDrag] findTempStackAtPoint - no hit');

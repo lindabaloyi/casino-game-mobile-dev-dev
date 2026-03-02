@@ -27,6 +27,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { PlayingCard } from './PlayingCard';
 import { DropBounds } from '../../hooks/useDrag';
+import { TableItem, BuildStack, isBuildStack } from '../table/types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -42,15 +43,22 @@ interface Props {
   /** Finds a specific table card at (x, y); returns null if no card there */
   findCardAtPoint: (x: number, y: number) => Card | null;
   /** Finds a stack at (x, y); returns null if no stack there */
-  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
+  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   /** Check if near any table card (for proximity prevention) */
   isNearAnyCard?: (x: number, y: number) => boolean;
   /** Check if near any temp stack (for proximity prevention) */
   isNearAnyStack?: (x: number, y: number) => boolean;
   isMyTurn: boolean;
+  playerNumber: number;
+  /** Player's hand - needed for capture vs extend logic */
+  playerHand?: Card[];
+  /** Table cards - needed to find build stack value */
+  tableCards?: TableItem[];
   onTrail: (card: Card) => void;
   /** Called when the dragged card lands on a specific table card */
   onCardDrop: (handCard: Card, targetCard: Card) => void;
+  /** Extend build callback - for extending own build with hand card */
+  onExtendBuild?: (card: Card, stackId: string) => void;
   /** Overlay callbacks */
   onDragStart: (card: Card) => void;
   onDragMove: (absoluteX: number, absoluteY: number) => void;
@@ -69,14 +77,36 @@ export function DraggableHandCard({
   isNearAnyCard,
   isNearAnyStack,
   isMyTurn,
+  playerNumber,
+  playerHand,
+  tableCards,
   onTrail,
   onCardDrop,
+  onExtendBuild,
   onDragStart,
   onDragMove,
   onDragEnd,
   onCapture,
 }: Props) {
   const opacity = useSharedValue(1);
+
+  // Helper: Find a build stack from tableCards by stackId
+  const findBuildStack = (stackId: string): BuildStack | null => {
+    if (!tableCards) return null;
+    for (const tc of tableCards) {
+      if (isBuildStack(tc) && tc.stackId === stackId) {
+        return tc;
+      }
+    }
+    return null;
+  };
+
+  // Helper: Check if player has any card in hand (excluding the dragged card) that can capture the build
+  const hasSpareCaptureCard = (buildValue: number, excludeCard: Card) => {
+    if (!playerHand) return false;
+    // Player has a spare capture card if any card in hand (except the one being dragged) matches the build value
+    return playerHand.some(c => c.value === buildValue && (c.rank !== excludeCard.rank || c.suit !== excludeCard.suit));
+  };
 
   // ── JS-thread helpers ─────────────────────────────────────────────────────
 
@@ -92,22 +122,58 @@ export function DraggableHandCard({
    * handleDrop — runs on the JS thread.
    *
    * Priority:
-   *   1. Build stack hit (opponent's) → capture
+   *   1. Build stack hit → capture or extend (based on rules below)
    *   2. Specific table card hit → createTemp
    *   3. Near any card/stack but not directly on one → snap back (no trail!)
    *   4. General table area hit → trail
    *   5. Outside table → snap back
+   *
+   * Capture vs Extend rules for hand cards:
+   *   - Own build stack:
+   *     - If hand card value == build value AND player has NO spare → CAPTURE
+   *     - If hand card value == build value AND player HAS spare → EXTEND
+   *     - If hand card value != build value → EXTEND (normal stack)
+   *   - Opponent's build stack → CAPTURE
    */
   function handleDrop(absX: number, absY: number) {
-    // 0. Check for a build stack under the finger (capture opponent's build)
+    // 0. Check for a build stack under the finger
     const stackHit = findTempStackAtPoint(absX, absY);
-    if (stackHit) {
-      console.log(
-        `[DraggableHandCard] CAPTURE BUILD — ${card.rank}${card.suit} → stack ${stackHit.stackId}`,
-      );
-      onDragEnd();
-      onCapture(card, 'build', undefined, undefined, stackHit.stackId);
-      return;
+    if (stackHit && stackHit.stackType === 'build_stack') {
+      // Own build - need to decide capture vs extend
+      if (stackHit.owner === playerNumber) {
+        const buildStack = findBuildStack(stackHit.stackId);
+        const buildValue = buildStack?.value ?? 0;
+        const canCaptureWithHand = card.value === buildValue;
+        const hasSpare = hasSpareCaptureCard(buildValue, card);
+
+        console.log(
+          `[DraggableHandCard] OWN BUILD — ${card.rank}${card.suit} → stack ${stackHit.stackId}, buildValue=${buildValue}, canCapture=${canCaptureWithHand}, hasSpare=${hasSpare}`,
+        );
+
+        if (canCaptureWithHand && !hasSpare) {
+          // Direct capture: hand card matches build value AND no spare in hand
+          console.log(`[DraggableHandCard] CAPTURE OWN BUILD — matches, no spare`);
+          onDragEnd();
+          onCapture(card, 'build', undefined, undefined, stackHit.stackId);
+          return;
+        } else {
+          // Extend: either card doesn't match, or has spare (player wants to extend)
+          console.log(`[DraggableHandCard] EXTEND BUILD — ${card.rank}${card.suit} → stack ${stackHit.stackId}`);
+          onDragEnd();
+          if (onExtendBuild) {
+            onExtendBuild(card, stackHit.stackId);
+          }
+          return;
+        }
+      } else {
+        // Opponent's build - always capture
+        console.log(
+          `[DraggableHandCard] CAPTURE BUILD — ${card.rank}${card.suit} → stack ${stackHit.stackId}`,
+        );
+        onDragEnd();
+        onCapture(card, 'build', undefined, undefined, stackHit.stackId);
+        return;
+      }
     }
 
     // 1. Check for a specific table card under the finger

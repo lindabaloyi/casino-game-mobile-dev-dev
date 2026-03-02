@@ -86,6 +86,28 @@ export function useGameActions(sendAction: SendAction) {
     }
   }, [sendAction]);
 
+  // Build extension actions
+  const startBuildExtension = useCallback((buildId: string, looseCard: any) => {
+    sendAction({ 
+      type: 'startBuildExtension', 
+      payload: { stackId: buildId, looseCard } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
+  const acceptBuildExtension = useCallback((buildId: string, handCard: any) => {
+    sendAction({ 
+      type: 'acceptBuildExtension', 
+      payload: { stackId: buildId, handCard } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
+  const declineBuildExtension = useCallback((buildId: string) => {
+    sendAction({ 
+      type: 'declineBuildExtension', 
+      payload: { stackId: buildId } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
   return {
     createTemp,
     addToTemp,
@@ -96,5 +118,8 @@ export function useGameActions(sendAction: SendAction) {
     trail,
     dropToCapture,
     playFromCaptures,
+    startBuildExtension,
+    acceptBuildExtension,
+    declineBuildExtension,
   };
 }

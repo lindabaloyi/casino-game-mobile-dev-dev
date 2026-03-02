@@ -36,6 +36,9 @@ export interface BuildStack {
   owner: number;
   value: number;
   hasBase: boolean;
+  pendingExtension?: {
+    looseCard: Card;
+  };
 }
 
 export type AnyStack = TempStack | BuildStack;

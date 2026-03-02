@@ -62,14 +62,24 @@ function createTemp(state, payload, playerIndex) {
     return state;
   }
 
-  // Find target card on table (must be loose)
-  const targetIdx = newState.tableCards.findIndex(
+  // Find target card on table (must be loose) - get index BEFORE removing first card
+  // This is important because removing the first card might shift indices
+  let targetIdx = newState.tableCards.findIndex(
     tc => !tc.type && tc.rank === targetCard.rank && tc.suit === targetCard.suit,
   );
   if (targetIdx === -1) {
     console.log(`[createTemp] Warning: targetCard ${targetCard.rank}${targetCard.suit} not found on table`);
     return state;
   }
+
+  // Now remove the first card from table (if it's there)
+  // Adjust targetIdx if the first card was before the target card
+  let adjustedTargetIdx = targetIdx;
+  if (tableIdx !== -1 && tableIdx < targetIdx) {
+    // First card is before target in array - removing it shifts target index down
+    adjustedTargetIdx = targetIdx - 1;
+  }
+  
   const [tableCard] = newState.tableCards.splice(targetIdx, 1);
 
   // Sort: higher-value card is the base (bottom), lower-value sits on top.
@@ -96,7 +106,9 @@ function createTemp(state, payload, playerIndex) {
     buildType = 'diff';
   }
 
-  newState.tableCards.push({
+  // Insert temp stack at the adjusted position (right after where target card was)
+  // This ensures visual order matches array order in the flex layout
+  newState.tableCards.splice(adjustedTargetIdx + 1, 0, {
     type: 'temp_stack',
     stackId: `temp_${Date.now()}_p${playerIndex}`,
     cards: [bottom, top],
@@ -107,8 +119,9 @@ function createTemp(state, payload, playerIndex) {
     buildType: buildType,
   });
 
-  const newStack = newState.tableCards[newState.tableCards.length - 1];
-  console.log(`[createTemp] Created: ${newStack.cards.map(c => `${c.rank}${c.suit}`).join(', ')} | type=${buildType}, value=${base}, need=${need}`);
+  // Find the newly inserted stack (it was inserted at adjustedTargetIdx + 1)
+  const newStack = newState.tableCards[adjustedTargetIdx + 1];
+  console.log(`[createTemp] Created: ${newStack?.cards?.map(c => `${c.rank}${c.suit}`).join(', ') || 'N/A'} | type=${buildType}, value=${base}, need=${need}`);
 
   // ⚠️  No nextTurn() — turn advances when the overlay Accept/Cancel is added
   return newState;

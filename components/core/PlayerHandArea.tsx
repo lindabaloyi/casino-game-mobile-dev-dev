@@ -12,6 +12,7 @@ import React, { MutableRefObject } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { DraggableHandCard } from '../cards/DraggableHandCard';
 import { DropBounds } from '../../hooks/useDrag';
+import { TableItem } from '../table/types';
 
 interface Card {
   rank: string;
@@ -22,11 +23,14 @@ interface Card {
 interface Props {
   hand: Card[];
   isMyTurn: boolean;
+  playerNumber: number;
   dropBounds: MutableRefObject<DropBounds>;
   /** Find a specific table card under the finger — from useDrag */
   findCardAtPoint: (x: number, y: number) => Card | null;
   /** Find a stack at point — from useDrag */
-  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
+  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
+  /** Table cards - needed to find build stack value */
+  tableCards?: TableItem[];
   /** Check if near any table card (proximity prevention) */
   isNearAnyCard?: (x: number, y: number) => boolean;
   /** Check if near any temp stack (proximity prevention) */
@@ -34,6 +38,8 @@ interface Props {
   onTrail: (card: Card) => void;
   /** Called when the dragged card lands on a specific table card */
   onCardDrop: (handCard: Card, targetCard: Card) => void;
+  /** Extend build callback - for extending own build with hand card */
+  onExtendBuild?: (card: Card, stackId: string) => void;
   /** Drag overlay callbacks — forwarded straight to each DraggableHandCard */
   onDragStart: (card: Card) => void;
   onDragMove: (absoluteX: number, absoluteY: number) => void;
@@ -45,13 +51,16 @@ interface Props {
 export function PlayerHandArea({
   hand,
   isMyTurn,
+  playerNumber,
   dropBounds,
   findCardAtPoint,
   findTempStackAtPoint,
+  tableCards,
   isNearAnyCard,
   isNearAnyStack,
   onTrail,
   onCardDrop,
+  onExtendBuild,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -76,8 +85,12 @@ export function PlayerHandArea({
             isNearAnyCard={isNearAnyCard}
             isNearAnyStack={isNearAnyStack}
             isMyTurn={isMyTurn}
+            playerNumber={playerNumber}
+            playerHand={hand}
+            tableCards={tableCards}
             onTrail={onTrail}
             onCardDrop={onCardDrop}
+            onExtendBuild={onExtendBuild}
             onDragStart={onDragStart}
             onDragMove={onDragMove}
             onDragEnd={onDragEnd}

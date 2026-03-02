@@ -37,7 +37,7 @@ interface Props {
 
   // Hit detection (from useDrag, forwarded to DraggableLooseCard → DraggableTableCard)
   findCardAtPoint:     (x: number, y: number, excludeId?: string) => Card | null;
-  findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number } | null;
+  findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
 
   // Table-card drop callbacks → GameBoard actions
   onTableCardDropOnCard: (card: Card, targetCard: Card) => void;
@@ -78,6 +78,15 @@ interface Props {
   onTempStackDragStart?: (stack: TempStack) => void;
   onTempStackDragMove?: (absoluteX: number, absoluteY: number) => void;
   onTempStackDragEnd?: (stack: TempStack) => void;
+
+  // Build extension handlers
+  extendingBuildId?: string | null;
+  onExtendBuild?: (looseCard: Card, buildStackId: string) => void;
+  onAcceptExtend?: (stackId: string) => void;
+  onDeclineExtend?: (stackId: string) => void;
+  
+  // Player hand - needed for capture vs extend logic
+  playerHand?: Card[];
 }
 
 // ── Type guard for stacks ───────────────────────────────────────────────
@@ -130,6 +139,11 @@ export function TableArea({
   onTempStackDragStart,
   onTempStackDragMove,
   onTempStackDragEnd,
+  extendingBuildId,
+  onExtendBuild,
+  onAcceptExtend,
+  onDeclineExtend,
+  playerHand,
 }: Props) {
   const looseCards = tableCards.filter(isLooseCard) as Card[];
   // Show both temp stacks and build stacks
@@ -163,8 +177,11 @@ export function TableArea({
             unregisterCard={unregisterCard}
             findCardAtPoint={findCardAtPoint}
             findTempStackAtPoint={findTempStackAtPoint}
+            playerHand={playerHand}
+            tableCards={tableCards}
             onDropOnCard={onTableCardDropOnCard}
             onDropOnTemp={onTableCardDropOnTemp}
+            onExtendBuild={onExtendBuild}
             onDragStart={onTableDragStart}
             onDragMove={onTableDragMove}
             onDragEnd={onTableDragEnd}
@@ -204,6 +221,23 @@ export function TableArea({
             stackId={overlayStackId}
             onAccept={onAcceptTemp}
             onCancel={onCancelTemp}
+          />
+        );
+      })()}
+
+      {/*
+        Extension strip — visible when player has a build with pending extension.
+        Shows Accept (opens modal to select hand card) and Cancel buttons.
+      */}
+      {extendingBuildId && onAcceptExtend && onDeclineExtend && (() => {
+        const extendingStack = stacks.find(s => s.stackId === extendingBuildId);
+        if (!extendingStack) return null;
+        return (
+          <StackActionStrip
+            stackType="build_stack"
+            stackId={extendingBuildId}
+            onAccept={onAcceptExtend}
+            onCancel={onDeclineExtend}
           />
         );
       })()}

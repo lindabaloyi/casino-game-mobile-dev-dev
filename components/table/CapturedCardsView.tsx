@@ -198,13 +198,14 @@ export function CapturedCardsView({
       }, 100);
     });
 
-  // No opacity change - keep card at full opacity while dragging
+  // Hide the card while dragging - only show ghost overlay
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
       { translateY: translateY.value },
     ],
     zIndex: isDragging.value ? 100 : 1,
+    opacity: isDragging.value ? 0 : 1,  // Hide original when dragging
   }));
 
   // Cleanup on unmount

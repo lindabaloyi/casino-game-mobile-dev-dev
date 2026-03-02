@@ -26,6 +26,11 @@ const actionHandlers = {
   addToBuild:          require('./addToBuild'),
   stealBuild:          require('./stealBuild'),
 
+  // ── Build Extension actions ──────────────────────────────────────────────
+  startBuildExtension: require('./startBuildExtension'),
+  acceptBuildExtension: require('./acceptBuildExtension'),
+  declineBuildExtension: require('./declineBuildExtension'),
+
   // ── Capture ────────────────────────────────────────────────────────────────
   capture:             require('./capture'),
   playFromCaptures:    require('./playFromCaptures'),

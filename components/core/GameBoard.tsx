@@ -33,7 +33,7 @@ import { PlayerHandArea } from './PlayerHandArea';
 import { PlayingCard } from '../cards/PlayingCard';
 import { PlayOptionsModal } from '../table/PlayOptionsModal';
 import { StealBuildModal } from '../table/StealBuildModal';
-import { StealOverlay } from '../table/StealOverlay';
+import { ExtendBuildModal } from '../table/ExtendBuildModal';
 import { TempStack, Card as TableCard, BuildStack } from '../table/types';
 
 // Hooks
@@ -244,6 +244,35 @@ export function GameBoard({
     }
   }, [dragOverlay, stealDetection, modals]);
 
+  // Build extension handlers
+  const handleExtendBuild = useCallback((looseCard: any, buildStackId: string) => {
+    // Player is extending their own build with a loose card from table
+    actions.startBuildExtension(buildStackId, looseCard);
+  }, [actions]);
+
+  const handleAcceptExtend = useCallback((handCard: any) => {
+    if (modals.extendTargetBuild) {
+      actions.acceptBuildExtension(modals.extendTargetBuild.stackId, handCard);
+    }
+    modals.closeExtendModal();
+  }, [modals, actions]);
+
+  const handleDeclineExtend = useCallback(() => {
+    if (modals.extendTargetBuild) {
+      actions.declineBuildExtension(modals.extendTargetBuild.stackId);
+    }
+    modals.closeExtendModal();
+  }, [modals, actions]);
+
+  // Find player's build that has pending extension
+  const extendingBuildId: string | null = useMemo(() => {
+    if (!isMyTurn) return null;
+    const myExtending = table.find(
+      (tc: any) => tc.type === 'build_stack' && tc.owner === playerNumber && tc.pendingExtension?.looseCard,
+    ) as BuildStack | undefined;
+    return myExtending?.stackId ?? null;
+  }, [table, isMyTurn, playerNumber]);
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
@@ -294,18 +323,40 @@ export function GameBoard({
         registerCapturePile={registerCapturePile}
         unregisterCapturePile={unregisterCapturePile}
         onDropToCapture={actions.dropToCapture}
+        // Extension props
+        extendingBuildId={extendingBuildId}
+        onExtendBuild={handleExtendBuild}
+        onAcceptExtend={(stackId: string) => {
+          const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
+          if (stack) {
+            modals.openExtendModal(stack);
+          }
+        }}
+        onDeclineExtend={handleDeclineExtend}
+        playerHand={myHand}
       />
 
       <PlayerHandArea
         hand={myHand}
         isMyTurn={isMyTurn}
+        playerNumber={playerNumber}
         dropBounds={dropBounds}
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
+        tableCards={table}
         isNearAnyCard={isNearAnyCard}
         isNearAnyStack={isNearAnyStack}
         onTrail={actions.trail}
         onCardDrop={actions.createTemp}
+        onExtendBuild={(card: any, stackId: string) => {
+          // Hand card extending own build - start extension with this hand card
+          actions.startBuildExtension(stackId, card);
+          // Open modal to let user select another card to add
+          const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
+          if (stack) {
+            modals.openExtendModal(stack);
+          }
+        }}
         onDragStart={handleTableDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -347,14 +398,14 @@ export function GameBoard({
         />
       )}
 
-      {/* Steal Overlay */}
-      {stealDetection.showStealOverlay && stealDetection.stealOverlayStack && (
-        <StealOverlay
-          visible={stealDetection.showStealOverlay}
-          stackValue={stealDetection.stealOverlayStack.value}
-          onStealPress={handleStealOverlayPress}
-          positionX={stealDetection.stealOverlayPosition.x}
-          positionY={stealDetection.stealOverlayPosition.y}
+      {/* Extend Build Modal */}
+      {modals.showExtendModal && modals.extendTargetBuild && (
+        <ExtendBuildModal
+          visible={modals.showExtendModal}
+          buildStack={modals.extendTargetBuild}
+          playerHand={myHand as TableCard[]}
+          onAccept={handleAcceptExtend}
+          onCancel={handleDeclineExtend}
         />
       )}
     </View>
