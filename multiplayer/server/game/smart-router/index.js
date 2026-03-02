@@ -1,0 +1,80 @@
+/**
+ * SmartRouter
+ * Main orchestrator for game action routing.
+ * 
+ * Delegates to specialized routers for each action type:
+ * - StackDropRouter: handles stack drops (temp/build)
+ * - CaptureRouter: handles capture/steal logic
+ * - LooseCardRouter: handles loose card capture vs createTemp
+ * - ExtendRouter: handles build extension
+ * - TempRouter: handles temp stack validation
+ * - TrailRouter: handles trail validation
+ * 
+ * Benefits:
+ * - Each router has single responsibility
+ * - Easy to test in isolation
+ * - Easy to modify one area without affecting others
+ */
+
+const StackDropRouter = require('./routers/StackDropRouter');
+const CaptureRouter = require('./routers/CaptureRouter');
+const LooseCardRouter = require('./routers/LooseCardRouter');
+const ExtendRouter = require('./routers/ExtendRouter');
+const TempRouter = require('./routers/TempRouter');
+const TrailRouter = require('./routers/TrailRouter');
+
+class SmartRouter {
+  constructor() {
+    this.stackDropRouter = new StackDropRouter();
+    this.captureRouter = new CaptureRouter();
+    this.looseCardRouter = new LooseCardRouter();
+    this.extendRouter = new ExtendRouter();
+    this.tempRouter = new TempRouter();
+    this.trailRouter = new TrailRouter();
+  }
+
+  /**
+   * Main route function - decides what handler to call
+   * @param {string} actionType - The incoming action type
+   * @param {object} payload - The action payload
+   * @param {object} state - Current game state
+   * @param {number} playerIndex - The player making the action
+   * @returns {{ type: string, payload: object }} - The routed action
+   */
+  route(actionType, payload, state, playerIndex) {
+    switch (actionType) {
+      case 'stackDrop':
+        return this.stackDropRouter.route(payload, state, playerIndex);
+      
+      case 'capture':
+        return this.captureRouter.route(payload, state, playerIndex);
+      
+      case 'extendBuild':
+        return this.extendRouter.route(payload, state);
+      
+      case 'createTemp':
+        // If there's a targetCard, route through smart loose card logic
+        if (payload?.targetCard) {
+          return this.looseCardRouter.routeCreateTemp(payload, state, playerIndex);
+        }
+        // No target card - allow temp stack creation
+        return { type: actionType, payload };
+      
+      case 'addToTemp':
+        // Allow adding to temp - validation happens in handler
+        return { type: actionType, payload };
+      
+      case 'acceptTemp':
+        return this.tempRouter.routeAcceptTemp(payload, state, playerIndex);
+      
+      case 'trail':
+        return this.trailRouter.route(payload, state, playerIndex);
+      
+      default:
+        // No routing needed for other actions
+        return { type: actionType, payload };
+    }
+  }
+}
+
+module.exports = SmartRouter;

@@ -12,7 +12,7 @@
  * Smart routing logic is delegated to SmartRouter for testability.
  */
 
-const SmartRouter = require('./SmartRouter');
+const SmartRouter = require('./smart-router/index.js');
 
 class ActionRouter {
   constructor(gameManager) {
