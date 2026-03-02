@@ -117,6 +117,14 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
+  // Generic stack drop - SmartRouter decides what action to take
+  const stackDrop = useCallback((card: any, stackId: string, stackOwner: number, stackType: 'temp_stack' | 'build_stack', cardSource: 'table' | 'hand' | 'captured' = 'hand') => {
+    sendAction({ 
+      type: 'stackDrop', 
+      payload: { card, stackId, stackOwner, stackType, cardSource } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
   return {
     createTemp,
     addToTemp,
@@ -131,5 +139,6 @@ export function useGameActions(sendAction: SendAction) {
     acceptBuildExtension,
     declineBuildExtension,
     extendBuild,
+    stackDrop,
   };
 }

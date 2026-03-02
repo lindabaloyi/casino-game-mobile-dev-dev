@@ -40,9 +40,11 @@ interface Props {
   findCardAtPoint:     (x: number, y: number, excludeId?: string) => Card | null;
   findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
 
-  // Table-card drop callbacks → GameBoard actions
-  onTableCardDropOnCard: (card: Card, targetCard: Card) => void;
-  onTableCardDropOnTemp: (card: Card, stackId: string)  => void;
+  // Stack drop handler - DUMB, just passes to GameBoard
+  onStackDrop?: (card: Card, stackId: string, stackOwner: number, stackType: 'temp_stack' | 'build_stack') => void;
+  // Legacy specific callbacks (kept for CapturedCardsView compatibility)
+  onTableCardDropOnCard?: (card: Card, targetCard: Card) => void;
+  onTableCardDropOnTemp?: (card: Card, stackId: string)  => void;
 
   // Ghost overlay callbacks (shared with hand-card drags in GameBoard)
   onTableDragStart: (card: Card) => void;
@@ -117,6 +119,7 @@ export function TableArea({
   unregisterTempStack,
   findCardAtPoint,
   findTempStackAtPoint,
+  onStackDrop,
   onTableCardDropOnCard,
   onTableCardDropOnTemp,
   onTableDragStart,
@@ -179,15 +182,21 @@ export function TableArea({
             unregisterCard={unregisterCard}
             findCardAtPoint={findCardAtPoint}
             findTempStackAtPoint={findTempStackAtPoint}
-            playerHand={playerHand}
-            tableCards={tableCards}
-            onDropOnCard={onTableCardDropOnCard}
-            onDropOnTemp={onTableCardDropOnTemp}
-            onExtendBuild={onExtendBuild}
+            // DUMB callback - just pass through to DraggableLooseCard!
+            onDropOnStack={(droppedCard, stackId, stackOwner, stackType) => {
+              console.log(`[TableArea] LooseCard onDropOnStack - card: ${droppedCard.rank}${droppedCard.suit}, stack: ${stackId}, type: ${stackType}, owner: P${stackOwner}`);
+              
+              // DUMB - just pass through to GameBoard!
+              onStackDrop?.(droppedCard, stackId, stackOwner, stackType);
+            }}
+            onDropOnCard={(droppedCard, targetCard) => {
+              console.log(`[TableArea] LooseCard onDropOnCard - card: ${droppedCard.rank}${droppedCard.suit}, target: ${targetCard.rank}${targetCard.suit}`);
+              onTableCardDropOnCard?.(droppedCard, targetCard);
+            }}
+            // Legacy callbacks for ghost overlay
             onDragStart={onTableDragStart}
             onDragMove={onTableDragMove}
             onDragEnd={onTableDragEnd}
-            onCapture={onCapture}
           />
         ))}
 

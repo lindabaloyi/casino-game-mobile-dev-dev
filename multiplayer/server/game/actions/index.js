@@ -22,6 +22,9 @@ const actionHandlers = {
   acceptTemp:          require('./acceptTemp'),
   cancelTemp:          require('./cancelTemp'),
 
+  // ── Stack drop (SmartRouter routes to addToTemp or extendBuild) ───────────
+  stackDrop:           require('./stackDrop'),
+
   // ── Build actions ─────────────────────────────────────────────────────────
   addToBuild:          require('./addToBuild'),
   stealBuild:          require('./stealBuild'),
@@ -31,8 +34,10 @@ const actionHandlers = {
   acceptBuildExtension: require('./acceptBuildExtension'),
   declineBuildExtension: require('./declineBuildExtension'),
 
-  // ── Capture ────────────────────────────────────────────────────────────────
-  capture:             require('./capture'),
+  // ── Capture ───────────────────────────────────────────────────────────────
+  capture:              require('./capture'),
+  captureOwn:          require('./captureOwn'),
+  captureOpponent:     require('./captureOpponent'),
   playFromCaptures:    require('./playFromCaptures'),
   dropToCapture:       require('./dropToCapture'),
 };

@@ -207,6 +207,29 @@ export function GameBoard({
     [actions],
   );
 
+  // Trail handler with client-side validation for active build
+  // This validates BEFORE sending to server, so card stays visible if rejected
+  const handleTrail = useCallback(
+    (card: any) => {
+      // Check if player has an active build - if so, reject trail
+      const hasActiveBuild = table.some(
+        (tc: any) => tc.type === 'build_stack' && tc.owner === playerNumber
+      );
+      
+      if (hasActiveBuild) {
+        console.log(`[GameBoard] Cannot trail - player ${playerNumber} has an active build`);
+        // Need to reset the drag overlay to restore card visibility
+        // Since onDragEnd was already called (card is invisible), we need to trigger a re-render
+        // The simplest way is to call handleDragEnd which will reset the overlay state
+        handleDragEnd();
+        return;
+      }
+      
+      actions.trail(card);
+    },
+    [actions, table, playerNumber, handleDragEnd],
+  );
+
   const handleAcceptClick = useCallback((stackId: string) => {
     const stack = table.find((tc: any) => tc.stackId === stackId) as TempStack | undefined;
     if (stack) {
@@ -302,7 +325,11 @@ export function GameBoard({
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
         onTableCardDropOnCard={actions.createTemp}
-        onTableCardDropOnTemp={actions.addToTemp}
+        onStackDrop={(card, stackId, owner, stackType) => {
+          console.log(`[GameBoard] onStackDrop - card: ${card.rank}${card.suit}, stack: ${stackId}, type: ${stackType}, owner: P${owner}`);
+          // DUMB - let SmartRouter decide!
+          actions.stackDrop(card, stackId, owner, stackType, 'table');
+        }}
         onTableDragStart={handleTableDragStart}
         onTableDragMove={handleDragMove}
         onTableDragEnd={handleTableDragEnd}
@@ -337,18 +364,28 @@ export function GameBoard({
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
         tableCards={table}
-        onTrail={actions.trail}
-        onCardDrop={actions.createTemp}
-        onAddToTemp={actions.addToTemp}
-        onExtendBuild={(card: any, stackId: string, cardSource: 'table' | 'hand' | 'captured' = 'hand') => {
-          // Let the router decide - just send the action!
-          console.log(`[GameBoard] onExtendBuild - card: ${card.rank}${card.suit}, stackId: ${stackId}, cardSource: ${cardSource}`);
-          actions.extendBuild(card, stackId, cardSource);
+        // DUMB callbacks - just report what was hit, SmartRouter decides action
+        onDropOnStack={(card, stackId, stackOwner, stackType) => {
+          console.log(`[GameBoard] onDropOnStack - card: ${card.rank}${card.suit}, stack: ${stackId}, type: ${stackType}, owner: P${stackOwner}`);
+          
+          // DUMB - let SmartRouter decide!
+          actions.stackDrop(card, stackId, stackOwner, stackType, 'hand');
         }}
+        onDropOnCard={(card, targetCard) => {
+          console.log(`[GameBoard] onDropOnCard - card: ${card.rank}${card.suit}, target: ${targetCard.rank}${targetCard.suit}`);
+          // Drop on specific card - create temp stack
+          actions.createTemp(card, targetCard);
+        }}
+        onDropOnTable={(card) => {
+          console.log(`[GameBoard] onDropOnTable - card: ${card.rank}${card.suit}`);
+          // Drop on table zone - trail
+          // Note: card is already hidden (opacity=0), action decides what happens
+          actions.trail(card);
+        }}
+        // Legacy callbacks for ghost overlay
         onDragStart={handleTableDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
-        onCapture={handleCapture}
       />
 
       {/* Ghost overlay */}

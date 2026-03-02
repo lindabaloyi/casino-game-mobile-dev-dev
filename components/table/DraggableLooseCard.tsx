@@ -10,13 +10,13 @@
  *   - Cleanup on unmount → unregisterCard
  *   - Render DraggableTableCard (which owns the gesture + opacity animation)
  *
- * NOT responsible for: game rules, server actions, ghost overlay
+ * UI is DUMB - just passes through callbacks from DraggableTableCard
  */
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { View } from 'react-native';
-import { CardBounds, TempStackBounds } from '../../hooks/useDrag';
-import { Card, TableItem } from './types';
+import { CardBounds } from '../../hooks/useDrag';
+import { Card } from './types';
 import { DraggableTableCard } from './DraggableTableCard';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -40,22 +40,16 @@ export interface DraggableLooseCardProps {
   findCardAtPoint:     (x: number, y: number, excludeId?: string) => Card | null;
   findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack'; value?: number } | null;
 
-  // Player hand and table cards - needed for capture vs extend logic
-  playerHand?: Card[];
-  tableCards?: TableItem[];
-
-  // Drop outcomes — forwarded to DraggableTableCard
-  onDropOnCard: (card: Card, targetCard: Card)  => void;
-  onDropOnTemp: (card: Card, stackId: string)   => void;
-  onExtendBuild?: (card: Card, buildStackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
-
-  // Ghost overlay — forwarded to DraggableTableCard
-  onDragStart: (card: Card)                       => void;
-  onDragMove:  (absoluteX: number, absoluteY: number) => void;
-  onDragEnd:   ()                                 => void;
-
-  // Capture — for capturing opponent's builds
-  onCapture: (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => void;
+  // ── DUMB callbacks - just report what was hit ────────────────────────────
+  /** Called when dropped on a stack - SmartRouter decides what action */
+  onDropOnStack: (card: Card, stackId: string, owner: number, stackType: 'temp_stack' | 'build_stack') => void;
+  /** Called when dropped on a card - SmartRouter decides what action */
+  onDropOnCard: (card: Card, targetCard: Card) => void;
+  
+  // Legacy callbacks for ghost overlay
+  onDragStart?: (card: Card) => void;
+  onDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onDragEnd?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -69,15 +63,11 @@ export function DraggableLooseCard({
   unregisterCard,
   findCardAtPoint,
   findTempStackAtPoint,
-  playerHand,
-  tableCards,
+  onDropOnStack,
   onDropOnCard,
-  onDropOnTemp,
-  onExtendBuild,
   onDragStart,
   onDragMove,
   onDragEnd,
-  onCapture,
 }: DraggableLooseCardProps) {
   const viewRef = useRef<View>(null);
   const cardId  = `${card.rank}${card.suit}`;
@@ -115,15 +105,11 @@ export function DraggableLooseCard({
         playerNumber={playerNumber}
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
-        playerHand={playerHand}
-        tableCards={tableCards}
+        onDropOnStack={onDropOnStack}
         onDropOnCard={onDropOnCard}
-        onDropOnTemp={onDropOnTemp}
-        onExtendBuild={onExtendBuild ? (card, stackId) => onExtendBuild(card, stackId, 'table') : undefined}
         onDragStart={onDragStart}
         onDragMove={onDragMove}
         onDragEnd={onDragEnd}
-        onCapture={onCapture}
       />
     </View>
   );

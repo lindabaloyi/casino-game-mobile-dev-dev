@@ -22,6 +22,8 @@ class SmartRouter {
    */
   route(actionType, payload, state, playerIndex) {
     switch (actionType) {
+      case 'stackDrop':
+        return this.routeStackDrop(payload, state, playerIndex);
       case 'capture':
         return this.routeCapture(payload, state, playerIndex);
       case 'extendBuild':
@@ -29,8 +31,13 @@ class SmartRouter {
       case 'createTemp':
         // Allow temp stack creation - no validation needed
         return { type: actionType, payload };
+      case 'addToTemp':
+        // Allow adding to temp - validation happens in handler
+        return { type: actionType, payload };
       case 'acceptTemp':
         return this.routeAcceptTemp(payload, state, playerIndex);
+      case 'trail':
+        return this.routeTrail(payload, state, playerIndex);
       default:
         // No routing needed for other actions
         return { type: actionType, payload };
@@ -38,22 +45,63 @@ class SmartRouter {
   }
 
   /**
+   * Route stack drop action
+   * - temp_stack → addToTemp
+   * - build_stack → check ownership:
+   *   - Own build → extendBuild (start or accept)
+   *   - Opponent's build → captureOpponent (if value matches) or stealBuild
+   */
+  routeStackDrop(payload, state, playerIndex) {
+    const { stackId, stackType, card } = payload;
+    
+    if (stackType === 'temp_stack') {
+      return { 
+        type: 'addToTemp', 
+        payload: { card, stackId } 
+      };
+    }
+    
+    // build_stack - check ownership first
+    const stack = this.findStack(state, stackId);
+    if (!stack) {
+      throw new Error(`stackDrop: build stack "${stackId}" not found`);
+    }
+    
+    const isOwnBuild = stack.owner === playerIndex;
+    
+    if (isOwnBuild) {
+      // Own build - route to extendBuild
+      return this.routeExtendBuild({ stackId, card, cardSource: 'hand' }, state);
+    } else {
+      // Opponent's build - route to capture
+      // This will check value match and route to captureOpponent or stealBuild
+      return this.routeOpponentBuildCapture(
+        { card, targetType: 'build', targetStackId: stackId },
+        stack,
+        playerIndex
+      );
+    }
+  }
+
+  /**
    * Route capture action
+   * - Loose card → captureOwn (has loose card logic)
    * - Own build + value mismatch → addToTemp
-   * - Own build + value match → capture
-   * - Opponent build + value match → capture
+   * - Own build + value match → captureOwn
+   * - Opponent build + value match → captureOpponent
    * - Opponent build + value mismatch → stealBuild (if valid)
    */
   routeCapture(payload, state, playerIndex) {
     const { targetType, targetStackId, card } = payload;
     
+    // Loose card - use captureOwn (has the loose card logic)
     if (targetType !== 'build' || !targetStackId) {
-      return { type: 'capture', payload };
+      return { type: 'captureOwn', payload };
     }
     
     const stack = this.findStack(state, targetStackId);
     if (!stack) {
-      return { type: 'capture', payload };
+      return { type: 'captureOwn', payload };
     }
     
     const isOwnBuild = stack.owner === playerIndex;
@@ -73,14 +121,14 @@ class SmartRouter {
         payload: { card: payload.card, stackId: payload.targetStackId } 
       };
     }
-    // Value matches = capture
-    return { type: 'capture', payload };
+    // Value matches = capture own build
+    return { type: 'captureOwn', payload };
   }
 
   routeOpponentBuildCapture(payload, stack) {
     // Card value matches build value = capture (not steal)
     if (payload.card.value === stack.value) {
-      return { type: 'capture', payload };
+      return { type: 'captureOpponent', payload };
     }
     
     // Validate steal attempt
@@ -252,6 +300,27 @@ class SmartRouter {
     
     // Allow acceptTemp
     return { type: 'acceptTemp', payload };
+  }
+
+  /**
+   * Route trail action
+   * Validates that player doesn't have an active build
+   * If player has a build, they must extend/capture it rather than trail
+   * @param {object} payload - Action payload
+   * @param {object} state - Game state
+   * @param {number} playerIndex - Player making the action
+   * @returns {{ type: string, payload: object }} - Routed action
+   */
+  routeTrail(payload, state, playerIndex) {
+    // Check if player has an active build
+    if (this.playerHasActiveBuild(state, playerIndex)) {
+      throw new Error(
+        'You cannot trail - you have an active build. Extend or capture your build before trailing.'
+      );
+    }
+    
+    // Allow trail
+    return { type: 'trail', payload };
   }
 }
 

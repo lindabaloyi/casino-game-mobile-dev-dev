@@ -29,21 +29,19 @@ interface Props {
   findCardAtPoint: (x: number, y: number) => Card | null;
   /** Find a stack at point — from useDrag */
   findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
-  /** Table cards - needed to find build stack value */
+  /** Table cards - needed for game logic */
   tableCards?: TableItem[];
-  onTrail: (card: Card) => void;
-  /** Called when the dragged card lands on a specific table card */
-  onCardDrop: (handCard: Card, targetCard: Card) => void;
-  /** Add to temp stack callback */
-  onAddToTemp?: (card: Card, stackId: string) => void;
-  /** Extend build callback - for extending own build with hand card */
-  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
-  /** Drag overlay callbacks — forwarded straight to each DraggableHandCard */
-  onDragStart: (card: Card) => void;
-  onDragMove: (absoluteX: number, absoluteY: number) => void;
-  onDragEnd: () => void;
-  /** Capture callback */
-  onCapture: (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => void;
+  // ── DUMB callbacks - just report what was hit ────────────────────────────
+  /** Called when dropped on a stack - SmartRouter decides what action */
+  onDropOnStack: (card: Card, stackId: string, owner: number, stackType: 'temp_stack' | 'build_stack') => void;
+  /** Called when dropped on a specific card - SmartRouter decides what action */
+  onDropOnCard: (card: Card, targetCard: Card) => void;
+  /** Called when dropped on table zone - SmartRouter decides trail vs other */
+  onDropOnTable: (card: Card) => void;
+  // ── Legacy callbacks (for compatibility) ───────────────────────────────────
+  onDragStart?: (card: Card) => void;
+  onDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onDragEnd?: () => void;
 }
 
 export function PlayerHandArea({
@@ -54,14 +52,12 @@ export function PlayerHandArea({
   findCardAtPoint,
   findTempStackAtPoint,
   tableCards,
-  onTrail,
-  onCardDrop,
-  onAddToTemp,
-  onExtendBuild,
+  onDropOnStack,
+  onDropOnCard,
+  onDropOnTable,
   onDragStart,
   onDragMove,
   onDragEnd,
-  onCapture,
 }: Props) {
   return (
     <View style={styles.container}>
@@ -83,14 +79,12 @@ export function PlayerHandArea({
             playerNumber={playerNumber}
             playerHand={hand}
             tableCards={tableCards}
-            onTrail={onTrail}
-            onCardDrop={onCardDrop}
-            onAddToTemp={onAddToTemp}
-            onExtendBuild={onExtendBuild ? (card, stackId) => onExtendBuild(card, stackId, 'hand') : undefined}
+            onDropOnStack={onDropOnStack}
+            onDropOnCard={onDropOnCard}
+            onDropOnTable={onDropOnTable}
             onDragStart={onDragStart}
             onDragMove={onDragMove}
             onDragEnd={onDragEnd}
-            onCapture={onCapture}
           />
         ))}
       </ScrollView>

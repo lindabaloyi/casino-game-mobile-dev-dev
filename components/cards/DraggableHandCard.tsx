@@ -2,13 +2,13 @@
  * DraggableHandCard
  * A hand card the player can drag to the table.
  *
+ * UI is DUMB - just detects WHAT was hit, SmartRouter decides WHAT IT MEANS.
+ *
  * Drop detection (JS-thread — never inside a worklet):
- *  1. If the finger lands on a build stack → capture or extend
- *  2. If the finger lands on a SPECIFIC table card → onCardDrop(handCard, targetCard)
- *     → GameBoard sends createTemp action
- *  3. If the finger lands anywhere on the table → onTrail(handCard)
- *     → GameBoard sends trail action
- *  4. Otherwise → snap back
+ *   1. If the finger lands on a stack → onDropOnStack(card, stackId, owner, stackType)
+ *   2. If the finger lands on a SPECIFIC table card → onDropOnCard(card, targetCard)
+ *   3. If the finger lands anywhere on the table → onDropOnTable(card)
+ *   4. Otherwise → snap back
  *
  * Threading note:
  *   On native, RNGH callbacks run as UI-thread worklets. Reanimated serialises
@@ -28,7 +28,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { PlayingCard } from './PlayingCard';
 import { DropBounds } from '../../hooks/useDrag';
-import { TableItem, BuildStack, isBuildStack } from '../table/types';
+import { TableItem, BuildStack, isBuildStack, TempStack } from '../table/types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -47,23 +47,21 @@ interface Props {
   findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   isMyTurn: boolean;
   playerNumber: number;
-  /** Player's hand - needed for capture vs extend logic */
+  /** Player's hand - needed for some UI feedback */
   playerHand?: Card[];
-  /** Table cards - needed to find build stack value */
+  /** Table cards - needed for game logic */
   tableCards?: TableItem[];
-  onTrail: (card: Card) => void;
-  /** Called when the dragged card lands on a specific table card */
-  onCardDrop: (handCard: Card, targetCard: Card) => void;
-  /** Extend build callback - for extending own build with hand card */
-  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
-  /** Add to temp stack callback */
-  onAddToTemp?: (card: Card, stackId: string) => void;
-  /** Overlay callbacks */
-  onDragStart: (card: Card) => void;
-  onDragMove: (absoluteX: number, absoluteY: number) => void;
-  onDragEnd: () => void;
-  /** Capture - for capturing loose cards or opponent's builds */
-  onCapture: (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => void;
+  // ── DUMB callbacks - just report what was hit ────────────────────────────
+  /** Called when dropped on a stack - SmartRouter decides what action */
+  onDropOnStack: (card: Card, stackId: string, owner: number, stackType: 'temp_stack' | 'build_stack') => void;
+  /** Called when dropped on a specific card - SmartRouter decides what action */
+  onDropOnCard: (card: Card, targetCard: Card) => void;
+  /** Called when dropped on table zone - SmartRouter decides trail vs other */
+  onDropOnTable: (card: Card) => void;
+  // ── Legacy callbacks (for compatibility) ───────────────────────────────────
+  onDragStart?: (card: Card) => void;
+  onDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onDragEnd?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -77,143 +75,87 @@ export function DraggableHandCard({
   playerNumber,
   playerHand,
   tableCards,
-  onTrail,
-  onCardDrop,
-  onExtendBuild,
-  onAddToTemp,
+  onDropOnStack,
+  onDropOnCard,
+  onDropOnTable,
   onDragStart,
   onDragMove,
   onDragEnd,
-  onCapture,
 }: Props) {
   const opacity = useSharedValue(1);
 
-  // Helper: Find a build stack from tableCards by stackId
-  const findBuildStack = (stackId: string): BuildStack | null => {
-    if (!tableCards) return null;
-    for (const tc of tableCards) {
-      if (isBuildStack(tc) && tc.stackId === stackId) {
-        return tc;
-      }
-    }
-    return null;
-  };
-
-  // Helper: Check if player has any card in hand (excluding the dragged card) that can capture the build
-  const hasSpareCaptureCard = (buildValue: number, excludeCard: Card) => {
-    if (!playerHand) return false;
-    // Player has a spare capture card if any card in hand (except the one being dragged) matches the build value
-    return playerHand.some(c => c.value === buildValue && (c.rank !== excludeCard.rank || c.suit !== excludeCard.suit));
-  };
-
   // ── JS-thread helpers ─────────────────────────────────────────────────────
 
-  function handleDragStart() { onDragStart(card); }
-  function handleDragMove(x: number, y: number) { onDragMove(x, y); }
+  function handleDragStart() { 
+    if (onDragStart) onDragStart(card); 
+  }
+  
+  function handleDragMove(x: number, y: number) { 
+    if (onDragMove) onDragMove(x, y); 
+  }
 
   function handleSnapBack() {
     opacity.value = withSpring(1);
-    onDragEnd();
+    if (onDragEnd) onDragEnd();
   }
 
   /**
-   * handleDrop — runs on the JS thread.
-   *
-   * Priority:
-   *   1. Build stack hit → capture or extend (based on rules below)
-   *   2. Specific table card hit → createTemp
-   *   3. General table area hit → trail
-   *   4. Outside table → snap back
-   *
-   * Capture vs Extend rules for hand cards:
-   *   - Own build stack:
-   *     - If hand card value == build value AND player has NO spare → CAPTURE
-   *     - If hand card value == build value AND player HAS spare → EXTEND
-   *     - If hand card value != build value → EXTEND (normal stack)
-   *   - Opponent's build stack → CAPTURE
+   * Check if coordinates are in the table drop zone
+   */
+  function inTableZone(absX: number, absY: number, bounds: DropBounds): boolean {
+    return (
+      absX >= bounds.x &&
+      absX <= bounds.x + bounds.width &&
+      absY >= bounds.y &&
+      absY <= bounds.y + bounds.height
+    );
+  }
+
+  /**
+   * handleDrop — DUMB UI: just detects WHAT was hit
+   * SmartRouter decides what action to take
    */
   function handleDrop(absX: number, absY: number) {
-    // Check for a build stack under the finger FIRST
+    const bounds = dropBounds.current;
+    
+    // 1. Check for stack hit FIRST (priority)
     const stackHit = findTempStackAtPoint(absX, absY);
-    
-    // Handle build_stack
-    if (stackHit && stackHit.stackType === 'build_stack') {
-      // Own build - need to decide capture vs extend
-      if (stackHit.owner === playerNumber) {
-        const buildStack = findBuildStack(stackHit.stackId);
-        const buildValue = buildStack?.value ?? 0;
-        const canCaptureWithHand = card.value === buildValue;
-        const hasSpare = hasSpareCaptureCard(buildValue, card);
-
-        console.log(
-          `[DraggableHandCard] OWN BUILD — ${card.rank}${card.suit} → stack ${stackHit.stackId}, buildValue=${buildValue}, canCapture=${canCaptureWithHand}, hasSpare=${hasSpare}`,
-        );
-
-        if (canCaptureWithHand && !hasSpare) {
-          // Direct capture: hand card matches build value AND no spare in hand
-          console.log(`[DraggableHandCard] CAPTURE OWN BUILD — matches, no spare`);
-          onDragEnd();
-          onCapture(card, 'build', undefined, undefined, stackHit.stackId);
-          return;
-        } else {
-          // Extend: either card doesn't match, or has spare (player wants to extend)
-          console.log(`[DraggableHandCard] EXTEND BUILD — ${card.rank}${card.suit} → stack ${stackHit.stackId}`);
-          onDragEnd();
-          if (onExtendBuild) {
-            onExtendBuild(card, stackHit.stackId, 'hand');
-          }
-          return;
-        }
-      } else {
-        // Opponent's build - always capture
-        console.log(
-          `[DraggableHandCard] CAPTURE BUILD — ${card.rank}${card.suit} → stack ${stackHit.stackId}`,
-        );
-        onDragEnd();
-        onCapture(card, 'build', undefined, undefined, stackHit.stackId);
-        return;
-      }
-    }
-    
-    // Handle temp_stack - add to own temp stack
-    if (stackHit && stackHit.stackType === 'temp_stack' && stackHit.owner === playerNumber) {
-      console.log(`[DraggableHandCard] ADD TO TEMP — ${card.rank}${card.suit} → stack ${stackHit.stackId}`);
-      onDragEnd();
-      if (onAddToTemp) {
-        onAddToTemp(card, stackHit.stackId);
-      }
+    if (stackHit) {
+      console.log(
+        `[DraggableHandCard] DROP ON STACK — ${card.rank}${card.suit} → stack ${stackHit.stackId} (${stackHit.stackType}) owned by P${stackHit.owner}`
+      );
+      opacity.value = withSpring(0);  // Hide card while action processes
+      if (onDragEnd) onDragEnd();
+      onDropOnStack(card, stackHit.stackId, stackHit.owner, stackHit.stackType);
       return;
     }
-
-    // Check for a specific table card under the finger
+    
+    // 2. Check for specific table card hit
     const targetCard = findCardAtPoint(absX, absY);
     if (targetCard) {
       console.log(
-        `[DraggableHandCard] CARD DROP — ${card.rank}${card.suit} → ${targetCard.rank}${targetCard.suit}`,
+        `[DraggableHandCard] DROP ON CARD — ${card.rank}${card.suit} → ${targetCard.rank}${targetCard.suit}`
       );
-      onDragEnd();
-      onCardDrop(card, targetCard);
+      opacity.value = withSpring(0);
+      if (onDragEnd) onDragEnd();
+      onDropOnCard(card, targetCard);
       return;
     }
-
-    // No direct hit - trail the card
-    const b = dropBounds.current;
-    const inZone =
-      absX >= b.x &&
-      absX <= b.x + b.width &&
-      absY >= b.y &&
-      absY <= b.y + b.height;
-
+    
+    // 3. Check if in table zone (trail area)
+    const inZone = inTableZone(absX, absY, bounds);
     console.log(
       `[DraggableHandCard] DROP — card: ${card.rank}${card.suit}`,
       `| finger: (${absX.toFixed(1)}, ${absY.toFixed(1)})`,
-      `| bounds: x=${b.x.toFixed(1)} y=${b.y.toFixed(1)} w=${b.width.toFixed(1)} h=${b.height.toFixed(1)}`,
+      `| bounds: x=${bounds.x.toFixed(1)} y=${bounds.y.toFixed(1)} w=${bounds.width.toFixed(1)} h=${bounds.height.toFixed(1)}`,
       `| inZone: ${inZone}`,
     );
 
     if (inZone) {
-      onDragEnd();
-      onTrail(card);
+      console.log(`[DraggableHandCard] DROP ON TABLE — ${card.rank}${card.suit}`);
+      opacity.value = withSpring(0);
+      if (onDragEnd) onDragEnd();
+      onDropOnTable(card);
     } else {
       handleSnapBack();
     }
