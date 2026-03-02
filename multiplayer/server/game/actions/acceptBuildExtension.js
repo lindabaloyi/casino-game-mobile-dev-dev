@@ -4,13 +4,13 @@
  * 
  * Payload:
  * - stackId: required - the build stack ID
- * - card: required - the card to add (from hand or captures)
- * - cardSource: optional - source of the card ('hand' or 'captured'). Defaults to 'hand'
+ * - card: required - the card to add (from table, hand, or captures)
+ * - cardSource: optional - source of the card ('table', 'hand' or 'captured'). Defaults to 'hand'
  * 
  * Rules:
  * - Player must own the build
  * - Build must have pending extension with loose card
- * - Card must be in player's hand or captures
+ * - Card must be in player's hand, captures, or on table
  * - New build value must be valid (sum/diff logic)
  * - Turn advances on success
  * 
@@ -94,7 +94,26 @@ function acceptBuildExtension(state, payload, playerIndex) {
   // Find and remove card from its source
   let playedCard;
   
-  if (cardSource === 'hand') {
+  if (cardSource === 'table') {
+    // Find and remove loose card from table
+    const tableIdx = newState.tableCards.findIndex(
+      tc => !tc.type && tc.rank === card.rank && tc.suit === card.suit,
+    );
+    
+    console.log(`[acceptBuildExtension] Looking for table card: ${card.rank}${card.suit}`);
+    console.log(`[acceptBuildExtension] Table cards:`, newState.tableCards.map(tc => {
+      if (tc.type) return `${tc.type}:${tc.stackId}`;
+      return `${tc.rank}${tc.suit}`;
+    }).join(', '));
+    
+    if (tableIdx === -1) {
+      throw new Error(`acceptBuildExtension: card ${card.rank}${card.suit} not on table`);
+    }
+    
+    playedCard = { ...newState.tableCards[tableIdx], source: 'table' };
+    newState.tableCards.splice(tableIdx, 1);
+    
+  } else if (cardSource === 'hand') {
     // Find and remove card from player's hand
     const hand = newState.playerHands[playerIndex];
     if (!hand) {

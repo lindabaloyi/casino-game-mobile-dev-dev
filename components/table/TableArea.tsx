@@ -82,7 +82,7 @@ interface Props {
 
   // Build extension handlers
   extendingBuildId?: string | null;
-  onExtendBuild?: (looseCard: Card, buildStackId: string) => void;
+  onExtendBuild?: (card: Card, buildStackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
   onAcceptExtend?: (stackId: string) => void;
   onDeclineExtend?: (stackId: string) => void;
   
@@ -270,6 +270,7 @@ export function TableArea({
         onDragEnd={onCapturedCardDragEnd}
         registerCapturePile={registerCapturePile}
         unregisterCapturePile={unregisterCapturePile}
+        onExtendBuild={onExtendBuild}
       />
     </View>
   );

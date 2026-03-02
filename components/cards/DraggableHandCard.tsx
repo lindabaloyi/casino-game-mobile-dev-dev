@@ -58,7 +58,7 @@ interface Props {
   /** Called when the dragged card lands on a specific table card */
   onCardDrop: (handCard: Card, targetCard: Card) => void;
   /** Extend build callback - for extending own build with hand card */
-  onExtendBuild?: (card: Card, stackId: string) => void;
+  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
   /** Overlay callbacks */
   onDragStart: (card: Card) => void;
   onDragMove: (absoluteX: number, absoluteY: number) => void;
@@ -161,7 +161,7 @@ export function DraggableHandCard({
           console.log(`[DraggableHandCard] EXTEND BUILD — ${card.rank}${card.suit} → stack ${stackHit.stackId}`);
           onDragEnd();
           if (onExtendBuild) {
-            onExtendBuild(card, stackHit.stackId);
+            onExtendBuild(card, stackHit.stackId, 'hand');
           }
           return;
         }

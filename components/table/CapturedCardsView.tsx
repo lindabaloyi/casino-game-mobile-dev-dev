@@ -35,13 +35,15 @@ interface CapturedCardsViewProps {
   /** Find card at point (for detecting drag over table cards) */
   findCardAtPoint?: (x: number, y: number, excludeId?: string) => Card | null;
   /** Find temp stack at point */
-  findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number } | null;
+  findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   /** Callback when drag starts */
   onDragStart?: (card: Card) => void;
   /** Callback when drag moves */
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   /** Callback when drag ends - return action to send */
   onDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string) => void;
+  /** Extend build callback - for extending own build with captured card */
+  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
 }
 
 export function CapturedCardsView({
@@ -58,6 +60,7 @@ export function CapturedCardsView({
   onDragStart,
   onDragMove,
   onDragEnd,
+  onExtendBuild,
 }: CapturedCardsViewProps) {
   const playerLabel = playerNumber === 0 ? 'P1' : 'P2';
   const opponentLabel = playerNumber === 0 ? 'P2' : 'P1';
@@ -149,10 +152,21 @@ export function CapturedCardsView({
       return;
     }
 
-    // Check if dropped on a temp stack (using finger position directly)
+    // Check if dropped on a temp stack or build stack (using finger position directly)
     const targetStack = findTempStackAtPoint(absX, absY);
     if (targetStack) {
-      console.log('[CapturedCardsView] Dropped on temp stack:', targetStack);
+      console.log('[CapturedCardsView] Dropped on stack:', targetStack);
+      
+      // Check if it's a build stack - can extend own build
+      if (targetStack.stackType === 'build_stack' && targetStack.owner === playerNumber) {
+        // Extending own build with captured card
+        console.log('[CapturedCardsView] Extending own build with captured card');
+        if (onExtendBuild) {
+          onExtendBuild(card, targetStack.stackId, 'captured');
+        }
+        return;
+      }
+      
       // Can only add to own temp stack
       if (targetStack.owner === playerNumber) {
         onDragEnd(card, undefined, targetStack.stackId);
@@ -166,7 +180,7 @@ export function CapturedCardsView({
     // No valid drop target - reset position
     translateX.value = 0;
     translateY.value = 0;
-  }, [findCardAtPoint, findTempStackAtPoint, onDragEnd, playerNumber, translateX, translateY]);
+  }, [findCardAtPoint, findTempStackAtPoint, onDragEnd, onExtendBuild, playerNumber, translateX, translateY]);
 
   const panGesture = Gesture.Pan()
     .enabled(isMyTurn && !!opponentTopCard)

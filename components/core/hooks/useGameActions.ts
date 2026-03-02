@@ -95,7 +95,7 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
-  const acceptBuildExtension = useCallback((buildId: string, card: any, cardSource: 'hand' | 'captured' = 'hand') => {
+  const acceptBuildExtension = useCallback((buildId: string, card: any, cardSource: 'table' | 'hand' | 'captured' = 'hand') => {
     sendAction({ 
       type: 'acceptBuildExtension', 
       payload: { stackId: buildId, card, cardSource } as unknown as Record<string, unknown> 

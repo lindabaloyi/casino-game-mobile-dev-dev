@@ -47,7 +47,7 @@ export interface DraggableLooseCardProps {
   // Drop outcomes — forwarded to DraggableTableCard
   onDropOnCard: (card: Card, targetCard: Card)  => void;
   onDropOnTemp: (card: Card, stackId: string)   => void;
-  onExtendBuild?: (card: Card, stackId: string) => void;
+  onExtendBuild?: (card: Card, buildStackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
 
   // Ghost overlay — forwarded to DraggableTableCard
   onDragStart: (card: Card)                       => void;
@@ -119,7 +119,7 @@ export function DraggableLooseCard({
         tableCards={tableCards}
         onDropOnCard={onDropOnCard}
         onDropOnTemp={onDropOnTemp}
-        onExtendBuild={onExtendBuild}
+        onExtendBuild={onExtendBuild ? (card, stackId) => onExtendBuild(card, stackId, 'table') : undefined}
         onDragStart={onDragStart}
         onDragMove={onDragMove}
         onDragEnd={onDragEnd}

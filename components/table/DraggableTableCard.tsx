@@ -42,7 +42,7 @@ interface Props {
   /** Dragged loose card dropped on own temp stack → addToTemp */
   onDropOnTemp: (card: Card, stackId: string)  => void;
   /** Dragged loose card dropped on own build stack → startBuildExtension */
-  onExtendBuild?: (card: Card, stackId: string) => void;
+  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
   /** Ghost overlay callbacks */
   onDragStart: (card: Card) => void;
   onDragMove:  (absoluteX: number, absoluteY: number) => void;
@@ -119,7 +119,7 @@ export function DraggableTableCard({
         // Hand cards are the ones that can capture
         onDragEnd();
         if (onExtendBuild) {
-          onExtendBuild(card, tempHit.stackId);
+          onExtendBuild(card, tempHit.stackId, 'table');
         }
         return;
       }

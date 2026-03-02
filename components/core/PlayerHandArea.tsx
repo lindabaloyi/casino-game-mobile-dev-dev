@@ -39,7 +39,7 @@ interface Props {
   /** Called when the dragged card lands on a specific table card */
   onCardDrop: (handCard: Card, targetCard: Card) => void;
   /** Extend build callback - for extending own build with hand card */
-  onExtendBuild?: (card: Card, stackId: string) => void;
+  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
   /** Drag overlay callbacks — forwarded straight to each DraggableHandCard */
   onDragStart: (card: Card) => void;
   onDragMove: (absoluteX: number, absoluteY: number) => void;
@@ -90,7 +90,7 @@ export function PlayerHandArea({
             tableCards={tableCards}
             onTrail={onTrail}
             onCardDrop={onCardDrop}
-            onExtendBuild={onExtendBuild}
+            onExtendBuild={onExtendBuild ? (card, stackId) => onExtendBuild(card, stackId, 'hand') : undefined}
             onDragStart={onDragStart}
             onDragMove={onDragMove}
             onDragEnd={onDragEnd}

@@ -246,10 +246,25 @@ export function GameBoard({
 
   // Build extension handlers
   // For loose cards from table (dragged from TableArea)
-  const handleExtendBuild = useCallback((looseCard: any, buildStackId: string) => {
-    // Player is extending their own build with a loose card from table
-    actions.startBuildExtension(buildStackId, looseCard, 'table');
-  }, [actions]);
+  const handleExtendBuild = useCallback((card: any, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' = 'table') => {
+    // Check if build already has a pending extension
+    // Use gameState.tableCards directly to avoid stale closure
+    const currentTable = gameState.tableCards ?? [];
+    const stack = currentTable.find((tc: any) => tc.stackId === buildStackId) as BuildStack | undefined;
+    const hasPending = !!stack?.pendingExtension?.looseCard;
+    
+    console.log(`[GameBoard] handleExtendBuild - card: ${card.rank}${card.suit}, stackId: ${buildStackId}, cardSource: ${cardSource}, hasPending: ${hasPending}`);
+    
+    if (hasPending) {
+      // Build already has pending extension - add card to complete
+      console.log(`[GameBoard] Card ${card.rank}${card.suit} → COMPLETING extension on ${buildStackId}`);
+      actions.acceptBuildExtension(buildStackId, card, cardSource);
+    } else {
+      // No pending extension - start new extension
+      console.log(`[GameBoard] Card ${card.rank}${card.suit} → STARTING new extension on ${buildStackId}`);
+      actions.startBuildExtension(buildStackId, card, cardSource);
+    }
+  }, [actions, gameState.tableCards]);
 
   // When Accept button is clicked on extension strip (after loose card is locked)
   // In the drag-drop flow, the extension completes when hand card is dropped on the build
@@ -350,19 +365,24 @@ export function GameBoard({
         isNearAnyStack={isNearAnyStack}
         onTrail={actions.trail}
         onCardDrop={actions.createTemp}
-        onExtendBuild={(card: any, stackId: string) => {
+        onExtendBuild={(card: any, stackId: string, cardSource: 'table' | 'hand' | 'captured' = 'hand') => {
           // Player is dragging a hand card to extend their build
           // Check if build already has a pending extension (loose card locked)
-          const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
+          // NOTE: We use gameState.tableCards directly to avoid stale closure
+          const currentTable = gameState.tableCards ?? [];
+          const stack = currentTable.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
+          const hasPending = !!stack?.pendingExtension?.looseCard;
           
-          if (stack?.pendingExtension?.looseCard) {
-            // Build already has pending extension - add hand card to complete
-            console.log(`[GameBoard] Hand card ${card.rank}${card.suit} → completing extension on ${stackId}`);
-            actions.acceptBuildExtension(stackId, card, 'hand');
+          console.log(`[GameBoard] onExtendBuild - card: ${card.rank}${card.suit}, stackId: ${stackId}, cardSource: ${cardSource}, hasPending: ${hasPending}`);
+          
+          if (hasPending) {
+            // Build already has pending extension - add card to complete
+            console.log(`[GameBoard] Card ${card.rank}${card.suit} → COMPLETING extension on ${stackId}`);
+            actions.acceptBuildExtension(stackId, card, cardSource);
           } else {
-            // No pending extension - start new extension with hand card
-            console.log(`[GameBoard] Hand card ${card.rank}${card.suit} → starting new extension on ${stackId}`);
-            actions.startBuildExtension(stackId, card, 'hand');
+            // No pending extension - start new extension
+            console.log(`[GameBoard] Card ${card.rank}${card.suit} → STARTING new extension on ${stackId}`);
+            actions.startBuildExtension(stackId, card, cardSource);
           }
         }}
         onDragStart={handleTableDragStart}
