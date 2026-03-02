@@ -156,6 +156,17 @@ export function TableArea({
   const tempStacks = tableCards.filter(isTempStackForOverlay) as TempStack[];
   const buildStacks = tableCards.filter(isBuildStack) as BuildStack[];
 
+  // Debug: log render order
+  console.log('[TableArea] Render order:', {
+    tableVersion,
+    tableCards: tableCards.map(item => {
+      if (isLooseCard(item)) return `loose:${(item as Card).rank}${(item as Card).suit}`;
+      if (isTempStack(item)) return `temp:${(item as TempStack).stackId}`;
+      if (isBuildStack(item)) return `build:${(item as BuildStack).stackId}`;
+      return 'unknown';
+    }),
+  });
+
   return (
     <View
       ref={tableRef}
@@ -169,65 +180,75 @@ export function TableArea({
         </View>
       )}
 
-      {/* Card grid */}
+      {/* Card grid - iterate in server-provided order to maintain positions */}
       <View style={styles.cardRow}>
-        {looseCards.map((card) => (
-          <DraggableLooseCard
-            key={`${card.rank}${card.suit}`}
-            card={card}
-            isMyTurn={isMyTurn}
-            playerNumber={playerNumber}
-            layoutVersion={tableVersion}
-            registerCard={registerCard}
-            unregisterCard={unregisterCard}
-            findCardAtPoint={findCardAtPoint}
-            findTempStackAtPoint={findTempStackAtPoint}
-            // DUMB callback - just pass through to DraggableLooseCard!
-            onDropOnStack={(droppedCard, stackId, stackOwner, stackType) => {
-              console.log(`[TableArea] LooseCard onDropOnStack - card: ${droppedCard.rank}${droppedCard.suit}, stack: ${stackId}, type: ${stackType}, owner: P${stackOwner}`);
-              
-              // DUMB - just pass through to GameBoard!
-              onStackDrop?.(droppedCard, stackId, stackOwner, stackType);
-            }}
-            onDropOnCard={(droppedCard, targetCard) => {
-              console.log(`[TableArea] LooseCard onDropOnCard - card: ${droppedCard.rank}${droppedCard.suit}, target: ${targetCard.rank}${targetCard.suit}`);
-              onTableCardDropOnCard?.(droppedCard, targetCard);
-            }}
-            // Legacy callbacks for ghost overlay
-            onDragStart={onTableDragStart}
-            onDragMove={onTableDragMove}
-            onDragEnd={onTableDragEnd}
-          />
-        ))}
-
-        {/* Temp stacks - use TempStackView (draggable) */}
-        {tempStacks.map((stack) => (
-          <TempStackView
-            key={stack.stackId}
-            stack={stack}
-            layoutVersion={tableVersion}
-            registerTempStack={registerTempStack}
-            unregisterTempStack={unregisterTempStack}
-            isMyTurn={isMyTurn}
-            playerNumber={playerNumber}
-            findCapturePileAtPoint={findCapturePileAtPoint}
-            onDragStart={onTempStackDragStart}
-            onDragMove={onTempStackDragMove}
-            onDragEnd={onTempStackDragEnd}
-            onDropToCapture={onDropToCapture}
-          />
-        ))}
-
-        {/* Build stacks - use BuildStackView (not draggable) */}
-        {buildStacks.map((stack) => (
-          <BuildStackView
-            key={stack.stackId}
-            stack={stack}
-            layoutVersion={tableVersion}
-            registerTempStack={registerTempStack}
-            unregisterTempStack={unregisterTempStack}
-          />
-        ))}
+        {tableCards.map((item, index) => {
+          // Loose card
+          if (isLooseCard(item)) {
+            const card = item as Card;
+            return (
+              <DraggableLooseCard
+                key={`${card.rank}${card.suit}`}
+                card={card}
+                isMyTurn={isMyTurn}
+                playerNumber={playerNumber}
+                layoutVersion={tableVersion}
+                registerCard={registerCard}
+                unregisterCard={unregisterCard}
+                findCardAtPoint={findCardAtPoint}
+                findTempStackAtPoint={findTempStackAtPoint}
+                onDropOnStack={(droppedCard, stackId, stackOwner, stackType) => {
+                  console.log(`[TableArea] LooseCard onDropOnStack - card: ${droppedCard.rank}${droppedCard.suit}, stack: ${stackId}, type: ${stackType}, owner: P${stackOwner}`);
+                  onStackDrop?.(droppedCard, stackId, stackOwner, stackType);
+                }}
+                onDropOnCard={(droppedCard, targetCard) => {
+                  console.log(`[TableArea] LooseCard onDropOnCard - card: ${droppedCard.rank}${droppedCard.suit}, target: ${targetCard.rank}${targetCard.suit}`);
+                  onTableCardDropOnCard?.(droppedCard, targetCard);
+                }}
+                onDragStart={onTableDragStart}
+                onDragMove={onTableDragMove}
+                onDragEnd={onTableDragEnd}
+              />
+            );
+          }
+          
+          // Temp stack
+          if (isTempStack(item)) {
+            const stack = item as TempStack;
+            return (
+              <TempStackView
+                key={stack.stackId}
+                stack={stack}
+                layoutVersion={tableVersion}
+                registerTempStack={registerTempStack}
+                unregisterTempStack={unregisterTempStack}
+                isMyTurn={isMyTurn}
+                playerNumber={playerNumber}
+                findCapturePileAtPoint={findCapturePileAtPoint}
+                onDragStart={onTempStackDragStart}
+                onDragMove={onTempStackDragMove}
+                onDragEnd={onTempStackDragEnd}
+                onDropToCapture={onDropToCapture}
+              />
+            );
+          }
+          
+          // Build stack
+          if (isBuildStack(item)) {
+            const stack = item as BuildStack;
+            return (
+              <BuildStackView
+                key={stack.stackId}
+                stack={stack}
+                layoutVersion={tableVersion}
+                registerTempStack={registerTempStack}
+                unregisterTempStack={unregisterTempStack}
+              />
+            );
+          }
+          
+          return null;
+        })}
       </View>
 
       {/* 

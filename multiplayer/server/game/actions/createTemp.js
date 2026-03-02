@@ -62,6 +62,9 @@ function createTemp(state, payload, playerIndex) {
     return state;
   }
 
+  // Find first card index BEFORE any modifications - we need this to insert at correct position
+  const originalFirstCardIdx = tableIdx !== -1 ? tableIdx : newState.tableCards.length; // If from hand, will be after table cards
+  
   // Find target card on table (must be loose) - get index BEFORE removing first card
   // This is important because removing the first card might shift indices
   let targetIdx = newState.tableCards.findIndex(
@@ -72,15 +75,33 @@ function createTemp(state, payload, playerIndex) {
     return state;
   }
 
-  // Now remove the first card from table (if it's there)
-  // Adjust targetIdx if the first card was before the target card
-  let adjustedTargetIdx = targetIdx;
-  if (tableIdx !== -1 && tableIdx < targetIdx) {
-    // First card is before target in array - removing it shifts target index down
-    adjustedTargetIdx = targetIdx - 1;
+  // Calculate where to insert the temp stack - use the earlier position
+  // This preserves visual order: temp stack replaces the two cards at their original positions
+  let insertIdx = Math.min(originalFirstCardIdx, targetIdx);
+  
+  // If first card was from hand (not on table), use targetIdx as insertion point
+  if (tableIdx === -1) {
+    insertIdx = targetIdx;
   }
   
-  const [tableCard] = newState.tableCards.splice(targetIdx, 1);
+  console.log(`[createTemp] Debug: tableIdx=${tableIdx}, originalFirstCardIdx=${originalFirstCardIdx}, targetIdx=${targetIdx}, insertIdx=${insertIdx}, tableCards.length before=${newState.tableCards.length}`);
+  
+  // Now remove the first card from table if it was there
+  if (tableIdx !== -1) {
+    newState.tableCards.splice(tableIdx, 1);
+    // Adjust insertIdx if needed after splice
+    if (tableIdx < insertIdx) {
+      insertIdx = insertIdx - 1;
+    }
+  }
+  
+  // Remove target card from table
+  // Need to recalculate targetIdx after potential splice
+  const newTargetIdx = newState.tableCards.findIndex(
+    tc => !tc.type && tc.rank === targetCard.rank && tc.suit === targetCard.suit,
+  );
+  console.log(`[createTemp] Debug: newTargetIdx=${newTargetIdx}, tableCards.length after splice=${newState.tableCards.length}`);
+  const [tableCard] = newState.tableCards.splice(newTargetIdx, 1);
 
   // Sort: higher-value card is the base (bottom), lower-value sits on top.
   const [bottom, top] = firstCard.value >= tableCard.value
@@ -106,9 +127,9 @@ function createTemp(state, payload, playerIndex) {
     buildType = 'diff';
   }
 
-  // Insert temp stack at the adjusted position (right after where target card was)
+  // Insert temp stack at the calculated position (where first card was)
   // This ensures visual order matches array order in the flex layout
-  newState.tableCards.splice(adjustedTargetIdx + 1, 0, {
+  newState.tableCards.splice(insertIdx, 0, {
     type: 'temp_stack',
     stackId: generateStackId(newState, 'temp', playerIndex),
     cards: [bottom, top],
@@ -119,8 +140,18 @@ function createTemp(state, payload, playerIndex) {
     buildType: buildType,
   });
 
-  // Find the newly inserted stack (it was inserted at adjustedTargetIdx + 1)
-  const newStack = newState.tableCards[adjustedTargetIdx + 1];
+  // Debug: log the final array order
+  console.log(`[createTemp] Final tableCards order:`);
+  newState.tableCards.forEach((tc, i) => {
+    if (tc.type) {
+      console.log(`  [${i}] ${tc.type}: ${tc.stackId} (value=${tc.value})`);
+    } else {
+      console.log(`  [${i}] loose: ${tc.rank}${tc.suit}`);
+    }
+  });
+
+  // Find the newly inserted stack
+  const newStack = newState.tableCards[insertIdx];
   console.log(`[createTemp] Created: ${newStack?.cards?.map(c => `${c.rank}${c.suit}`).join(', ') || 'N/A'} | type=${buildType}, value=${base}, need=${need}`);
 
   // ⚠️  No nextTurn() — turn advances when the overlay Accept/Cancel is added
