@@ -12,6 +12,7 @@ import { CardBounds, TempStackBounds, CapturedCardBounds, CapturePileBounds } fr
 import { Card, TempStack, BuildStack, TableItem, isLooseCard, isTempStack, isBuildStack } from './types';
 import { DraggableLooseCard } from './DraggableLooseCard';
 import { TempStackView } from './TempStackView';
+import { BuildStackView } from './BuildStackView';
 import { StackActionStrip } from './StackActionStrip';
 import { CapturedCardsView } from './CapturedCardsView';
 
@@ -148,8 +149,9 @@ export function TableArea({
   const looseCards = tableCards.filter(isLooseCard) as Card[];
   // Show both temp stacks and build stacks
   const stacks = tableCards.filter(isAnyStack) as (TempStack | BuildStack)[];
-  // Only temp stacks need overlay (build stacks are already accepted)
+  // Separate temp stacks and build stacks
   const tempStacks = tableCards.filter(isTempStackForOverlay) as TempStack[];
+  const buildStacks = tableCards.filter(isBuildStack) as BuildStack[];
 
   return (
     <View
@@ -189,14 +191,14 @@ export function TableArea({
           />
         ))}
 
-        {stacks.map((stack) => (
+        {/* Temp stacks - use TempStackView (draggable) */}
+        {tempStacks.map((stack) => (
           <TempStackView
             key={stack.stackId}
             stack={stack}
             layoutVersion={tableVersion}
             registerTempStack={registerTempStack}
             unregisterTempStack={unregisterTempStack}
-            onCapture={onCapture}
             isMyTurn={isMyTurn}
             playerNumber={playerNumber}
             findCapturePileAtPoint={findCapturePileAtPoint}
@@ -204,6 +206,17 @@ export function TableArea({
             onDragMove={onTempStackDragMove}
             onDragEnd={onTempStackDragEnd}
             onDropToCapture={onDropToCapture}
+          />
+        ))}
+
+        {/* Build stacks - use BuildStackView (not draggable) */}
+        {buildStacks.map((stack) => (
+          <BuildStackView
+            key={stack.stackId}
+            stack={stack}
+            layoutVersion={tableVersion}
+            registerTempStack={registerTempStack}
+            unregisterTempStack={unregisterTempStack}
           />
         ))}
       </View>

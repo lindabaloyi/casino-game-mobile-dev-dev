@@ -1,10 +1,11 @@
 /**
  * TempStackView
- * Renders a temp_stack or build_stack as a fanned pair of cards.
+ * Renders a temp_stack (pending/active stack that needs acceptance).
  * 
- * - temp_stack: shows build value with preview
- * - build_stack: shows owner indicator (P1 or P2)
- * - Can be dragged to capture pile (temp_stack only, owner's turn)
+ * Characteristics:
+ * - Draggable by owner on their turn
+ * - Shows type badge (TEMP)
+ * - Shows build value with need indicator
  */
 
 import React, { useCallback, useEffect, useRef } from 'react';
@@ -12,28 +13,26 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { PlayingCard } from '../cards/PlayingCard';
-import { TempStack, BuildStack, Card } from './types';
+import { TempStack } from './types';
 import { TempStackBounds, CapturePileBounds } from '../../hooks/useDrag';
 import { getStackConfig } from '../../constants/stackActions';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
-const CARD_W       = 56;   // matches PlayingCard width
-const CARD_H       = 84;   // matches PlayingCard height
-const STACK_OFFSET = 6;    // how much the top card is shifted right/down
-const BADGE_H      = 22;   // height reserved for the badge below the cards
-const STACK_PAD    = 4;    // extra breathing room on the right
+const CARD_W       = 56;
+const CARD_H       = 84;
+const STACK_OFFSET = 6;
+const BADGE_H      = 22;
+const STACK_PAD    = 4;
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
-  stack: TempStack | BuildStack;
+  stack: TempStack;
   /** Re-measure when table card count changes (flex reflow). */
-  layoutVersion:       number;
-  registerTempStack:   (stackId: string, bounds: TempStackBounds) => void;
+  layoutVersion: number;
+  registerTempStack: (stackId: string, bounds: TempStackBounds) => void;
   unregisterTempStack: (stackId: string) => void;
-  /** Capture callback - for when a hand card is dropped on this stack */
-  onCapture?: (card: Card, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => void;
   
   // Drag callbacks (for dragging temp stack to capture pile)
   isMyTurn?: boolean;
@@ -52,7 +51,6 @@ export function TempStackView({
   layoutVersion, 
   registerTempStack, 
   unregisterTempStack, 
-  onCapture,
   isMyTurn,
   playerNumber,
   findCapturePileAtPoint,
@@ -67,23 +65,19 @@ export function TempStackView({
   const isDragging = useSharedValue(false);
 
   // Only temp_stack can be dragged, and only by the owner on their turn
-  const canDrag = isMyTurn && playerNumber !== undefined && stack.owner === playerNumber && stack.type === 'temp_stack';
+  const canDrag = isMyTurn && playerNumber !== undefined && stack.owner === playerNumber;
 
-  // bottom = highest-value card (set at creation)
+  // bottom = highest-value card (base)
   // top    = most recently added card
   const bottom = stack.cards[0];
   const top    = stack.cards[stack.cards.length - 1];
 
   // Use server-provided values (value and need)
-  // Server calculates: sum builds (total≤10) or diff builds (total>10)
-  // Only temp_stack has need, build_stack doesn't
-  const need = 'need' in stack ? stack.need : 0;
-  const displayValue = need > 0 ? `-${need}` : stack.value?.toString() ?? '-';
-  const badgeColor = need > 0 ? '#E53935' : '#9C27B0'; // Red for incomplete, Purple for complete
+  const displayValue = stack.need > 0 ? `-${stack.need}` : stack.value?.toString() ?? '-';
+  const badgeColor = stack.need > 0 ? '#E53935' : '#9C27B0'; // Red for incomplete, Purple for complete
 
   // ── Position registration ─────────────────────────────────────────────────
   const onLayout = useCallback(() => {
-    // RAF ensures the native frame is fully painted before measuring.
     requestAnimationFrame(() => {
       viewRef.current?.measureInWindow((x, y, width, height) => {
         registerTempStack(stack.stackId, {
@@ -96,7 +90,7 @@ export function TempStackView({
     });
   }, [stack.stackId, stack.owner, stack.type, registerTempStack]);
 
-  // Re-measure on table reflow (sibling card changes shift this stack's position).
+  // Re-measure on table reflow
   useEffect(() => {
     requestAnimationFrame(() => {
       viewRef.current?.measureInWindow((x, y, width, height) => {
@@ -114,18 +108,13 @@ export function TempStackView({
     return () => unregisterTempStack(stack.stackId);
   }, [stack.stackId, unregisterTempStack]);
 
-  // ── Resolve badge config from design tokens ───────────────────────────────
+  // ── Resolve badge config ─────────────────────────────────────────────────
   const config = getStackConfig(stack.type);
-  const badgeLabel = config?.label ?? stack.type.toUpperCase();
+  const badgeLabel = config?.label ?? 'TEMP';
 
-  // Card count for badge (not displayed, just placeholder)
-  const cardCount = 0;
-  const isBuild = stack.type === 'build_stack';
-  const ownerLabel = `P${stack.owner + 1}`;
-
-  // Drag handlers - must be before early return per React Hooks rules
+  // ── Drag handlers ────────────────────────────────────────────────────────
   const handleDragStartInternal = useCallback(() => {
-    if (onDragStart && stack.type === 'temp_stack') {
+    if (onDragStart) {
       onDragStart(stack);
     }
   }, [onDragStart, stack]);
@@ -141,13 +130,10 @@ export function TempStackView({
     translateY.value = 0;
     isDragging.value = false;
 
-    if (stack.type !== 'temp_stack') return;
-
     // Check if dropped on player's own capture pile
     if (findCapturePileAtPoint && playerNumber !== undefined) {
       const pile = findCapturePileAtPoint(absX, absY);
       if (pile && pile.playerIndex === playerNumber) {
-        // Dropped on own capture pile - use onDropToCapture
         console.log('[TempStackView] Dropped on own capture pile:', pile);
         if (onDropToCapture) {
           onDropToCapture(stack, 'hand');
@@ -176,7 +162,6 @@ export function TempStackView({
       }
     })
     .onEnd((event) => {
-      // Use the finger's absolute position for hit detection
       runOnJS(handleDragEndInternal)(event.absoluteX, event.absoluteY);
     });
 
@@ -193,44 +178,28 @@ export function TempStackView({
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View ref={viewRef} style={[styles.container, animatedStyle]} onLayout={onLayout}>
-      {/* Base card — highest value */}
-      <View style={styles.cardBottom}>
-        <PlayingCard rank={bottom.rank} suit={bottom.suit} />
-      </View>
+        {/* Base card — highest value */}
+        <View style={styles.cardBottom}>
+          <PlayingCard rank={bottom.rank} suit={bottom.suit} />
+        </View>
 
-      {/* Top card — most recently added, offset for fan effect */}
-      <View style={styles.cardTop}>
-        <PlayingCard rank={top.rank} suit={top.suit} />
-      </View>
+        {/* Top card — most recently added */}
+        <View style={styles.cardTop}>
+          <PlayingCard rank={top.rank} suit={top.suit} />
+        </View>
 
-      {/* Build indicator - shows build value with color */}
-      <View style={[styles.valueBadge, { backgroundColor: badgeColor }]}>
-        <Text style={styles.valueText}>{displayValue}</Text>
-      </View>
+        {/* Build value badge */}
+        <View style={[styles.valueBadge, { backgroundColor: badgeColor }]}>
+          <Text style={styles.valueText}>{displayValue}</Text>
+        </View>
 
-      {/* Badge — show with black text, left side */}
-      {cardCount > 0 && (
-        <View style={styles.cardCountBadge}>
-          <Text style={styles.cardCountText}>+{cardCount}</Text>
-      </View>
-      )}
-
-      {/* Badge — show for temp_stack type only */}
-      {stack.type === 'temp_stack' && (
+        {/* Type badge */}
         <View style={styles.badge}>
           <Text style={[styles.badgeText, { backgroundColor: config?.badgeColor ?? '#17a2b8' }]}>
             {badgeLabel}
           </Text>
         </View>
-      )}
-
-      {/* Owner indicator — show for build_stack type only */}
-      {isBuild && (
-        <View style={styles.ownerBadge}>
-          <Text style={styles.ownerText}>{ownerLabel}</Text>
-        </View>
-      )}
-    </Animated.View>
+      </Animated.View>
     </GestureDetector>
   );
 }
@@ -258,7 +227,6 @@ const styles = StyleSheet.create({
     shadowRadius:  3,
     elevation:    4,
   },
-  // Value badge - shows build value (top-right corner)
   valueBadge: {
     position: 'absolute',
     top: -8,
@@ -270,8 +238,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
-    zIndex: 20,        // Make sure it appears above cards
-    elevation: 5,      // Android shadow
+    zIndex: 20,
+    elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 1, height: 1 },
     shadowOpacity: 0.3,
@@ -283,26 +251,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     paddingHorizontal: 4,
-  },
-  // Card count badge - white circle with black text (left side)
-  cardCountBadge: {
-    position: 'absolute',
-    top: -6,
-    left: -6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#000000',
-    zIndex: 21,
-  },
-  cardCountText: {
-    color: '#000000',
-    fontSize: 10,
-    fontWeight: 'bold',
   },
   badge: {
     position: 'absolute',
@@ -316,24 +264,6 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: 'bold',
     letterSpacing: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  // Owner badge for build stacks (P1 or P2 indicator)
-  ownerBadge: {
-    position: 'absolute',
-    bottom:   0,
-    left:     0,
-    right:    0,
-    alignItems: 'center',
-  },
-  ownerText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-    backgroundColor: '#f59e0b', // amber
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,

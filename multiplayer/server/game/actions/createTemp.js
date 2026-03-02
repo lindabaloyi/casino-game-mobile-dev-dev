@@ -14,7 +14,7 @@
  * Contract: (state, payload, playerIndex) => newState  (pure, no side effects)
  */
 
-const { cloneState } = require('../GameState');
+const { cloneState, generateStackId } = require('../GameState');
 
 /**
  * @param {object} state
@@ -110,7 +110,7 @@ function createTemp(state, payload, playerIndex) {
   // This ensures visual order matches array order in the flex layout
   newState.tableCards.splice(adjustedTargetIdx + 1, 0, {
     type: 'temp_stack',
-    stackId: `temp_${Date.now()}_p${playerIndex}`,
+    stackId: generateStackId(newState, 'temp', playerIndex),
     cards: [bottom, top],
     owner: playerIndex,
     value: base,

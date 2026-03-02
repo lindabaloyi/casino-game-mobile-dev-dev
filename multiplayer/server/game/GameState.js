@@ -69,6 +69,8 @@ function initializeGame() {
     scores: [0, 0],
     turnCounter: 1,
     gameOver: false,
+    // Stack counters for sequential IDs: { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 }
+    stackCounters: { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 },
   };
 }
 
@@ -127,6 +129,8 @@ function initializeTestGame() {
     scores: [0, 0],
     turnCounter: 1,
     gameOver: false,
+    // Stack counters for sequential IDs: { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 }
+    stackCounters: { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 },
   };
 }
 
@@ -135,6 +139,35 @@ function initializeTestGame() {
  */
 function cloneState(state) {
   return JSON.parse(JSON.stringify(state));
+}
+
+/**
+ * Generate a sequential stack ID.
+ * Format: {type}P{player}_{number}
+ * Examples: tempP1_01, tempP2_03, buildP1_02
+ * 
+ * @param {object} state - Game state with stackCounters
+ * @param {string} type - 'temp' or 'build'
+ * @param {number} playerIndex - 0 or 1
+ * @returns {string} Generated stack ID
+ */
+function generateStackId(state, type, playerIndex) {
+  const playerLabel = `P${playerIndex + 1}`; // P1 or P2
+  const counterKey = `${type}${playerLabel}`;   // tempP1, tempP2, buildP1, buildP2
+  
+  // Initialize counter if not exists
+  if (!state.stackCounters) {
+    state.stackCounters = { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 };
+  }
+  
+  // Increment counter
+  state.stackCounters[counterKey] = (state.stackCounters[counterKey] || 0) + 1;
+  const num = state.stackCounters[counterKey];
+  
+  // Format with leading zero (01, 02, etc.)
+  const numStr = num.toString().padStart(2, '0');
+  
+  return `${type}${playerLabel}_${numStr}`;
 }
 
 /**
@@ -152,4 +185,5 @@ module.exports = {
   cloneState,
   nextTurn,
   rankValue,
+  generateStackId,
 };

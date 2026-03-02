@@ -12,7 +12,7 @@
  * Contract: (state, payload, playerIndex) => newState  (pure, no side effects)
  */
 
-const { cloneState } = require('../GameState');
+const { cloneState, generateStackId } = require('../GameState');
 
 /**
  * @param {object} state
@@ -110,7 +110,7 @@ function playFromCaptures(state, payload, playerIndex) {
 
   newState.tableCards.push({
     type: 'temp_stack',
-    stackId: `temp_${Date.now()}_p${playerIndex}`,
+    stackId: generateStackId(newState, 'temp', playerIndex),
     cards: [bottom, top],
     owner: playerIndex,
     value: base,

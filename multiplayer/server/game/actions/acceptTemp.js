@@ -11,7 +11,7 @@
  * - Advances turn to opponent
  */
 
-const { cloneState, nextTurn } = require('../GameState');
+const { cloneState, nextTurn, generateStackId } = require('../GameState');
 
 /**
  * @param {object} state
@@ -57,6 +57,14 @@ function acceptTemp(state, payload, playerIndex) {
   // Convert temp_stack to build_stack
   stack.type = 'build_stack';
   stack.hasBase = true;
+  
+  // Convert stackId from tempP1_01 to buildP1_01 (keep same number)
+  if (stack.stackId && stack.stackId.startsWith('temp')) {
+    stack.stackId = stack.stackId.replace('temp', 'build');
+  } else {
+    // Fallback for legacy IDs - generate new build ID
+    stack.stackId = generateStackId(newState, 'build', stack.owner);
+  }
 
   console.log(`[acceptTemp] Converted to build_stack with value ${finalValue}, turn advances`);
 
