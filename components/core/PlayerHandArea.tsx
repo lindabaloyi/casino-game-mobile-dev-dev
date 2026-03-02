@@ -31,13 +31,11 @@ interface Props {
   findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   /** Table cards - needed to find build stack value */
   tableCards?: TableItem[];
-  /** Check if near any table card (proximity prevention) */
-  isNearAnyCard?: (x: number, y: number) => boolean;
-  /** Check if near any temp stack (proximity prevention) */
-  isNearAnyStack?: (x: number, y: number) => boolean;
   onTrail: (card: Card) => void;
   /** Called when the dragged card lands on a specific table card */
   onCardDrop: (handCard: Card, targetCard: Card) => void;
+  /** Add to temp stack callback */
+  onAddToTemp?: (card: Card, stackId: string) => void;
   /** Extend build callback - for extending own build with hand card */
   onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
   /** Drag overlay callbacks — forwarded straight to each DraggableHandCard */
@@ -56,10 +54,9 @@ export function PlayerHandArea({
   findCardAtPoint,
   findTempStackAtPoint,
   tableCards,
-  isNearAnyCard,
-  isNearAnyStack,
   onTrail,
   onCardDrop,
+  onAddToTemp,
   onExtendBuild,
   onDragStart,
   onDragMove,
@@ -82,14 +79,13 @@ export function PlayerHandArea({
             dropBounds={dropBounds}
             findCardAtPoint={findCardAtPoint}
             findTempStackAtPoint={findTempStackAtPoint}
-            isNearAnyCard={isNearAnyCard}
-            isNearAnyStack={isNearAnyStack}
             isMyTurn={isMyTurn}
             playerNumber={playerNumber}
             playerHand={hand}
             tableCards={tableCards}
             onTrail={onTrail}
             onCardDrop={onCardDrop}
+            onAddToTemp={onAddToTemp}
             onExtendBuild={onExtendBuild ? (card, stackId) => onExtendBuild(card, stackId, 'hand') : undefined}
             onDragStart={onDragStart}
             onDragMove={onDragMove}

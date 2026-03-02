@@ -3,11 +3,12 @@
  * A hand card the player can drag to the table.
  *
  * Drop detection (JS-thread — never inside a worklet):
- *  1. If the finger lands on a SPECIFIC table card → onCardDrop(handCard, targetCard)
+ *  1. If the finger lands on a build stack → capture or extend
+ *  2. If the finger lands on a SPECIFIC table card → onCardDrop(handCard, targetCard)
  *     → GameBoard sends createTemp action
- *  2. If the finger lands anywhere on the table → onTrail(handCard)
+ *  3. If the finger lands anywhere on the table → onTrail(handCard)
  *     → GameBoard sends trail action
- *  3. Otherwise → snap back
+ *  4. Otherwise → snap back
  *
  * Threading note:
  *   On native, RNGH callbacks run as UI-thread worklets. Reanimated serialises
@@ -44,10 +45,6 @@ interface Props {
   findCardAtPoint: (x: number, y: number) => Card | null;
   /** Finds a stack at (x, y); returns null if no stack there */
   findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
-  /** Check if near any table card (for proximity prevention) */
-  isNearAnyCard?: (x: number, y: number) => boolean;
-  /** Check if near any temp stack (for proximity prevention) */
-  isNearAnyStack?: (x: number, y: number) => boolean;
   isMyTurn: boolean;
   playerNumber: number;
   /** Player's hand - needed for capture vs extend logic */
@@ -59,6 +56,8 @@ interface Props {
   onCardDrop: (handCard: Card, targetCard: Card) => void;
   /** Extend build callback - for extending own build with hand card */
   onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
+  /** Add to temp stack callback */
+  onAddToTemp?: (card: Card, stackId: string) => void;
   /** Overlay callbacks */
   onDragStart: (card: Card) => void;
   onDragMove: (absoluteX: number, absoluteY: number) => void;
@@ -74,8 +73,6 @@ export function DraggableHandCard({
   dropBounds,
   findCardAtPoint,
   findTempStackAtPoint,
-  isNearAnyCard,
-  isNearAnyStack,
   isMyTurn,
   playerNumber,
   playerHand,
@@ -83,6 +80,7 @@ export function DraggableHandCard({
   onTrail,
   onCardDrop,
   onExtendBuild,
+  onAddToTemp,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -124,9 +122,8 @@ export function DraggableHandCard({
    * Priority:
    *   1. Build stack hit → capture or extend (based on rules below)
    *   2. Specific table card hit → createTemp
-   *   3. Near any card/stack but not directly on one → snap back (no trail!)
-   *   4. General table area hit → trail
-   *   5. Outside table → snap back
+   *   3. General table area hit → trail
+   *   4. Outside table → snap back
    *
    * Capture vs Extend rules for hand cards:
    *   - Own build stack:
@@ -136,8 +133,10 @@ export function DraggableHandCard({
    *   - Opponent's build stack → CAPTURE
    */
   function handleDrop(absX: number, absY: number) {
-    // 0. Check for a build stack under the finger
+    // Check for a build stack under the finger FIRST
     const stackHit = findTempStackAtPoint(absX, absY);
+    
+    // Handle build_stack
     if (stackHit && stackHit.stackType === 'build_stack') {
       // Own build - need to decide capture vs extend
       if (stackHit.owner === playerNumber) {
@@ -175,8 +174,18 @@ export function DraggableHandCard({
         return;
       }
     }
+    
+    // Handle temp_stack - add to own temp stack
+    if (stackHit && stackHit.stackType === 'temp_stack' && stackHit.owner === playerNumber) {
+      console.log(`[DraggableHandCard] ADD TO TEMP — ${card.rank}${card.suit} → stack ${stackHit.stackId}`);
+      onDragEnd();
+      if (onAddToTemp) {
+        onAddToTemp(card, stackHit.stackId);
+      }
+      return;
+    }
 
-    // 1. Check for a specific table card under the finger
+    // Check for a specific table card under the finger
     const targetCard = findCardAtPoint(absX, absY);
     if (targetCard) {
       console.log(
@@ -187,21 +196,7 @@ export function DraggableHandCard({
       return;
     }
 
-    // 2. PROXIMITY CHECK: If near any card/stack but not directly on one, snap back
-    // This prevents accidental trailing when card is close to but not on a table item
-    const nearCard = isNearAnyCard?.(absX, absY);
-    const nearStack = isNearAnyStack?.(absX, absY);
-    
-    if (nearCard || nearStack) {
-      console.log(
-        `[DraggableHandCard] PROXIMITY — card near table item but not directly on it`,
-        `| nearCard: ${nearCard}, nearStack: ${nearStack}`,
-      );
-      handleSnapBack();
-      return;
-    }
-
-    // 3. General table drop → trail
+    // No direct hit - trail the card
     const b = dropBounds.current;
     const inZone =
       absX >= b.x &&
@@ -232,7 +227,7 @@ export function DraggableHandCard({
     );
   }
 
-  // ── Gesture ───────────────────────────────────────────────────────────────
+  // ── Gesture ─────────────────────────────────────────────────────────────────
 
   const gesture = Gesture.Pan()
     .enabled(isMyTurn)

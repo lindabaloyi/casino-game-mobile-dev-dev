@@ -95,11 +95,11 @@ export function GameBoard({
     registerCard,
     unregisterCard,
     findCardAtPoint,
-    isNearAnyCard,
+    
     registerTempStack,
     unregisterTempStack,
     findTempStackAtPoint,
-    isNearAnyStack,
+    
     registerCapturedCard,
     unregisterCapturedCard,
     findCapturePileAtPoint,
@@ -361,10 +361,9 @@ export function GameBoard({
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
         tableCards={table}
-        isNearAnyCard={isNearAnyCard}
-        isNearAnyStack={isNearAnyStack}
         onTrail={actions.trail}
         onCardDrop={actions.createTemp}
+        onAddToTemp={actions.addToTemp}
         onExtendBuild={(card: any, stackId: string, cardSource: 'table' | 'hand' | 'captured' = 'hand') => {
           // Player is dragging a hand card to extend their build
           // Check if build already has a pending extension (loose card locked)
