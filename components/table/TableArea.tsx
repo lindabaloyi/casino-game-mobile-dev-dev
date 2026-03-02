@@ -156,17 +156,6 @@ export function TableArea({
   const tempStacks = tableCards.filter(isTempStackForOverlay) as TempStack[];
   const buildStacks = tableCards.filter(isBuildStack) as BuildStack[];
 
-  // Debug: log render order
-  console.log('[TableArea] Render order:', {
-    tableVersion,
-    tableCards: tableCards.map(item => {
-      if (isLooseCard(item)) return `loose:${(item as Card).rank}${(item as Card).suit}`;
-      if (isTempStack(item)) return `temp:${(item as TempStack).stackId}`;
-      if (isBuildStack(item)) return `build:${(item as BuildStack).stackId}`;
-      return 'unknown';
-    }),
-  });
-
   return (
     <View
       ref={tableRef}
@@ -198,11 +187,9 @@ export function TableArea({
                 findCardAtPoint={findCardAtPoint}
                 findTempStackAtPoint={findTempStackAtPoint}
                 onDropOnStack={(droppedCard, stackId, stackOwner, stackType) => {
-                  console.log(`[TableArea] LooseCard onDropOnStack - card: ${droppedCard.rank}${droppedCard.suit}, stack: ${stackId}, type: ${stackType}, owner: P${stackOwner}`);
                   onStackDrop?.(droppedCard, stackId, stackOwner, stackType);
                 }}
                 onDropOnCard={(droppedCard, targetCard) => {
-                  console.log(`[TableArea] LooseCard onDropOnCard - card: ${droppedCard.rank}${droppedCard.suit}, target: ${targetCard.rank}${targetCard.suit}`);
                   onTableCardDropOnCard?.(droppedCard, targetCard);
                 }}
                 onDragStart={onTableDragStart}

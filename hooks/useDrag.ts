@@ -79,7 +79,6 @@ export function useDrag() {
   const onTableLayout = useCallback(() => {
     tableRef.current?.measureInWindow((x, y, width, height) => {
       dropBounds.current = { x, y, width, height };
-      console.log('[useDrag] Table measured:', { x, y, width, height });
     });
   }, []);
 
@@ -87,7 +86,6 @@ export function useDrag() {
   const cardPositions = useRef<Map<string, CardBounds>>(new Map());
 
   const registerCard = useCallback((id: string, bounds: CardBounds) => {
-    console.log('[useDrag] registerCard:', { id, ...bounds });
     cardPositions.current.set(id, bounds);
   }, []);
 
@@ -101,21 +99,14 @@ export function useDrag() {
    */
   const findCardAtPoint = useCallback(
     (x: number, y: number, excludeId?: string): { rank: string; suit: string; value: number } | null => {
-      // Debug: log all registered cards
-      const cardList = Array.from(cardPositions.current.entries()).map(([id, b]) => ({ id, ...b }));
-      console.log('[useDrag] findCardAtPoint - checking:', { x, y, excludeId, registeredCards: cardList });
-      
       for (const [id, bounds] of cardPositions.current) {
         if (excludeId && id === excludeId) continue;
         const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
         const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
-        console.log('[useDrag] findCardAtPoint - checking card:', { id, card: bounds.card, x, y, bounds, inX, inY });
         if (inX && inY) {
-          console.log('[useDrag] findCardAtPoint - HIT:', { id, bounds, x, y, tolerance: DIRECT_HIT_TOLERANCE });
           return bounds.card;
         }
       }
-      console.log('[useDrag] findCardAtPoint - no hit');
       return null;
     },
     [],
@@ -146,7 +137,6 @@ export function useDrag() {
   const tempStackPositions = useRef<Map<string, TempStackBounds>>(new Map());
 
   const registerTempStack = useCallback((stackId: string, bounds: TempStackBounds) => {
-    console.log('[useDrag] registerTempStack:', { stackId, x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height, owner: bounds.owner });
     tempStackPositions.current.set(stackId, bounds);
   }, []);
 
@@ -157,20 +147,13 @@ export function useDrag() {
   /** Returns the temp stack at (x, y), or null (direct hit). */
   const findTempStackAtPoint = useCallback(
     (x: number, y: number): { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null => {
-      // Debug: log all registered stacks
-      const stackList = Array.from(tempStackPositions.current.entries()).map(([id, b]) => ({ id, ...b }));
-      console.log('[useDrag] findTempStackAtPoint - checking:', { x, y, registeredStacks: stackList });
-      
       for (const [, bounds] of tempStackPositions.current) {
         const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
         const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
-        console.log('[useDrag] findTempStackAtPoint - checking stack:', { stackId: bounds.stackId, x, y, bounds, inX, inY });
         if (inX && inY) {
-          console.log('[useDrag] findTempStackAtPoint - HIT:', { bounds, x, y, tolerance: DIRECT_HIT_TOLERANCE });
           return { stackId: bounds.stackId, owner: bounds.owner, stackType: bounds.stackType };
         }
       }
-      console.log('[useDrag] findTempStackAtPoint - no hit');
       return null;
     },
     [],
@@ -228,7 +211,6 @@ export function useDrag() {
   const capturePilePosition = useRef<CapturePileBounds | null>(null);
 
   const registerCapturePile = useCallback((bounds: CapturePileBounds) => {
-    console.log('[useDrag] registerCapturePile:', bounds);
     capturePilePosition.current = bounds;
   }, []);
 
@@ -240,15 +222,10 @@ export function useDrag() {
   const findCapturePileAtPoint = useCallback(
     (x: number, y: number): CapturePileBounds | null => {
       const bounds = capturePilePosition.current;
-      if (!bounds) {
-        console.log('[useDrag] findCapturePileAtPoint: no bounds registered');
-        return null;
-      }
+      if (!bounds) return null;
       
       const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
       const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
-      
-      console.log('[useDrag] findCapturePileAtPoint:', { x, y, bounds, inX, inY });
       
       if (inX && inY) {
         return bounds;

@@ -84,8 +84,6 @@ function createTemp(state, payload, playerIndex) {
     insertIdx = targetIdx;
   }
   
-  console.log(`[createTemp] Debug: tableIdx=${tableIdx}, originalFirstCardIdx=${originalFirstCardIdx}, targetIdx=${targetIdx}, insertIdx=${insertIdx}, tableCards.length before=${newState.tableCards.length}`);
-  
   // Now remove the first card from table if it was there
   if (tableIdx !== -1) {
     newState.tableCards.splice(tableIdx, 1);
@@ -100,7 +98,6 @@ function createTemp(state, payload, playerIndex) {
   const newTargetIdx = newState.tableCards.findIndex(
     tc => !tc.type && tc.rank === targetCard.rank && tc.suit === targetCard.suit,
   );
-  console.log(`[createTemp] Debug: newTargetIdx=${newTargetIdx}, tableCards.length after splice=${newState.tableCards.length}`);
   const [tableCard] = newState.tableCards.splice(newTargetIdx, 1);
 
   // Sort: higher-value card is the base (bottom), lower-value sits on top.
@@ -139,20 +136,6 @@ function createTemp(state, payload, playerIndex) {
     need: need,
     buildType: buildType,
   });
-
-  // Debug: log the final array order
-  console.log(`[createTemp] Final tableCards order:`);
-  newState.tableCards.forEach((tc, i) => {
-    if (tc.type) {
-      console.log(`  [${i}] ${tc.type}: ${tc.stackId} (value=${tc.value})`);
-    } else {
-      console.log(`  [${i}] loose: ${tc.rank}${tc.suit}`);
-    }
-  });
-
-  // Find the newly inserted stack
-  const newStack = newState.tableCards[insertIdx];
-  console.log(`[createTemp] Created: ${newStack?.cards?.map(c => `${c.rank}${c.suit}`).join(', ') || 'N/A'} | type=${buildType}, value=${base}, need=${need}`);
 
   // ⚠️  No nextTurn() — turn advances when the overlay Accept/Cancel is added
   return newState;
