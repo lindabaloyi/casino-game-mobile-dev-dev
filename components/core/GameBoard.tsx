@@ -25,7 +25,7 @@
 import React, { useMemo, useCallback } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { GameState } from '../../hooks/useGameState';
+import { GameState, OpponentDragState } from '../../hooks/useGameState';
 import { useDrag } from '../../hooks/useDrag';
 import { GameStatusBar } from './GameStatusBar';
 import { TableArea } from '../table/TableArea';
@@ -59,13 +59,7 @@ interface GameBoardProps {
   serverError?: { message: string } | null;
   onServerErrorClose?: () => void;
   /** Opponent's current drag state for ghost card rendering */
-  opponentDrag?: {
-    playerIndex: number;
-    card: { rank: string; suit: string; value: number };
-    source: 'hand' | 'table' | 'captured';
-    position: { x: number; y: number };
-    isDragging: boolean;
-  } | null;
+  opponentDrag?: OpponentDragState | null;
   /** Emit drag start event to server for broadcasting */
   emitDragStart?: (card: { rank: string; suit: string; value: number }, source: 'hand' | 'table' | 'captured', position: { x: number; y: number }) => void;
   /** Emit drag move event to server (throttled) */
@@ -114,16 +108,20 @@ export function GameBoard({
     registerCard,
     unregisterCard,
     findCardAtPoint,
+    getCardPosition,
     
     registerTempStack,
     unregisterTempStack,
     findTempStackAtPoint,
+    getStackPosition,
     
     registerCapturedCard,
     unregisterCapturedCard,
     findCapturePileAtPoint,
     registerCapturePile,
     unregisterCapturePile,
+    cardPositions,
+    tempStackPositions,
   } = useDrag();
 
   const dragOverlay = useDragOverlay();
@@ -143,12 +141,14 @@ export function GameBoard({
 
   // ── Drag Handlers ─────────────────────────────────────────────────────────
   
-  // Wrapper for table drag start (single arg)
   const handleTableDragStart = useCallback((card: any) => {
-    dragOverlay.startDrag(card, 'hand');
+    console.log('[GameBoard] handleTableDragStart called with card:', card);
+    const cardId = `${card.rank}${card.suit}`;
+    dragOverlay.startDrag(card, 'table');
     // Emit drag start to server for broadcasting to opponent
+    // Note: This is called when dragging a TABLE card (loose card on table)
     if (emitDragStart) {
-      emitDragStart(card, 'hand', { x: 0.5, y: 0.5 }); // Will be updated on move
+      emitDragStart(card, 'table', { x: 0.5, y: 0.5 }); // TABLE not hand!
     }
   }, [dragOverlay, emitDragStart]);
 
@@ -164,6 +164,9 @@ export function GameBoard({
 
   const handleDragMove = useCallback(
     (absoluteX: number, absoluteY: number) => {
+      // Debug: measure frame timing
+      const startTime = Date.now();
+      
       dragOverlay.moveDrag(absoluteX, absoluteY);
 
       // Emit drag move to server for broadcasting to opponent
@@ -181,6 +184,8 @@ export function GameBoard({
         
         if (stack && stack.owner !== playerNumber) {
           stealDetection.showOverlay(stack, absoluteX, absoluteY);
+          const elapsed = Date.now() - startTime;
+          if (elapsed > 10) console.log(`[GameBoard] handleDragMove slow: ${elapsed}ms`);
           return;
         }
       }
@@ -189,14 +194,17 @@ export function GameBoard({
       if (stealDetection.showStealOverlay) {
         stealDetection.hideOverlay();
       }
+      
+      const elapsed = Date.now() - startTime;
+      if (elapsed > 10) console.log(`[GameBoard] handleDragMove slow: ${elapsed}ms`);
     },
     [dragOverlay, findTempStackAtPoint, table, playerNumber, stealDetection, emitDragMove],
   );
 
-  const handleDragEnd = useCallback(() => {
+  const handleDragEnd = useCallback((targetType?: string, outcome: 'success' | 'miss' | 'cancelled' = 'cancelled', targetId?: string) => {
     // Emit drag end to server
     if (emitDragEnd && dragOverlay.draggingCard) {
-      emitDragEnd(dragOverlay.draggingCard, { x: 0.5, y: 0.5 }, 'cancelled');
+      emitDragEnd(dragOverlay.draggingCard, { x: 0.5, y: 0.5 }, outcome, targetType, targetId);
     }
     dragOverlay.endDrag();
     stealDetection.hideOverlay();
@@ -206,34 +214,57 @@ export function GameBoard({
     const absX = dragOverlay.overlayX.value + CARD_WIDTH / 2;
     const absY = dragOverlay.overlayY.value + CARD_HEIGHT / 2;
 
+    let targetType: string | undefined;
+    let targetId: string | undefined;
+    let outcome: 'success' | 'miss' | 'cancelled' = 'miss';
+
     // Check capture pile
     if (findCapturePileAtPoint) {
       const capturePile = findCapturePileAtPoint(absX, absY);
       if (capturePile) {
-        handleDragEnd();
+        targetType = 'capture';
+        outcome = 'success';
+        handleDragEnd(targetType, outcome);
         return;
       }
     }
 
     // Check loose cards
-    const targetCard = findCardAtPoint?.(absX, absY);
-    if (targetCard && dragOverlay.draggingCard) {
-      actions.createTemp(dragOverlay.draggingCard, targetCard);
-      handleDragEnd();
+    const targetCardResult = findCardAtPoint?.(absX, absY);
+    if (targetCardResult && dragOverlay.draggingCard) {
+      targetType = 'card';
+      targetId = targetCardResult.id;
+      outcome = 'success';
+      actions.createTemp(dragOverlay.draggingCard, targetCardResult.card);
+      handleDragEnd(targetType, outcome, targetId);
       return;
     }
 
     // Check temp stacks (only temp_stack, not build_stack)
     const targetStack = findTempStackAtPoint?.(absX, absY);
     if (targetStack && targetStack.stackType === 'temp_stack' && dragOverlay.draggingCard) {
+      targetType = 'temp_stack';
+      targetId = targetStack.stackId;
+      outcome = 'success';
       if (targetStack.owner === playerNumber) {
         actions.addToTemp(dragOverlay.draggingCard, targetStack.stackId);
       }
-      handleDragEnd();
+      handleDragEnd(targetType, outcome, targetId);
       return;
     }
 
-    handleDragEnd();
+    // Check build stacks
+    if (targetStack && targetStack.stackType === 'build_stack' && dragOverlay.draggingCard) {
+      targetType = 'stack';
+      targetId = targetStack.stackId;
+      outcome = 'success';
+      // Let SmartRouter handle the action
+      handleDragEnd(targetType, outcome, targetId);
+      return;
+    }
+
+    // Missed - no target hit
+    handleDragEnd(targetType, outcome);
   }, [dragOverlay, findCapturePileAtPoint, findCardAtPoint, findTempStackAtPoint, playerNumber, actions, handleDragEnd]);
 
   // ── Action Handlers ───────────────────────────────────────────────────────
@@ -392,6 +423,7 @@ export function GameBoard({
         onAcceptExtend={handleExtendAcceptClick}
         onDeclineExtend={handleDeclineExtend}
         playerHand={myHand}
+        opponentDrag={opponentDrag}
       />
 
       <PlayerHandArea
@@ -424,9 +456,11 @@ export function GameBoard({
         onDragStart={handleTableDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
+        // Opponent drag state for hiding cards during opponent's drag
+        opponentDrag={opponentDrag}
       />
 
-      {/* Ghost overlay */}
+      {/* Ghost overlay - shows where the dragged card is */}
       {dragOverlay.draggingCard && (
         <Animated.View style={dragOverlay.ghostStyle} pointerEvents="none">
           <PlayingCard
@@ -442,6 +476,10 @@ export function GameBoard({
           card={opponentDrag.card}
           position={opponentDrag.position}
           tableBounds={{ width: 400, height: 300 }}
+          targetType={opponentDrag.targetType}
+          targetId={opponentDrag.targetId}
+          cardPositions={cardPositions.current}
+          stackPositions={tempStackPositions.current}
         />
       )}
 

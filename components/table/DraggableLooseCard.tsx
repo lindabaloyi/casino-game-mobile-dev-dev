@@ -37,7 +37,7 @@ export interface DraggableLooseCardProps {
   unregisterCard: (id: string)                          => void;
 
   // Hit detection — forwarded to DraggableTableCard
-  findCardAtPoint:     (x: number, y: number, excludeId?: string) => Card | null;
+  findCardAtPoint:     (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack'; value?: number } | null;
 
   // ── DUMB callbacks - just report what was hit ────────────────────────────
@@ -50,6 +50,9 @@ export interface DraggableLooseCardProps {
   onDragStart?: (card: Card) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: () => void;
+  
+  // Hide this card (used when opponent is dragging it)
+  isHidden?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -68,6 +71,7 @@ export function DraggableLooseCard({
   onDragStart,
   onDragMove,
   onDragEnd,
+  isHidden,
 }: DraggableLooseCardProps) {
   const viewRef = useRef<View>(null);
   const cardId  = `${card.rank}${card.suit}`;
@@ -96,6 +100,11 @@ export function DraggableLooseCard({
   useEffect(() => {
     return () => unregisterCard(cardId);
   }, [cardId, unregisterCard]);
+
+  // If hidden (opponent is dragging this card), return null
+  if (isHidden) {
+    return null;
+  }
 
   return (
     <View ref={viewRef} onLayout={onLayout}>

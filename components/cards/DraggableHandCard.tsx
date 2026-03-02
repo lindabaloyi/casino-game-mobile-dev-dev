@@ -42,7 +42,7 @@ interface Props {
   card: Card;
   dropBounds: MutableRefObject<DropBounds>;
   /** Finds a specific table card at (x, y); returns null if no card there */
-  findCardAtPoint: (x: number, y: number) => Card | null;
+  findCardAtPoint: (x: number, y: number) => { id: string; card: Card } | null;
   /** Finds a stack at (x, y); returns null if no stack there */
   findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   isMyTurn: boolean;
@@ -62,6 +62,8 @@ interface Props {
   onDragStart?: (card: Card) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: () => void;
+  /** Hide this card when opponent is dragging it (for multiplayer sync) */
+  isHidden?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -81,6 +83,7 @@ export function DraggableHandCard({
   onDragStart,
   onDragMove,
   onDragEnd,
+  isHidden,
 }: Props) {
   const opacity = useSharedValue(1);
 
@@ -131,14 +134,14 @@ export function DraggableHandCard({
     }
     
     // 2. Check for specific table card hit
-    const targetCard = findCardAtPoint(absX, absY);
-    if (targetCard) {
+    const targetCardResult = findCardAtPoint(absX, absY);
+    if (targetCardResult) {
       console.log(
-        `[DraggableHandCard] DROP ON CARD — ${card.rank}${card.suit} → ${targetCard.rank}${targetCard.suit}`
+        `[DraggableHandCard] DROP ON CARD — ${card.rank}${card.suit} → ${targetCardResult.card.rank}${targetCardResult.card.suit}`
       );
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
-      onDropOnCard(card, targetCard);
+      onDropOnCard(card, targetCardResult.card);
       return;
     }
     
@@ -190,6 +193,16 @@ export function DraggableHandCard({
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
   }));
+
+  // If hidden (opponent is dragging this card), render hidden view
+  // This maintains layout while the card is hidden from opponent
+  if (isHidden) {
+    return (
+      <Animated.View style={{ opacity: 0 }}>
+        <PlayingCard rank={card.rank} suit={card.suit} />
+      </Animated.View>
+    );
+  }
 
   return (
     <GestureDetector gesture={gesture}>

@@ -74,6 +74,7 @@ class GameCoordinatorService {
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-start', {
       playerIndex,
       card: data.card,
+      cardId: data.cardId,
       source: data.source,
       position: data.position, // normalized 0-1 coordinates
       timestamp: Date.now(),

@@ -15,6 +15,7 @@ import { TempStackView } from './TempStackView';
 import { BuildStackView } from './BuildStackView';
 import { StackActionStrip } from './StackActionStrip';
 import { CapturedCardsView } from './CapturedCardsView';
+import { OpponentDragState } from '../../hooks/useGameState';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ interface Props {
   unregisterTempStack: (stackId: string) => void;
 
   // Hit detection (from useDrag, forwarded to DraggableLooseCard → DraggableTableCard)
-  findCardAtPoint:     (x: number, y: number, excludeId?: string) => Card | null;
+  findCardAtPoint:     (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
 
   // Stack drop handler - DUMB, just passes to GameBoard
@@ -90,6 +91,9 @@ interface Props {
   
   // Player hand - needed for capture vs extend logic
   playerHand?: Card[];
+  
+  // Opponent's drag state - for hiding cards during opponent's drag
+  opponentDrag?: OpponentDragState | null;
 }
 
 // ── Type guard for stacks ───────────────────────────────────────────────
@@ -148,6 +152,7 @@ export function TableArea({
   onAcceptExtend,
   onDeclineExtend,
   playerHand,
+  opponentDrag,
 }: Props) {
   const looseCards = tableCards.filter(isLooseCard) as Card[];
   // Show both temp stacks and build stacks
@@ -175,6 +180,16 @@ export function TableArea({
           // Loose card
           if (isLooseCard(item)) {
             const card = item as Card;
+            const cardId = `${card.rank}${card.suit}`;
+            // Hide this card if opponent is dragging it
+            const isHidden = opponentDrag?.isDragging && 
+                           opponentDrag.source === 'table' && 
+                           opponentDrag.cardId === cardId;
+            if (isHidden) {
+              console.log(`[TableArea] Hiding table card ${cardId} - opponent is dragging`);
+            } else if (opponentDrag?.isDragging) {
+              console.log(`[TableArea] Table card ${cardId} visible, opponent dragging: ${opponentDrag.cardId} from ${opponentDrag.source}`);
+            }
             return (
               <DraggableLooseCard
                 key={`${card.rank}${card.suit}`}
@@ -186,6 +201,7 @@ export function TableArea({
                 unregisterCard={unregisterCard}
                 findCardAtPoint={findCardAtPoint}
                 findTempStackAtPoint={findTempStackAtPoint}
+                isHidden={isHidden}
                 onDropOnStack={(droppedCard, stackId, stackOwner, stackType) => {
                   onStackDrop?.(droppedCard, stackId, stackOwner, stackType);
                 }}
@@ -288,6 +304,7 @@ export function TableArea({
         registerCapturePile={registerCapturePile}
         unregisterCapturePile={unregisterCapturePile}
         onExtendBuild={onExtendBuild}
+        opponentDrag={opponentDrag}
       />
     </View>
   );

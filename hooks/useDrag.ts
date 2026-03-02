@@ -93,18 +93,23 @@ export function useDrag() {
     cardPositions.current.delete(id);
   }, []);
 
+  /** Get card position by ID - useful for ghost card rendering */
+  const getCardPosition = useCallback((id: string): CardBounds | undefined => {
+    return cardPositions.current.get(id);
+  }, []);
+
   /**
-   * Returns the loose card at (x, y), or null (direct hit).
+   * Returns the loose card at (x, y), including its ID, or null (direct hit).
    * excludeId — skip this card ID (used by DraggableTableCard to avoid matching itself).
    */
   const findCardAtPoint = useCallback(
-    (x: number, y: number, excludeId?: string): { rank: string; suit: string; value: number } | null => {
+    (x: number, y: number, excludeId?: string): { id: string; card: { rank: string; suit: string; value: number } } | null => {
       for (const [id, bounds] of cardPositions.current) {
         if (excludeId && id === excludeId) continue;
         const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
         const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
         if (inX && inY) {
-          return bounds.card;
+          return { id, card: bounds.card };
         }
       }
       return null;
@@ -142,6 +147,11 @@ export function useDrag() {
 
   const unregisterTempStack = useCallback((stackId: string) => {
     tempStackPositions.current.delete(stackId);
+  }, []);
+
+  /** Get stack position by ID - useful for ghost card rendering */
+  const getStackPosition = useCallback((stackId: string): TempStackBounds | undefined => {
+    return tempStackPositions.current.get(stackId);
   }, []);
 
   /** Returns the temp stack at (x, y), or null (direct hit). */
@@ -246,12 +256,14 @@ export function useDrag() {
     unregisterCard,
     findCardAtPoint,
     isNearAnyCard,
+    getCardPosition,
     // Temp stack positions
     tempStackPositions,
     registerTempStack,
     unregisterTempStack,
     findTempStackAtPoint,
     isNearAnyStack,
+    getStackPosition,
     // Captured card position
     capturedCardPosition,
     registerCapturedCard,

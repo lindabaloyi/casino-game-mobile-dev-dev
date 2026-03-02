@@ -40,9 +40,13 @@ export interface GameState {
 export interface OpponentDragState {
   playerIndex: number;
   card: Card;
+  cardId: string; // Unique ID like "AH" for Ace of Hearts
   source: 'hand' | 'table' | 'captured';
   position: { x: number; y: number }; // normalized 0-1
   isDragging: boolean;
+  // Target info for accurate final position
+  targetType?: 'card' | 'stack' | 'capture' | 'table';
+  targetId?: string;
 }
 
 interface UseGameStateResult {
@@ -137,6 +141,7 @@ export function useGameState(): UseGameStateResult {
     socket.on('opponent-drag-start', (data: {
       playerIndex: number;
       card: Card;
+      cardId: string;
       source: 'hand' | 'table' | 'captured';
       position: { x: number; y: number };
     }) => {
@@ -144,6 +149,7 @@ export function useGameState(): UseGameStateResult {
       setOpponentDrag({
         playerIndex: data.playerIndex,
         card: data.card,
+        cardId: data.cardId,
         source: data.source,
         position: data.position,
         isDragging: true,
@@ -162,12 +168,27 @@ export function useGameState(): UseGameStateResult {
       } : null);
     });
 
-    socket.on('opponent-drag-end', () => {
-      console.log('[useGameState] opponent-drag-end received');
+    socket.on('opponent-drag-end', (data: {
+      playerIndex: number;
+      card: Card;
+      position: { x: number; y: number };
+      outcome: 'success' | 'miss' | 'cancelled';
+      targetType?: string;
+      targetId?: string;
+    }) => {
+      console.log('[useGameState] opponent-drag-end received:', data);
+      
+      // Update state with target info for accurate final position
+      setOpponentDrag(prev => prev ? {
+        ...prev,
+        targetType: data.targetType as any,
+        targetId: data.targetId,
+      } : null);
+      
       // Clear opponent drag state after a short delay to allow for animation
       setTimeout(() => {
         setOpponentDrag(null);
-      }, 300);
+      }, 500); // Increased delay for animation
     });
 
     return () => {
@@ -188,7 +209,8 @@ export function useGameState(): UseGameStateResult {
   // ── Drag event emitters ──────────────────────────────────────────────
 
   const emitDragStart = useCallback((card: Card, source: 'hand' | 'table' | 'captured', position: { x: number; y: number }) => {
-    socketRef.current?.emit('drag-start', { card, source, position });
+    const cardId = `${card.rank}${card.suit}`;
+    socketRef.current?.emit('drag-start', { card, cardId, source, position });
   }, []);
 
   // Throttled drag move - limit to ~60fps (16ms) to prevent network flooding

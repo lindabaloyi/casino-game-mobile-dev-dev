@@ -27,7 +27,7 @@ interface Props {
   isMyTurn: boolean;
   playerNumber: number;
   /** Find a specific card at point (excludeId prevents self-match) */
-  findCardAtPoint: (x: number, y: number, excludeId?: string) => Card | null;
+  findCardAtPoint: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   /** Find a stack at point */
   findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack'; value?: number } | null;
   
@@ -93,10 +93,10 @@ export function DraggableTableCard({
     // 2. Check if dropped on another loose table card (exclude self)
     const cardHit = findCardAtPoint(absX, absY, cardId);
     if (cardHit) {
-      console.log(`[DraggableTableCard] DROP ON CARD — ${cardId} → ${cardHit.rank}${cardHit.suit}`);
+      console.log(`[DraggableTableCard] DROP ON CARD — ${cardId} → ${cardHit.card.rank}${cardHit.card.suit}`);
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
-      onDropOnCard(card, cardHit);
+      onDropOnCard(card, cardHit.card);
       return;
     }
 

@@ -13,6 +13,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { DraggableHandCard } from '../cards/DraggableHandCard';
 import { DropBounds } from '../../hooks/useDrag';
 import { TableItem } from '../table/types';
+import { OpponentDragState } from '../../hooks/useGameState';
 
 interface Card {
   rank: string;
@@ -26,7 +27,7 @@ interface Props {
   playerNumber: number;
   dropBounds: MutableRefObject<DropBounds>;
   /** Find a specific table card under the finger — from useDrag */
-  findCardAtPoint: (x: number, y: number) => Card | null;
+  findCardAtPoint: (x: number, y: number) => { id: string; card: Card } | null;
   /** Find a stack at point — from useDrag */
   findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   /** Table cards - needed for game logic */
@@ -42,6 +43,8 @@ interface Props {
   onDragStart?: (card: Card) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: () => void;
+  /** Opponent's drag state - for hiding cards when opponent is dragging */
+  opponentDrag?: OpponentDragState | null;
 }
 
 export function PlayerHandArea({
@@ -58,6 +61,7 @@ export function PlayerHandArea({
   onDragStart,
   onDragMove,
   onDragEnd,
+  opponentDrag,
 }: Props) {
   return (
     <View style={styles.container}>
@@ -68,25 +72,36 @@ export function PlayerHandArea({
         contentContainerStyle={styles.cardRow}
         scrollEnabled={!isMyTurn}   // prevent accidental scroll during drag turn
       >
-        {hand.map((card) => (
-          <DraggableHandCard
-            key={`${card.rank}${card.suit}`}
-            card={card}
-            dropBounds={dropBounds}
-            findCardAtPoint={findCardAtPoint}
-            findTempStackAtPoint={findTempStackAtPoint}
-            isMyTurn={isMyTurn}
-            playerNumber={playerNumber}
-            playerHand={hand}
-            tableCards={tableCards}
-            onDropOnStack={onDropOnStack}
-            onDropOnCard={onDropOnCard}
-            onDropOnTable={onDropOnTable}
-            onDragStart={onDragStart}
-            onDragMove={onDragMove}
-            onDragEnd={onDragEnd}
-          />
-        ))}
+        {hand.map((card) => {
+          const cardId = `${card.rank}${card.suit}`;
+          // Hide this card if opponent is dragging it
+          const isHidden = opponentDrag?.isDragging &&
+                         opponentDrag.source === 'hand' &&
+                         opponentDrag.cardId === cardId;
+          if (isHidden) {
+            console.log(`[PlayerHandArea] Hiding card ${cardId} - opponent dragging from hand`);
+          }
+          return (
+            <DraggableHandCard
+              key={cardId}
+              card={card}
+              dropBounds={dropBounds}
+              findCardAtPoint={findCardAtPoint}
+              findTempStackAtPoint={findTempStackAtPoint}
+              isMyTurn={isMyTurn}
+              playerNumber={playerNumber}
+              playerHand={hand}
+              tableCards={tableCards}
+              onDropOnStack={onDropOnStack}
+              onDropOnCard={onDropOnCard}
+              onDropOnTable={onDropOnTable}
+              onDragStart={onDragStart}
+              onDragMove={onDragMove}
+              onDragEnd={onDragEnd}
+              isHidden={isHidden}
+            />
+          );
+        })}
       </ScrollView>
     </View>
   );

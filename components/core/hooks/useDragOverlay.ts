@@ -16,7 +16,7 @@ export interface Card {
   value: number;
 }
 
-export type DragSource = 'hand' | 'captured' | null;
+export type DragSource = 'hand' | 'captured' | 'table' | null;
 
 export function useDragOverlay() {
   const [draggingCard, setDraggingCard] = useState<Card | null>(null);
@@ -24,14 +24,21 @@ export function useDragOverlay() {
   const overlayX = useSharedValue(0);
   const overlayY = useSharedValue(0);
 
-  const startDrag = (card: Card, source: 'hand' | 'captured') => {
+  const startDrag = (card: Card, source: 'hand' | 'captured' | 'table') => {
+    console.log('[useDragOverlay] startDrag called, card:', card, 'source:', source);
     setDraggingCard(card);
     setDragSource(source);
   };
 
   const moveDrag = (x: number, y: number) => {
+    // Debug timing
+    const startTime = Date.now();
     overlayX.value = x - CARD_WIDTH / 2;
     overlayY.value = y - CARD_HEIGHT / 2;
+    const elapsed = Date.now() - startTime;
+    if (elapsed > 2) {
+      console.log('[useDragOverlay] moveDrag slow:', elapsed, 'ms');
+    }
   };
 
   const endDrag = () => {

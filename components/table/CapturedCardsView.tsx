@@ -14,6 +14,7 @@ import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-nativ
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
 import { CapturePileBounds, CapturedCardBounds } from '../../hooks/useDrag';
+import { OpponentDragState } from '../../hooks/useGameState';
 
 interface CapturedCardsViewProps {
   /** Cards captured by the player */
@@ -33,7 +34,7 @@ interface CapturedCardsViewProps {
   /** Unregister capture pile */
   unregisterCapturePile?: () => void;
   /** Find card at point (for detecting drag over table cards) */
-  findCardAtPoint?: (x: number, y: number, excludeId?: string) => Card | null;
+  findCardAtPoint?: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   /** Find temp stack at point */
   findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   /** Callback when drag starts */
@@ -44,6 +45,8 @@ interface CapturedCardsViewProps {
   onDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string) => void;
   /** Extend build callback - for extending own build with captured card */
   onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
+  /** Opponent's drag state - for hiding cards when opponent is dragging */
+  opponentDrag?: OpponentDragState | null;
 }
 
 export function CapturedCardsView({
@@ -61,6 +64,7 @@ export function CapturedCardsView({
   onDragMove,
   onDragEnd,
   onExtendBuild,
+  opponentDrag,
 }: CapturedCardsViewProps) {
   const playerLabel = playerNumber === 0 ? 'P1' : 'P2';
   const opponentLabel = playerNumber === 0 ? 'P2' : 'P1';
@@ -145,10 +149,10 @@ export function CapturedCardsView({
     console.log('[CapturedCardsView] Drop check at finger position:', { absX, absY });
 
     // Check if dropped on a loose card (using finger position directly)
-    const targetCard = findCardAtPoint(absX, absY);
-    if (targetCard) {
-      console.log('[CapturedCardsView] Dropped on loose card:', targetCard);
-      onDragEnd(card, targetCard);
+    const targetCardResult = findCardAtPoint(absX, absY);
+    if (targetCardResult) {
+      console.log('[CapturedCardsView] Dropped on loose card:', targetCardResult);
+      onDragEnd(card, targetCardResult.card);
       return;
     }
 
@@ -237,6 +241,12 @@ export function CapturedCardsView({
   // Always show: LEFT = opponent captures, RIGHT = your captures
   // (regardless of playerNumber, each player sees their own pile on the right)
 
+  // Check if opponent is dragging this captured card
+  const opponentCardId = opponentTopCard ? `${opponentTopCard.rank}${opponentTopCard.suit}` : null;
+  const isOpponentCardHidden = opponentDrag?.isDragging &&
+                             opponentDrag.source === 'captured' &&
+                             opponentDrag.cardId === opponentCardId;
+
   // Create the two sections
   const playerSection = (
     <View 
@@ -269,7 +279,11 @@ export function CapturedCardsView({
         <Animated.View 
           ref={cardRef}
           onLayout={handleLayout}
-          style={[styles.cardWrapper, animatedStyle]}
+          style={[
+            styles.cardWrapper, 
+            animatedStyle,
+            isOpponentCardHidden && { opacity: 0 }
+          ]}
         >
           {opponentTopCard ? (
             <PlayingCard 

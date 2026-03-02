@@ -15,14 +15,52 @@ interface OpponentGhostCardProps {
   card: Card;
   position: { x: number; y: number }; // normalized 0-1
   tableBounds: TableBounds;
+  // Target info for accurate final position
+  targetType?: 'card' | 'stack' | 'temp_stack' | 'capture' | 'table';
+  targetId?: string;
+  // Position registries to find target's actual position
+  cardPositions?: Map<string, { x: number; y: number; width: number; height: number }>;
+  stackPositions?: Map<string, { x: number; y: number; width: number; height: number }>;
 }
 
 const CARD_WIDTH = 56;
 const CARD_HEIGHT = 84;
 
-export function OpponentGhostCard({ card, position, tableBounds }: OpponentGhostCardProps) {
+export function OpponentGhostCard({ 
+  card, 
+  position, 
+  tableBounds, 
+  targetType, 
+  targetId,
+  cardPositions,
+  stackPositions,
+}: OpponentGhostCardProps) {
+  // If target info is provided, try to use local registry to find exact position
+  let displayPosition = position;
+  
+  if (targetId && (cardPositions || stackPositions)) {
+    if (targetType === 'card' && cardPositions) {
+      const targetPos = cardPositions.get(targetId);
+      if (targetPos) {
+        // Convert target's absolute position back to normalized for display
+        displayPosition = {
+          x: targetPos.x / tableBounds.width,
+          y: targetPos.y / tableBounds.height,
+        };
+      }
+    } else if ((targetType === 'stack' || targetType === 'temp_stack') && stackPositions) {
+      const targetPos = stackPositions.get(targetId);
+      if (targetPos) {
+        displayPosition = {
+          x: targetPos.x / tableBounds.width,
+          y: targetPos.y / tableBounds.height,
+        };
+      }
+    }
+  }
+
   // Convert normalized coordinates to absolute
-  const absPos = denormalizePosition(position.x, position.y, tableBounds);
+  const absPos = denormalizePosition(displayPosition.x, displayPosition.y, tableBounds);
   
   return (
     <Animated.View
