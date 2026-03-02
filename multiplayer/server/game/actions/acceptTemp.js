@@ -56,7 +56,11 @@ function acceptTemp(state, payload, playerIndex) {
 
   // Convert temp_stack to build_stack
   stack.type = 'build_stack';
-  stack.hasBase = true;
+  
+  // hasBase is true only for DIFF builds where need === 0 (base build like 7,5,2)
+  // In a diff build, if other cards sum to the base (need=0), it's a base build
+  const isBaseBuild = stack.buildType === 'diff' && stack.need === 0;
+  stack.hasBase = isBaseBuild;
   
   // Convert stackId from tempP1_01 to buildP1_01 (keep same number)
   if (stack.stackId && stack.stackId.startsWith('temp')) {

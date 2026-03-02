@@ -50,6 +50,11 @@ function stealBuild(state, payload, playerIndex) {
     throw new Error('stealBuild: cannot steal your own build');
   }
 
+  // Validate: cannot steal base builds (hasBase === true)
+  if (buildStack.hasBase === true) {
+    throw new Error('stealBuild: cannot steal base builds');
+  }
+
   // Find and remove card from player's hand
   const hand = newState.playerHands[playerIndex];
   const handIdx = hand.findIndex(

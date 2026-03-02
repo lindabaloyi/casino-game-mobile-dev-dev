@@ -22,8 +22,8 @@
  *      state updates, no re-renders per frame).
  */
 
-import React, { useMemo, useCallback } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useCallback, useState } from 'react';
+import { StyleSheet, Text, View, Alert } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { GameState } from '../../hooks/useGameState';
 import { useDrag } from '../../hooks/useDrag';
@@ -70,6 +70,9 @@ export function GameBoard({
 }: GameBoardProps) {
   // ── Context Value ─────────────────────────────────────────────────────────
   // (We don't use context provider - passing sendAction directly to hooks)
+
+  // Local error state for client-side validation errors
+  const [localError, setLocalError] = useState<{ message: string } | null>(null);
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const isMyTurn = gameState.currentPlayer === playerNumber;
@@ -207,13 +210,60 @@ export function GameBoard({
         ) as BuildStack | undefined;
         
         if (targetStack && targetStack.owner !== playerNumber) {
+          // PROACTIVE VALIDATION: Check if steal is valid BEFORE opening modal
+          
+          // 1. Check if card value matches build value - this is a capture, not a steal
+          if (card.value === targetStack.value) {
+            console.log(`[GameBoard] handleCapture - card ${card.value} matches build ${targetStack.value} → CAPTURE`);
+            actions.capture(card, targetType, targetRank, targetSuit, targetStackId);
+            return;
+          }
+          
+          // 2. Check if target is a base build (hasBase === true) - cannot steal
+          if (targetStack.hasBase === true) {
+            console.log(`[GameBoard] Cannot steal - target is a base build`);
+            setLocalError({ message: 'You cannot steal a base build (a complete set like 7,5,2).' });
+            return;
+          }
+          
+          // 3. Check if build value is 10 - cannot steal
+          if (targetStack.value === 10) {
+            console.log(`[GameBoard] Cannot steal - build value is 10`);
+            setLocalError({ message: 'You cannot steal a build with value 10.' });
+            return;
+          }
+          
+          // 4. Check if adding this card would create an invalid build (need < 0)
+          const currentCards = [...(targetStack.cards || []), card];
+          const newTotalSum = currentCards.reduce((sum: number, c: any) => sum + c.value, 0);
+          let newNeed: number;
+          
+          if (newTotalSum <= 10) {
+            // Sum build - always valid
+            newNeed = 0;
+          } else {
+            // Diff build - check if valid
+            const sorted = [...currentCards].sort((a: any, b: any) => b.value - a.value);
+            const newBase = sorted[0].value;
+            const otherSum = sorted.slice(1).reduce((sum: number, c: any) => sum + c.value, 0);
+            newNeed = newBase - otherSum;
+          }
+          
+          if (newNeed < 0) {
+            console.log(`[GameBoard] Cannot steal - adding card ${card.value} would create invalid build (need=${newNeed})`);
+            setLocalError({ message: `Adding ${card.rank} would exceed the build value (cards exceed base).` });
+            return;
+          }
+          
+          // All checks passed - can attempt steal
+          console.log(`[GameBoard] Steal validation passed - card ${card.value}, build ${targetStack.value}, newNeed=${newNeed}`);
           modals.openStealModal(card, targetStack);
           return;
         }
       }
       actions.capture(card, targetType, targetRank, targetSuit, targetStackId);
     },
-    [table, playerNumber, modals, actions],
+    [table, playerNumber, modals, actions, setLocalError],
   );
 
   const handleAcceptClick = useCallback((stackId: string) => {
@@ -298,10 +348,13 @@ export function GameBoard({
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
-      {serverError && (
+      {(serverError || localError) && (
         <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{serverError.message}</Text>
-          <Text style={styles.errorClose} onPress={onServerErrorClose}>✕</Text>
+          <Text style={styles.errorText}>{localError?.message || serverError?.message}</Text>
+          <Text style={styles.errorClose} onPress={() => {
+            if (onServerErrorClose) onServerErrorClose();
+            setLocalError(null);
+          }}>✕</Text>
         </View>
       )}
 
