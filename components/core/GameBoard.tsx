@@ -22,8 +22,8 @@
  *      state updates, no re-renders per frame).
  */
 
-import React, { useMemo, useCallback, useState } from 'react';
-import { StyleSheet, Text, View, Alert } from 'react-native';
+import React, { useMemo, useCallback } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { GameState } from '../../hooks/useGameState';
 import { useDrag } from '../../hooks/useDrag';
@@ -70,9 +70,6 @@ export function GameBoard({
 }: GameBoardProps) {
   // ── Context Value ─────────────────────────────────────────────────────────
   // (We don't use context provider - passing sendAction directly to hooks)
-
-  // Local error state for client-side validation errors
-  const [localError, setLocalError] = useState<{ message: string } | null>(null);
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const isMyTurn = gameState.currentPlayer === playerNumber;
@@ -202,68 +199,12 @@ export function GameBoard({
   }, [dragOverlay, findCapturePileAtPoint, findCardAtPoint, findTempStackAtPoint, playerNumber, actions, handleDragEnd]);
 
   // ── Action Handlers ───────────────────────────────────────────────────────
+  // Simple pass-through to router - no UI decisions!
   const handleCapture = useCallback(
     (card: any, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => {
-      if (targetType === 'build' && targetStackId) {
-        const targetStack = table.find(
-          (tc: any) => tc.stackId === targetStackId && tc.type === 'build_stack',
-        ) as BuildStack | undefined;
-        
-        if (targetStack && targetStack.owner !== playerNumber) {
-          // PROACTIVE VALIDATION: Check if steal is valid BEFORE opening modal
-          
-          // 1. Check if card value matches build value - this is a capture, not a steal
-          if (card.value === targetStack.value) {
-            console.log(`[GameBoard] handleCapture - card ${card.value} matches build ${targetStack.value} → CAPTURE`);
-            actions.capture(card, targetType, targetRank, targetSuit, targetStackId);
-            return;
-          }
-          
-          // 2. Check if target is a base build (hasBase === true) - cannot steal
-          if (targetStack.hasBase === true) {
-            console.log(`[GameBoard] Cannot steal - target is a base build`);
-            setLocalError({ message: 'You cannot steal a base build (a complete set like 7,5,2).' });
-            return;
-          }
-          
-          // 3. Check if build value is 10 - cannot steal
-          if (targetStack.value === 10) {
-            console.log(`[GameBoard] Cannot steal - build value is 10`);
-            setLocalError({ message: 'You cannot steal a build with value 10.' });
-            return;
-          }
-          
-          // 4. Check if adding this card would create an invalid build (need < 0)
-          const currentCards = [...(targetStack.cards || []), card];
-          const newTotalSum = currentCards.reduce((sum: number, c: any) => sum + c.value, 0);
-          let newNeed: number;
-          
-          if (newTotalSum <= 10) {
-            // Sum build - always valid
-            newNeed = 0;
-          } else {
-            // Diff build - check if valid
-            const sorted = [...currentCards].sort((a: any, b: any) => b.value - a.value);
-            const newBase = sorted[0].value;
-            const otherSum = sorted.slice(1).reduce((sum: number, c: any) => sum + c.value, 0);
-            newNeed = newBase - otherSum;
-          }
-          
-          if (newNeed < 0) {
-            console.log(`[GameBoard] Cannot steal - adding card ${card.value} would create invalid build (need=${newNeed})`);
-            setLocalError({ message: `Adding ${card.rank} would exceed the build value (cards exceed base).` });
-            return;
-          }
-          
-          // All checks passed - can attempt steal
-          console.log(`[GameBoard] Steal validation passed - card ${card.value}, build ${targetStack.value}, newNeed=${newNeed}`);
-          modals.openStealModal(card, targetStack);
-          return;
-        }
-      }
       actions.capture(card, targetType, targetRank, targetSuit, targetStackId);
     },
-    [table, playerNumber, modals, actions, setLocalError],
+    [actions],
   );
 
   const handleAcceptClick = useCallback((stackId: string) => {
@@ -294,27 +235,12 @@ export function GameBoard({
     }
   }, [dragOverlay, stealDetection, modals]);
 
-  // Build extension handlers
-  // For loose cards from table (dragged from TableArea)
+  // Build extension handler - router decides whether to start or accept
   const handleExtendBuild = useCallback((card: any, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' = 'table') => {
-    // Check if build already has a pending extension
-    // Use gameState.tableCards directly to avoid stale closure
-    const currentTable = gameState.tableCards ?? [];
-    const stack = currentTable.find((tc: any) => tc.stackId === buildStackId) as BuildStack | undefined;
-    const hasPending = !!stack?.pendingExtension?.looseCard;
-    
-    console.log(`[GameBoard] handleExtendBuild - card: ${card.rank}${card.suit}, stackId: ${buildStackId}, cardSource: ${cardSource}, hasPending: ${hasPending}`);
-    
-    if (hasPending) {
-      // Build already has pending extension - add card to complete
-      console.log(`[GameBoard] Card ${card.rank}${card.suit} → COMPLETING extension on ${buildStackId}`);
-      actions.acceptBuildExtension(buildStackId, card, cardSource);
-    } else {
-      // No pending extension - start new extension
-      console.log(`[GameBoard] Card ${card.rank}${card.suit} → STARTING new extension on ${buildStackId}`);
-      actions.startBuildExtension(buildStackId, card, cardSource);
-    }
-  }, [actions, gameState.tableCards]);
+    // Let the router decide - just send the action!
+    console.log(`[GameBoard] extendBuild - card: ${card.rank}${card.suit}, stackId: ${buildStackId}, cardSource: ${cardSource}`);
+    actions.extendBuild(card, buildStackId, cardSource);
+  }, [actions]);
 
   // When Accept button is clicked on extension strip (after loose card is locked)
   // In the drag-drop flow, the extension completes when hand card is dropped on the build
@@ -348,13 +274,10 @@ export function GameBoard({
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
-      {(serverError || localError) && (
+      {serverError && (
         <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{localError?.message || serverError?.message}</Text>
-          <Text style={styles.errorClose} onPress={() => {
-            if (onServerErrorClose) onServerErrorClose();
-            setLocalError(null);
-          }}>✕</Text>
+          <Text style={styles.errorText}>{serverError.message}</Text>
+          <Text style={styles.errorClose} onPress={onServerErrorClose}>✕</Text>
         </View>
       )}
 
@@ -418,24 +341,9 @@ export function GameBoard({
         onCardDrop={actions.createTemp}
         onAddToTemp={actions.addToTemp}
         onExtendBuild={(card: any, stackId: string, cardSource: 'table' | 'hand' | 'captured' = 'hand') => {
-          // Player is dragging a hand card to extend their build
-          // Check if build already has a pending extension (loose card locked)
-          // NOTE: We use gameState.tableCards directly to avoid stale closure
-          const currentTable = gameState.tableCards ?? [];
-          const stack = currentTable.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
-          const hasPending = !!stack?.pendingExtension?.looseCard;
-          
-          console.log(`[GameBoard] onExtendBuild - card: ${card.rank}${card.suit}, stackId: ${stackId}, cardSource: ${cardSource}, hasPending: ${hasPending}`);
-          
-          if (hasPending) {
-            // Build already has pending extension - add card to complete
-            console.log(`[GameBoard] Card ${card.rank}${card.suit} → COMPLETING extension on ${stackId}`);
-            actions.acceptBuildExtension(stackId, card, cardSource);
-          } else {
-            // No pending extension - start new extension
-            console.log(`[GameBoard] Card ${card.rank}${card.suit} → STARTING new extension on ${stackId}`);
-            actions.startBuildExtension(stackId, card, cardSource);
-          }
+          // Let the router decide - just send the action!
+          console.log(`[GameBoard] onExtendBuild - card: ${card.rank}${card.suit}, stackId: ${stackId}, cardSource: ${cardSource}`);
+          actions.extendBuild(card, stackId, cardSource);
         }}
         onDragStart={handleTableDragStart}
         onDragMove={handleDragMove}

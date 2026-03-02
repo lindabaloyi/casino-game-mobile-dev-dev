@@ -2,21 +2,25 @@
  * ActionRouter
  * Routes incoming game-action events to the correct handler function.
  *
- * Handler contract:
- *   (gameState, payload, playerIndex) => newGameState   (pure, no side effects)
+ * Responsibilities:
+ * - Validates action type is registered
+ * - Validates it's the player's turn
+ * - Uses SmartRouter to determine the correct handler
+ * - Executes the handler
+ * - Persists the new state
  *
- * The router:
- *   1. Validates the action type is registered
- *   2. Calls the handler
- *   3. Saves the returned state back to GameManager
- *   4. Returns the new state so the coordinator can broadcast it
+ * Smart routing logic is delegated to SmartRouter for testability.
  */
+
+const SmartRouter = require('./SmartRouter');
 
 class ActionRouter {
   constructor(gameManager) {
     this.gameManager = gameManager;
     // Loaded from actions/index.js — a plain { actionType: handlerFn } map
     this.handlers = require('./actions/index.js');
+    // SmartRouter handles all game rule routing logic
+    this.smartRouter = new SmartRouter();
   }
 
   /**
@@ -45,81 +49,16 @@ class ActionRouter {
       throw new Error(`Not your turn (current player: ${state.currentPlayer})`);
     }
 
-    // 4. Smart routing: check if capture should become addToTemp or stealBuild
-    let finalType = type;
-    let finalPayload = payload;
+    // 4. Smart routing: let SmartRouter decide what handler to call
+    // SmartRouter throws errors for invalid game actions (e.g., invalid steals)
+    const { type: finalType, payload: finalPayload } = this.smartRouter.route(
+      type,
+      payload,
+      state,
+      playerIndex
+    );
 
-    if (type === 'capture' && payload?.targetType === 'build' && payload?.targetStackId) {
-      const stack = state.tableCards.find(
-        tc => (tc.type === 'build_stack' || tc.type === 'temp_stack') && tc.stackId === payload.targetStackId,
-      );
-      
-      if (stack) {
-        const isOwnBuild = stack.owner === playerIndex;
-        
-        if (isOwnBuild) {
-          // Own build - can only add to temp (or extend if temp)
-          if (payload.card.value !== stack.value) {
-            // Card value doesn't match - route to addToTemp
-            console.log(`[ActionRouter] Routing capture → addToTemp (own build, card ${payload.card.value} vs stack ${stack.value})`);
-            finalType = 'addToTemp';
-            finalPayload = {
-              card: payload.card,
-              stackId: payload.targetStackId,
-            };
-          }
-          // If value matches, capture handles it
-        } else {
-          // Opponent's build - check if card value matches build value
-          // If card value === build value → CAPTURE (not steal)
-          // If card value !== build value → STEAL (creating new build)
-          if (payload.card.value === stack.value) {
-            // Card matches build value - this is a capture, not a steal
-            console.log(`[ActionRouter] Routing capture → capture (opponent's build, card ${payload.card.value} matches build ${stack.value})`);
-            // Keep finalType as 'capture' - let the capture handler deal with it
-          } else {
-            // Card value doesn't match - can steal if adding card creates valid new build
-            // Check if the new build would be valid by calculating the new build value
-            const currentCards = [...(stack.cards || []), payload.card];
-            const newTotalSum = currentCards.reduce((sum, c) => sum + c.value, 0);
-            
-            let newBase, newNeed, newBuildType;
-            
-            if (newTotalSum <= 10) {
-              // SUM BUILD
-              newBase = newTotalSum;
-              newNeed = 0;
-              newBuildType = 'sum';
-            } else {
-              // DIFF BUILD - largest is base
-              const sorted = [...currentCards].sort((a, b) => b.value - a.value);
-              newBase = sorted[0].value;
-              const otherSum = sorted.slice(1).reduce((sum, c) => sum + c.value, 0);
-              newNeed = newBase - otherSum;
-              newBuildType = 'diff';
-            }
-            
-            console.log(`[ActionRouter] Testing stealBuild: newTotalSum=${newTotalSum}, newBase=${newBase}, newNeed=${newNeed}, newBuildType=${newBuildType}`);
-            
-            // Allow steal if new build is valid (need >= 0)
-            // For sum builds: need is always 0 (complete)
-            // For diff builds: need must be >= 0 (others can sum to base)
-            if (newNeed >= 0) {
-              console.log(`[ActionRouter] Routing capture → stealBuild (opponent's build, adding ${payload.card.value} creates valid ${newBuildType} build)`);
-              finalType = 'stealBuild';
-              finalPayload = {
-                card: payload.card,
-                stackId: payload.targetStackId,
-              };
-            } else {
-              // Adding card creates invalid build (need < 0 means cards exceed base)
-              console.log(`[ActionRouter] Cannot steal: adding card ${payload.card.value} would create invalid build (need=${newNeed})`);
-              throw new Error(`Cannot steal: adding ${payload.card.rank} would make the build invalid (cards exceed base)`);
-            }
-          }
-        }
-      }
-    }
+    console.log(`[ActionRouter] Routed "${type}" → "${finalType}"`);
 
     // 5. Execute handler — pure function returns new state
     const handler = this.handlers[finalType];

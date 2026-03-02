@@ -109,6 +109,14 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
+  // Single action that router uses to decide start vs accept
+  const extendBuild = useCallback((card: any, buildId: string, cardSource: 'table' | 'hand' | 'captured' = 'table') => {
+    sendAction({ 
+      type: 'extendBuild', 
+      payload: { card, stackId: buildId, cardSource } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
   return {
     createTemp,
     addToTemp,
@@ -122,5 +130,6 @@ export function useGameActions(sendAction: SendAction) {
     startBuildExtension,
     acceptBuildExtension,
     declineBuildExtension,
+    extendBuild,
   };
 }
