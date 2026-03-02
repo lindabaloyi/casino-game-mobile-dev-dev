@@ -58,6 +58,70 @@ class GameCoordinatorService {
     }
   }
 
+  /**
+   * Handle drag-start event from client.
+   * Broadcasts to opponent so they can see a ghost card.
+   */
+  handleDragStart(socket, data) {
+    const ctx = this._resolvePlayer(socket);
+    if (!ctx) return;
+
+    const { gameId, playerIndex } = ctx;
+    
+    console.log(`[Coordinator] drag-start from P${playerIndex}:`, data);
+    
+    // Broadcast to other player (not self)
+    this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-start', {
+      playerIndex,
+      card: data.card,
+      source: data.source,
+      position: data.position, // normalized 0-1 coordinates
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Handle drag-move event from client.
+   * Broadcasts position updates to opponent.
+   */
+  handleDragMove(socket, data) {
+    const ctx = this._resolvePlayer(socket);
+    if (!ctx) return;
+
+    const { gameId, playerIndex } = ctx;
+
+    // console.log(`[Coordinator] drag-move from P${playerIndex}:`, data);
+    this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-move', {
+      playerIndex,
+      card: data.card,
+      position: data.position, // normalized 0-1 coordinates
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Handle drag-end event from client.
+   * Broadcasts end to opponent, then processes the action.
+   */
+  handleDragEnd(socket, data) {
+    const ctx = this._resolvePlayer(socket);
+    if (!ctx) return;
+
+    const { gameId, playerIndex } = ctx;
+
+    console.log(`[Coordinator] drag-end from P${playerIndex}:`, data);
+    // Broadcast end to opponent first
+    this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-end', {
+      playerIndex,
+      card: data.card,
+      position: data.position,
+      outcome: data.outcome || 'miss', // 'success' | 'miss' | 'cancelled'
+      targetType: data.targetType,
+      targetId: data.targetId,
+      timestamp: Date.now(),
+    });
+  }
+
 }
 
 module.exports = GameCoordinatorService;

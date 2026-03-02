@@ -49,6 +49,11 @@ io.on('connection', socket => {
   // ── Game events ──────────────────────────────────────────────────────
   socket.on('game-action', data => coordinator.handleGameAction(socket, data));
 
+  // ── Drag events (for real-time shared state) ────────────────────────────
+  socket.on('drag-start', data => coordinator.handleDragStart(socket, data));
+  socket.on('drag-move', data => coordinator.handleDragMove(socket, data));
+  socket.on('drag-end', data => coordinator.handleDragEnd(socket, data));
+
   // ── State sync (client can request the current state at any time) ────
   socket.on('request-sync', () => {
     const gameId = matchmaking.getGameId(socket.id);

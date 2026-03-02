@@ -67,6 +67,25 @@ class BroadcasterService {
   sendError(socket, message) {
     socket.emit("error", { message });
   }
+
+  /**
+   * Broadcast to all players in a game EXCEPT one socket
+   * Used for drag events - sender doesn't need to receive their own broadcasts
+   */
+  broadcastToOthers(gameId, excludeSocketId, event, data) {
+    const gameSockets = this.matchmaking.getGameSockets(gameId, this.io);
+
+    const otherSockets = gameSockets.filter(
+      (socket) => socket.id !== excludeSocketId,
+    );
+
+    if (otherSockets.length > 0) {
+      console.log(`[Broadcaster] ${event} → game ${gameId} (${otherSockets.length} other player(s))`);
+      otherSockets.forEach((otherSocket) => {
+        otherSocket.emit(event, data);
+      });
+    }
+  }
 }
 
 module.exports = BroadcasterService;

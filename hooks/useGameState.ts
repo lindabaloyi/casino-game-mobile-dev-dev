@@ -6,13 +6,15 @@
  *  - Open the Socket.IO connection (once, on mount)
  *  - Listen for game-start / game-update / player-disconnected / error
  *  - Expose the current game state + a sendAction() helper
+ *  - Handle drag events for real-time shared state
  *
  * Usage:
  *   const { gameState, playerNumber, isConnected, error, sendAction } = useGameState();
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { throttle } from '../utils/throttle';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,6 +36,15 @@ export interface GameState {
   gameOver: boolean;
 }
 
+/** Opponent drag state for real-time ghost card rendering */
+export interface OpponentDragState {
+  playerIndex: number;
+  card: Card;
+  source: 'hand' | 'table' | 'captured';
+  position: { x: number; y: number }; // normalized 0-1
+  isDragging: boolean;
+}
+
 interface UseGameStateResult {
   /** Full game state from the server (null until game-start is received) */
   gameState: GameState | null;
@@ -51,6 +62,14 @@ interface UseGameStateResult {
   requestSync: () => void;
   /** Clear the last error */
   clearError: () => void;
+  /** Current opponent drag state (for ghost card rendering) */
+  opponentDrag: OpponentDragState | null;
+  /** Emit drag start event */
+  emitDragStart: (card: Card, source: 'hand' | 'table' | 'captured', position: { x: number; y: number }) => void;
+  /** Emit drag move event (throttled) */
+  emitDragMove: (card: Card, position: { x: number; y: number }) => void;
+  /** Emit drag end event */
+  emitDragEnd: (card: Card, position: { x: number; y: number }, outcome: 'success' | 'miss' | 'cancelled', targetType?: string, targetId?: string) => void;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -68,6 +87,9 @@ export function useGameState(): UseGameStateResult {
   const [isConnected, setIsConnected]     = useState(false);
   const [opponentDisconnected, setOpponentDisconnected] = useState(false);
   const [error, setError]                 = useState<string | null>(null);
+  
+  // Opponent drag state for real-time ghost card rendering
+  const [opponentDrag, setOpponentDrag] = useState<OpponentDragState | null>(null);
 
   useEffect(() => {
     const socket = io(SOCKET_URL, {
@@ -86,6 +108,8 @@ export function useGameState(): UseGameStateResult {
       setPlayerNumber(data.playerNumber);
       setOpponentDisconnected(false);
       setError(null);
+      // Clear any stale opponent drag state on game start
+      setOpponentDrag(null);
     });
 
     socket.on('game-update', (state: GameState) => {
@@ -98,6 +122,7 @@ export function useGameState(): UseGameStateResult {
 
     socket.on('player-disconnected', () => {
       setOpponentDisconnected(true);
+      setOpponentDrag(null);
     });
 
     socket.on('error', (data: { message: string }) => {
@@ -108,6 +133,43 @@ export function useGameState(): UseGameStateResult {
       }, 100);
     });
 
+    // ── Opponent drag events (for real-time ghost card) ─────────────────
+    socket.on('opponent-drag-start', (data: {
+      playerIndex: number;
+      card: Card;
+      source: 'hand' | 'table' | 'captured';
+      position: { x: number; y: number };
+    }) => {
+      console.log('[useGameState] opponent-drag-start received:', data);
+      setOpponentDrag({
+        playerIndex: data.playerIndex,
+        card: data.card,
+        source: data.source,
+        position: data.position,
+        isDragging: true,
+      });
+    });
+
+    socket.on('opponent-drag-move', (data: {
+      playerIndex: number;
+      card: Card;
+      position: { x: number; y: number };
+    }) => {
+      // console.log('[useGameState] opponent-drag-move:', data);
+      setOpponentDrag(prev => prev ? {
+        ...prev,
+        position: data.position,
+      } : null);
+    });
+
+    socket.on('opponent-drag-end', () => {
+      console.log('[useGameState] opponent-drag-end received');
+      // Clear opponent drag state after a short delay to allow for animation
+      setTimeout(() => {
+        setOpponentDrag(null);
+      }, 300);
+    });
+
     return () => {
       socket.off('connect');
       socket.off('disconnect');
@@ -116,9 +178,30 @@ export function useGameState(): UseGameStateResult {
       socket.off('game-state-sync');
       socket.off('player-disconnected');
       socket.off('error');
+      socket.off('opponent-drag-start');
+      socket.off('opponent-drag-move');
+      socket.off('opponent-drag-end');
       socket.disconnect();
     };
   }, []); // connect once on mount
+
+  // ── Drag event emitters ──────────────────────────────────────────────
+
+  const emitDragStart = useCallback((card: Card, source: 'hand' | 'table' | 'captured', position: { x: number; y: number }) => {
+    socketRef.current?.emit('drag-start', { card, source, position });
+  }, []);
+
+  // Throttled drag move - limit to ~60fps (16ms) to prevent network flooding
+  const emitDragMove = useCallback(
+    throttle((card: Card, position: { x: number; y: number }) => {
+      socketRef.current?.emit('drag-move', { card, position });
+    }, 16),
+    []
+  );
+
+  const emitDragEnd = useCallback((card: Card, position: { x: number; y: number }, outcome: 'success' | 'miss' | 'cancelled', targetType?: string, targetId?: string) => {
+    socketRef.current?.emit('drag-end', { card, position, outcome, targetType, targetId });
+  }, []);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -141,6 +224,10 @@ export function useGameState(): UseGameStateResult {
     sendAction,
     requestSync,
     clearError,
+    opponentDrag,
+    emitDragStart,
+    emitDragMove,
+    emitDragEnd,
   };
 }
 

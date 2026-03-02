@@ -41,6 +41,7 @@ import { useDragOverlay } from './hooks/useDragOverlay';
 import { useStealDetection } from './hooks/useStealDetection';
 import { useModalManager } from './hooks/useModalManager';
 import { useGameActions } from './hooks/useGameActions';
+import { OpponentGhostCard } from './OpponentGhostCard';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,20 @@ interface GameBoardProps {
   onBackToMenu?: () => void;
   serverError?: { message: string } | null;
   onServerErrorClose?: () => void;
+  /** Opponent's current drag state for ghost card rendering */
+  opponentDrag?: {
+    playerIndex: number;
+    card: { rank: string; suit: string; value: number };
+    source: 'hand' | 'table' | 'captured';
+    position: { x: number; y: number };
+    isDragging: boolean;
+  } | null;
+  /** Emit drag start event to server for broadcasting */
+  emitDragStart?: (card: { rank: string; suit: string; value: number }, source: 'hand' | 'table' | 'captured', position: { x: number; y: number }) => void;
+  /** Emit drag move event to server (throttled) */
+  emitDragMove?: (card: { rank: string; suit: string; value: number }, position: { x: number; y: number }) => void;
+  /** Emit drag end event to server */
+  emitDragEnd?: (card: { rank: string; suit: string; value: number }, position: { x: number; y: number }, outcome: 'success' | 'miss' | 'cancelled', targetType?: string, targetId?: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -67,6 +82,10 @@ export function GameBoard({
   sendAction,
   serverError,
   onServerErrorClose,
+  opponentDrag,
+  emitDragStart,
+  emitDragMove,
+  emitDragEnd,
 }: GameBoardProps) {
   // ── Context Value ─────────────────────────────────────────────────────────
   // (We don't use context provider - passing sendAction directly to hooks)
@@ -127,16 +146,31 @@ export function GameBoard({
   // Wrapper for table drag start (single arg)
   const handleTableDragStart = useCallback((card: any) => {
     dragOverlay.startDrag(card, 'hand');
-  }, [dragOverlay]);
+    // Emit drag start to server for broadcasting to opponent
+    if (emitDragStart) {
+      emitDragStart(card, 'hand', { x: 0.5, y: 0.5 }); // Will be updated on move
+    }
+  }, [dragOverlay, emitDragStart]);
 
   // Wrapper for captured card drag start (single arg)
   const handleCapturedDragStart = useCallback((card: any) => {
     dragOverlay.startDrag(card, 'captured');
-  }, [dragOverlay]);
+    // Emit drag start to server for broadcasting to opponent
+    if (emitDragStart) {
+      console.log('[GameBoard] Emitting dragStart for captured card');
+      emitDragStart(card, 'captured', { x: 0.5, y: 0.5 });
+    }
+  }, [dragOverlay, emitDragStart]);
 
   const handleDragMove = useCallback(
     (absoluteX: number, absoluteY: number) => {
       dragOverlay.moveDrag(absoluteX, absoluteY);
+
+      // Emit drag move to server for broadcasting to opponent
+      if (emitDragMove && dragOverlay.draggingCard) {
+        // Convert to normalized coordinates (placeholder - should use actual table bounds)
+        emitDragMove(dragOverlay.draggingCard, { x: absoluteX / 400, y: absoluteY / 300 });
+      }
 
       // Check if over opponent's build - show steal overlay
       const stackHit = findTempStackAtPoint?.(absoluteX, absoluteY);
@@ -156,13 +190,17 @@ export function GameBoard({
         stealDetection.hideOverlay();
       }
     },
-    [dragOverlay, findTempStackAtPoint, table, playerNumber, stealDetection],
+    [dragOverlay, findTempStackAtPoint, table, playerNumber, stealDetection, emitDragMove],
   );
 
   const handleDragEnd = useCallback(() => {
+    // Emit drag end to server
+    if (emitDragEnd && dragOverlay.draggingCard) {
+      emitDragEnd(dragOverlay.draggingCard, { x: 0.5, y: 0.5 }, 'cancelled');
+    }
     dragOverlay.endDrag();
     stealDetection.hideOverlay();
-  }, [dragOverlay, stealDetection]);
+  }, [dragOverlay, stealDetection, emitDragEnd]);
 
   const handleTableDragEnd = useCallback(() => {
     const absX = dragOverlay.overlayX.value + CARD_WIDTH / 2;
@@ -396,6 +434,15 @@ export function GameBoard({
             suit={dragOverlay.draggingCard.suit}
           />
         </Animated.View>
+      )}
+
+      {/* Opponent's ghost card - shows where opponent is dragging */}
+      {opponentDrag && opponentDrag.isDragging && (
+        <OpponentGhostCard
+          card={opponentDrag.card}
+          position={opponentDrag.position}
+          tableBounds={{ width: 400, height: 300 }}
+        />
       )}
 
       {/* Play Options Modal */}
