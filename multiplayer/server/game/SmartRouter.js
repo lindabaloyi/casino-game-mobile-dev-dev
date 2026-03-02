@@ -26,6 +26,11 @@ class SmartRouter {
         return this.routeCapture(payload, state, playerIndex);
       case 'extendBuild':
         return this.routeExtendBuild(payload, state);
+      case 'createTemp':
+        // Allow temp stack creation - no validation needed
+        return { type: actionType, payload };
+      case 'acceptTemp':
+        return this.routeAcceptTemp(payload, state, playerIndex);
       default:
         // No routing needed for other actions
         return { type: actionType, payload };
@@ -187,6 +192,66 @@ class SmartRouter {
     return state.tableCards.find(
       tc => (tc.type === 'build_stack' || tc.type === 'temp_stack') && tc.stackId === stackId
     );
+  }
+
+  /**
+   * Check if player already has an active build
+   * Each player can only have one build at a time
+   * @param {object} state - Game state
+   * @param {number} playerIndex - Player to check
+   * @returns {boolean} True if player owns any build_stack
+   */
+  playerHasActiveBuild(state, playerIndex) {
+    return state.tableCards.some(
+      tc => tc.type === 'build_stack' && tc.owner === playerIndex
+    );
+  }
+
+  /**
+   * Route acceptTemp action
+   * Validates that player doesn't already have ANOTHER active build
+   * (The temp being accepted will become a build, so we check if they already have one)
+   * @param {object} payload - Action payload
+   * @param {object} state - Game state
+   * @param {number} playerIndex - Player making the action
+   * @returns {{ type: string, payload: object }} - Routed action
+   */
+  routeAcceptTemp(payload, state, playerIndex) {
+    const { stackId } = payload;
+    
+    // Find the temp stack being accepted
+    const tempStack = state.tableCards.find(
+      tc => tc.type === 'temp_stack' && tc.stackId === stackId
+    );
+    
+    // If temp stack not found, let the handler deal with it
+    if (!tempStack) {
+      return { type: 'acceptTemp', payload };
+    }
+    
+    // Check if this temp stack is already owned by this player
+    const isOwnTemp = tempStack.owner === playerIndex;
+    
+    // If player doesn't own this temp, they can't accept it
+    // (Let the handler deal with ownership validation)
+    if (!isOwnTemp) {
+      return { type: 'acceptTemp', payload };
+    }
+    
+    // Player is accepting their own temp - check if they already have ANOTHER build
+    // Count builds owned by this player (excluding the temp being converted)
+    const existingBuilds = state.tableCards.filter(
+      tc => tc.type === 'build_stack' && tc.owner === playerIndex
+    );
+    
+    if (existingBuilds.length > 0) {
+      throw new Error(
+        'You already have an active build. Complete or capture it before converting this temporary stack to a build.'
+      );
+    }
+    
+    // Allow acceptTemp
+    return { type: 'acceptTemp', payload };
   }
 }
 
