@@ -29,7 +29,12 @@ class SmartRouter {
       case 'extendBuild':
         return this.routeExtendBuild(payload, state);
       case 'createTemp':
-        // Allow temp stack creation - no validation needed
+        // If there's a targetCard, route through smart loose card logic
+        // This enables capture vs createTemp decision based on player's hand
+        if (payload?.targetCard) {
+          return this.routeLooseCardDrop({ ...payload, card: payload.card }, state, playerIndex);
+        }
+        // No target card - allow temp stack creation
         return { type: actionType, payload };
       case 'addToTemp':
         // Allow adding to temp - validation happens in handler
@@ -46,14 +51,15 @@ class SmartRouter {
 
   /**
    * Route stack drop action
+   * Handles drops on:
    * - temp_stack → addToTemp
-   * - build_stack → check ownership:
-   *   - Own build → extendBuild (start or accept)
-   *   - Opponent's build → captureOpponent (if value matches) or stealBuild
+   * - build_stack → check ownership + hand for smart routing
+   * - loose card (via createTemp pathway) → check hand for capture vs temp
    */
   routeStackDrop(payload, state, playerIndex) {
-    const { stackId, stackType, card } = payload;
+    const { stackId, stackType, card, targetCard } = payload;
     
+    // If dropping on a temp stack
     if (stackType === 'temp_stack') {
       return { 
         type: 'addToTemp', 
@@ -61,7 +67,65 @@ class SmartRouter {
       };
     }
     
-    // build_stack - check ownership first
+    // If dropping on a build stack
+    if (stackType === 'build_stack') {
+      return this.routeBuildStackDrop(payload, state, playerIndex);
+    }
+    
+    // If dropping on a loose card (no stack) - route through createTemp with smart check
+    // This handles the case where player drops on a table card
+    return this.routeLooseCardDrop(payload, state, playerIndex);
+  }
+
+  /**
+   * Route loose card drop - smart capture vs createTemp decision
+   * Analyzes player's hand to decide between capture and createTemp
+   */
+  routeLooseCardDrop(payload, state, playerIndex) {
+    const { card, targetCard } = payload;
+    
+    if (!targetCard) {
+      // No target card - create temp
+      return { type: 'createTemp', payload };
+    }
+    
+    // Check if ranks match (required for capture)
+    if (card.rank !== targetCard.rank) {
+      // Ranks don't match - can't capture, create temp instead
+      console.log(`[SmartRouter] Ranks don't match (${card.rank} vs ${targetCard.rank}) - creating temp`);
+      return { type: 'createTemp', payload };
+    }
+    
+    // Ranks match - check if player has spare cards of this rank
+    const playerHand = state.playerHands?.[playerIndex] || [];
+    const cardsOfSameRank = playerHand.filter(c => c.rank === card.rank);
+    
+    if (cardsOfSameRank.length === 1) {
+      // Only ONE card of this rank - capture the loose card
+      console.log(`[SmartRouter] Single ${card.rank} in hand - routing to captureOwn`);
+      return { 
+        type: 'captureOwn', 
+        payload: { 
+          card, 
+          targetType: 'loose', 
+          targetRank: targetCard.rank, 
+          targetSuit: targetCard.suit 
+        } 
+      };
+    }
+    
+    // Multiple cards of this rank (spare exists) - create temp
+    console.log(`[SmartRouter] Multiple ${card.rank} in hand (${cardsOfSameRank.length}) - creating temp`);
+    return { type: 'createTemp', payload };
+  }
+
+  /**
+   * Route build stack drop - smart capture vs extend decision
+   */
+  routeBuildStackDrop(payload, state, playerIndex) {
+    const { stackId, card } = payload;
+    
+    // Find the build stack
     const stack = this.findStack(state, stackId);
     if (!stack) {
       throw new Error(`stackDrop: build stack "${stackId}" not found`);
