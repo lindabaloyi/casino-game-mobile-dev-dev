@@ -33,7 +33,7 @@ import { PlayerHandArea } from './PlayerHandArea';
 import { PlayingCard } from '../cards/PlayingCard';
 import { PlayOptionsModal } from '../table/PlayOptionsModal';
 import { StealBuildModal } from '../table/StealBuildModal';
-import { ExtendBuildModal } from '../table/ExtendBuildModal';
+// import { ExtendBuildModal } from '../table/ExtendBuildModal'; // Not used in drag-drop flow
 import { TempStack, Card as TableCard, BuildStack } from '../table/types';
 
 // Hooks
@@ -185,9 +185,9 @@ export function GameBoard({
       return;
     }
 
-    // Check temp stacks
+    // Check temp stacks (only temp_stack, not build_stack)
     const targetStack = findTempStackAtPoint?.(absX, absY);
-    if (targetStack && dragOverlay.draggingCard) {
+    if (targetStack && targetStack.stackType === 'temp_stack' && dragOverlay.draggingCard) {
       if (targetStack.owner === playerNumber) {
         actions.addToTemp(dragOverlay.draggingCard, targetStack.stackId);
       }
@@ -245,24 +245,31 @@ export function GameBoard({
   }, [dragOverlay, stealDetection, modals]);
 
   // Build extension handlers
+  // For loose cards from table (dragged from TableArea)
   const handleExtendBuild = useCallback((looseCard: any, buildStackId: string) => {
     // Player is extending their own build with a loose card from table
-    actions.startBuildExtension(buildStackId, looseCard);
+    actions.startBuildExtension(buildStackId, looseCard, 'table');
   }, [actions]);
 
-  const handleAcceptExtend = useCallback((handCard: any) => {
-    if (modals.extendTargetBuild) {
-      actions.acceptBuildExtension(modals.extendTargetBuild.stackId, handCard);
+  // When Accept button is clicked on extension strip (after loose card is locked)
+  // In the drag-drop flow, the extension completes when hand card is dropped on the build
+  // This callback is kept for UI consistency but the actual completion happens via drag
+  const handleExtendAcceptClick = useCallback((stackId: string) => {
+    // Find the extending build to see its state
+    const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
+    if (stack?.pendingExtension?.looseCard) {
+      console.log(`[GameBoard] Extend Accept clicked for ${stackId}`);
+      console.log(`[GameBoard] Pending loose card: ${stack.pendingExtension.looseCard.rank}${stack.pendingExtension.looseCard.suit}`);
+      console.log(`[GameBoard] Player should drag a hand card to complete the extension`);
+    } else {
+      console.log(`[GameBoard] No pending extension found for ${stackId}`);
     }
-    modals.closeExtendModal();
-  }, [modals, actions]);
+  }, [table]);
 
-  const handleDeclineExtend = useCallback(() => {
-    if (modals.extendTargetBuild) {
-      actions.declineBuildExtension(modals.extendTargetBuild.stackId);
-    }
-    modals.closeExtendModal();
-  }, [modals, actions]);
+  // Decline/Cancel extension - returns loose card to table
+  const handleDeclineExtend = useCallback((stackId: string) => {
+    actions.declineBuildExtension(stackId);
+  }, [actions]);
 
   // Find player's build that has pending extension
   const extendingBuildId: string | null = useMemo(() => {
@@ -326,12 +333,7 @@ export function GameBoard({
         // Extension props
         extendingBuildId={extendingBuildId}
         onExtendBuild={handleExtendBuild}
-        onAcceptExtend={(stackId: string) => {
-          const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
-          if (stack) {
-            modals.openExtendModal(stack);
-          }
-        }}
+        onAcceptExtend={handleExtendAcceptClick}
         onDeclineExtend={handleDeclineExtend}
         playerHand={myHand}
       />
@@ -349,12 +351,18 @@ export function GameBoard({
         onTrail={actions.trail}
         onCardDrop={actions.createTemp}
         onExtendBuild={(card: any, stackId: string) => {
-          // Hand card extending own build - start extension with this hand card
-          actions.startBuildExtension(stackId, card);
-          // Open modal to let user select another card to add
+          // Player is dragging a hand card to extend their build
+          // Check if build already has a pending extension (loose card locked)
           const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
-          if (stack) {
-            modals.openExtendModal(stack);
+          
+          if (stack?.pendingExtension?.looseCard) {
+            // Build already has pending extension - add hand card to complete
+            console.log(`[GameBoard] Hand card ${card.rank}${card.suit} → completing extension on ${stackId}`);
+            actions.acceptBuildExtension(stackId, card, 'hand');
+          } else {
+            // No pending extension - start new extension with hand card
+            console.log(`[GameBoard] Hand card ${card.rank}${card.suit} → starting new extension on ${stackId}`);
+            actions.startBuildExtension(stackId, card, 'hand');
           }
         }}
         onDragStart={handleTableDragStart}
@@ -398,8 +406,9 @@ export function GameBoard({
         />
       )}
 
-      {/* Extend Build Modal */}
-      {modals.showExtendModal && modals.extendTargetBuild && (
+      {/* Extend Build Modal - kept for modal flow but not shown in drag-drop implementation */}
+      {/* In drag-drop flow, extension completes when hand card is dropped */}
+      {/* {modals.showExtendModal && modals.extendTargetBuild && (
         <ExtendBuildModal
           visible={modals.showExtendModal}
           buildStack={modals.extendTargetBuild}
@@ -407,7 +416,7 @@ export function GameBoard({
           onAccept={handleAcceptExtend}
           onCancel={handleDeclineExtend}
         />
-      )}
+      )} */}
     </View>
   );
 }

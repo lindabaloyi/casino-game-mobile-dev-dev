@@ -240,14 +240,14 @@ export function TableArea({
 
       {/*
         Extension strip — visible when player has a build with pending extension.
-        Shows Accept (opens modal to select hand card) and Cancel buttons.
+        Shows Accept (completes extension with hand card) and Cancel buttons.
       */}
       {extendingBuildId && onAcceptExtend && onDeclineExtend && (() => {
         const extendingStack = stacks.find(s => s.stackId === extendingBuildId);
         if (!extendingStack) return null;
         return (
           <StackActionStrip
-            stackType="build_stack"
+            stackType="extend_build"
             stackId={extendingBuildId}
             onAccept={onAcceptExtend}
             onCancel={onDeclineExtend}

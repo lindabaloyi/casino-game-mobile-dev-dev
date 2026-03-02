@@ -1,14 +1,15 @@
 /**
  * startBuildExtension
- * Player starts extending their own build by locking a loose card to it.
+ * Player starts extending their own build by locking a card to it.
  * 
  * Payload:
  * - stackId: required - the build stack ID
- * - looseCard: required - the loose card from table
+ * - card: required - the card being used to extend (from table, hand, or captures)
+ * - cardSource: optional - source of the card ('table', 'hand', 'captured'). Defaults to 'table'
  * 
  * Rules:
  * - Player must own the build
- * - Loose card must be on table
+ * - Card must be available from the specified source
  * - Does NOT advance turn
  * 
  * Contract: (state, payload, playerIndex) => newState (pure)
@@ -18,18 +19,18 @@ const { cloneState } = require('../GameState');
 
 /**
  * @param {object} state
- * @param {{ stackId: string, looseCard: object }} payload
+ * @param {{ stackId: string, card: object, cardSource?: string }} payload
  * @param {number} playerIndex
  * @returns {object} New game state
  */
 function startBuildExtension(state, payload, playerIndex) {
-  const { stackId, looseCard } = payload;
+  const { stackId, card, cardSource = 'table' } = payload;
 
   if (!stackId) {
     throw new Error('startBuildExtension: missing stackId');
   }
-  if (!looseCard?.rank || !looseCard?.suit) {
-    throw new Error('startBuildExtension: invalid looseCard');
+  if (!card?.rank || !card?.suit) {
+    throw new Error('startBuildExtension: invalid card');
   }
 
   const newState = cloneState(state);
@@ -54,24 +55,85 @@ function startBuildExtension(state, payload, playerIndex) {
     throw new Error('startBuildExtension: build already has pending extension');
   }
 
-  // Find and remove loose card from table
-  const tableIdx = newState.tableCards.findIndex(
-    tc => !tc.type && tc.rank === looseCard.rank && tc.suit === looseCard.suit,
-  );
-  if (tableIdx === -1) {
-    throw new Error(`startBuildExtension: loose card ${looseCard.rank}${looseCard.suit} not on table`);
+  // Remove card from its source
+  let usedCard;
+  
+  if (cardSource === 'table') {
+    // Find and remove loose card from table
+    // Loose cards are plain Card objects without 'type' property
+    const tableIdx = newState.tableCards.findIndex(
+      tc => !tc.type && tc.rank === card.rank && tc.suit === card.suit,
+    );
+    
+    console.log(`[startBuildExtension] Looking for table card: ${card.rank}${card.suit}`);
+    console.log(`[startBuildExtension] Table cards:`, newState.tableCards.map(tc => {
+      if (tc.type) return `${tc.type}:${tc.stackId}`;
+      return `${tc.rank}${tc.suit}`;
+    }).join(', '));
+    
+    if (tableIdx === -1) {
+      throw new Error(`startBuildExtension: card ${card.rank}${card.suit} not on table`);
+    }
+    
+    // Remove the loose card from table
+    usedCard = { ...newState.tableCards[tableIdx], source: 'table' };
+    newState.tableCards.splice(tableIdx, 1);
+    
+  } else if (cardSource === 'hand') {
+    // Find and remove card from player's hand
+    const playerHand = newState.playerHands[playerIndex];
+    if (!playerHand) {
+      throw new Error('startBuildExtension: player has no hand');
+    }
+    
+    const handIdx = playerHand.findIndex(
+      c => c.rank === card.rank && c.suit === card.suit,
+    );
+    
+    console.log(`[startBuildExtension] Looking for hand card: ${card.rank}${card.suit}`);
+    console.log(`[startBuildExtension] Player ${playerIndex} hand:`, playerHand.map(c => `${c.rank}${c.suit}`).join(', '));
+    
+    if (handIdx === -1) {
+      throw new Error(`startBuildExtension: card ${card.rank}${card.suit} not in player's hand`);
+    }
+    
+    // Remove the card from hand
+    usedCard = { ...playerHand[handIdx], source: 'hand' };
+    playerHand.splice(handIdx, 1);
+    
+  } else if (cardSource === 'captured') {
+    // Find and remove card from player's captured cards
+    const playerCaptures = newState.playerCaptures[playerIndex];
+    if (!playerCaptures) {
+      throw new Error('startBuildExtension: player has no captured cards');
+    }
+    
+    const captureIdx = playerCaptures.findIndex(
+      c => c.rank === card.rank && c.suit === card.suit,
+    );
+    
+    console.log(`[startBuildExtension] Looking for captured card: ${card.rank}${card.suit}`);
+    console.log(`[startBuildExtension] Player ${playerIndex} captures:`, playerCaptures.map(c => `${c.rank}${c.suit}`).join(', '));
+    
+    if (captureIdx === -1) {
+      throw new Error(`startBuildExtension: card ${card.rank}${card.suit} not in player's captures`);
+    }
+    
+    // Remove the card from captures
+    usedCard = { ...playerCaptures[captureIdx], source: 'captured' };
+    playerCaptures.splice(captureIdx, 1);
+    
+  } else {
+    throw new Error(`startBuildExtension: unknown cardSource "${cardSource}"`);
   }
 
-  // Remove the loose card from table
-  newState.tableCards.splice(tableIdx, 1);
-
-  // Set pending extension with the locked loose card
+  // Set pending extension with the locked card
   buildStack.pendingExtension = {
-    looseCard: { ...looseCard, source: 'table' },
+    looseCard: usedCard,
   };
 
   console.log(`[startBuildExtension] Player ${playerIndex} started extending build ${stackId}`);
-  console.log(`[startBuildExtension] Locked loose card: ${looseCard.rank}${looseCard.suit}`);
+  console.log(`[startBuildExtension] Locked card: ${usedCard.rank}${usedCard.suit} from ${usedCard.source}`);
   console.log(`[startBuildExtension] Build ${stackId} now has pending extension`);
 
   // Turn does NOT advance - player continues to add hand card

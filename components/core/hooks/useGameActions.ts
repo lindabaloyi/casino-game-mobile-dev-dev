@@ -87,17 +87,18 @@ export function useGameActions(sendAction: SendAction) {
   }, [sendAction]);
 
   // Build extension actions
-  const startBuildExtension = useCallback((buildId: string, looseCard: any) => {
+  // cardSource: 'table' (loose card from table), 'hand' (card from player's hand), 'captured' (card from player's captured pile)
+  const startBuildExtension = useCallback((buildId: string, card: any, cardSource: 'table' | 'hand' | 'captured' = 'table') => {
     sendAction({ 
       type: 'startBuildExtension', 
-      payload: { stackId: buildId, looseCard } as unknown as Record<string, unknown> 
+      payload: { stackId: buildId, card, cardSource } as unknown as Record<string, unknown> 
     });
   }, [sendAction]);
 
-  const acceptBuildExtension = useCallback((buildId: string, handCard: any) => {
+  const acceptBuildExtension = useCallback((buildId: string, card: any, cardSource: 'hand' | 'captured' = 'hand') => {
     sendAction({ 
       type: 'acceptBuildExtension', 
-      payload: { stackId: buildId, handCard } as unknown as Record<string, unknown> 
+      payload: { stackId: buildId, card, cardSource } as unknown as Record<string, unknown> 
     });
   }, [sendAction]);
 

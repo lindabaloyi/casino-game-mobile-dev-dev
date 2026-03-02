@@ -6,6 +6,8 @@
  * - NOT draggable (no drag gesture)
  * - Shows owner indicator (P1 or P2)
  * - Shows build value badge
+ * - Shows EXTEND indicator when extending
+ * - Always shows 2 cards (base and top) like TempStack
  */
 
 import React, { useCallback, useEffect, useRef } from 'react';
@@ -46,13 +48,31 @@ export function BuildStackView({
   // top    = most recently added card
   const bottom = stack.cards[0];
   const top    = stack.cards[stack.cards.length - 1];
+  
+  // Check if there's a pending extension
+  const pendingExtension = stack.pendingExtension;
+  const isExtending = !!pendingExtension?.looseCard;
+  
+  // Get the pending loose card for value calculation
+  const pendingCard = pendingExtension?.looseCard;
+  
+  // Calculate need: build value - pending card value
+  // Display as negative (e.g., "-1" when build is 8 and loose card is 7)
+  let displayValue: string;
+  let badgeColor: string;
+  
+  if (isExtending && pendingCard) {
+    const need = stack.value - pendingCard.value;
+    displayValue = need > 0 ? `-${need}` : stack.value.toString();
+    // Red for incomplete extension (need > 0), purple for complete
+    badgeColor = need > 0 ? '#E53935' : '#9C27B0';
+  } else {
+    displayValue = stack.value?.toString() ?? '-';
+    badgeColor = '#9C27B0'; // Purple for completed build
+  }
 
-  // Display the build value
-  const displayValue = stack.value?.toString() ?? '-';
-  const badgeColor = '#9C27B0'; // Purple for completed build
-
-  // Owner label
-  const ownerLabel = `P${stack.owner + 1}`;
+  // Owner label or EXTEND indicator
+  const showExtending = isExtending;
 
   // ── Position registration ─────────────────────────────────────────────────
   const onLayout = useCallback(() => {
@@ -90,7 +110,7 @@ export function BuildStackView({
 
   return (
     <View ref={viewRef} style={styles.container} onLayout={onLayout}>
-      {/* Base card — highest value */}
+      {/* Base card — highest value (bottom of stack) */}
       <View style={styles.cardBottom}>
         <PlayingCard rank={bottom.rank} suit={bottom.suit} />
       </View>
@@ -105,15 +125,21 @@ export function BuildStackView({
         <Text style={styles.valueText}>{displayValue}</Text>
       </View>
 
-      {/* Owner indicator */}
-      <View style={styles.ownerBadge}>
-        <Text style={styles.ownerText}>{ownerLabel}</Text>
-      </View>
+      {/* Owner indicator or EXTEND badge */}
+      {showExtending ? (
+        <View style={styles.extendBadge}>
+          <Text style={styles.extendText}>EXTEND</Text>
+        </View>
+      ) : (
+        <View style={styles.ownerBadge}>
+          <Text style={styles.ownerText}>P{stack.owner + 1}</Text>
+        </View>
+      )}
     </View>
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// ── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -173,6 +199,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     backgroundColor: '#f59e0b', // amber
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  extendBadge: {
+    position: 'absolute',
+    bottom:   0,
+    left:     0,
+    right:    0,
+    alignItems: 'center',
+  },
+  extendText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    backgroundColor: '#8b5cf6', // purple
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
