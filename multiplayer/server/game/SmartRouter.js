@@ -70,7 +70,31 @@ class SmartRouter {
     const isOwnBuild = stack.owner === playerIndex;
     
     if (isOwnBuild) {
-      // Own build - route to extendBuild
+      // Own build - check if there's a pending extension
+      if (stack.pendingExtension?.looseCard) {
+        // Has pending = accept the extension
+        return this.routeExtendBuild({ stackId, card, cardSource: 'hand' }, state);
+      }
+      
+      // No pending extension - analyze player's hand to decide capture vs extend
+      const playerHand = state.playerHands?.[playerIndex] || [];
+      
+      // Count how many cards in hand can capture this build (value match)
+      const cardsThatCanCapture = playerHand.filter(c => c.value === stack.value);
+      
+      // If exactly one card can capture → capture (single unique card)
+      // If multiple cards can capture (duplicates like 9,9) → can extend instead
+      if (cardsThatCanCapture.length === 1) {
+        // Only one card matches - capture the build
+        console.log(`[SmartRouter] Single capture card ${cardsThatCanCapture[0].rank} - routing to captureOwn`);
+        return { 
+          type: 'captureOwn', 
+          payload: { card, targetType: 'build', targetStackId: stackId } 
+        };
+      }
+      
+      // Multiple cards can capture (duplicates) OR no cards match - extend build
+      console.log(`[SmartRouter] ${cardsThatCanCapture.length} capture cards - routing to extendBuild`);
       return this.routeExtendBuild({ stackId, card, cardSource: 'hand' }, state);
     } else {
       // Opponent's build - route to capture
