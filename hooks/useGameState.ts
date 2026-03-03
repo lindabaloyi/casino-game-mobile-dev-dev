@@ -33,7 +33,9 @@ export interface GameState {
   round: number;
   scores: number[];
   turnCounter: number;
+  moveCount: number;
   gameOver: boolean;
+  roundEndReason?: 'cards_depleted' | 'max_moves';
 }
 
 /** Opponent drag state for real-time ghost card rendering */
@@ -74,6 +76,8 @@ interface UseGameStateResult {
   emitDragMove: (card: Card, position: { x: number; y: number }) => void;
   /** Emit drag end event */
   emitDragEnd: (card: Card, position: { x: number; y: number }, outcome: 'success' | 'miss' | 'cancelled', targetType?: string, targetId?: string) => void;
+  /** Start the next round (called after round-end modal) */
+  startNextRound: () => void;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -118,6 +122,38 @@ export function useGameState(): UseGameStateResult {
 
     socket.on('game-update', (state: GameState) => {
       setGameState(state);
+    });
+
+    socket.on('round-end', (data: {
+      round: number;
+      reason: 'cards_depleted' | 'max_moves';
+      summary: {
+        round: number;
+        movesPlayed: number;
+        cardsRemaining: number;
+        scores: number[];
+        winner: number;
+      };
+    }) => {
+      console.log('[useGameState] round-end received:', data);
+      // Update game state with the round end info
+      setGameState(prev => prev ? {
+        ...prev,
+        round: data.round,
+        roundEndReason: data.reason,
+      } : null);
+    });
+
+    socket.on('game-over', (data: {
+      winner: number;
+      finalScores: number[];
+    }) => {
+      console.log('[useGameState] game-over received:', data);
+      setGameState(prev => prev ? {
+        ...prev,
+        gameOver: true,
+        scores: data.finalScores,
+      } : null);
     });
 
     socket.on('game-state-sync', (data: { gameState: GameState }) => {
@@ -203,6 +239,8 @@ export function useGameState(): UseGameStateResult {
       socket.off('disconnect');
       socket.off('game-start');
       socket.off('game-update');
+      socket.off('round-end');
+      socket.off('game-over');
       socket.off('game-state-sync');
       socket.off('player-disconnected');
       socket.off('error');
@@ -238,6 +276,10 @@ export function useGameState(): UseGameStateResult {
     socketRef.current?.emit('game-action', action);
   };
 
+  const startNextRound = () => {
+    socketRef.current?.emit('start-next-round');
+  };
+
   const requestSync = () => {
     socketRef.current?.emit('request-sync');
   };
@@ -257,6 +299,7 @@ export function useGameState(): UseGameStateResult {
     emitDragStart,
     emitDragMove,
     emitDragEnd,
+    startNextRound,
   };
 }
 

@@ -7,6 +7,8 @@
  * one by one in later milestones.
  */
 
+const RoundValidator = require('../game/utils/RoundValidator');
+
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, matchmaking, broadcaster) {
     this.gameManager  = gameManager;
@@ -50,8 +52,46 @@ class GameCoordinatorService {
     const { gameId, playerIndex } = ctx;
 
     try {
+      // Log the action
+      console.log(`[Coordinator] Action: P${playerIndex} ${data.type} on game ${gameId}`);
+      
       const newState = this.actionRouter.executeAction(gameId, playerIndex, data);
-      this.broadcaster.broadcastGameUpdate(gameId, newState);
+      
+      // Log state after action
+      const p1Cards = newState.playerHands?.[0]?.length || 0;
+      const p2Cards = newState.playerHands?.[1]?.length || 0;
+      const p1Captures = newState.playerCaptures?.[0]?.length || 0;
+      const p2Captures = newState.playerCaptures?.[1]?.length || 0;
+      console.log(`[Coordinator] After action: P1hand=${p1Cards}, P2hand=${p2Cards}, P1captures=${p1Captures}, P2captures=${p2Captures}`);
+      
+      // Check if round has ended (both hands empty)
+      const roundCheck = RoundValidator.shouldEndRound(newState);
+      if (roundCheck.ended) {
+        console.log(`[Coordinator] ⚠️ Round ${newState.round} ENDED: ${roundCheck.reason} ⚠️`);
+        console.log(`[Coordinator] Final scores: P1=${newState.scores?.[0]}, P2=${newState.scores?.[1]}`);
+        
+        // Broadcast round end to all players
+        const summary = RoundValidator.getRoundSummary(newState);
+        this.broadcaster.broadcastToGame(gameId, 'round-end', {
+          round: newState.round,
+          reason: roundCheck.reason,
+          summary,
+        });
+        
+        // Check if game is over
+        const gameOverCheck = RoundValidator.checkGameOver(newState);
+        if (gameOverCheck.gameOver) {
+          console.log(`[Coordinator] 🏆 GAME OVER: Winner=P${gameOverCheck.winner}, Final scores: ${gameOverCheck.finalScores}`);
+          newState.gameOver = true;
+          this.gameManager.saveGameState(gameId, newState);
+          this.broadcaster.broadcastToGame(gameId, 'game-over', {
+            winner: gameOverCheck.winner,
+            finalScores: gameOverCheck.finalScores,
+          });
+        }
+      } else {
+        this.broadcaster.broadcastGameUpdate(gameId, newState);
+      }
     } catch (err) {
       console.error(`[Coordinator] game-action failed: ${err.message}`);
       this.broadcaster.sendError(socket, err.message);
@@ -121,6 +161,37 @@ class GameCoordinatorService {
       targetId: data.targetId,
       timestamp: Date.now(),
     });
+  }
+
+  /**
+   * Handle start-next-round action from client.
+   * Advances to the next round.
+   */
+  handleStartNextRound(socket) {
+    const ctx = this._resolvePlayer(socket);
+    if (!ctx) return;
+
+    const { gameId, playerIndex } = ctx;
+
+    try {
+      const state = this.gameManager.getGameState(gameId);
+      if (!state) {
+        this.broadcaster.sendError(socket, 'Game not found');
+        return;
+      }
+
+      // Prepare next round
+      const newState = RoundValidator.prepareNextRound(state);
+      this.gameManager.saveGameState(gameId, newState);
+      
+      console.log(`[Coordinator] Started round ${newState.round}`);
+      
+      // Broadcast game update with new round
+      this.broadcaster.broadcastGameUpdate(gameId, newState);
+    } catch (err) {
+      console.error(`[Coordinator] start-next-round failed: ${err.message}`);
+      this.broadcaster.sendError(socket, err.message);
+    }
   }
 
 }

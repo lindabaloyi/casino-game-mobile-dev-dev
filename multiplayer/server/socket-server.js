@@ -48,6 +48,7 @@ io.on('connection', socket => {
 
   // ── Game events ──────────────────────────────────────────────────────
   socket.on('game-action', data => coordinator.handleGameAction(socket, data));
+  socket.on('start-next-round', () => coordinator.handleStartNextRound(socket));
 
   // ── Drag events (for real-time shared state) ────────────────────────────
   socket.on('drag-start', data => coordinator.handleDragStart(socket, data));

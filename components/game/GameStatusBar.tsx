@@ -1,6 +1,6 @@
 /**
  * GameStatusBar
- * Pure display — round number, whose-turn badge, and scores.
+ * Pure display — round number, whose-turn badge, scores, and round progress.
  * Zero logic: all data is passed in as props.
  */
 
@@ -12,9 +12,20 @@ interface Props {
   currentPlayer: number;   // 0 or 1 — index of the player whose turn it is
   playerNumber: number;    // which player is viewing this screen
   scores: [number, number];
+  movesRemaining?: number;     // Optional: moves remaining in round
+  turnsRemaining?: number;     // Optional: turns remaining in round
+  cardsRemaining?: [number, number]; // Optional: [player1 cards, player2 cards]
 }
 
-export function GameStatusBar({ round, currentPlayer, playerNumber, scores }: Props) {
+export function GameStatusBar({ 
+  round, 
+  currentPlayer, 
+  playerNumber, 
+  scores,
+  movesRemaining,
+  turnsRemaining,
+  cardsRemaining,
+}: Props) {
   const isMyTurn = currentPlayer === playerNumber;
 
   return (
@@ -28,6 +39,18 @@ export function GameStatusBar({ round, currentPlayer, playerNumber, scores }: Pr
       </View>
 
       <Text style={styles.text}>{scores[0]} – {scores[1]}</Text>
+
+      {turnsRemaining !== undefined && (
+        <View style={styles.progressBadge}>
+          <Text style={styles.progressText}>{turnsRemaining} turns</Text>
+        </View>
+      )}
+
+      {cardsRemaining !== undefined && (
+        <View style={styles.cardsBadge}>
+          <Text style={styles.progressText}>P1:{cardsRemaining[0]} P2:{cardsRemaining[1]}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -39,7 +62,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
+    gap: 8,
   },
   text: {
     color: '#fff',
@@ -55,6 +79,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
+  },
+  progressBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  progressText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  cardsBadge: {
+    backgroundColor: 'rgba(255, 193, 7, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
 });
 

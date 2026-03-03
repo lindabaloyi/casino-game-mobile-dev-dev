@@ -86,6 +86,20 @@ class BroadcasterService {
       });
     }
   }
+
+  /**
+   * Broadcast to ALL players in a game (including sender)
+   * Used for round-end and game-over events
+   */
+  broadcastToGame(gameId, event, data) {
+    const gameSockets = this.matchmaking.getGameSockets(gameId, this.io);
+
+    console.log(`[Broadcaster] ${event} → game ${gameId} (${gameSockets.length} players)`);
+
+    gameSockets.forEach((gameSocket) => {
+      gameSocket.emit(event, data);
+    });
+  }
 }
 
 module.exports = BroadcasterService;

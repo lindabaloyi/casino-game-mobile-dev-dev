@@ -68,6 +68,7 @@ function initializeGame() {
     round: 1,
     scores: [0, 0],
     turnCounter: 1,
+    moveCount: 0,
     gameOver: false,
     // Stack counters for sequential IDs: { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 }
     stackCounters: { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 },
@@ -128,6 +129,7 @@ function initializeTestGame() {
     round: 1,
     scores: [0, 0],
     turnCounter: 1,
+    moveCount: 0,
     gameOver: false,
     // Stack counters for sequential IDs: { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 }
     stackCounters: { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 },
@@ -176,6 +178,7 @@ function generateStackId(state, type, playerIndex) {
 function nextTurn(state) {
   state.currentPlayer = (state.currentPlayer + 1) % 2;
   state.turnCounter += 1;
+  state.moveCount += 1;
   return state;
 }
 

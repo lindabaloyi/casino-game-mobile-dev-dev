@@ -18,6 +18,7 @@ import { useDragOverlay } from '../../hooks/drag/useDragOverlay';
 import { useModalManager } from '../../hooks/game/useModalManager';
 import { useGameActions } from '../../hooks/game/useGameActions';
 import { useGameComputed } from '../../hooks/game/useGameComputed';
+import { useGameRound } from '../../hooks/game/useGameRound';
 import { useDragHandlers } from '../../hooks/game/useDragHandlers';
 import { useActionHandlers } from '../../hooks/game/useActionHandlers';
 import { useTableBounds } from '../../hooks/game/useTableBounds';
@@ -30,6 +31,7 @@ import { DragGhost } from './DragGhost';
 import { OpponentGhostCard } from './OpponentGhostCard';
 import { ErrorBanner } from '../shared/ErrorBanner';
 import { Card as TableCard } from '../../types';
+import { RoundEndModal } from '../modals/RoundEndModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -37,6 +39,7 @@ interface GameBoardProps {
   gameState: GameState;
   playerNumber: number;
   sendAction: (action: { type: string; payload?: Record<string, unknown> }) => void;
+  startNextRound?: () => void;
   onRestart?: () => void;
   onBackToMenu?: () => void;
   serverError?: { message: string } | null;
@@ -57,6 +60,7 @@ export function GameBoard({
   gameState,
   playerNumber,
   sendAction,
+  startNextRound,
   serverError,
   onServerErrorClose,
   opponentDrag,
@@ -67,6 +71,7 @@ export function GameBoard({
   // Local state
   const [errorVersion, setErrorVersion] = useState(0);
   const [dragVersion, setDragVersion] = useState(0);
+  const [showRoundEnd, setShowRoundEnd] = useState(false);
 
   // Effects
   useEffect(() => {
@@ -84,6 +89,18 @@ export function GameBoard({
   // Computed values
   const computed = useGameComputed(gameState, playerNumber);
   const { getTableBounds } = useTableBounds(drag.dropBounds);
+  const roundInfo = useGameRound(gameState);
+
+  // Show round end modal when round is over
+  useEffect(() => {
+    if (roundInfo.isOver && !showRoundEnd) {
+      console.log(`[GameBoard] 🏁 Showing RoundEndModal: round=${roundInfo.roundNumber}, reason=${roundInfo.endReason}`);
+      console.log(`[GameBoard] Final state: cardsRemaining=[${roundInfo.cardsRemaining}]`);
+      setShowRoundEnd(true);
+    }
+  }, [roundInfo.isOver, showRoundEnd, roundInfo.roundNumber, roundInfo.endReason, roundInfo.cardsRemaining]);
+
+  // Handle next round
 
   // Drag end wrapper
   const handleDragEndWrapper = () => {
@@ -129,6 +146,8 @@ export function GameBoard({
         currentPlayer={gameState.currentPlayer}
         playerNumber={playerNumber}
         scores={gameState.scores as [number, number]}
+        turnsRemaining={roundInfo.turnsRemaining}
+        cardsRemaining={roundInfo.cardsRemaining}
       />
 
       <TableArea
@@ -239,6 +258,20 @@ export function GameBoard({
         playerNumber={playerNumber}
         onConfirmSteal={actionHandlers.handleConfirmSteal}
         onCancelSteal={modals.closeStealModal}
+      />
+
+      <RoundEndModal
+        visible={showRoundEnd}
+        roundNumber={roundInfo.roundNumber}
+        endReason={roundInfo.endReason}
+        scores={gameState.scores as [number, number]}
+        onNextRound={() => {
+          setShowRoundEnd(false);
+          if (startNextRound) {
+            startNextRound();
+          }
+        }}
+        onClose={() => setShowRoundEnd(false)}
       />
     </View>
   );
