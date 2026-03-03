@@ -7,15 +7,25 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { CardBounds, TempStackBounds, CapturedCardBounds, CapturePileBounds } from '../../hooks/useDrag';
-import { Card, TempStack, BuildStack, TableItem, isLooseCard, isTempStack, isBuildStack } from './types';
-import { DraggableLooseCard } from './DraggableLooseCard';
-import { TempStackView } from './TempStackView';
-import { BuildStackView } from './BuildStackView';
-import { StackActionStrip } from './StackActionStrip';
+import { Card, TempStack, BuildStack, TableItem, isLooseCard, isTempStack, isBuildStack, AnyStack } from './types';
 import { CapturedCardsView } from './CapturedCardsView';
 import { OpponentDragState } from '../../hooks/useGameState';
+
+// Layout components
+import { TableGrid } from './layout/TableGrid';
+
+// Item renderer
+import { TableItemRenderer } from './items/TableItemRenderer';
+
+// Overlays
+import { DropHint } from './overlays/DropHint';
+import { StackOverlay } from './overlays/StackOverlay';
+import { ExtensionOverlay } from './overlays/ExtensionOverlay';
+
+// Visibility utility
+import { useCardVisibility } from './utils/cardVisibility';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -96,18 +106,6 @@ interface Props {
   opponentDrag?: OpponentDragState | null;
 }
 
-// ── Type guard for stacks ───────────────────────────────────────────────
-
-// Helper to check if an item is any stack (temp_stack or build_stack)
-function isAnyStack(item: TableItem): item is TempStack | BuildStack {
-  return isTempStack(item) || isBuildStack(item);
-}
-
-// Helper to check if an item is a temp stack (for overlay)
-function isTempStackForOverlay(item: TableItem): item is TempStack {
-  return isTempStack(item);
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function TableArea({
@@ -125,7 +123,6 @@ export function TableArea({
   findTempStackAtPoint,
   onStackDrop,
   onTableCardDropOnCard,
-  onTableCardDropOnTemp,
   onTableDragStart,
   onTableDragMove,
   onTableDragEnd,
@@ -151,15 +148,74 @@ export function TableArea({
   onExtendBuild,
   onAcceptExtend,
   onDeclineExtend,
-  playerHand,
   opponentDrag,
 }: Props) {
+  // Separate item types
+  const tempStacks = tableCards.filter(isTempStack) as TempStack[];
+  const stacks = tableCards.filter((item): item is AnyStack => 
+    isTempStack(item) || isBuildStack(item)
+  );
   const looseCards = tableCards.filter(isLooseCard) as Card[];
-  // Show both temp stacks and build stacks
-  const stacks = tableCards.filter(isAnyStack) as (TempStack | BuildStack)[];
-  // Separate temp stacks and build stacks
-  const tempStacks = tableCards.filter(isTempStackForOverlay) as TempStack[];
-  const buildStacks = tableCards.filter(isBuildStack) as BuildStack[];
+
+  console.log(`[TableArea] ===== TABLE AREA RENDER =====`);
+  console.log(`[TableArea] Total tableCards: ${tableCards.length}`);
+  console.log(`[TableArea] Grid items breakdown:`, {
+    total: tableCards.length,
+    loose: looseCards.length,
+    tempStacks: tempStacks.length,
+    buildStacks: tableCards.filter(isBuildStack).length,
+  });
+
+  // Visibility logic
+  const { isCardHidden } = useCardVisibility(opponentDrag);
+
+  // Helper to get a unique key for an item
+  const getItemKey = (item: TableItem, index: number): string => {
+    if (isLooseCard(item)) {
+      return `card-${(item as Card).rank}${(item as Card).suit}`;
+    }
+    if (isTempStack(item)) {
+      return `temp-${(item as TempStack).stackId}`;
+    }
+    if (isBuildStack(item)) {
+      return `build-${(item as BuildStack).stackId}`;
+    }
+    return `item-${index}`;
+  };
+
+  // Render item function for grid
+  const renderItem = (item: TableItem, index: number) => {
+    // Determine if hidden for loose cards
+    const hidden = isLooseCard(item) ? isCardHidden(item as Card) : false;
+    
+    return (
+      <TableItemRenderer
+        key={getItemKey(item, index)}
+        item={item}
+        index={index}
+        isMyTurn={isMyTurn}
+        playerNumber={playerNumber}
+        tableVersion={tableVersion}
+        registerCard={registerCard}
+        unregisterCard={unregisterCard}
+        registerTempStack={registerTempStack}
+        unregisterTempStack={unregisterTempStack}
+        findCardAtPoint={findCardAtPoint}
+        findTempStackAtPoint={findTempStackAtPoint}
+        findCapturePileAtPoint={findCapturePileAtPoint}
+        onStackDrop={onStackDrop}
+        onTableCardDropOnCard={onTableCardDropOnCard}
+        onTableDragStart={onTableDragStart}
+        onTableDragMove={onTableDragMove}
+        onTableDragEnd={onTableDragEnd}
+        onTempStackDragStart={onTempStackDragStart}
+        onTempStackDragMove={onTempStackDragMove}
+        onTempStackDragEnd={onTempStackDragEnd}
+        onDropToCapture={onDropToCapture}
+        isHidden={hidden}
+      />
+    );
+  };
 
   return (
     <View
@@ -167,128 +223,31 @@ export function TableArea({
       style={[styles.area, isMyTurn && styles.areaActive]}
       onLayout={onTableLayout}
     >
-      {/* Drop hint — shown when table is empty on player's turn */}
-      {isMyTurn && tableCards.length === 0 && (
-        <View style={styles.hintContainer}>
-          <Text style={styles.hintText}>Drop a card here to trail</Text>
-        </View>
-      )}
+      {/* Drop hint */}
+      <DropHint visible={isMyTurn && tableCards.length === 0} />
 
-      {/* Card grid - iterate in server-provided order to maintain positions */}
-      <View style={styles.cardRow}>
-        {tableCards.map((item, index) => {
-          // Loose card
-          if (isLooseCard(item)) {
-            const card = item as Card;
-            const cardId = `${card.rank}${card.suit}`;
-            // Hide this card if opponent is dragging it
-            const isHidden = opponentDrag?.isDragging && 
-                           opponentDrag.source === 'table' && 
-                           opponentDrag.cardId === cardId;
-            if (isHidden) {
-              console.log(`[TableArea] Hiding table card ${cardId} - opponent is dragging`);
-            } else if (opponentDrag?.isDragging) {
-              console.log(`[TableArea] Table card ${cardId} visible, opponent dragging: ${opponentDrag.cardId} from ${opponentDrag.source}`);
-            }
-            return (
-              <DraggableLooseCard
-                key={`${card.rank}${card.suit}`}
-                card={card}
-                isMyTurn={isMyTurn}
-                playerNumber={playerNumber}
-                layoutVersion={tableVersion}
-                registerCard={registerCard}
-                unregisterCard={unregisterCard}
-                findCardAtPoint={findCardAtPoint}
-                findTempStackAtPoint={findTempStackAtPoint}
-                isHidden={isHidden}
-                onDropOnStack={(droppedCard, stackId, stackOwner, stackType) => {
-                  onStackDrop?.(droppedCard, stackId, stackOwner, stackType);
-                }}
-                onDropOnCard={(droppedCard, targetCard) => {
-                  onTableCardDropOnCard?.(droppedCard, targetCard);
-                }}
-                onDragStart={onTableDragStart}
-                onDragMove={onTableDragMove}
-                onDragEnd={onTableDragEnd}
-              />
-            );
-          }
-          
-          // Temp stack
-          if (isTempStack(item)) {
-            const stack = item as TempStack;
-            return (
-              <TempStackView
-                key={stack.stackId}
-                stack={stack}
-                layoutVersion={tableVersion}
-                registerTempStack={registerTempStack}
-                unregisterTempStack={unregisterTempStack}
-                isMyTurn={isMyTurn}
-                playerNumber={playerNumber}
-                findCapturePileAtPoint={findCapturePileAtPoint}
-                onDragStart={onTempStackDragStart}
-                onDragMove={onTempStackDragMove}
-                onDragEnd={onTempStackDragEnd}
-                onDropToCapture={onDropToCapture}
-              />
-            );
-          }
-          
-          // Build stack
-          if (isBuildStack(item)) {
-            const stack = item as BuildStack;
-            return (
-              <BuildStackView
-                key={stack.stackId}
-                stack={stack}
-                layoutVersion={tableVersion}
-                registerTempStack={registerTempStack}
-                unregisterTempStack={unregisterTempStack}
-              />
-            );
-          }
-          
-          return null;
-        })}
-      </View>
+      {/* Card grid */}
+      <TableGrid 
+        items={tableCards}
+        renderItem={renderItem}
+      />
 
-      {/* 
-        Accept / Cancel strip — visible only to the owning player on their turn.
-        Only shows for temp_stack type (not build_stack).
-      */}
-      {overlayStackId && (() => {
-        const overlayStack = tempStacks.find(s => s.stackId === overlayStackId);
-        if (!overlayStack) return null;
-        return (
-          <StackActionStrip
-            stackType={overlayStack.type}
-            stackId={overlayStackId}
-            onAccept={onAcceptTemp}
-            onCancel={onCancelTemp}
-          />
-        );
-      })()}
+      {/* Overlays */}
+      <StackOverlay
+        overlayStackId={overlayStackId}
+        tempStacks={tempStacks}
+        onAcceptTemp={onAcceptTemp}
+        onCancelTemp={onCancelTemp}
+      />
 
-      {/*
-        Extension strip — visible when player has a build with pending extension.
-        Shows Accept (completes extension with hand card) and Cancel buttons.
-      */}
-      {extendingBuildId && onAcceptExtend && onDeclineExtend && (() => {
-        const extendingStack = stacks.find(s => s.stackId === extendingBuildId);
-        if (!extendingStack) return null;
-        return (
-          <StackActionStrip
-            stackType="extend_build"
-            stackId={extendingBuildId}
-            onAccept={onAcceptExtend}
-            onCancel={onDeclineExtend}
-          />
-        );
-      })()}
+      <ExtensionOverlay
+        extendingBuildId={extendingBuildId ?? null}
+        stacks={stacks}
+        onAcceptExtend={onAcceptExtend}
+        onDeclineExtend={onDeclineExtend}
+      />
 
-      {/* Captured cards on left/right sides */}
+      {/* Captured cards */}
       <CapturedCardsView
         playerCaptures={playerCaptures}
         opponentCaptures={opponentCaptures}
@@ -326,25 +285,6 @@ const styles = StyleSheet.create({
   areaActive: {
     borderColor: '#66BB6A',
     borderStyle: 'dashed',
-  },
-  hintContainer: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems:     'center',
-  },
-  hintText: {
-    color:       '#81C784',
-    fontSize:    14,
-    fontStyle:   'italic',
-    letterSpacing: 0.3,
-  },
-  cardRow: {
-    flexDirection:  'row',
-    flexWrap:       'wrap',
-    gap:            50,
-    justifyContent: 'center',
-    alignItems:     'center',
-    paddingHorizontal: 12,
   },
 });
 
