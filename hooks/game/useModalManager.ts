@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { TempStack, BuildStack, Card } from '../../table/types';
+import { TempStack, BuildStack, Card } from '../../types';
 
 export function useModalManager() {
   // Play modal (for accepting temp stacks)
@@ -73,3 +73,5 @@ export function useModalManager() {
     closeExtendModal,
   };
 }
+
+export default useModalManager;

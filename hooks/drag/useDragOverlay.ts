@@ -77,3 +77,5 @@ export function useDragOverlay() {
     ghostStyle,
   };
 }
+
+export default useDragOverlay;

@@ -9,7 +9,7 @@
 import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
-import { Card } from './types';
+import { Card } from '../../types';
 
 interface PlayOptionsModalProps {
   visible: boolean;
@@ -32,7 +32,6 @@ export function PlayOptionsModal({
   }
   
   // Calculate available build options based on cards and player's hand
-  // Use the same diff/sum logic as the server
   const totalSum = cards.reduce((sum, c) => sum + c.value, 0);
   
   let buildValue, buildType;
@@ -47,19 +46,17 @@ export function PlayOptionsModal({
     const otherSum = sorted.slice(1).reduce((sum, c) => sum + c.value, 0);
     const need = base - otherSum;
     
-    // If need is 0, diff build is valid (base = otherSum)
-    // Build value is the base
     buildValue = base;
     buildType = need === 0 ? 'diff' : 'diff-incomplete';
   }
   
-  // Check: total sum (e.g., [5,3] → 8)
+  // Check: total sum
   const hasTotalMatch = playerHand.some(c => c.value === totalSum);
   
-  // Check: diff base value (e.g., [9,7,2] → base=9)
+  // Check: diff base value
   const hasDiffMatch = buildType.startsWith('diff') && playerHand.some(c => c.value === buildValue);
   
-  // Check for pairs: if all cards have same rank, also allow single card value
+  // Check for pairs
   const allSameRank = cards.length > 1 && cards.every(c => c.rank === cards[0].rank);
   const singleValue = allSameRank ? cards[0].value : null;
   const hasSingleMatch = singleValue && playerHand.some(c => c.value === singleValue);
@@ -84,7 +81,7 @@ export function PlayOptionsModal({
           {/* Description */}
           <Text style={styles.subtitle}>Use stack to build the following:</Text>
           
-          {/* Combined card preview - all cards in one row with + indicator */}
+          {/* Combined card preview */}
           <View style={styles.cardsSection}>
             <View style={styles.cardsRow}>
               {cards.map((card, index) => (
@@ -92,9 +89,7 @@ export function PlayOptionsModal({
                   <PlayingCard rank={card.rank} suit={card.suit} />
                 </View>
               ))}
-              {/* + indicator */}
               <Text style={styles.plusSign}>+</Text>
-              {/* Placeholder for card to be added - will be shown by user selecting */}
             </View>
             <Text style={styles.buildValue}>
               {buildType === 'sum' 
@@ -103,9 +98,8 @@ export function PlayOptionsModal({
             </Text>
           </View>
           
-          {/* Options - show multiple options */}
+          {/* Options */}
           <View style={styles.optionsSection}>
-            {/* Option 1: Sum build (e.g., 5+3=8) */}
             {hasTotalMatch && (
               <TouchableOpacity 
                 style={styles.optionButton} 
@@ -115,7 +109,6 @@ export function PlayOptionsModal({
               </TouchableOpacity>
             )}
             
-            {/* Option 2: Diff base (e.g., [9,7,2] → base 9) */}
             {hasDiffMatch && (
               <TouchableOpacity 
                 style={[styles.optionButton, styles.diffOption]} 
@@ -125,7 +118,6 @@ export function PlayOptionsModal({
               </TouchableOpacity>
             )}
             
-            {/* Option 3: Single card value (for identical ranks) */}
             {hasSingleMatch && singleValue !== totalSum && singleValue !== buildValue && (
               <TouchableOpacity 
                 style={styles.optionButton} 

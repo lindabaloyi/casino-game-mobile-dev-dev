@@ -10,7 +10,7 @@
 import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
-import { Card } from './types';
+import { Card } from '../../types';
 
 interface CaptureOrAddModalProps {
   visible: boolean;

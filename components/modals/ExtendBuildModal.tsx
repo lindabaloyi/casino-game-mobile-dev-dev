@@ -14,7 +14,7 @@
 import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
-import { Card, BuildStack } from './types';
+import { Card, BuildStack } from '../../types';
 
 interface ExtendBuildModalProps {
   visible: boolean;

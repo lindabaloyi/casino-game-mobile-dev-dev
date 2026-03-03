@@ -142,3 +142,5 @@ export function useGameActions(sendAction: SendAction) {
     stackDrop,
   };
 }
+
+export default useGameActions;

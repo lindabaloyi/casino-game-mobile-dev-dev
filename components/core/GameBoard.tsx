@@ -31,16 +31,14 @@ import { GameStatusBar } from './GameStatusBar';
 import { TableArea } from '../table/TableArea';
 import { PlayerHandArea } from './PlayerHandArea';
 import { PlayingCard } from '../cards/PlayingCard';
-import { PlayOptionsModal } from '../table/PlayOptionsModal';
-import { StealBuildModal } from '../table/StealBuildModal';
-// import { ExtendBuildModal } from '../table/ExtendBuildModal'; // Not used in drag-drop flow
-import { TempStack, Card as TableCard, BuildStack } from '../table/types';
+import { PlayOptionsModal } from '../modals/PlayOptionsModal';
+import { StealBuildModal } from '../modals/StealBuildModal';
+import { TempStack, Card as TableCard, BuildStack } from '../../types';
 
 // Hooks
-import { useDragOverlay } from './hooks/useDragOverlay';
-import { useStealDetection } from './hooks/useStealDetection';
-import { useModalManager } from './hooks/useModalManager';
-import { useGameActions } from './hooks/useGameActions';
+import { useDragOverlay } from '../../hooks/drag/useDragOverlay';
+import { useModalManager } from '../../hooks/game/useModalManager';
+import { useGameActions } from '../../hooks/game/useGameActions';
 import { OpponentGhostCard } from './OpponentGhostCard';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -93,9 +91,6 @@ export function GameBoard({
     }
   }, [serverError]);
 
-  // ── Context Value ─────────────────────────────────────────────────────────
-  // (We don't use context provider - passing sendAction directly to hooks)
-
   // ── Derived data ──────────────────────────────────────────────────────────
   const isMyTurn = gameState.currentPlayer === playerNumber;
   const myHand = useMemo(() => gameState.playerHands?.[playerNumber] ?? [], [gameState.playerHands, playerNumber]);
@@ -137,7 +132,6 @@ export function GameBoard({
   } = useDrag();
 
   const dragOverlay = useDragOverlay();
-  const stealDetection = useStealDetection(playerNumber);
   const modals = useModalManager();
   const actions = useGameActions(sendAction);
 
@@ -160,137 +154,80 @@ export function GameBoard({
       return bounds;
     }
     // Fallback: use screen dimensions as approximation
-    // This ensures ghost appears at reasonable position even before layout completes
     return { width: 400, height: 300 };
   }, [dropBounds]);
 
-  // Handler for hand card drag start - emits 'hand' as source
+  // Handler for hand card drag start
   const handleHandDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
     console.log('[GameBoard] ===== HANDLE HAND DRAG START =====');
-    console.log('[GameBoard] Card:', card?.rank, card?.suit);
-    console.log('[GameBoard] Received position from DraggableHandCard:', { absoluteX, absoluteY });
-    
-    // CRITICAL: Pass position to overlay so ghost appears under finger immediately
     dragOverlay.startDrag(card, 'hand', absoluteX, absoluteY);
     
-    // Emit drag start to server for broadcasting to opponent
     if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
-      // Validate bounds exist
       if (!dropBounds.current || dropBounds.current.width === 0 || dropBounds.current.height === 0) {
         console.warn('[GameBoard] Cannot emit dragStart - table bounds not ready');
         return;
       }
       
-      // Use actual position - clamp to 0-1 range since drag can start from hand (outside table)
       const normX = Math.max(0, Math.min(1, absoluteX / dropBounds.current.width));
       const normY = Math.max(0, Math.min(1, absoluteY / dropBounds.current.height));
-      
-      console.log('[GameBoard] Normalized position for HAND drag:', { normX, normY });
-      console.log('[GameBoard] Table bounds:', dropBounds.current);
-      
       emitDragStart(card, 'hand', { x: normX, y: normY });
     }
   }, [dragOverlay, emitDragStart, dropBounds]);
 
   const handleTableDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
     console.log('[GameBoard] ===== HANDLE TABLE DRAG START =====');
-    console.log('[GameBoard] Card:', card?.rank, card?.suit);
-    console.log('[GameBoard] Received position from DraggableHandCard:', { absoluteX, absoluteY });
-    
-    // CRITICAL: Pass position to overlay so ghost appears under finger immediately
     dragOverlay.startDrag(card, 'table', absoluteX, absoluteY);
     
-    // Emit drag start to server for broadcasting to opponent
     if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
-      // Validate bounds exist
       if (!dropBounds.current || dropBounds.current.width === 0 || dropBounds.current.height === 0) {
         console.warn('[GameBoard] Cannot emit dragStart - table bounds not ready');
         return;
       }
       
-      // Use actual position - clamp to 0-1 range since drag can start from hand (outside table)
       const normX = Math.max(0, Math.min(1, absoluteX / dropBounds.current.width));
       const normY = Math.max(0, Math.min(1, absoluteY / dropBounds.current.height));
-      
-      console.log('[GameBoard] Normalized position:', { normX, normY });
-      console.log('[GameBoard] Table bounds:', dropBounds.current);
-      
       emitDragStart(card, 'table', { x: normX, y: normY });
     }
   }, [dragOverlay, emitDragStart, dropBounds]);
 
-  // Wrapper for captured card drag start (single arg)
+  // Wrapper for captured card drag start
   const handleCapturedDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
     console.log('[GameBoard] ===== HANDLE CAPTURED DRAG START =====');
-    console.log('[GameBoard] Card:', card?.rank, card?.suit);
-    console.log('[GameBoard] Received position:', { absoluteX, absoluteY });
-    
-    // CRITICAL: Pass position to overlay so ghost appears under finger immediately
     dragOverlay.startDrag(card, 'captured', absoluteX, absoluteY);
     
-    // Emit drag start to server for broadcasting to opponent
     if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
-      console.log('[GameBoard] Emitting dragStart for captured card');
-      // Use actual position - clamp to 0-1 range since drag can start from capture area
       const normX = Math.max(0, Math.min(1, absoluteX / dropBounds.current.width));
       const normY = Math.max(0, Math.min(1, absoluteY / dropBounds.current.height));
-      console.log('[GameBoard] Normalized position:', { normX, normY });
-      console.log('[GameBoard] Using table bounds:', dropBounds.current);
       emitDragStart(card, 'captured', { x: normX, y: normY });
     }
   }, [dragOverlay, emitDragStart, dropBounds]);
 
   const handleDragMove = useCallback(
     (absoluteX: number, absoluteY: number) => {
-      // Debug: measure frame timing
       const startTime = Date.now();
       
       dragOverlay.moveDrag(absoluteX, absoluteY);
 
-      // Emit drag move to server for broadcasting to opponent
+      // Emit drag move to server
       if (emitDragMove && dragOverlay.draggingCard) {
-        // Use actual table bounds from dropBounds
         const tableWidth = dropBounds.current.width || 400;
         const tableHeight = dropBounds.current.height || 300;
-        // Clamp to 0-1 range (drag can go outside table area)
         const normX = Math.max(0, Math.min(1, absoluteX / tableWidth));
         const normY = Math.max(0, Math.min(1, absoluteY / tableHeight));
         emitDragMove(dragOverlay.draggingCard, { x: normX, y: normY });
       }
 
-      // Check if over opponent's build - show steal overlay
-      const stackHit = findTempStackAtPoint?.(absoluteX, absoluteY);
-      if (stackHit) {
-        const stack = table.find(
-          (tc: any) => tc.stackId === stackHit.stackId && tc.type === 'build_stack',
-        ) as BuildStack | undefined;
-        
-        if (stack && stack.owner !== playerNumber) {
-          stealDetection.showOverlay(stack, absoluteX, absoluteY);
-          const elapsed = Date.now() - startTime;
-          if (elapsed > 10) console.log(`[GameBoard] handleDragMove slow: ${elapsed}ms`);
-          return;
-        }
-      }
-      
-      // Not over opponent's build - hide overlay
-      if (stealDetection.showStealOverlay) {
-        stealDetection.hideOverlay();
-      }
-      
       const elapsed = Date.now() - startTime;
       if (elapsed > 10) console.log(`[GameBoard] handleDragMove slow: ${elapsed}ms`);
     },
-    [dragOverlay, findTempStackAtPoint, table, playerNumber, stealDetection, emitDragMove],
+    [dragOverlay, emitDragMove, dropBounds],
   );
 
-  // Handle drag end - emits to server and clears overlay
+  // Handle drag end
   const handleDragEnd = useCallback((targetType?: string, outcome: 'success' | 'miss' | 'cancelled' = 'cancelled', targetId?: string) => {
-    // Get final position from overlay
     const absX = dragOverlay.overlayX.value + CARD_WIDTH / 2;
     const absY = dragOverlay.overlayY.value + CARD_HEIGHT / 2;
     
-    // Emit drag end with actual position - clamp to 0-1 range
     if (emitDragEnd && dragOverlay.draggingCard) {
       const tableWidth = dropBounds.current.width || 400;
       const tableHeight = dropBounds.current.height || 300;
@@ -299,10 +236,9 @@ export function GameBoard({
       emitDragEnd(dragOverlay.draggingCard, { x: normX, y: normY }, outcome, targetType, targetId);
     }
     dragOverlay.endDrag();
-    stealDetection.hideOverlay();
-  }, [dragOverlay, stealDetection, emitDragEnd, dropBounds]);
+  }, [dragOverlay, emitDragEnd, dropBounds]);
 
-  // Track drag end to restore card visibility after drag completes/fails
+  // Track drag end to restore card visibility
   const handleDragEndWrapper = useCallback((...args: any[]) => {
     handleDragEnd(...args);
     setDragVersion(v => v + 1);
@@ -322,7 +258,6 @@ export function GameBoard({
       if (capturePile) {
         targetType = 'capture';
         outcome = 'success';
-        // Emit drag end with actual position
         if (emitDragEnd && dragOverlay.draggingCard) {
           const normX = absX / (dropBounds.current.width || 400);
           const normY = absY / (dropBounds.current.height || 300);
@@ -340,7 +275,6 @@ export function GameBoard({
       targetId = targetCardResult.id;
       outcome = 'success';
       
-      // Emit drag end with actual position
       if (emitDragEnd && dragOverlay.draggingCard) {
         const normX = absX / (dropBounds.current.width || 400);
         const normY = absY / (dropBounds.current.height || 300);
@@ -352,14 +286,13 @@ export function GameBoard({
       return;
     }
 
-    // Check temp stacks (only temp_stack, not build_stack)
+    // Check temp stacks
     const targetStack = findTempStackAtPoint?.(absX, absY);
     if (targetStack && targetStack.stackType === 'temp_stack' && dragOverlay.draggingCard) {
       targetType = 'temp_stack';
       targetId = targetStack.stackId;
       outcome = 'success';
       
-      // Emit drag end with actual position
       if (emitDragEnd && dragOverlay.draggingCard) {
         const normX = absX / (dropBounds.current.width || 400);
         const normY = absY / (dropBounds.current.height || 300);
@@ -379,7 +312,6 @@ export function GameBoard({
       targetId = targetStack.stackId;
       outcome = 'success';
       
-      // Emit drag end with actual position
       if (emitDragEnd && dragOverlay.draggingCard) {
         const normX = absX / (dropBounds.current.width || 400);
         const normY = absY / (dropBounds.current.height || 300);
@@ -390,8 +322,7 @@ export function GameBoard({
       return;
     }
 
-    // Missed - no target hit
-    // Emit drag end with actual position
+    // Missed
     if (emitDragEnd && dragOverlay.draggingCard) {
       const normX = absX / (dropBounds.current.width || 400);
       const normY = absY / (dropBounds.current.height || 300);
@@ -401,7 +332,6 @@ export function GameBoard({
   }, [dragOverlay, findCapturePileAtPoint, findCardAtPoint, findTempStackAtPoint, playerNumber, actions, handleDragEnd, handleDragEndWrapper, emitDragEnd, dropBounds]);
 
   // ── Action Handlers ───────────────────────────────────────────────────────
-  // Simple pass-through to router - no UI decisions!
   const handleCapture = useCallback(
     (card: any, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => {
       actions.capture(card, targetType, targetRank, targetSuit, targetStackId);
@@ -409,20 +339,14 @@ export function GameBoard({
     [actions],
   );
 
-  // Trail handler with client-side validation for active build
-  // This validates BEFORE sending to server, so card stays visible if rejected
   const handleTrail = useCallback(
     (card: any) => {
-      // Check if player has an active build - if so, reject trail
       const hasActiveBuild = table.some(
         (tc: any) => tc.type === 'build_stack' && tc.owner === playerNumber
       );
       
       if (hasActiveBuild) {
         console.log(`[GameBoard] Cannot trail - player ${playerNumber} has an active build`);
-        // Need to reset the drag overlay to restore card visibility
-        // Since onDragEnd was already called (card is invisible), we need to trigger a re-render
-        // The simplest way is to call handleDragEnd which will reset the overlay state
         handleDragEndWrapper();
         return;
       }
@@ -453,36 +377,20 @@ export function GameBoard({
     modals.closeStealModal();
   }, [modals, actions]);
 
-  const handleStealOverlayPress = useCallback(() => {
-    if (dragOverlay.draggingCard && stealDetection.stealOverlayStack) {
-      modals.openStealModal(dragOverlay.draggingCard, stealDetection.stealOverlayStack);
-      stealDetection.hideOverlay();
-    }
-  }, [dragOverlay, stealDetection, modals]);
-
-  // Build extension handler - router decides whether to start or accept
+  // Build extension handler
   const handleExtendBuild = useCallback((card: any, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' = 'table') => {
-    // Let the router decide - just send the action!
     console.log(`[GameBoard] extendBuild - card: ${card.rank}${card.suit}, stackId: ${buildStackId}, cardSource: ${cardSource}`);
     actions.extendBuild(card, buildStackId, cardSource);
   }, [actions]);
 
-  // When Accept button is clicked on extension strip (after loose card is locked)
-  // In the drag-drop flow, the extension completes when hand card is dropped on the build
-  // This callback is kept for UI consistency but the actual completion happens via drag
   const handleExtendAcceptClick = useCallback((stackId: string) => {
-    // Find the extending build to see its state
     const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
     if (stack?.pendingExtension?.looseCard) {
       console.log(`[GameBoard] Extend Accept clicked for ${stackId}`);
       console.log(`[GameBoard] Pending loose card: ${stack.pendingExtension.looseCard.rank}${stack.pendingExtension.looseCard.suit}`);
-      console.log(`[GameBoard] Player should drag a hand card to complete the extension`);
-    } else {
-      console.log(`[GameBoard] No pending extension found for ${stackId}`);
     }
   }, [table]);
 
-  // Decline/Cancel extension - returns loose card to table
   const handleDeclineExtend = useCallback((stackId: string) => {
     actions.declineBuildExtension(stackId);
   }, [actions]);
@@ -529,7 +437,6 @@ export function GameBoard({
         onTableCardDropOnCard={actions.createTemp}
         onStackDrop={(card, stackId, owner, stackType) => {
           console.log(`[GameBoard] onStackDrop - card: ${card.rank}${card.suit}, stack: ${stackId}, type: ${stackType}, owner: P${owner}`);
-          // DUMB - let SmartRouter decide!
           actions.stackDrop(card, stackId, owner, stackType, 'table');
         }}
         onTableDragStart={handleTableDragStart}
@@ -546,22 +453,18 @@ export function GameBoard({
         onCapturedCardDragStart={handleCapturedDragStart}
         onCapturedCardDragMove={dragOverlay.moveDrag}
         onCapturedCardDragEnd={(card, targetCard, targetStackId) => {
-          console.log(`[GameBoard] onCapturedCardDragEnd - card: ${card?.rank}${card?.suit}, targetCard: ${targetCard?.rank}${targetCard?.suit}, targetStackId: ${targetStackId}`);
-          // Use createTemp for consistency with hand card drops
+          console.log(`[GameBoard] onCapturedCardDragEnd - card: ${card?.rank}${card?.suit}`);
           if (targetCard) {
             actions.createTemp(card, targetCard);
           } else if (targetStackId) {
-            // Adding to own temp stack - use addToTemp
             actions.addToTemp(card, targetStackId);
           }
-          // End the drag to hide the ghost overlay
           dragOverlay.endDrag();
         }}
         findCapturePileAtPoint={findCapturePileAtPoint}
         registerCapturePile={registerCapturePile}
         unregisterCapturePile={unregisterCapturePile}
         onDropToCapture={actions.dropToCapture}
-        // Extension props
         extendingBuildId={extendingBuildId}
         onExtendBuild={handleExtendBuild}
         onAcceptExtend={handleExtendAcceptClick}
@@ -571,7 +474,7 @@ export function GameBoard({
       />
 
       <PlayerHandArea
-        key={`playerHand-${errorVersion}-${dragVersion}`} // Force re-render on error or drag end to reset card visibility
+        key={`playerHand-${errorVersion}-${dragVersion}`}
         hand={myHand}
         isMyTurn={isMyTurn}
         playerNumber={playerNumber}
@@ -579,33 +482,25 @@ export function GameBoard({
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
         tableCards={table}
-        // DUMB callbacks - just report what was hit, SmartRouter decides action
         onDropOnStack={(card, stackId, stackOwner, stackType) => {
-          console.log(`[GameBoard] onDropOnStack - card: ${card.rank}${card.suit}, stack: ${stackId}, type: ${stackType}, owner: P${stackOwner}`);
-          
-          // DUMB - let SmartRouter decide!
+          console.log(`[GameBoard] onDropOnStack - card: ${card.rank}${card.suit}`);
           actions.stackDrop(card, stackId, stackOwner, stackType, 'hand');
         }}
         onDropOnCard={(card, targetCard) => {
-          console.log(`[GameBoard] onDropOnCard - card: ${card.rank}${card.suit}, target: ${targetCard.rank}${targetCard.suit}`);
-          // Drop on specific card - create temp stack
+          console.log(`[GameBoard] onDropOnCard - card: ${card.rank}${card.suit}`);
           actions.createTemp(card, targetCard);
         }}
         onDropOnTable={(card) => {
           console.log(`[GameBoard] onDropOnTable - card: ${card.rank}${card.suit}`);
-          // Drop on table zone - trail
-          // Note: card is already hidden (opacity=0), action decides what happens
           actions.trail(card);
         }}
-        // Legacy callbacks for ghost overlay
         onDragStart={handleHandDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
-        // Opponent drag state for hiding cards during opponent's drag
         opponentDrag={opponentDrag}
       />
 
-      {/* Ghost overlay - shows where the dragged card is */}
+      {/* Ghost overlay */}
       {dragOverlay.draggingCard && (
         <Animated.View style={dragOverlay.ghostStyle} pointerEvents="none">
           <PlayingCard
@@ -615,7 +510,7 @@ export function GameBoard({
         </Animated.View>
       )}
 
-      {/* Opponent's ghost card - shows where opponent is dragging */}
+      {/* Opponent's ghost card */}
       {opponentDrag && opponentDrag.isDragging && (
         <OpponentGhostCard
           card={opponentDrag.card}
@@ -652,18 +547,6 @@ export function GameBoard({
           onCancel={modals.closeStealModal}
         />
       )}
-
-      {/* Extend Build Modal - kept for modal flow but not shown in drag-drop implementation */}
-      {/* In drag-drop flow, extension completes when hand card is dropped */}
-      {/* {modals.showExtendModal && modals.extendTargetBuild && (
-        <ExtendBuildModal
-          visible={modals.showExtendModal}
-          buildStack={modals.extendTargetBuild}
-          playerHand={myHand as TableCard[]}
-          onAccept={handleAcceptExtend}
-          onCancel={handleDeclineExtend}
-        />
-      )} */}
     </View>
   );
 }

@@ -9,7 +9,7 @@
 import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
-import { Card } from './types';
+import { Card } from '../../types';
 
 interface StealBuildModalProps {
   visible: boolean;
@@ -49,7 +49,7 @@ export function StealBuildModal({
           {/* Header */}
           <Text style={styles.title}>STEAL Build</Text>
           
-          {/* Combined card preview - all cards in one row */}
+          {/* Combined card preview */}
           <View style={styles.cardsSection}>
             <Text style={styles.label}>Combined Build:</Text>
             <View style={styles.cardsRow}>
@@ -58,9 +58,7 @@ export function StealBuildModal({
                   <PlayingCard rank={card.rank} suit={card.suit} />
                 </View>
               ))}
-              {/* + indicator */}
               <Text style={styles.plusSign}>+</Text>
-              {/* Card being added */}
               <View style={styles.cardWrapper}>
                 <PlayingCard rank={handCard.rank} suit={handCard.suit} />
               </View>
