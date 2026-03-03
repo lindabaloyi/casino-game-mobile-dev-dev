@@ -153,26 +153,92 @@ export function GameBoard({
 
   // ── Drag Handlers ─────────────────────────────────────────────────────────
   
-  const handleTableDragStart = useCallback((card: any) => {
-    console.log('[GameBoard] handleTableDragStart called with card:', card);
-    const cardId = `${card.rank}${card.suit}`;
-    dragOverlay.startDrag(card, 'table');
-    // Emit drag start to server for broadcasting to opponent
-    // Note: This is called when dragging a TABLE card (loose card on table)
-    if (emitDragStart) {
-      emitDragStart(card, 'table', { x: 0.5, y: 0.5 }); // TABLE not hand!
+  // Get table bounds with fallback - used for ghost card rendering
+  const getTableBounds = useCallback(() => {
+    const bounds = dropBounds.current;
+    if (bounds.width > 0 && bounds.height > 0) {
+      return bounds;
     }
-  }, [dragOverlay, emitDragStart]);
+    // Fallback: use screen dimensions as approximation
+    // This ensures ghost appears at reasonable position even before layout completes
+    return { width: 400, height: 300 };
+  }, [dropBounds]);
+
+  // Handler for hand card drag start - emits 'hand' as source
+  const handleHandDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
+    console.log('[GameBoard] ===== HANDLE HAND DRAG START =====');
+    console.log('[GameBoard] Card:', card?.rank, card?.suit);
+    console.log('[GameBoard] Received position from DraggableHandCard:', { absoluteX, absoluteY });
+    
+    // CRITICAL: Pass position to overlay so ghost appears under finger immediately
+    dragOverlay.startDrag(card, 'hand', absoluteX, absoluteY);
+    
+    // Emit drag start to server for broadcasting to opponent
+    if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
+      // Validate bounds exist
+      if (!dropBounds.current || dropBounds.current.width === 0 || dropBounds.current.height === 0) {
+        console.warn('[GameBoard] Cannot emit dragStart - table bounds not ready');
+        return;
+      }
+      
+      // Use actual position - clamp to 0-1 range since drag can start from hand (outside table)
+      const normX = Math.max(0, Math.min(1, absoluteX / dropBounds.current.width));
+      const normY = Math.max(0, Math.min(1, absoluteY / dropBounds.current.height));
+      
+      console.log('[GameBoard] Normalized position for HAND drag:', { normX, normY });
+      console.log('[GameBoard] Table bounds:', dropBounds.current);
+      
+      emitDragStart(card, 'hand', { x: normX, y: normY });
+    }
+  }, [dragOverlay, emitDragStart, dropBounds]);
+
+  const handleTableDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
+    console.log('[GameBoard] ===== HANDLE TABLE DRAG START =====');
+    console.log('[GameBoard] Card:', card?.rank, card?.suit);
+    console.log('[GameBoard] Received position from DraggableHandCard:', { absoluteX, absoluteY });
+    
+    // CRITICAL: Pass position to overlay so ghost appears under finger immediately
+    dragOverlay.startDrag(card, 'table', absoluteX, absoluteY);
+    
+    // Emit drag start to server for broadcasting to opponent
+    if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
+      // Validate bounds exist
+      if (!dropBounds.current || dropBounds.current.width === 0 || dropBounds.current.height === 0) {
+        console.warn('[GameBoard] Cannot emit dragStart - table bounds not ready');
+        return;
+      }
+      
+      // Use actual position - clamp to 0-1 range since drag can start from hand (outside table)
+      const normX = Math.max(0, Math.min(1, absoluteX / dropBounds.current.width));
+      const normY = Math.max(0, Math.min(1, absoluteY / dropBounds.current.height));
+      
+      console.log('[GameBoard] Normalized position:', { normX, normY });
+      console.log('[GameBoard] Table bounds:', dropBounds.current);
+      
+      emitDragStart(card, 'table', { x: normX, y: normY });
+    }
+  }, [dragOverlay, emitDragStart, dropBounds]);
 
   // Wrapper for captured card drag start (single arg)
-  const handleCapturedDragStart = useCallback((card: any) => {
-    dragOverlay.startDrag(card, 'captured');
+  const handleCapturedDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
+    console.log('[GameBoard] ===== HANDLE CAPTURED DRAG START =====');
+    console.log('[GameBoard] Card:', card?.rank, card?.suit);
+    console.log('[GameBoard] Received position:', { absoluteX, absoluteY });
+    
+    // CRITICAL: Pass position to overlay so ghost appears under finger immediately
+    dragOverlay.startDrag(card, 'captured', absoluteX, absoluteY);
+    
     // Emit drag start to server for broadcasting to opponent
-    if (emitDragStart) {
+    if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
       console.log('[GameBoard] Emitting dragStart for captured card');
-      emitDragStart(card, 'captured', { x: 0.5, y: 0.5 });
+      // Use actual position - clamp to 0-1 range since drag can start from capture area
+      const normX = Math.max(0, Math.min(1, absoluteX / dropBounds.current.width));
+      const normY = Math.max(0, Math.min(1, absoluteY / dropBounds.current.height));
+      console.log('[GameBoard] Normalized position:', { normX, normY });
+      console.log('[GameBoard] Using table bounds:', dropBounds.current);
+      emitDragStart(card, 'captured', { x: normX, y: normY });
     }
-  }, [dragOverlay, emitDragStart]);
+  }, [dragOverlay, emitDragStart, dropBounds]);
 
   const handleDragMove = useCallback(
     (absoluteX: number, absoluteY: number) => {
@@ -183,8 +249,13 @@ export function GameBoard({
 
       // Emit drag move to server for broadcasting to opponent
       if (emitDragMove && dragOverlay.draggingCard) {
-        // Convert to normalized coordinates (placeholder - should use actual table bounds)
-        emitDragMove(dragOverlay.draggingCard, { x: absoluteX / 400, y: absoluteY / 300 });
+        // Use actual table bounds from dropBounds
+        const tableWidth = dropBounds.current.width || 400;
+        const tableHeight = dropBounds.current.height || 300;
+        // Clamp to 0-1 range (drag can go outside table area)
+        const normX = Math.max(0, Math.min(1, absoluteX / tableWidth));
+        const normY = Math.max(0, Math.min(1, absoluteY / tableHeight));
+        emitDragMove(dragOverlay.draggingCard, { x: normX, y: normY });
       }
 
       // Check if over opponent's build - show steal overlay
@@ -213,17 +284,26 @@ export function GameBoard({
     [dragOverlay, findTempStackAtPoint, table, playerNumber, stealDetection, emitDragMove],
   );
 
+  // Handle drag end - emits to server and clears overlay
   const handleDragEnd = useCallback((targetType?: string, outcome: 'success' | 'miss' | 'cancelled' = 'cancelled', targetId?: string) => {
-    // Emit drag end to server
+    // Get final position from overlay
+    const absX = dragOverlay.overlayX.value + CARD_WIDTH / 2;
+    const absY = dragOverlay.overlayY.value + CARD_HEIGHT / 2;
+    
+    // Emit drag end with actual position - clamp to 0-1 range
     if (emitDragEnd && dragOverlay.draggingCard) {
-      emitDragEnd(dragOverlay.draggingCard, { x: 0.5, y: 0.5 }, outcome, targetType, targetId);
+      const tableWidth = dropBounds.current.width || 400;
+      const tableHeight = dropBounds.current.height || 300;
+      const normX = Math.max(0, Math.min(1, absX / tableWidth));
+      const normY = Math.max(0, Math.min(1, absY / tableHeight));
+      emitDragEnd(dragOverlay.draggingCard, { x: normX, y: normY }, outcome, targetType, targetId);
     }
     dragOverlay.endDrag();
     stealDetection.hideOverlay();
-  }, [dragOverlay, stealDetection, emitDragEnd]);
+  }, [dragOverlay, stealDetection, emitDragEnd, dropBounds]);
 
   // Track drag end to restore card visibility after drag completes/fails
-  const handleDragEndWrapper = useCallback((...args: Parameters<typeof handleDragEnd>) => {
+  const handleDragEndWrapper = useCallback((...args: any[]) => {
     handleDragEnd(...args);
     setDragVersion(v => v + 1);
   }, [handleDragEnd]);
@@ -242,6 +322,12 @@ export function GameBoard({
       if (capturePile) {
         targetType = 'capture';
         outcome = 'success';
+        // Emit drag end with actual position
+        if (emitDragEnd && dragOverlay.draggingCard) {
+          const normX = absX / (dropBounds.current.width || 400);
+          const normY = absY / (dropBounds.current.height || 300);
+          emitDragEnd(dragOverlay.draggingCard, { x: normX, y: normY }, outcome, targetType, undefined);
+        }
         handleDragEndWrapper(targetType, outcome);
         return;
       }
@@ -253,6 +339,14 @@ export function GameBoard({
       targetType = 'card';
       targetId = targetCardResult.id;
       outcome = 'success';
+      
+      // Emit drag end with actual position
+      if (emitDragEnd && dragOverlay.draggingCard) {
+        const normX = absX / (dropBounds.current.width || 400);
+        const normY = absY / (dropBounds.current.height || 300);
+        emitDragEnd(dragOverlay.draggingCard, { x: normX, y: normY }, outcome, targetType, targetId);
+      }
+      
       actions.createTemp(dragOverlay.draggingCard, targetCardResult.card);
       handleDragEndWrapper(targetType, outcome, targetId);
       return;
@@ -264,6 +358,14 @@ export function GameBoard({
       targetType = 'temp_stack';
       targetId = targetStack.stackId;
       outcome = 'success';
+      
+      // Emit drag end with actual position
+      if (emitDragEnd && dragOverlay.draggingCard) {
+        const normX = absX / (dropBounds.current.width || 400);
+        const normY = absY / (dropBounds.current.height || 300);
+        emitDragEnd(dragOverlay.draggingCard, { x: normX, y: normY }, outcome, targetType, targetId);
+      }
+      
       if (targetStack.owner === playerNumber) {
         actions.addToTemp(dragOverlay.draggingCard, targetStack.stackId);
       }
@@ -276,14 +378,27 @@ export function GameBoard({
       targetType = 'stack';
       targetId = targetStack.stackId;
       outcome = 'success';
-      // Let SmartRouter handle the action
+      
+      // Emit drag end with actual position
+      if (emitDragEnd && dragOverlay.draggingCard) {
+        const normX = absX / (dropBounds.current.width || 400);
+        const normY = absY / (dropBounds.current.height || 300);
+        emitDragEnd(dragOverlay.draggingCard, { x: normX, y: normY }, outcome, targetType, targetId);
+      }
+      
       handleDragEndWrapper(targetType, outcome, targetId);
       return;
     }
 
     // Missed - no target hit
+    // Emit drag end with actual position
+    if (emitDragEnd && dragOverlay.draggingCard) {
+      const normX = absX / (dropBounds.current.width || 400);
+      const normY = absY / (dropBounds.current.height || 300);
+      emitDragEnd(dragOverlay.draggingCard, { x: normX, y: normY }, outcome, targetType, targetId);
+    }
     handleDragEndWrapper(targetType, outcome);
-  }, [dragOverlay, findCapturePileAtPoint, findCardAtPoint, findTempStackAtPoint, playerNumber, actions, handleDragEnd, handleDragEndWrapper]);
+  }, [dragOverlay, findCapturePileAtPoint, findCardAtPoint, findTempStackAtPoint, playerNumber, actions, handleDragEnd, handleDragEndWrapper, emitDragEnd, dropBounds]);
 
   // ── Action Handlers ───────────────────────────────────────────────────────
   // Simple pass-through to router - no UI decisions!
@@ -483,7 +598,7 @@ export function GameBoard({
           actions.trail(card);
         }}
         // Legacy callbacks for ghost overlay
-        onDragStart={handleTableDragStart}
+        onDragStart={handleHandDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         // Opponent drag state for hiding cards during opponent's drag
@@ -505,7 +620,7 @@ export function GameBoard({
         <OpponentGhostCard
           card={opponentDrag.card}
           position={opponentDrag.position}
-          tableBounds={{ width: 400, height: 300 }}
+          tableBounds={getTableBounds()}
           targetType={opponentDrag.targetType}
           targetId={opponentDrag.targetId}
           cardPositions={cardPositions.current}

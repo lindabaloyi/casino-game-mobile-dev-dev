@@ -38,7 +38,7 @@ interface Props {
   onDropOnCard: (card: Card, targetCard: Card) => void;
   
   // ── Legacy callbacks (for ghost overlay) ─────────────────────────────────
-  onDragStart?: (card: Card) => void;
+  onDragStart?: (card: Card, absoluteX: number, absoluteY: number) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: () => void;
 }
@@ -62,8 +62,8 @@ export function DraggableTableCard({
 
   // ── JS-thread handlers ────────────────────────────────────────────────────
 
-  function _onDragStart() { 
-    if (onDragStart) onDragStart(card); 
+  function _onDragStart(x: number, y: number) { 
+    if (onDragStart) onDragStart(card, x, y); 
   }
   
   function _onDragMove(x: number, y: number) { 
@@ -111,7 +111,7 @@ export function DraggableTableCard({
     .enabled(isMyTurn)
     .onStart(e => {
       opacity.value = 0;
-      runOnJS(_onDragStart)();
+      runOnJS(_onDragStart)(e.absoluteX, e.absoluteY);
       runOnJS(_onDragMove)(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {

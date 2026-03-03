@@ -38,7 +38,7 @@ interface CapturedCardsViewProps {
   /** Find temp stack at point */
   findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   /** Callback when drag starts */
-  onDragStart?: (card: Card) => void;
+  onDragStart?: (card: Card, absoluteX: number, absoluteY: number) => void;
   /** Callback when drag moves */
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   /** Callback when drag ends - return action to send */
@@ -130,9 +130,9 @@ export function CapturedCardsView({
     }
   }, [registerCapturePile, playerNumber]);
 
-  const handleDragStartInternal = useCallback((card: Card) => {
-    console.log('[CapturedCardsView] Drag started:', card);
-    if (onDragStart) onDragStart(card);
+  const handleDragStartInternal = useCallback((card: Card, absX: number, absY: number) => {
+    console.log('[CapturedCardsView] Drag started:', card, 'at', absX, absY);
+    if (onDragStart) onDragStart(card, absX, absY);
   }, [onDragStart]);
 
   const handleDragMoveInternal = useCallback((x: number, y: number) => {
@@ -196,11 +196,11 @@ export function CapturedCardsView({
 
   const panGesture = Gesture.Pan()
     .enabled(isMyTurn && !!opponentTopCard)
-    .onStart(() => {
+    .onStart((event) => {
       if (opponentTopCard) {
         isDragging.value = true;
         draggedCard.value = opponentTopCard;
-        runOnJS(handleDragStartInternal)(opponentTopCard);
+        runOnJS(handleDragStartInternal)(opponentTopCard, event.absoluteX, event.absoluteY);
       }
     })
     .onUpdate((event) => {

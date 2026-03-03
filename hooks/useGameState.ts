@@ -138,6 +138,13 @@ export function useGameState(): UseGameStateResult {
     });
 
     // ── Opponent drag events (for real-time ghost card) ─────────────────
+    // Log all socket events for debugging
+    socket.onAny((eventName, ...args) => {
+      if (eventName.startsWith('opponent-')) {
+        console.log('[useGameState] Socket event:', eventName, args);
+      }
+    });
+
     socket.on('opponent-drag-start', (data: {
       playerIndex: number;
       card: Card;

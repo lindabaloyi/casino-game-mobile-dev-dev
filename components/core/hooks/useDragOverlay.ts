@@ -24,10 +24,23 @@ export function useDragOverlay() {
   const overlayX = useSharedValue(0);
   const overlayY = useSharedValue(0);
 
-  const startDrag = (card: Card, source: 'hand' | 'captured' | 'table') => {
-    console.log('[useDragOverlay] startDrag called, card:', card, 'source:', source);
+  const startDrag = (
+    card: Card,
+    source: 'hand' | 'captured' | 'table',
+    fingerX?: number,
+    fingerY?: number
+  ) => {
+    console.log('[useDragOverlay] startDrag called, card:', card?.rank, card?.suit, 'source:', source, 'finger:', fingerX, fingerY);
     setDraggingCard(card);
     setDragSource(source);
+    if (fingerX !== undefined && fingerY !== undefined) {
+      // Center ghost under finger
+      const newX = fingerX - CARD_WIDTH / 2;
+      const newY = fingerY - CARD_HEIGHT / 2;
+      console.log('[useDragOverlay] Setting overlay position:', { newX, newY, fingerX, fingerY });
+      overlayX.value = newX;
+      overlayY.value = newY;
+    }
   };
 
   const moveDrag = (x: number, y: number) => {

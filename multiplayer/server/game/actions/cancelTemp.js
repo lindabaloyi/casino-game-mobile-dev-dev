@@ -43,13 +43,18 @@ function cancelTemp(state, payload, playerIndex) {
   newState.tableCards.splice(stackIdx, 1);
 
   // Return every card in the stack to its original location.
-  // Each card carries a `source` tag ('hand' | 'table') set when it was added.
+  // Each card carries a `source` tag ('hand' | 'table' | 'captured') set when it was added.
   for (const card of stack.cards) {
     // Strip the source metadata — return a clean card object
     const pureCard = { rank: card.rank, suit: card.suit, value: card.value };
     if (card.source === 'hand') {
       newState.playerHands[playerIndex].push(pureCard);
+    } else if (card.source === 'captured') {
+      // Return card to opponent's capture pile
+      const opponentIndex = playerIndex === 0 ? 1 : 0;
+      newState.playerCaptures[opponentIndex].push(pureCard);
     } else {
+      // 'table' or unknown source - return to table
       newState.tableCards.push(pureCard);
     }
   }

@@ -48,7 +48,7 @@ interface Props {
   onTableCardDropOnTemp?: (card: Card, stackId: string)  => void;
 
   // Ghost overlay callbacks (shared with hand-card drags in GameBoard)
-  onTableDragStart: (card: Card) => void;
+  onTableDragStart: (card: Card, absoluteX: number, absoluteY: number) => void;
   onTableDragMove:  (absoluteX: number, absoluteY: number) => void;
   onTableDragEnd:   () => void;
 
@@ -67,7 +67,7 @@ interface Props {
   // Captured card callbacks (for dragging opponent's captured card)
   registerCapturedCard?: (bounds: CapturedCardBounds) => void;
   unregisterCapturedCard?: () => void;
-  onCapturedCardDragStart?: (card: Card) => void;
+  onCapturedCardDragStart?: (card: Card, absoluteX: number, absoluteY: number) => void;
   onCapturedCardDragMove?: (absoluteX: number, absoluteY: number) => void;
   onCapturedCardDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string) => void;
 

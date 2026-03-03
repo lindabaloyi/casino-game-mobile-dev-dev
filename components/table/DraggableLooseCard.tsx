@@ -47,7 +47,7 @@ export interface DraggableLooseCardProps {
   onDropOnCard: (card: Card, targetCard: Card) => void;
   
   // Legacy callbacks for ghost overlay
-  onDragStart?: (card: Card) => void;
+  onDragStart?: (card: Card, absoluteX: number, absoluteY: number) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: () => void;
   

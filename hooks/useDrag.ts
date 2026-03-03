@@ -79,6 +79,7 @@ export function useDrag() {
   const onTableLayout = useCallback(() => {
     tableRef.current?.measureInWindow((x, y, width, height) => {
       dropBounds.current = { x, y, width, height };
+      console.log('[useDrag] Table layout measured:', { x, y, width, height });
     });
   }, []);
 
@@ -87,6 +88,7 @@ export function useDrag() {
 
   const registerCard = useCallback((id: string, bounds: CardBounds) => {
     cardPositions.current.set(id, bounds);
+    console.log('[useDrag] Card registered:', id, 'bounds:', bounds);
   }, []);
 
   const unregisterCard = useCallback((id: string) => {
@@ -149,6 +151,7 @@ export function useDrag() {
 
   const registerTempStack = useCallback((stackId: string, bounds: TempStackBounds) => {
     tempStackPositions.current.set(stackId, bounds);
+    console.log('[useDrag] TempStack registered:', stackId, 'bounds:', bounds);
   }, []);
 
   const unregisterTempStack = useCallback((stackId: string) => {

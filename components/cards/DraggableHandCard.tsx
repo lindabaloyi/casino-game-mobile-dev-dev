@@ -59,7 +59,7 @@ interface Props {
   /** Called when dropped on table zone - SmartRouter decides trail vs other */
   onDropOnTable: (card: Card) => void;
   // ── Legacy callbacks (for compatibility) ───────────────────────────────────
-  onDragStart?: (card: Card) => void;
+  onDragStart?: (card: Card, absoluteX: number, absoluteY: number) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: () => void;
   /** Hide this card when opponent is dragging it (for multiplayer sync) */
@@ -89,8 +89,26 @@ export function DraggableHandCard({
 
   // ── JS-thread helpers ─────────────────────────────────────────────────────
 
-  function handleDragStart() { 
-    if (onDragStart) onDragStart(card); 
+  function handleDragStart(x: number, y: number) { 
+    console.log('[DraggableHandCard] ===== HANDLE DRAG START =====');
+    console.log('[DraggableHandCard] Card:', card.rank, card.suit);
+    console.log('[DraggableHandCard] Position from gesture:', { x, y });
+    
+    // Pass the actual position to parent - THIS IS CRITICAL
+    if (onDragStart) {
+      console.log('[DraggableHandCard] Calling onDragStart with position:', { x, y });
+      onDragStart(card, x, y);
+    } else {
+      console.warn('[DraggableHandCard] onDragStart is undefined!');
+    }
+    
+    // Immediately send the first move event with the starting position
+    if (onDragMove) {
+      console.log('[DraggableHandCard] Calling onDragMove with position:', { x, y });
+      onDragMove(x, y);
+    } else {
+      console.warn('[DraggableHandCard] onDragMove is undefined!');
+    }
   }
   
   function handleDragMove(x: number, y: number) { 
@@ -178,9 +196,15 @@ export function DraggableHandCard({
     .enabled(isMyTurn)
     .onStart(e => {
       opacity.value = 0;
-      runOnJS(handleDragStart)();
-      runOnJS(handleDragMove)(e.absoluteX, e.absoluteY);
-      runOnJS(logDragStart)(e.absoluteX, e.absoluteY);
+      console.log('[DraggableHandCard] Gesture onStart - raw event:', {
+        absoluteX: e.absoluteX,
+        absoluteY: e.absoluteY,
+        x: e.x,
+        y: e.y
+      });
+      
+      // Call handleDragStart which will store position AND send first move
+      runOnJS(handleDragStart)(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {
       runOnJS(handleDragMove)(e.absoluteX, e.absoluteY);
