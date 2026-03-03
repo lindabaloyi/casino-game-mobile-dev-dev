@@ -1,18 +1,19 @@
 /**
  * RoundEndModal
  * Modal displayed when a round ends.
- * Shows round results, scores, winner, and allows advancing to next round.
+ * For Round 1: Shows announcement with fade animations, auto-dismisses after 3 seconds.
+ * For other rounds: Shows round results, scores, winner, and buttons.
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Modal, Animated } from 'react-native';
 
 interface RoundEndModalProps {
   visible: boolean;
   roundNumber: number;
   endReason?: 'all_cards_played';
   scores: [number, number];
-  onNextRound: () => void;
+  onNextRound?: () => void;
   onClose?: () => void;
 }
 
@@ -27,6 +28,19 @@ export function RoundEndModal({
   const [score1, score2] = scores;
   const winner = score1 > score2 ? 'Player 1' : score2 > score1 ? 'Player 2' : 'Tie';
 
+  // For Round 1, show animated announcement without buttons
+  const isRound1 = roundNumber === 1;
+
+  if (isRound1) {
+    return (
+      <Round1AnnouncementModal
+        visible={visible}
+        onDismiss={onClose}
+      />
+    );
+  }
+
+  // For other rounds, show full results with buttons
   const getEndReasonText = () => {
     if (endReason === 'all_cards_played') {
       return 'All cards have been played!';
@@ -63,20 +77,14 @@ export function RoundEndModal({
           </Text>
 
           <View style={styles.buttons}>
-            <TouchableOpacity
-              style={[styles.button, styles.nextButton]}
-              onPress={onNextRound}
-            >
-              <Text style={styles.buttonText}>Next Round</Text>
-            </TouchableOpacity>
+            {onNextRound && (
+              <View style={styles.button}>
+                <Text style={styles.buttonText} onPress={onNextRound}>Next Round</Text>
+              </View>
+            )}
 
             {onClose && (
-              <TouchableOpacity
-                style={[styles.button, styles.closeButton]}
-                onPress={onClose}
-              >
-                <Text style={[styles.buttonText, styles.closeButtonText]}>Close</Text>
-              </TouchableOpacity>
+              <Text style={styles.closeButtonText} onPress={onClose}>Close</Text>
             )}
           </View>
         </View>
@@ -85,13 +93,120 @@ export function RoundEndModal({
   );
 }
 
+/**
+ * Round 1 Announcement Modal
+ * Shows animated announcement and auto-dismisses after 3 seconds
+ */
+function Round1AnnouncementModal({
+  visible,
+  onDismiss,
+}: {
+  visible: boolean;
+  onDismiss?: () => void;
+}) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    if (visible) {
+      // Reset animation values
+      fadeAnim.setValue(0);
+      scaleAnim.setValue(0.8);
+
+      // Fade in and scale up
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Auto-dismiss after 3 seconds
+      const timer = setTimeout(() => {
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }).start(() => {
+          if (onDismiss) {
+            onDismiss();
+          }
+        });
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [visible, fadeAnim, scaleAnim, onDismiss]);
+
+  return (
+    <Modal visible={visible} transparent animationType="none">
+      <Animated.View
+        style={[
+          styles.overlay,
+          { opacity: fadeAnim },
+        ]}
+      >
+        <Animated.View
+          style={[
+            styles.round1Modal,
+            { transform: [{ scale: scaleAnim }] },
+          ]}
+        >
+          <Text style={styles.round1Title}>Round 1 Complete!</Text>
+          <Text style={styles.round1Message}>Get ready for</Text>
+          <Text style={styles.round1Announcement}>Round 2</Text>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // Round 1 specific styles
+  round1Modal: {
+    backgroundColor: '#1B5E20',
+    paddingVertical: 32,
+    paddingHorizontal: 28,
+    borderRadius: 16,
+    alignItems: 'center',
+    width: '70%',
+    maxWidth: 240,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  round1Title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 16,
+  },
+  round1Message: {
+    fontSize: 16,
+    color: '#A5D6A7',
+    marginBottom: 8,
+  },
+  round1Announcement: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  // Regular modal styles
   modal: {
     backgroundColor: '#fff',
     padding: 24,
@@ -160,14 +275,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     width: '100%',
-  },
-  nextButton: {
     backgroundColor: '#4CAF50',
-  },
-  closeButton: {
-    backgroundColor: '#F5F5F5',
-    borderWidth: 1,
-    borderColor: '#BDBDBD',
   },
   buttonText: {
     color: '#fff',
@@ -176,6 +284,9 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     color: '#424242',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
   },
 });
 
