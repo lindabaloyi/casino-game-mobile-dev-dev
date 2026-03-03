@@ -6,11 +6,33 @@
  * - On drop, calls onDrop callback with dragged item info
  */
 
-import React, { useCallback, useRef, useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import React, { useCallback, useRef } from 'react';
+import { StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, SharedValue } from 'react-native-reanimated';
 
 const DROP_TOLERANCE = 30;
+
+// Type definitions
+export interface DragItem {
+  cardId: string;
+  source: 'hand' | 'table' | 'captures';
+  card?: {
+    id: string;
+    rank: number;
+    suit: string;
+  };
+  buildId?: string;
+  isMultiCard?: boolean;
+}
+
+export interface CaptureZoneProps {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isActive?: boolean;
+  onDrop?: (draggedItem: DragItem) => void;
+}
 
 export function CaptureZone({
   x,
@@ -19,13 +41,13 @@ export function CaptureZone({
   height,
   isActive = true,
   onDrop,
-}) {
+}: CaptureZoneProps) {
   const isHighlighted = useSharedValue(false);
-  const viewRef = useRef(null);
+  const viewRef = useRef<Animated.View>(null);
 
   // Expose a method to check if a point is within bounds
   const checkDrop = useCallback(
-    (absX, absY) => {
+    (absX: number, absY: number): boolean => {
       if (!isActive) return false;
       
       const inX = absX >= x - DROP_TOLERANCE && absX <= x + width + DROP_TOLERANCE;
@@ -45,7 +67,7 @@ export function CaptureZone({
 
   // Update highlight state
   const updateHighlight = useCallback(
-    (absX, absY) => {
+    (absX: number, absY: number) => {
       if (!isActive) {
         isHighlighted.value = false;
         return;
@@ -60,7 +82,7 @@ export function CaptureZone({
 
   // Handle drop
   const handleDrop = useCallback(
-    (draggedItem) => {
+    (draggedItem: DragItem) => {
       if (onDrop && isActive) {
         onDrop(draggedItem);
       }
