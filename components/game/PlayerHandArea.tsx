@@ -48,10 +48,14 @@ interface Props {
   opponentDrag?: OpponentDragState | null;
 }
 
-// Card dimensions
+// Card dimensions (normal)
 const CARD_WIDTH = 56;
 const CARD_HEIGHT = 84;
-const CARD_OVERLAP_PERCENT = 0.3; // 30% overlap
+const CARD_OVERLAP_PERCENT = 0.3;
+
+// Compact card dimensions (when dragging)
+const COMPACT_CARD_WIDTH = 32;
+const COMPACT_CARD_HEIGHT = 48;
 
 export function PlayerHandArea({
   hand,
@@ -71,31 +75,46 @@ export function PlayerHandArea({
 }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   
-  // Calculate overlap based on screen width and number of cards
-  const { cardOverlap, handWidth } = useMemo(() => {
+  // Calculate overlap and dimensions dynamically
+  const { cardOverlap, cardWidth, cardHeight, handWidth, containerHeight } = useMemo(() => {
     const numCards = hand.length;
+    
+    // Use compact dimensions when player has many cards
+    const useCompact = numCards > 7;
+    const cw = useCompact ? COMPACT_CARD_WIDTH : CARD_WIDTH;
+    const ch = useCompact ? COMPACT_CARD_HEIGHT : CARD_HEIGHT;
+    
     if (numCards <= 1) {
-      return { cardOverlap: 0, handWidth: CARD_WIDTH + 16 };
+      return { 
+        cardOverlap: 0, 
+        cardWidth: cw, 
+        cardHeight: ch,
+        handWidth: cw + 16,
+        containerHeight: ch + 16
+      };
     }
     
-    // Calculate how much space we have
-    const availableWidth = screenWidth - 32; // Account for padding
-    const idealOverlap = CARD_WIDTH * CARD_OVERLAP_PERCENT;
-    const idealHandWidth = CARD_WIDTH + (numCards - 1) * (CARD_WIDTH - idealOverlap);
+    const availableWidth = screenWidth - 32;
+    const idealOverlap = cw * CARD_OVERLAP_PERCENT;
+    const idealHandWidth = cw + (numCards - 1) * (cw - idealOverlap);
     
-    // If ideal width fits, use it; otherwise reduce overlap
     let overlap = idealOverlap;
     if (idealHandWidth > availableWidth) {
-      // Calculate minimum overlap to fit
-      overlap = Math.max(0, CARD_WIDTH - (availableWidth - CARD_WIDTH) / (numCards - 1));
+      overlap = Math.max(0, cw - (availableWidth - cw) / (numCards - 1));
     }
     
-    const calculatedWidth = CARD_WIDTH + (numCards - 1) * (CARD_WIDTH - overlap);
-    return { cardOverlap: overlap, handWidth: calculatedWidth };
+    const calculatedWidth = cw + (numCards - 1) * (cw - overlap);
+    return { 
+      cardOverlap: overlap, 
+      cardWidth: cw, 
+      cardHeight: ch,
+      handWidth: calculatedWidth,
+      containerHeight: ch + 16
+    };
   }, [hand.length, screenWidth]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { height: containerHeight }]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -108,7 +127,6 @@ export function PlayerHandArea({
       >
         {hand.map((card, index) => {
           const cardId = `${card.rank}${card.suit}`;
-          // Hide this card if opponent is dragging it
           const isHidden = opponentDrag?.isDragging &&
                          opponentDrag.source === 'hand' &&
                          opponentDrag.cardId === cardId;
@@ -117,8 +135,9 @@ export function PlayerHandArea({
             <View
               key={cardId}
               style={[
-                styles.cardWrapper,
                 { 
+                  width: cardWidth,
+                  height: cardHeight,
                   marginRight: index === hand.length - 1 ? 0 : -cardOverlap,
                   zIndex: index + 1
                 }
@@ -151,7 +170,6 @@ export function PlayerHandArea({
 
 const styles = StyleSheet.create({
   container: {
-    height: CARD_HEIGHT + 16,
     backgroundColor: '#2E7D32',
     paddingHorizontal: 16,
     paddingTop: 4,
@@ -167,10 +185,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'flex-start',
     paddingHorizontal: 8,
-  },
-  cardWrapper: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
   },
 });
 
