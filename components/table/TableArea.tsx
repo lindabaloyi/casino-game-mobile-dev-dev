@@ -157,15 +157,6 @@ export function TableArea({
   );
   const looseCards = tableCards.filter(isLooseCard) as Card[];
 
-  console.log(`[TableArea] ===== TABLE AREA RENDER =====`);
-  console.log(`[TableArea] Total tableCards: ${tableCards.length}`);
-  console.log(`[TableArea] Grid items breakdown:`, {
-    total: tableCards.length,
-    loose: looseCards.length,
-    tempStacks: tempStacks.length,
-    buildStacks: tableCards.filter(isBuildStack).length,
-  });
-
   // Visibility logic
   const { isCardHidden } = useCardVisibility(opponentDrag);
 

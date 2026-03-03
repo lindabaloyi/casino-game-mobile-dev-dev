@@ -5,7 +5,7 @@ import { useWindowDimensions } from 'react-native';
 
 export const CARD_WIDTH = 56;
 export const CARD_HEIGHT = 84;
-export const CARD_GAP = 8;
+export const CARD_GAP = 40;
 export const ROW_GAP = 12;
 export const MAX_ROWS = 3;
 
@@ -15,8 +15,6 @@ export const MAX_ROWS = 3;
  * Calculates how many cards should be in each row based on total card count.
  */
 export function calculateRowDistribution(totalCards: number, maxCardsPerRow: number): number[] {
-  console.log(`[calculateRowDistribution] totalCards: ${totalCards}, maxCardsPerRow: ${maxCardsPerRow}`);
-  
   if (totalCards === 0) return [];
   if (totalCards === 1) return [1];
 
@@ -38,8 +36,6 @@ export function calculateRowDistribution(totalCards: number, maxCardsPerRow: num
   
   const cardsPerRow = Math.ceil(totalCards / numRows);
   
-  console.log(`[calculateRowDistribution] Using ${numRows} rows, ${cardsPerRow} cards per row`);
-  
   const distribution: number[] = [];
   let remaining = totalCards;
   
@@ -49,7 +45,6 @@ export function calculateRowDistribution(totalCards: number, maxCardsPerRow: num
     remaining -= cardsInThisRow;
   }
 
-  console.log(`[calculateRowDistribution] Final distribution: [${distribution.join(', ')}]`);
   return distribution;
 }
 
@@ -70,16 +65,13 @@ export interface TableLayoutResult {
 export function useTableLayout(itemCount: number): TableLayoutResult {
   const { width: screenWidth } = useWindowDimensions();
   
-  console.log(`[useTableLayout] ===== LAYOUT CALCULATION =====`);
-  console.log(`[useTableLayout] Item count: ${itemCount}, Screen width: ${screenWidth}`);
-  
+  // Calculate max cards per row based on screen width
   const maxCardsPerRow = useMemo(() => {
     const availableWidth = screenWidth - 80;
-    const calculated = Math.max(1, Math.floor(availableWidth / (CARD_WIDTH + CARD_GAP)));
-    console.log(`[useTableLayout] Available width: ${availableWidth}, Max cards per row: ${calculated}`);
-    return calculated;
+    return Math.max(1, Math.floor(availableWidth / (CARD_WIDTH + CARD_GAP)));
   }, [screenWidth]);
   
+  // Calculate row distribution
   const rowDistribution = useMemo(() => {
     return calculateRowDistribution(itemCount, maxCardsPerRow);
   }, [itemCount, maxCardsPerRow]);

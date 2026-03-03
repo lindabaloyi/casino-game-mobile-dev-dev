@@ -12,10 +12,6 @@ interface TableGridProps {
 export function TableGrid({ items, renderItem }: TableGridProps) {
   const { rowDistribution, ROW_GAP } = useTableLayout(items.length);
   
-  console.log(`[TableGrid] ===== GRID RENDERING =====`);
-  console.log(`[TableGrid] Total items: ${items.length}`);
-  console.log(`[TableGrid] Row distribution: [${rowDistribution.join(', ')}]`);
-  
   // Build rows based on distribution
   const rows = useMemo(() => {
     const result: TableItem[][] = [];
@@ -27,17 +23,12 @@ export function TableGrid({ items, renderItem }: TableGridProps) {
         row.push(items[itemIndex]);
         itemIndex++;
       }
-      console.log(`[TableGrid] Row ${result.length}: ${row.length} items`);
       result.push(row);
     }
-    
-    console.log(`[TableGrid] Total rows created: ${result.length}`);
     return result;
   }, [items, rowDistribution]);
 
-  // If no rows, don't render anything
   if (rows.length === 0) {
-    console.log(`[TableGrid] No rows to render`);
     return null;
   }
 
@@ -63,6 +54,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(0,255,0,0.05)', // Very subtle debug background
   },
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { TableItem } from '../types';
-import { CARD_HEIGHT } from './useTableLayout';
+import { CARD_GAP, CARD_HEIGHT } from './useTableLayout';
 
 interface TableRowProps {
   items: TableItem[];
@@ -11,8 +11,6 @@ interface TableRowProps {
 }
 
 export function TableRow({ items, rowIndex, rowGap, renderItem }: TableRowProps) {
-  console.log(`[TableRow] Rendering row ${rowIndex} with ${items.length} items`);
-  
   return (
     <View 
       style={[
@@ -20,12 +18,11 @@ export function TableRow({ items, rowIndex, rowGap, renderItem }: TableRowProps)
         rowIndex > 0 && { marginTop: rowGap }
       ]}
     >
-      {items.map((item, index) => {
-        // Log item type for debugging
-        const itemType = item && typeof item === 'object' && 'type' in item ? item.type : 'unknown';
-        console.log(`[TableRow] Row ${rowIndex} item ${index}: ${itemType}`);
-        return renderItem(item, index);
-      })}
+      {items.map((item, index) => (
+        <View key={`${index}`} style={index > 0 ? { marginLeft: CARD_GAP } : undefined}>
+          {renderItem(item, index)}
+        </View>
+      ))}
     </View>
   );
 }
@@ -36,7 +33,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: CARD_HEIGHT + 20,
-    flexWrap: 'wrap', // Allow wrapping if needed
-    width: '100%',
   },
 });
