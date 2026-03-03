@@ -72,6 +72,8 @@ export function TempStackView({
   const bottom = stack.cards[0];
   const top    = stack.cards[stack.cards.length - 1];
 
+  console.log(`[TempStackView] Rendering stack ${stack.stackId} with ${stack.cards.length} cards:`, stack.cards.map(c => `${c.rank}${c.suit}(${c.source})`));
+
   // Use server-provided values (value and need)
   const displayValue = stack.need > 0 ? `-${stack.need}` : stack.value?.toString() ?? '-';
   const badgeColor = stack.need > 0 ? '#E53935' : '#9C27B0'; // Red for incomplete, Purple for complete

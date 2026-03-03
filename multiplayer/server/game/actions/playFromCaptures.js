@@ -27,6 +27,11 @@ const { cloneState, generateStackId } = require('../GameState');
 function playFromCaptures(state, payload, playerIndex) {
   const { capturedCard, targetCard, targetStackId } = payload;
 
+  console.log(`[playFromCaptures] === START ===`);
+  console.log(`[playFromCaptures] capturedCard: ${capturedCard?.rank}${capturedCard?.suit}`);
+  console.log(`[playFromCaptures] targetCard: ${targetCard?.rank}${targetCard?.suit}`);
+  console.log(`[playFromCaptures] targetStackId: ${targetStackId}`);
+
   if (!capturedCard?.rank || !capturedCard?.suit) {
     throw new Error('playFromCaptures: invalid capturedCard payload');
   }
@@ -68,6 +73,12 @@ function playFromCaptures(state, payload, playerIndex) {
     throw new Error('playFromCaptures: no targetCard or targetStackId provided');
   }
 
+  // Check if target card is the same as captured card (shouldn't happen but safety check)
+  if (capturedCard.rank === targetCard.rank && capturedCard.suit === targetCard.suit) {
+    console.log(`[playFromCaptures] ERROR: targetCard is the same as capturedCard! ${capturedCard.rank}${capturedCard.suit}`);
+    console.log(`[playFromCaptures] This should not happen - check hit detection logic`);
+  }
+
   // Find and remove the loose target card from table
   const tableIdx = newState.tableCards.findIndex(
     tc => !tc.type && tc.rank === targetCard.rank && tc.suit === targetCard.suit,
@@ -77,7 +88,10 @@ function playFromCaptures(state, payload, playerIndex) {
       `playFromCaptures: targetCard ${targetCard.rank}${targetCard.suit} not found as loose table card`,
     );
   }
+  console.log(`[playFromCaptures] Found table card at index ${tableIdx}:`, newState.tableCards[tableIdx]);
   const [tableCard] = newState.tableCards.splice(tableIdx, 1);
+  console.log(`[playFromCaptures] Removed table card:`, tableCard);
+  console.log(`[playFromCaptures] Used captured card:`, usedCard);
 
   // Allow combining ANY cards (like createTemp does) - not just identical ranks
   // This allows creating sum or diff builds from captured cards + table cards
@@ -108,7 +122,7 @@ function playFromCaptures(state, payload, playerIndex) {
     buildType = 'diff';
   }
 
-  newState.tableCards.push({
+  newState.tableCards.splice(tableIdx, 0, {
     type: 'temp_stack',
     stackId: generateStackId(newState, 'temp', playerIndex),
     cards: [bottom, top],

@@ -13,7 +13,7 @@ export interface Card {
   suit: string;
   value: number;
   /** Internal metadata — set by server actions, stripped on cancel. */
-  source?: 'hand' | 'table';
+  source?: 'hand' | 'table' | 'captured';
 }
 
 // ── Stack types ───────────────────────────────────────────────────────────────

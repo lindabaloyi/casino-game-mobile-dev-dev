@@ -38,7 +38,7 @@ function addToTemp(state, payload, playerIndex) {
   }
   const stack = newState.tableCards[stackIdx];
 
-  // Try to find and remove card from table first, then hand
+  // Try to find and remove card from table first, then hand, then captures
   let source = 'unknown';
   let cardFound = false;
   
@@ -60,6 +60,19 @@ function addToTemp(state, payload, playerIndex) {
       const [handCard] = hand.splice(handIdx, 1);
       source = 'hand';
       cardFound = true;
+    } else {
+      // Try opponent's captures
+      const opponentIndex = playerIndex === 0 ? 1 : 0;
+      const opponentCaptures = newState.playerCaptures[opponentIndex];
+      const captureIdx = opponentCaptures.findIndex(
+        c => c.rank === card.rank && c.suit === card.suit,
+      );
+      if (captureIdx !== -1) {
+        const [capturedCard] = opponentCaptures.splice(captureIdx, 1);
+        source = 'captured';
+        cardFound = true;
+        console.log(`[addToTemp] Card ${card.rank}${card.suit} found in opponent's captures`);
+      }
     }
   }
 

@@ -146,12 +146,20 @@ export function CapturedCardsView({
       return;
     }
 
-    console.log('[CapturedCardsView] Drop check at finger position:', { absX, absY });
+    console.log('[CapturedCardsView] === Captured Card Drag End ===');
+    console.log('[CapturedCardsView] Dragging card:', `${card.rank}${card.suit}`);
+    console.log('[CapturedCardsView] Drop position:', { absX, absY });
 
     // Check if dropped on a loose card (using finger position directly)
     const targetCardResult = findCardAtPoint(absX, absY);
+    console.log('[CapturedCardsView] findCardAtPoint result:', targetCardResult);
+    
     if (targetCardResult) {
       console.log('[CapturedCardsView] Dropped on loose card:', targetCardResult);
+      console.log('[CapturedCardsView] Calling onDragEnd with:', { 
+        card: `${card.rank}${card.suit}`, 
+        targetCard: `${targetCardResult.card.rank}${targetCardResult.card.suit}`
+      });
       onDragEnd(card, targetCardResult.card);
       return;
     }

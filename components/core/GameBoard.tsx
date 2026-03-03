@@ -22,7 +22,7 @@
  *      state updates, no re-renders per frame).
  */
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { GameState, OpponentDragState } from '../../hooks/useGameState';
@@ -81,6 +81,18 @@ export function GameBoard({
   emitDragMove,
   emitDragEnd,
 }: GameBoardProps) {
+  // Error version counter - increment on error to force re-render of PlayerHandArea
+  const [errorVersion, setErrorVersion] = useState(0);
+  // Drag version counter - increment on drag end to force re-render and restore card visibility
+  const [dragVersion, setDragVersion] = useState(0);
+
+  // Track server errors to reset card visibility
+  useEffect(() => {
+    if (serverError) {
+      setErrorVersion(v => v + 1);
+    }
+  }, [serverError]);
+
   // ── Context Value ─────────────────────────────────────────────────────────
   // (We don't use context provider - passing sendAction directly to hooks)
 
@@ -210,6 +222,12 @@ export function GameBoard({
     stealDetection.hideOverlay();
   }, [dragOverlay, stealDetection, emitDragEnd]);
 
+  // Track drag end to restore card visibility after drag completes/fails
+  const handleDragEndWrapper = useCallback((...args: Parameters<typeof handleDragEnd>) => {
+    handleDragEnd(...args);
+    setDragVersion(v => v + 1);
+  }, [handleDragEnd]);
+
   const handleTableDragEnd = useCallback(() => {
     const absX = dragOverlay.overlayX.value + CARD_WIDTH / 2;
     const absY = dragOverlay.overlayY.value + CARD_HEIGHT / 2;
@@ -224,7 +242,7 @@ export function GameBoard({
       if (capturePile) {
         targetType = 'capture';
         outcome = 'success';
-        handleDragEnd(targetType, outcome);
+        handleDragEndWrapper(targetType, outcome);
         return;
       }
     }
@@ -236,7 +254,7 @@ export function GameBoard({
       targetId = targetCardResult.id;
       outcome = 'success';
       actions.createTemp(dragOverlay.draggingCard, targetCardResult.card);
-      handleDragEnd(targetType, outcome, targetId);
+      handleDragEndWrapper(targetType, outcome, targetId);
       return;
     }
 
@@ -249,7 +267,7 @@ export function GameBoard({
       if (targetStack.owner === playerNumber) {
         actions.addToTemp(dragOverlay.draggingCard, targetStack.stackId);
       }
-      handleDragEnd(targetType, outcome, targetId);
+      handleDragEndWrapper(targetType, outcome, targetId);
       return;
     }
 
@@ -259,13 +277,13 @@ export function GameBoard({
       targetId = targetStack.stackId;
       outcome = 'success';
       // Let SmartRouter handle the action
-      handleDragEnd(targetType, outcome, targetId);
+      handleDragEndWrapper(targetType, outcome, targetId);
       return;
     }
 
     // Missed - no target hit
-    handleDragEnd(targetType, outcome);
-  }, [dragOverlay, findCapturePileAtPoint, findCardAtPoint, findTempStackAtPoint, playerNumber, actions, handleDragEnd]);
+    handleDragEndWrapper(targetType, outcome);
+  }, [dragOverlay, findCapturePileAtPoint, findCardAtPoint, findTempStackAtPoint, playerNumber, actions, handleDragEnd, handleDragEndWrapper]);
 
   // ── Action Handlers ───────────────────────────────────────────────────────
   // Simple pass-through to router - no UI decisions!
@@ -290,13 +308,13 @@ export function GameBoard({
         // Need to reset the drag overlay to restore card visibility
         // Since onDragEnd was already called (card is invisible), we need to trigger a re-render
         // The simplest way is to call handleDragEnd which will reset the overlay state
-        handleDragEnd();
+        handleDragEndWrapper();
         return;
       }
       
       actions.trail(card);
     },
-    [actions, table, playerNumber, handleDragEnd],
+    [actions, table, playerNumber, handleDragEndWrapper],
   );
 
   const handleAcceptClick = useCallback((stackId: string) => {
@@ -412,7 +430,18 @@ export function GameBoard({
         unregisterCapturedCard={unregisterCapturedCard}
         onCapturedCardDragStart={handleCapturedDragStart}
         onCapturedCardDragMove={dragOverlay.moveDrag}
-        onCapturedCardDragEnd={actions.playFromCaptures}
+        onCapturedCardDragEnd={(card, targetCard, targetStackId) => {
+          console.log(`[GameBoard] onCapturedCardDragEnd - card: ${card?.rank}${card?.suit}, targetCard: ${targetCard?.rank}${targetCard?.suit}, targetStackId: ${targetStackId}`);
+          // Use createTemp for consistency with hand card drops
+          if (targetCard) {
+            actions.createTemp(card, targetCard);
+          } else if (targetStackId) {
+            // Adding to own temp stack - use addToTemp
+            actions.addToTemp(card, targetStackId);
+          }
+          // End the drag to hide the ghost overlay
+          dragOverlay.endDrag();
+        }}
         findCapturePileAtPoint={findCapturePileAtPoint}
         registerCapturePile={registerCapturePile}
         unregisterCapturePile={unregisterCapturePile}
@@ -427,6 +456,7 @@ export function GameBoard({
       />
 
       <PlayerHandArea
+        key={`playerHand-${errorVersion}-${dragVersion}`} // Force re-render on error or drag end to reset card visibility
         hand={myHand}
         isMyTurn={isMyTurn}
         playerNumber={playerNumber}

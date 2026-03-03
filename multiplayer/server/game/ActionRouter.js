@@ -62,7 +62,7 @@ class ActionRouter {
 
     // 5. Execute handler — pure function returns new state
     const handler = this.handlers[finalType];
-    const newState = handler(state, finalPayload || {}, playerIndex);
+    let newState = handler(state, finalPayload || {}, playerIndex);
 
     // 6. Persist updated state
     this.gameManager.saveGameState(gameId, newState);

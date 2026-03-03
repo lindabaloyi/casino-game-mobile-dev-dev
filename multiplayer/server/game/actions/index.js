@@ -24,6 +24,8 @@ const actionHandlers = {
 
   // ── Stack drop (SmartRouter routes to addToTemp or extendBuild) ───────────
   stackDrop:           require('./stackDrop'),
+  // extendBuild is handled by SmartRouter (routes to startBuildExtension or acceptBuildExtension)
+  extendBuild:         require('./extendBuild'),
 
   // ── Build actions ─────────────────────────────────────────────────────────
   addToBuild:          require('./addToBuild'),

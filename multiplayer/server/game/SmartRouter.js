@@ -57,7 +57,7 @@ class SmartRouter {
    * - loose card (via createTemp pathway) → check hand for capture vs temp
    */
   routeStackDrop(payload, state, playerIndex) {
-    const { stackId, stackType, card, targetCard } = payload;
+    const { stackId, stackType, card } = payload;
     
     // If dropping on a temp stack
     if (stackType === 'temp_stack') {
@@ -83,6 +83,8 @@ class SmartRouter {
    */
   routeLooseCardDrop(payload, state, playerIndex) {
     const { card, targetCard } = payload;
+    
+    console.log(`[SmartRouter] routeLooseCardDrop - card: ${card?.rank}${card?.suit}, targetCard: ${targetCard?.rank}${targetCard?.suit}`);
     
     if (!targetCard) {
       // No target card - create temp
@@ -180,7 +182,7 @@ class SmartRouter {
    * - Opponent build + value mismatch → stealBuild (if valid)
    */
   routeCapture(payload, state, playerIndex) {
-    const { targetType, targetStackId, card } = payload;
+    const { targetType, targetStackId } = payload;
     
     // Loose card - use captureOwn (has the loose card logic)
     if (targetType !== 'build' || !targetStackId) {
