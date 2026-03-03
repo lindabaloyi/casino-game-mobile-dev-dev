@@ -35,7 +35,7 @@ export interface GameState {
   turnCounter: number;
   moveCount: number;
   gameOver: boolean;
-  roundEndReason?: 'cards_depleted' | 'max_moves';
+  roundEndReason?: 'cards_depleted' | 'max_moves' | 'all_cards_played';
 }
 
 /** Opponent drag state for real-time ghost card rendering */

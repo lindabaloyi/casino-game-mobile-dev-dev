@@ -8,7 +8,7 @@
 
 class RoundValidator {
   static STARTING_CARDS = 10;
-  static MAX_TURNS_ROUND_1 = 21; // 10 cards per player × 2 players = 20 turns, starts at 1
+  static MAX_TURNS_ROUND_1 = 22; // 10 cards per player × 2 players = 20 turns, starts at 1, ends at 22
 
   /**
    * Check if the current round should end.
@@ -24,24 +24,24 @@ class RoundValidator {
     const player2Cards = playerHands[1]?.length || 0;
     const turnCount = state.turnCounter || 1;
     
-    console.log(`[RoundValidator] Checking round end: turnCounter=${turnCount}/19, P1hand=${player1Cards}, P2hand=${player2Cards}`);
+    console.log(`[RoundValidator] Checking round end: turnCounter=${turnCount}/22, P1hand=${player1Cards}, P2hand=${player2Cards}`);
     
-    // Round ends when both conditions met:
-    // 1. At least 20 turns have been played (both players played all cards)
-    // 2. Both player hands are empty
-    const allCardsPlayed = turnCount >= this.MAX_TURNS_ROUND_1;
+    // Round ends when BOTH conditions are met:
+    // 1. Both player hands are empty
+    // 2. turnCounter >= 2 (at least one full turn completed)
     const handsEmpty = player1Cards === 0 && player2Cards === 0;
+    const hasPlayed = turnCount >= 2;
     
-    if (allCardsPlayed && handsEmpty) {
-      console.log(`[RoundValidator] ✅ Round ending: all cards played (turn ${turnCount})`);
+    if (handsEmpty && hasPlayed) {
+      console.log(`[RoundValidator] ✅ Round ending: both hands empty (turn ${turnCount})`);
       return { ended: true, reason: 'all_cards_played' };
     }
     
     // Debug: show why not ending
-    if (!allCardsPlayed) {
-      console.log(`[RoundValidator] Round continues: only ${turnCount} turns played, need 21`);
-    } else if (!handsEmpty) {
+    if (!handsEmpty) {
       console.log(`[RoundValidator] Round continues: P1 has ${player1Cards}, P2 has ${player2Cards}`);
+    } else if (!hasPlayed) {
+      console.log(`[RoundValidator] Round continues: only ${turnCount} turns played, need at least 2`);
     }
     
     return { ended: false };

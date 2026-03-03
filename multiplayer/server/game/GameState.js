@@ -68,6 +68,7 @@ function initializeGame() {
     round: 1,
     scores: [0, 0],
     turnCounter: 1,
+    turnEnded: false, // Flag: true when current turn has ended (move completed)
     moveCount: 0,
     gameOver: false,
     // Stack counters for sequential IDs: { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 }
@@ -129,6 +130,7 @@ function initializeTestGame() {
     round: 1,
     scores: [0, 0],
     turnCounter: 1,
+    turnEnded: false, // Flag: true when current turn has ended (move completed)
     moveCount: 0,
     gameOver: false,
     // Stack counters for sequential IDs: { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 }
@@ -174,11 +176,26 @@ function generateStackId(state, type, playerIndex) {
 
 /**
  * Advance the turn to the next player and increment the counter.
+ * Sets turnEnded=true to mark the current player's move as complete,
+ * then advances to the next player.
  */
 function nextTurn(state) {
+  state.turnEnded = true; // Mark current turn as ended (move completed)
   state.currentPlayer = (state.currentPlayer + 1) % 2;
   state.turnCounter += 1;
   state.moveCount += 1;
+  // Note: new turn starts with turnEnded=false from initialization
+  // It will be set to true when that player completes their move
+  return state;
+}
+
+/**
+ * Mark the current turn as ended (move completed).
+ * Call this after any action that completes a player's move.
+ * Note: nextTurn() now handles this automatically.
+ */
+function endTurn(state) {
+  state.turnEnded = true;
   return state;
 }
 
@@ -187,6 +204,7 @@ module.exports = {
   initializeTestGame,
   cloneState,
   nextTurn,
+  endTurn,
   rankValue,
   generateStackId,
 };

@@ -146,7 +146,6 @@ export function GameBoard({
         currentPlayer={gameState.currentPlayer}
         playerNumber={playerNumber}
         scores={gameState.scores as [number, number]}
-        turnsRemaining={roundInfo.turnsRemaining}
         cardsRemaining={roundInfo.cardsRemaining}
       />
 
