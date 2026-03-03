@@ -10,6 +10,4 @@ export * from '../themed/themed-text';
 export * from '../themed/themed-view';
 
 // Add new shared components here as they are created
-// Example:
-// export { LoadingSpinner } from './LoadingSpinner';
-// export { ErrorBanner } from './ErrorBanner';
+export { ErrorBanner } from './ErrorBanner';
