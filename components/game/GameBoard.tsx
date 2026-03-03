@@ -1,8 +1,8 @@
 /**
  * GameBoard — orchestrator
- *
- * Single responsibility: wire data → callbacks → sub-components.
- * No styles, no layout logic, no UI primitives here.
+: wire data → callbacks → sub-components.
+ * No styles *
+ * Single responsibility, no layout logic, no UI primitives here.
  *
  * Sub-components own their own look:
  *   GameStatusBar   — round / turn / score display

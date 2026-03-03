@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { GameBoard } from '../components/core/GameBoard';
+import { GameBoard } from '../components/game/GameBoard';
 import GameOverScreen from './game-over';
 import { useGameState } from '../hooks/useGameState';
 
