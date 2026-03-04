@@ -46,25 +46,46 @@ function declineBuildExtension(state, payload, playerIndex) {
     throw new Error('declineBuildExtension: only owner can decline their build extension');
   }
 
-  // Validate pending extension exists
-  if (!buildStack.pendingExtension?.looseCard) {
+  // Validate pending extension exists (supports both old single-card and new array format)
+  if (!buildStack.pendingExtension?.looseCard && !buildStack.pendingExtension?.cards) {
     throw new Error('declineBuildExtension: no pending extension to decline');
   }
 
-  const looseCard = buildStack.pendingExtension.looseCard;
+  // Get pending cards (supports both formats for backward compatibility)
+  let pendingCards = [];
+  if (buildStack.pendingExtension.cards) {
+    // New array format
+    pendingCards = buildStack.pendingExtension.cards;
+  } else {
+    // Old single-card format
+    pendingCards = [{ card: buildStack.pendingExtension.looseCard, source: buildStack.pendingExtension.looseCard.source }];
+  }
 
-  // Return loose card to table
-  newState.tableCards.push({
-    rank: looseCard.rank,
-    suit: looseCard.suit,
-    value: looseCard.value,
-  });
+  // Return each pending card to its original source
+  for (const pending of pendingCards) {
+    const { card, source } = pending;
+    
+    if (source === 'hand') {
+      // Return to player's hand
+      newState.playerHands[playerIndex].push({ ...card });
+    } else if (source === 'table' || source === undefined) {
+      // Return to table as loose card
+      newState.tableCards.push({
+        rank: card.rank,
+        suit: card.suit,
+        value: card.value,
+      });
+    } else if (source === 'captured') {
+      // Return to player's captured cards
+      newState.playerCaptures[playerIndex].push({ ...card });
+    }
+  }
 
   // Clear pending extension
   buildStack.pendingExtension = null;
 
   console.log(`[declineBuildExtension] Player ${playerIndex} declined extension for build ${stackId}`);
-  console.log(`[declineBuildExtension] Returned loose card to table: ${looseCard.rank}${looseCard.suit}`);
+  console.log(`[declineBuildExtension] Returned ${pendingCards.length} card(s) to their sources`);
 
   // Turn does NOT advance - player can continue with other actions
   return newState;

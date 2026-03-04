@@ -49,20 +49,21 @@ export function BuildStackView({
   const bottom = stack.cards[0];
   const top    = stack.cards[stack.cards.length - 1];
   
-  // Check if there's a pending extension
+  // Check if there's a pending extension (supports both old looseCard and new cards format)
   const pendingExtension = stack.pendingExtension;
-  const isExtending = !!pendingExtension?.looseCard;
+  const isExtending = !!(pendingExtension?.looseCard || pendingExtension?.cards);
   
-  // Get the pending loose card for value calculation
-  const pendingCard = pendingExtension?.looseCard;
+  // Get the pending cards for value calculation (last card in array or looseCard)
+  const pendingCards = pendingExtension?.cards;
+  const lastPendingCard = pendingCards?.[pendingCards.length - 1]?.card || pendingExtension?.looseCard;
   
   // Calculate need: build value - pending card value
   // Display as negative (e.g., "-1" when build is 8 and loose card is 7)
   let displayValue: string;
   let badgeColor: string;
   
-  if (isExtending && pendingCard) {
-    const need = stack.value - pendingCard.value;
+  if (isExtending && lastPendingCard) {
+    const need = stack.value - lastPendingCard.value;
     displayValue = need > 0 ? `-${need}` : stack.value.toString();
     // Red for incomplete extension (need > 0), purple for complete
     badgeColor = need > 0 ? '#E53935' : '#9C27B0';

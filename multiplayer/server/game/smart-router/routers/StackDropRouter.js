@@ -38,7 +38,8 @@ class StackDropRouter {
     }
     
     // Loose card drops (no stack) - delegate to LooseCardRouter
-    return this.looseCardRouter.routeCreateTemp(payload, state, playerIndex);
+    const source = this.getCardSource(state, playerIndex, card);
+    return this.looseCardRouter.routeCreateTemp({ ...payload, source }, state, playerIndex);
   }
 
   /**
@@ -62,32 +63,126 @@ class StackDropRouter {
   }
 
   /**
+   * Determine the source of a card (hand or table)
+   * @param {object} state - Game state
+   * @param {number} playerIndex - Player index
+   * @param {object} card - Card to check
+   * @returns {string} 'hand' or 'table'
+   */
+  getCardSource(state, playerIndex, card) {
+    // Check if card is in player's hand
+    const playerHand = state.playerHands?.[playerIndex] || [];
+    const inHand = playerHand.some(
+      c => c.rank === card.rank && c.suit === card.suit
+    );
+    if (inHand) {
+      console.log(`[StackDropRouter] getCardSource: ${card.rank}${card.suit} found in hand`);
+      return 'hand';
+    }
+
+    // Check if card is on table (loose card)
+    // Loose cards: have no 'type' property
+    // They may or may not have an 'owner' property (trailed cards don't have owner)
+    const onTable = state.tableCards.find(
+      tc => !tc.type && 
+            tc.rank === card.rank && tc.suit === card.suit
+    );
+    if (onTable) {
+      console.log(`[StackDropRouter] getCardSource: ${card.rank}${card.suit} found on table`);
+      return 'table';
+    }
+
+    // Debug: Log all table cards to see what's there
+    console.log(`[StackDropRouter] getCardSource DEBUG: Card ${card.rank}${card.suit} not found`);
+    console.log(`[StackDropRouter] Player hand:`, playerHand.map(c => `${c.rank}${c.suit}`));
+    console.log(`[StackDropRouter] Table cards:`, state.tableCards.map(tc => {
+      if (tc.type) return `${tc.type}:${tc.stackId}`;
+      return `${tc.rank}${tc.suit}`;
+    }));
+
+    // Default to 'hand' if not found (fallback to avoid breaking)
+    console.warn(`[StackDropRouter] Card ${card.rank}${card.suit} not found in hand or table, defaulting to 'hand'`);
+    return 'hand';
+  }
+
+  /**
+   * Calculate possible capture values for a set of cards (same rank)
+   * Used for determining if a hand card can capture a build
+   * @param {Array} cards - Array of cards (all same rank)
+   * @returns {Array} Array of possible sum values
+   */
+  getPossibleCaptureValues(cards) {
+    if (!cards || cards.length === 0) return [];
+    
+    const cardValue = cards[0].value;
+    const count = cards.length;
+    const possibleValues = [];
+    
+    for (let i = 1; i <= count; i++) {
+      const sum = cardValue * i;
+      possibleValues.push(sum);
+      
+      // Handle Ace (A=1 or 14) edge case
+      if (cards[0].rank === 'A') {
+        const altSum = 14 + (cardValue - 1) * (i - 1);
+        if (!possibleValues.includes(altSum) && altSum <= 14) {
+          possibleValues.push(altSum);
+        }
+      }
+    }
+    
+    return [...new Set(possibleValues)].sort((a, b) => a - b);
+  }
+
+  /**
    * Route drop on own build
    */
   routeOwnBuildDrop(payload, stack, state, playerIndex) {
     const { stackId, card } = payload;
     
-    // Check for pending extension first
-    if (stack.pendingExtension?.looseCard) {
-      return this.extendRouter.route({ stackId, card, cardSource: 'hand' }, state);
+    // 1. Pending extension? Delegate to ExtendRouter (supports both old .looseCard and new .cards format)
+    if (stack.pendingExtension?.looseCard || stack.pendingExtension?.cards) {
+      const cardSource = this.getCardSource(state, playerIndex, card);
+      console.log(`[StackDropRouter] Dropping on build with pending extension, card source: ${cardSource}`);
+      return this.extendRouter.route({ stackId, card, cardSource }, state);
     }
-    
-    // Analyze hand for capture vs extend
-    const playerHand = state.playerHands?.[playerIndex] || [];
-    const captureCards = playerHand.filter(c => c.value === stack.value);
-    
-    if (captureCards.length === 1) {
-      // Single capture card → capture
-      console.log(`[StackDropRouter] Single capture card ${captureCards[0].rank} - routing to captureOwn`);
-      return { 
-        type: 'captureOwn', 
-        payload: { card, targetType: 'build', targetStackId: stackId } 
-      };
+
+    // 2. Determine where the dropped card is coming from.
+    const source = this.getCardSource(state, playerIndex, card);
+
+    // 3. If card is from hand, check if it can capture this build.
+    if (source === 'hand') {
+      let canCapture = false;
+      const buildCards = stack.cards || [];
+
+      if (buildCards.length > 0) {
+        const allSameRank = buildCards.every(c => c.rank === buildCards[0].rank);
+        
+        if (allSameRank) {
+          // Identical cards: possible capture values = subset sums.
+          const possibleValues = this.getPossibleCaptureValues(buildCards);
+          if (possibleValues.includes(card.value)) canCapture = true;
+        } else {
+          // Mixed cards: must match build.value.
+          if (card.value === stack.value) canCapture = true;
+        }
+      } else {
+        // Empty build (shouldn't happen), fallback to value match.
+        if (card.value === stack.value) canCapture = true;
+      }
+
+      if (canCapture) {
+        console.log(`[StackDropRouter] Hand card can capture – routing to captureOwn`);
+        return {
+          type: 'captureOwn',
+          payload: { card, targetType: 'build', targetStackId: stackId }
+        };
+      }
     }
-    
-    // Multiple or none → extend
-    console.log(`[StackDropRouter] ${captureCards.length} capture cards - routing to extendBuild`);
-    return this.extendRouter.route({ stackId, card, cardSource: 'hand' }, state);
+
+    // 4. Otherwise, it's an extension (card from table, or hand card that can't capture).
+    console.log(`[StackDropRouter] Routing to extendBuild (source: ${source})`);
+    return this.extendRouter.route({ stackId, card, cardSource: source }, state);
   }
 
   /**

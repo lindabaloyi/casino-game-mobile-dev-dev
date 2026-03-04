@@ -33,6 +33,7 @@ const actionHandlers = {
 
   // ── Build Extension actions ──────────────────────────────────────────────
   startBuildExtension: require('./startBuildExtension'),
+  addToPendingExtension: require('./addToPendingExtension'),
   acceptBuildExtension: require('./acceptBuildExtension'),
   declineBuildExtension: require('./declineBuildExtension'),
 

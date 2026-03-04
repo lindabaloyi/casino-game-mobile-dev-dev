@@ -2,51 +2,59 @@
  * LooseCardRouter
  * Handles loose card drop decisions - capture vs createTemp.
  * 
- * Analyzes player's hand to decide:
- * - Single card of rank → capture (no spare)
- * - Multiple cards of rank → createTemp (spare exists)
+ * Rules:
+ * - Dropped card must be from hand to capture.
+ * - Ranks must match for capture.
+ * - Capture allowed only if player has exactly one card of that rank in hand.
+ * - Otherwise, create a temporary stack.
  */
 
 class LooseCardRouter {
   /**
    * Route createTemp with a target card
-   * Smart decision: capture vs createTemp based on player's hand
+   * @param {object} payload - Contains card, targetCard, and source ('hand'|'table')
    */
   routeCreateTemp(payload, state, playerIndex) {
-    const { card, targetCard } = payload;
-    
-    // No target card - just create temp
+    const { card, targetCard, source } = payload;
+
+    // No target card – just create a temporary stack
     if (!targetCard) {
-      return { type: 'createTemp', payload };
+      return { type: 'createTemp', payload: { card } };
     }
-    
+
+    // Card from table cannot be used to capture
+    if (source !== 'hand') {
+      console.log(`[LooseCardRouter] Card from table cannot capture – creating temp`);
+      return { type: 'createTemp', payload: { card, targetCard } };
+    }
+
     // Ranks must match for capture
     if (card.rank !== targetCard.rank) {
-      console.log(`[LooseCardRouter] Ranks don't match (${card.rank} vs ${targetCard.rank}) - creating temp`);
-      return { type: 'createTemp', payload };
+      console.log(`[LooseCardRouter] Ranks don't match (${card.rank} vs ${targetCard.rank}) – creating temp`);
+      return { type: 'createTemp', payload: { card, targetCard } };
     }
-    
-    // Check for spare cards of same rank in player's hand
+
+    // Check for spare cards of the same rank in player's hand
     const playerHand = state.playerHands?.[playerIndex] || [];
     const sameRankCards = playerHand.filter(c => c.rank === card.rank);
-    
+
     if (sameRankCards.length === 1) {
-      // Only one card of this rank - capture the loose card
-      console.log(`[LooseCardRouter] Single ${card.rank} in hand - routing to captureOwn`);
-      return { 
-        type: 'captureOwn', 
-        payload: { 
-          card, 
-          targetType: 'loose', 
-          targetRank: targetCard.rank, 
-          targetSuit: targetCard.suit 
-        } 
+      // Only one card of this rank (the one being used) – capture the loose card
+      console.log(`[LooseCardRouter] Single ${card.rank} in hand – routing to captureOwn`);
+      return {
+        type: 'captureOwn',
+        payload: {
+          card,
+          targetType: 'loose',
+          targetRank: targetCard.rank,
+          targetSuit: targetCard.suit
+        }
       };
     }
-    
-    // Has spare - create temp
-    console.log(`[LooseCardRouter] Multiple ${card.rank} in hand (${sameRankCards.length}) - creating temp`);
-    return { type: 'createTemp', payload };
+
+    // Multiple cards of this rank – create temporary stack instead
+    console.log(`[LooseCardRouter] Multiple ${card.rank} in hand (${sameRankCards.length}) – creating temp`);
+    return { type: 'createTemp', payload: { card, targetCard } };
   }
 }
 

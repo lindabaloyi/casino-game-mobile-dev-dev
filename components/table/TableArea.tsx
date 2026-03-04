@@ -227,23 +227,21 @@ export function TableArea({
         renderItem={renderItem}
       />
 
-      {/* Overlays - disabled when shown in player hand area */}
+      {/* Overlays - ExtensionOverlay always shows when extending build, StackOverlay shows based on disableOverlays */}
+      <ExtensionOverlay
+        extendingBuildId={extendingBuildId ?? null}
+        stacks={stacks}
+        onAcceptExtend={onAcceptExtend}
+        onDeclineExtend={onDeclineExtend}
+      />
+      
       {!disableOverlays && (
-        <>
-          <StackOverlay
-            overlayStackId={overlayStackId}
-            tempStacks={tempStacks}
-            onAcceptTemp={onAcceptTemp}
-            onCancelTemp={onCancelTemp}
-          />
-
-          <ExtensionOverlay
-            extendingBuildId={extendingBuildId ?? null}
-            stacks={stacks}
-            onAcceptExtend={onAcceptExtend}
-            onDeclineExtend={onDeclineExtend}
-          />
-        </>
+        <StackOverlay
+          overlayStackId={overlayStackId}
+          tempStacks={tempStacks}
+          onAcceptTemp={onAcceptTemp}
+          onCancelTemp={onCancelTemp}
+        />
       )}
 
       {/* Captured cards */}

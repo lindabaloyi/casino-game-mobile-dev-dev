@@ -142,25 +142,26 @@ class SmartRouter {
         return this.routeExtendBuild({ stackId, card, cardSource: 'hand' }, state);
       }
       
-      // No pending extension - analyze player's hand to decide capture vs extend
-      const playerHand = state.playerHands?.[playerIndex] || [];
-      
-      // Count how many cards in hand can capture this build (value match)
-      const cardsThatCanCapture = playerHand.filter(c => c.value === stack.value);
-      
-      // If exactly one card can capture → capture (single unique card)
-      // If multiple cards can capture (duplicates like 9,9) → can extend instead
-      if (cardsThatCanCapture.length === 1) {
-        // Only one card matches - capture the build
-        console.log(`[SmartRouter] Single capture card ${cardsThatCanCapture[0].rank} - routing to captureOwn`);
-        return { 
-          type: 'captureOwn', 
-          payload: { card, targetType: 'build', targetStackId: stackId } 
-        };
+      // No pending extension - check if THE DROPPED CARD can capture this build
+      // The dropped card's value must match the build value to capture it
+      if (card.value === stack.value) {
+        // Card value matches build - verify the card is actually in player's hand
+        const playerHand = state.playerHands?.[playerIndex] || [];
+        const cardInHand = playerHand.find(c => c.rank === card.rank && c.suit === card.suit);
+        
+        if (cardInHand) {
+          // Card is in hand and value matches - allow capture attempt
+          console.log(`[SmartRouter] Dropped card ${card.rank}${card.suit} (value ${card.value}) matches build value ${stack.value} - routing to captureOwn`);
+          return { 
+            type: 'captureOwn', 
+            payload: { card, targetType: 'build', targetStackId: stackId } 
+          };
+        }
+        // Card not in hand - can't capture, fall through to extend
       }
       
-      // Multiple cards can capture (duplicates) OR no cards match - extend build
-      console.log(`[SmartRouter] ${cardsThatCanCapture.length} capture cards - routing to extendBuild`);
+      // Card value doesn't match OR card not in hand - extend the build
+      console.log(`[SmartRouter] Dropped card ${card.rank}${card.suit} (value ${card.value}) doesn't match build (value ${stack.value}) - routing to extendBuild`);
       return this.routeExtendBuild({ stackId, card, cardSource: 'hand' }, state);
     } else {
       // Opponent's build - route to capture

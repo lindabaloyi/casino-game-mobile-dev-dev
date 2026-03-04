@@ -201,7 +201,9 @@ export function GameBoard({
         onDeclineExtend={actionHandlers.handleDeclineExtend}
         playerHand={computed.myHand}
         opponentDrag={opponentDrag}
-        disableOverlays={!!computed.overlayStackId || !!computed.extendingBuildId}
+        // Disable only the temp stack overlay when action buttons are shown in player hand
+        // ExtensionOverlay should still show when extendingBuildId is set
+        disableOverlays={!!computed.overlayStackId}
       />
 
       <PlayerHandArea

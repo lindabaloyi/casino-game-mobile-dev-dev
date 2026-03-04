@@ -29,7 +29,10 @@ export interface BuildStack {
   value: number;
   hasBase: boolean;
   pendingExtension?: {
-    looseCard: Card;
+    // New array format (supports multi-card extensions)
+    cards?: Array<{ card: Card; source: string }>;
+    // Legacy single-card format
+    looseCard?: Card;
   };
 }
 

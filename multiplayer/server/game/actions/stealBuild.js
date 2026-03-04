@@ -44,10 +44,14 @@ function stealBuild(state, payload, playerIndex) {
     throw new Error('stealBuild: cannot steal base builds');
   }
 
-  // CRITICAL: Store the ORIGINAL build value BEFORE any modifications
-  // This value is used for display in the UI during steal/augmentation
-  let originalBuildValue = buildStack.value;
-  console.log(`[stealBuild] Original build value before steal: ${originalBuildValue}`);
+  // Check if player already has any builds
+  const playerBuilds = newState.tableCards.filter(
+    tc => tc.type === 'build_stack' && tc.owner === playerIndex
+  );
+  const hasExistingBuild = playerBuilds.length > 0;
+
+  // Store the original build value of the opponent (for potential display in non‑merge case)
+  const opponentOriginalValue = buildStack.value;
 
   // Find and remove card from player's hand
   const hand = newState.playerHands[playerIndex];
@@ -83,64 +87,68 @@ function stealBuild(state, payload, playerIndex) {
   };
 
   recalcBuild(buildStack);
-
-  // Store the recalculated value for merge matching
   const recalculatedValue = buildStack.value;
-  console.log(`[stealBuild] Recalculated value (for merge matching): ${recalculatedValue}`);
-
-  // CRITICAL: Restore the ORIGINAL value for UI display
-  // The build value indicator must show the original value during steal/augmentation
-  // The actual game logic uses the recalculated value internally
-  buildStack.value = originalBuildValue;
-  console.log(`[stealBuild] Display value preserved: ${buildStack.value}`);
+  console.log(`[stealBuild] Recalculated value: ${recalculatedValue}`);
 
   // Change ownership to stealing player
   const previousOwner = buildStack.owner;
   buildStack.owner = playerIndex;
 
-  // CRITICAL: Clear any pending extension from previous owner
-  // This ensures the badge correctly shows the build's value without extension overlay
+  // Clear any pending extension from previous owner
   buildStack.pendingExtension = null;
-  console.log(`[stealBuild] Cleared pendingExtension from previous owner`);
 
   console.log(`[stealBuild] Player ${playerIndex} stole build from Player ${previousOwner}`);
-  console.log(`[stealBuild] Added ${playedCard.rank}${playedCard.suit}, display value: ${buildStack.value}, recalculated: ${recalculatedValue}`);
+  console.log(`[stealBuild] Added ${playedCard.rank}${playedCard.suit}`);
 
-  // --- MERGE LOGIC: Combine with any existing player builds of the same recalculated value ---
-  let currentValue = recalculatedValue;
-  while (true) {
-    // Find another build owned by player with the same recalculated value (excluding the current stack)
-    const otherIdx = newState.tableCards.findIndex(
-      tc => tc.type === 'build_stack' && tc.owner === playerIndex && tc.stackId !== stackId && tc.value === currentValue
-    );
-    if (otherIdx === -1) break;
+  // --- MERGE LOGIC (only if player has existing builds) ---
+  let finalDisplayValue;
+  if (hasExistingBuild) {
+    // Player has at least one build – we will merge any that match the recalculated value.
+    let currentValue = recalculatedValue;
+    let mergedWithAny = false;
+    while (true) {
+      // Find another build owned by player with the same current value (excluding the current stack)
+      const otherIdx = newState.tableCards.findIndex(
+        tc => tc.type === 'build_stack' && tc.owner === playerIndex && tc.stackId !== stackId && tc.value === currentValue
+      );
+      if (otherIdx === -1) break;
 
-    const otherBuild = newState.tableCards[otherIdx];
-    console.log(`[stealBuild] Merging with existing build of value ${currentValue} (cards: ${otherBuild.cards.map(c => c.rank).join(', ')})`);
+      const otherBuild = newState.tableCards[otherIdx];
+      console.log(`[stealBuild] Merging with existing build of value ${currentValue} (cards: ${otherBuild.cards.map(c => c.rank).join(', ')})`);
 
-    // CRITICAL: Update display value to the player's existing build value
-    // After merging, the display should show the player's build value, not opponent's
-    originalBuildValue = otherBuild.value;
-    console.log(`[stealBuild] Updated display value to player's build: ${originalBuildValue}`);
+      // The display value after merge should be the player's original build value (the one we are merging with)
+      finalDisplayValue = otherBuild.value; // will be overwritten if multiple merges, but they are same value
 
-    // Merge cards from the other build into the stolen build
-    buildStack.cards.push(...otherBuild.cards);
+      // Merge cards from the other build into the stolen build
+      buildStack.cards.push(...otherBuild.cards);
 
-    // Remove the other build from the table
-    newState.tableCards.splice(otherIdx, 1);
+      // Remove the other build from the table
+      newState.tableCards.splice(otherIdx, 1);
 
-    // Recalculate the merged build's value (it may change)
-    recalcBuild(buildStack);
-    const mergedRecalculatedValue = buildStack.value;
-    console.log(`[stealBuild] After merge, recalculated value: ${mergedRecalculatedValue}`);
+      // Recalculate the merged build's value (it may change)
+      recalcBuild(buildStack);
+      const newRecalcValue = buildStack.value;
+      console.log(`[stealBuild] After merge, recalculated value: ${newRecalcValue}`);
 
-    // CRITICAL: Restore the ORIGINAL value again after merge
-    // The display value must stay as the original value throughout
-    buildStack.value = originalBuildValue;
-    console.log(`[stealBuild] Display value restored after merge: ${buildStack.value}`);
+      // Update currentValue for the next iteration
+      currentValue = newRecalcValue;
+      mergedWithAny = true;
+    }
 
-    // Update currentValue for next iteration using recalculated value
-    currentValue = mergedRecalculatedValue;
+    if (mergedWithAny) {
+      // After all merges, set the displayed value to the original player build's value (which we captured)
+      buildStack.value = finalDisplayValue;
+      console.log(`[stealBuild] Display value set to player's original build value: ${buildStack.value}`);
+    } else {
+      // Player had builds, but none matched the recalculated value – this should never happen because validator would have blocked it.
+      // As a fallback, use the recalculated value.
+      buildStack.value = recalculatedValue;
+      console.warn(`[stealBuild] No matching build found despite validation – using recalculated value`);
+    }
+  } else {
+    // No existing builds – use the recalculated value as the final display value
+    buildStack.value = recalculatedValue;
+    console.log(`[stealBuild] No existing builds – display value set to recalculated: ${buildStack.value}`);
   }
 
   console.log(`[stealBuild] Final build cards:`, buildStack.cards.map(c => `${c.rank}${c.suit}`).join(', '));

@@ -34,7 +34,7 @@ export const STACK_CONFIG = {
   extend_build: {
     label:       'EXTEND',
     badgeColor:  '#8b5cf6',   // purple
-    acceptLabel: '✓  Confirm',
+    acceptLabel: '✓  Extend',
     cancelLabel: '✕  Cancel',
     acceptTheme: { bg: '#ede9fe', border: '#7c3aed' },
     cancelTheme: { bg: '#f8d7da', border: '#dc3545' },

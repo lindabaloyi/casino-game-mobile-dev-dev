@@ -50,10 +50,8 @@ function startBuildExtension(state, payload, playerIndex) {
     throw new Error('startBuildExtension: only owner can extend their build');
   }
 
-  // Check if build is already extending
-  if (buildStack.pendingExtension?.looseCard) {
-    throw new Error('startBuildExtension: build already has pending extension');
-  }
+  // Check if build is already extending - now handled by ExtendRouter
+  // Just allow starting a new pending extension (it will be converted to array format)
 
   // Remove card from its source
   let usedCard;
@@ -127,14 +125,14 @@ function startBuildExtension(state, payload, playerIndex) {
     throw new Error(`startBuildExtension: unknown cardSource "${cardSource}"`);
   }
 
-  // Set pending extension with the locked card
+  // Set pending extension as an array (supports multi-card extensions)
   buildStack.pendingExtension = {
-    looseCard: usedCard,
+    cards: [{ card: usedCard, source: cardSource }]
   };
 
   console.log(`[startBuildExtension] Player ${playerIndex} started extending build ${stackId}`);
-  console.log(`[startBuildExtension] Locked card: ${usedCard.rank}${usedCard.suit} from ${usedCard.source}`);
-  console.log(`[startBuildExtension] Build ${stackId} now has pending extension`);
+  console.log(`[startBuildExtension] Locked card: ${usedCard.rank}${usedCard.suit} from ${cardSource}`);
+  console.log(`[startBuildExtension] Build ${stackId} now has pending extension (1 card)`);
 
   // Turn does NOT advance - player continues to add hand card
   return newState;

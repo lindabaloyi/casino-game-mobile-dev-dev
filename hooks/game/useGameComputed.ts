@@ -45,8 +45,10 @@ export function useGameComputed(gameState: GameState, playerNumber: number) {
 
   const extendingBuildId = useMemo(() => {
     if (!isMyTurn) return null;
+    
     const myExtending = table.find(
-      (tc: any) => tc.type === 'build_stack' && tc.owner === playerNumber && tc.pendingExtension?.looseCard,
+      (tc: any) => tc.type === 'build_stack' && tc.owner === playerNumber && 
+        (tc.pendingExtension?.looseCard || tc.pendingExtension?.cards),
     ) as BuildStack | undefined;
     return myExtending?.stackId ?? null;
   }, [table, isMyTurn, playerNumber]);

@@ -1,6 +1,6 @@
 /**
  * ExtendRouter
- * Handles build extension logic - start vs accept.
+ * Handles build extension logic - start vs addToPending.
  */
 
 const StackHelper = require('../helpers/StackHelper');
@@ -8,7 +8,7 @@ const StackHelper = require('../helpers/StackHelper');
 class ExtendRouter {
   /**
    * Route extendBuild action
-   * - Has pending extension → acceptBuildExtension
+   * - Has pending extension → addToPendingExtension
    * - No pending extension → startBuildExtension
    */
   route(payload, state) {
@@ -19,26 +19,18 @@ class ExtendRouter {
       throw new Error(`Build "${stackId}" not found`);
     }
     
-    if (stack.pendingExtension?.looseCard) {
-      // Has pending = accept the extension
+    if (stack.pendingExtension) {
+      // Has pending = add to it
       return { 
-        type: 'acceptBuildExtension', 
-        payload: { 
-          stackId, 
-          card, 
-          cardSource: cardSource || 'hand' 
-        } 
+        type: 'addToPendingExtension', 
+        payload: { stackId, card, cardSource } 
       };
     }
     
     // No pending = start new extension
     return { 
       type: 'startBuildExtension', 
-      payload: { 
-        stackId, 
-        card, 
-        cardSource: cardSource || 'hand' 
-      } 
+      payload: { stackId, card, cardSource } 
     };
   }
 }
