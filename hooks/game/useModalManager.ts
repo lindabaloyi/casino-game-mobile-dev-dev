@@ -54,6 +54,17 @@ export function useModalManager() {
     setExtendTargetBuild(null);
   }, []);
 
+  // Track when a steal happened - for showing end turn button
+  const [showEndTurnButton, setShowEndTurnButton] = useState(false);
+
+  const onStealCompleted = useCallback(() => {
+    setShowEndTurnButton(true);
+  }, []);
+
+  const hideEndTurnButton = useCallback(() => {
+    setShowEndTurnButton(false);
+  }, []);
+
   return {
     // Play modal
     showPlayModal,
@@ -71,6 +82,10 @@ export function useModalManager() {
     extendTargetBuild,
     openExtendModal,
     closeExtendModal,
+    // End turn button (shown after steal)
+    showEndTurnButton,
+    onStealCompleted,
+    hideEndTurnButton,
   };
 }
 

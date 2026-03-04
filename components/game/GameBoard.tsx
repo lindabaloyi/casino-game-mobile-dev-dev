@@ -120,6 +120,8 @@ export function GameBoard({
     playerNumber,
     actions,
     onDragEndWrapper: handleDragEndWrapper,
+    openStealModal: modals.openStealModal,
+    table: computed.table,
   });
 
   // Action handlers
@@ -213,14 +215,33 @@ export function GameBoard({
         tableCards={computed.table}
         onDropOnStack={(card, stackId, stackOwner, stackType) => {
           console.log(`[GameBoard] onDropOnStack - card: ${card.rank}${card.suit}`);
+          
+          // Hide end turn button when player makes a new action
+          modals.hideEndTurnButton();
+          
+          // Check if this is an opponent's build - show steal modal
+          if (stackType === 'build_stack' && stackOwner !== playerNumber) {
+            // Find the build stack from table
+            const buildStack = computed.table.find(
+              (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
+            );
+            if (buildStack) {
+              console.log(`[GameBoard] Opening steal modal for opponent's build: ${stackId}`);
+              modals.openStealModal(card, buildStack as any);
+              return;
+            }
+          }
+          
           actions.stackDrop(card, stackId, stackOwner, stackType, 'hand');
         }}
         onDropOnCard={(card, targetCard) => {
           console.log(`[GameBoard] onDropOnCard - card: ${card.rank}${card.suit}`);
+          modals.hideEndTurnButton();
           actions.createTemp(card, targetCard);
         }}
         onDropOnTable={(card) => {
           console.log(`[GameBoard] onDropOnTable - card: ${card.rank}${card.suit}`);
+          modals.hideEndTurnButton();
           actionHandlers.handleTrail(card);
         }}
         onDragStart={dragHandlers.handleHandDragStart}
@@ -232,6 +253,8 @@ export function GameBoard({
         activeStackType={computed.overlayStackId ? 'temp_stack' : null}
         onAcceptStack={computed.overlayStackId ? actionHandlers.handleAcceptClick : undefined}
         onCancelStack={computed.overlayStackId ? actions.cancelTemp : undefined}
+        showEndTurnButton={modals.showEndTurnButton}
+        onEndTurn={actions.endTurn}
       />
 
       <DragGhost 
@@ -263,6 +286,7 @@ export function GameBoard({
         playerNumber={playerNumber}
         onConfirmSteal={actionHandlers.handleConfirmSteal}
         onCancelSteal={modals.closeStealModal}
+        onStealCompleted={modals.onStealCompleted}
       />
 
       <RoundEndModal

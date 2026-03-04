@@ -117,6 +117,14 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
+  // Manual turn end - used after steal to allow player to continue or end turn
+  const endTurn = useCallback(() => {
+    sendAction({ 
+      type: 'endTurn', 
+      payload: {} as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
   // Generic stack drop - SmartRouter decides what action to take
   const stackDrop = useCallback((card: any, stackId: string, stackOwner: number, stackType: 'temp_stack' | 'build_stack', cardSource: 'table' | 'hand' | 'captured' = 'hand') => {
     sendAction({ 
@@ -139,6 +147,7 @@ export function useGameActions(sendAction: SendAction) {
     acceptBuildExtension,
     declineBuildExtension,
     extendBuild,
+    endTurn,
     stackDrop,
   };
 }

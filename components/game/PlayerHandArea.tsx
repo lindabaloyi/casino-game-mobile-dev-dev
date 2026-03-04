@@ -57,6 +57,10 @@ interface Props {
   onAcceptStack?: (stackId: string) => void;
   /** Cancel callback for the active stack */
   onCancelStack?: (stackId: string) => void;
+  /** Show end turn button (after steal) */
+  showEndTurnButton?: boolean;
+  /** End turn callback */
+  onEndTurn?: () => void;
 }
 
 // Default card dimensions - matching table card size (56x84)
@@ -87,6 +91,8 @@ export function PlayerHandArea({
   activeStackType,
   onAcceptStack,
   onCancelStack,
+  showEndTurnButton,
+  onEndTurn,
 }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   
@@ -213,6 +219,19 @@ export function PlayerHandArea({
           </View>
         </View>
       )}
+
+      {/* End Turn button - shown after steal */}
+      {showEndTurnButton && onEndTurn && (
+        <View style={styles.endTurnContainer}>
+          <TouchableOpacity
+            style={styles.endTurnButton}
+            onPress={onEndTurn}
+            accessibilityLabel="End Turn"
+          >
+            <Text style={styles.endTurnText}>➜ End Turn</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -270,6 +289,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+  endTurnContainer: {
+    position: 'absolute',
+    right: 8,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  endTurnButton: {
+    backgroundColor: '#0288D1',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#03A9F4',
+  },
+  endTurnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

@@ -19,6 +19,10 @@ interface UseDragHandlersProps {
   playerNumber: number;
   actions: any;
   onDragEndWrapper: (...args: any[]) => void;
+  // Modal callbacks for steal build
+  openStealModal?: (card: any, stack: any) => void;
+  // Table data for finding full build stack info
+  table?: any[];
 }
 
 export function useDragHandlers({
@@ -33,6 +37,8 @@ export function useDragHandlers({
   playerNumber,
   actions,
   onDragEndWrapper,
+  openStealModal,
+  table,
 }: UseDragHandlersProps) {
   
   const getNormalizedPosition = useCallback((absX: number, absY: number) => {
@@ -141,6 +147,16 @@ export function useDragHandlers({
 
     // Check build stacks
     if (targetStack && targetStack.stackType === 'build_stack' && dragOverlay.draggingCard) {
+      // Find full build stack from table
+      const fullStack = table?.find((tc: any) => tc.stackId === targetStack.stackId);
+      
+      // Check if this is an opponent's build - show steal modal
+      if (targetStack.owner !== playerNumber && openStealModal && fullStack) {
+        console.log(`[useDragHandlers] Opening steal modal for opponent's build: ${targetStack.stackId}`);
+        openStealModal(dragOverlay.draggingCard, fullStack);
+        handleDragEnd('stack', 'success', targetStack.stackId);
+        return;
+      }
       handleDragEnd('stack', 'success', targetStack.stackId);
       return;
     }

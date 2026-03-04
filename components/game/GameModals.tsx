@@ -27,6 +27,7 @@ interface GameModalsProps {
   playerNumber: number;
   onConfirmSteal: () => void;
   onCancelSteal: () => void;
+  onStealCompleted?: () => void;
   
   // Extend Build Modal (optional - not used in drag-drop flow)
   showExtendModal?: boolean;
@@ -48,12 +49,20 @@ export function GameModals({
   playerNumber,
   onConfirmSteal,
   onCancelSteal,
+  onStealCompleted,
   
   showExtendModal,
   extendTargetBuild,
   onAcceptExtend,
   onDeclineExtend,
 }: GameModalsProps) {
+  // Wrapper to call onStealCompleted when steal is confirmed
+  const handleConfirmSteal = () => {
+    onConfirmSteal();
+    if (onStealCompleted) {
+      onStealCompleted();
+    }
+  };
   return (
     <>
       {/* Play Options Modal - for accepting temp stacks */}
@@ -76,7 +85,7 @@ export function GameModals({
           buildValue={stealTargetStack.value}
           buildOwner={stealTargetStack.owner}
           playerNumber={playerNumber}
-          onConfirm={onConfirmSteal}
+          onConfirm={handleConfirmSteal}
           onCancel={onCancelSteal}
         />
       )}

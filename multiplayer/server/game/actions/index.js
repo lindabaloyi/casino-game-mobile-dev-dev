@@ -36,6 +36,9 @@ const actionHandlers = {
   acceptBuildExtension: require('./acceptBuildExtension'),
   declineBuildExtension: require('./declineBuildExtension'),
 
+  // ── Manual Turn Control ──────────────────────────────────────────────────────
+  endTurn: require('./endTurn'),
+
   // ── Capture ───────────────────────────────────────────────────────────────
   capture:              require('./capture'),
   captureOwn:          require('./captureOwn'),
