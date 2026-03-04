@@ -199,6 +199,7 @@ export function GameBoard({
         onDeclineExtend={actionHandlers.handleDeclineExtend}
         playerHand={computed.myHand}
         opponentDrag={opponentDrag}
+        disableOverlays={!!computed.overlayStackId || !!computed.extendingBuildId}
       />
 
       <PlayerHandArea
@@ -226,6 +227,11 @@ export function GameBoard({
         onDragMove={dragHandlers.handleDragMove}
         onDragEnd={dragHandlers.handleDragEnd}
         opponentDrag={opponentDrag}
+        // Stack action props for action strip in hand area
+        activeStackId={computed.overlayStackId}
+        activeStackType={computed.overlayStackId ? 'temp_stack' : null}
+        onAcceptStack={computed.overlayStackId ? actionHandlers.handleAcceptClick : undefined}
+        onCancelStack={computed.overlayStackId ? actions.cancelTemp : undefined}
       />
 
       <DragGhost 

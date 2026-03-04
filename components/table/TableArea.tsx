@@ -104,6 +104,9 @@ interface Props {
   
   // Opponent's drag state - for hiding cards during opponent's drag
   opponentDrag?: OpponentDragState | null;
+  
+  // Disable stack overlays when action buttons are shown in player hand
+  disableOverlays?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -149,6 +152,7 @@ export function TableArea({
   onAcceptExtend,
   onDeclineExtend,
   opponentDrag,
+  disableOverlays = false,
 }: Props) {
   // Separate item types
   const tempStacks = tableCards.filter(isTempStack) as TempStack[];
@@ -223,20 +227,24 @@ export function TableArea({
         renderItem={renderItem}
       />
 
-      {/* Overlays */}
-      <StackOverlay
-        overlayStackId={overlayStackId}
-        tempStacks={tempStacks}
-        onAcceptTemp={onAcceptTemp}
-        onCancelTemp={onCancelTemp}
-      />
+      {/* Overlays - disabled when shown in player hand area */}
+      {!disableOverlays && (
+        <>
+          <StackOverlay
+            overlayStackId={overlayStackId}
+            tempStacks={tempStacks}
+            onAcceptTemp={onAcceptTemp}
+            onCancelTemp={onCancelTemp}
+          />
 
-      <ExtensionOverlay
-        extendingBuildId={extendingBuildId ?? null}
-        stacks={stacks}
-        onAcceptExtend={onAcceptExtend}
-        onDeclineExtend={onDeclineExtend}
-      />
+          <ExtensionOverlay
+            extendingBuildId={extendingBuildId ?? null}
+            stacks={stacks}
+            onAcceptExtend={onAcceptExtend}
+            onDeclineExtend={onDeclineExtend}
+          />
+        </>
+      )}
 
       {/* Captured cards */}
       <CapturedCardsView

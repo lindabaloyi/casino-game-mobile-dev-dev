@@ -7,14 +7,16 @@
  *  - Cards fan out horizontally with overlap (25-30%)
  *  - Passes dropBounds, findCardAtPoint + callbacks down to each card
  *  - Threads drag-overlay callbacks so GameBoard can render the ghost
+ *  - Shows action strip (Accept/Cancel) when there's a pending stack
  */
 
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions, TouchableOpacity, Text } from 'react-native';
 import { DraggableHandCard } from '../cards/DraggableHandCard';
 import { DropBounds } from '../../hooks/useDrag';
 import { TableItem } from '../table/types';
 import { OpponentDragState } from '../../hooks/useGameState';
+import { StackActionStrip } from '../table/StackActionStrip';
 
 interface Card {
   rank: string;
@@ -46,6 +48,15 @@ interface Props {
   onDragEnd?: () => void;
   /** Opponent's drag state - for hiding cards when opponent is dragging */
   opponentDrag?: OpponentDragState | null;
+  // ── Stack action callbacks ────────────────────────────────────────────────
+  /** Stack ID for pending action (temp/build/extend) */
+  activeStackId?: string | null;
+  /** Type of the active stack */
+  activeStackType?: 'temp_stack' | 'build_stack' | 'extend_build' | null;
+  /** Accept callback for the active stack */
+  onAcceptStack?: (stackId: string) => void;
+  /** Cancel callback for the active stack */
+  onCancelStack?: (stackId: string) => void;
 }
 
 // Default card dimensions - matching table card size (56x84)
@@ -72,6 +83,10 @@ export function PlayerHandArea({
   onDragMove,
   onDragEnd,
   opponentDrag,
+  activeStackId,
+  activeStackType,
+  onAcceptStack,
+  onCancelStack,
 }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   
@@ -174,6 +189,28 @@ export function PlayerHandArea({
           );
         })}
       </ScrollView>
+      
+      {/* Action strip for pending stack - positioned on the right side */}
+      {activeStackId && activeStackType && onAcceptStack && onCancelStack && (
+        <View style={styles.actionStripContainer}>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.acceptButton]}
+              onPress={() => onAcceptStack(activeStackId)}
+              accessibilityLabel="Accept"
+            >
+              <Text style={styles.actionButtonText}>Accept</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.cancelButton]}
+              onPress={() => onCancelStack(activeStackId)}
+              accessibilityLabel="Cancel"
+            >
+              <Text style={styles.actionButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -195,6 +232,41 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'flex-start',
     paddingHorizontal: 8,
+  },
+  actionStripContainer: {
+    position: 'absolute',
+    right: 8,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionButtons: {
+    flexDirection: 'column',
+    gap: 8,
+    alignItems: 'center',
+  },
+  actionButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  acceptButton: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#388E3C',
+  },
+  cancelButton: {
+    backgroundColor: '#f44336',
+    borderColor: '#d32f2f',
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
 
