@@ -251,10 +251,10 @@ export function GameBoard({
         onDragEnd={dragHandlers.handleDragEnd}
         opponentDrag={opponentDrag}
         // Stack action props for action strip in hand area
-        activeStackId={computed.overlayStackId}
-        activeStackType={computed.overlayStackId ? 'temp_stack' : null}
-        onAcceptStack={computed.overlayStackId ? actionHandlers.handleAcceptClick : undefined}
-        onCancelStack={computed.overlayStackId ? actions.cancelTemp : undefined}
+        activeStackId={computed.overlayStackId || computed.extendingBuildId}
+        activeStackType={computed.overlayStackId ? 'temp_stack' : (computed.extendingBuildId ? 'extend_build' : null)}
+        onAcceptStack={computed.overlayStackId ? actionHandlers.handleAcceptClick : (computed.extendingBuildId ? actionHandlers.handleExtendAcceptClick : undefined)}
+        onCancelStack={computed.overlayStackId ? actions.cancelTemp : (computed.extendingBuildId ? actionHandlers.handleDeclineExtend : undefined)}
         showEndTurnButton={modals.showEndTurnButton}
         onEndTurn={actions.endTurn}
       />

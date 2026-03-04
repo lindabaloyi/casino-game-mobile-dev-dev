@@ -227,15 +227,8 @@ export function TableArea({
         renderItem={renderItem}
       />
 
-      {/* Overlays - ExtensionOverlay always shows when extending build, StackOverlay shows based on disableOverlays */}
-      <ExtensionOverlay
-        extendingBuildId={extendingBuildId ?? null}
-        stacks={stacks}
-        onAcceptExtend={onAcceptExtend}
-        onDeclineExtend={onDeclineExtend}
-      />
-      
-      {!disableOverlays && (
+      {/* StackOverlay for temp stacks - only show when no extending build */}
+      {!disableOverlays && extendingBuildId === null && (
         <StackOverlay
           overlayStackId={overlayStackId}
           tempStacks={tempStacks}

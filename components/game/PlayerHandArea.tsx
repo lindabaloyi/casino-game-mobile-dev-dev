@@ -205,9 +205,11 @@ export function PlayerHandArea({
             <TouchableOpacity
               style={[styles.actionButton, styles.acceptButton]}
               onPress={() => onAcceptStack(activeStackId)}
-              accessibilityLabel="Accept"
+              accessibilityLabel={activeStackType === 'extend_build' ? 'Extend' : 'Accept'}
             >
-              <Text style={styles.actionButtonText}>Accept</Text>
+              <Text style={styles.actionButtonText}>
+                {activeStackType === 'extend_build' ? 'Extend' : 'Accept'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, styles.cancelButton]}
