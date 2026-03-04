@@ -53,23 +53,33 @@ export function BuildStackView({
   const pendingExtension = stack.pendingExtension;
   const isExtending = !!(pendingExtension?.looseCard || pendingExtension?.cards);
   
-  // Get the pending cards for value calculation (last card in array or looseCard)
-  const pendingCards = pendingExtension?.cards;
-  const lastPendingCard = pendingCards?.[pendingCards.length - 1]?.card || pendingExtension?.looseCard;
+  // Calculate total pending value (sum of all pending cards for multi-card extensions)
+  let totalPendingValue = 0;
+  if (pendingExtension?.cards) {
+    totalPendingValue = pendingExtension.cards.reduce((sum, p) => sum + p.card.value, 0);
+  } else if (pendingExtension?.looseCard) {
+    totalPendingValue = pendingExtension.looseCard.value;
+  }
   
-  // Calculate need: build value - pending card value
-  // Display as negative (e.g., "-1" when build is 8 and loose card is 7)
+  // Calculate remaining need
+  const remainingNeed = stack.value - totalPendingValue;
+  
   let displayValue: string;
   let badgeColor: string;
   
-  if (isExtending && lastPendingCard) {
-    const need = stack.value - lastPendingCard.value;
-    displayValue = need > 0 ? `-${need}` : stack.value.toString();
-    // Red for incomplete extension (need > 0), purple for complete
-    badgeColor = need > 0 ? '#E53935' : '#9C27B0';
+  if (isExtending) {
+    if (remainingNeed > 0) {
+      // Incomplete extension - need more to complete
+      displayValue = `-${remainingNeed}`;
+      badgeColor = '#E53935'; // red for incomplete
+    } else {
+      // Complete - total pending equals or exceeds build value
+      displayValue = stack.value.toString();
+      badgeColor = '#9C27B0'; // purple for completed
+    }
   } else {
     displayValue = stack.value?.toString() ?? '-';
-    badgeColor = '#9C27B0'; // Purple for completed build
+    badgeColor = '#9C27B0'; // purple for completed build
   }
 
   // Owner label or EXTEND indicator
