@@ -9,7 +9,7 @@
  * always read fresh.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -17,6 +17,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { useWindowDimensions } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
 
@@ -57,6 +58,17 @@ export function DraggableTableCard({
   onDragMove,
   onDragEnd,
 }: Props) {
+  const { width: screenWidth } = useWindowDimensions();
+  
+  // Calculate responsive card dimensions - same logic as player hand
+  const responsiveCardWidth = useMemo(() => {
+    return Math.min(56, screenWidth / 7);
+  }, [screenWidth]);
+  
+  const responsiveCardHeight = useMemo(() => {
+    return responsiveCardWidth * 1.5;
+  }, [responsiveCardWidth]);
+  
   const opacity = useSharedValue(1);
   const cardId = `${card.rank}${card.suit}`;
 
@@ -126,7 +138,12 @@ export function DraggableTableCard({
   return (
     <GestureDetector gesture={gesture}>
       <Animated.View style={animatedStyle}>
-        <PlayingCard rank={card.rank} suit={card.suit} />
+        <PlayingCard 
+          rank={card.rank} 
+          suit={card.suit} 
+          width={responsiveCardWidth}
+          height={responsiveCardHeight}
+        />
       </Animated.View>
     </GestureDetector>
   );

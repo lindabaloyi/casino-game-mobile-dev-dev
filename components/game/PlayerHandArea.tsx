@@ -48,14 +48,14 @@ interface Props {
   opponentDrag?: OpponentDragState | null;
 }
 
-// Default card dimensions
-const DEFAULT_CARD_WIDTH = 56;
-const DEFAULT_CARD_HEIGHT = 84;
+// Default card dimensions - 75% larger for player hand
+const DEFAULT_CARD_WIDTH = 98;
+const DEFAULT_CARD_HEIGHT = 147;
 const CARD_OVERLAP_PERCENT = 0.3;
 
 // Compact card dimensions (when dragging)
-const COMPACT_CARD_WIDTH = 32;
-const COMPACT_CARD_HEIGHT = 48;
+const COMPACT_CARD_WIDTH = 56;
+const COMPACT_CARD_HEIGHT = 84;
 
 export function PlayerHandArea({
   hand,
@@ -76,6 +76,7 @@ export function PlayerHandArea({
   const { width: screenWidth } = useWindowDimensions();
   
   // Calculate responsive card dimensions based on screen width
+  // Show only top half of card (half height for container)
   const { cardOverlap, cardWidth, cardHeight, handWidth, containerHeight, responsiveCardWidth, responsiveCardHeight } = useMemo(() => {
     const numCards = hand.length;
     
@@ -87,6 +88,8 @@ export function PlayerHandArea({
     // Calculate responsive versions that scale with screen width
     const responsiveCw = Math.min(cw, screenWidth / 7);
     const responsiveCh = Math.min(ch, responsiveCw * 1.5);
+    // Half height for showing only top portion of card
+    const halfHeight = responsiveCh * 0.5;
     
     if (numCards <= 1) {
       return { 
@@ -94,7 +97,7 @@ export function PlayerHandArea({
         cardWidth: cw, 
         cardHeight: ch,
         handWidth: responsiveCw + 16,
-        containerHeight: responsiveCh + 16,
+        containerHeight: halfHeight + 8, // Reduced container height
         responsiveCardWidth: responsiveCw,
         responsiveCardHeight: responsiveCh
       };
@@ -115,7 +118,7 @@ export function PlayerHandArea({
       cardWidth: cw, 
       cardHeight: ch,
       handWidth: calculatedWidth,
-      containerHeight: responsiveCh + 16,
+      containerHeight: halfHeight + 8, // Reduced container height
       responsiveCardWidth: responsiveCw,
       responsiveCardHeight: responsiveCh
     };
@@ -147,7 +150,8 @@ export function PlayerHandArea({
                   width: responsiveCardWidth,
                   height: responsiveCardHeight,
                   marginRight: index === hand.length - 1 ? 0 : -cardOverlap,
-                  zIndex: index + 1
+                  zIndex: index + 1,
+                  overflow: 'hidden', // Clip to show only top half
                 }
               ]}
             >
