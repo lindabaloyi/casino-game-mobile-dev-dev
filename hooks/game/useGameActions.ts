@@ -95,10 +95,11 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
-  const acceptBuildExtension = useCallback((buildId: string, card: any, cardSource: 'table' | 'hand' | 'captured' = 'hand') => {
+  const acceptBuildExtension = useCallback((buildId: string) => {
+    // No card/cardSource needed - pending cards are already stored on server
     sendAction({ 
       type: 'acceptBuildExtension', 
-      payload: { stackId: buildId, card, cardSource } as unknown as Record<string, unknown> 
+      payload: { stackId: buildId } as unknown as Record<string, unknown> 
     });
   }, [sendAction]);
 

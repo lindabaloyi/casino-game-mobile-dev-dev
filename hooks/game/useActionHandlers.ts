@@ -64,19 +64,8 @@ export function useActionHandlers(
     const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
     if (stack?.pendingExtension?.looseCard || stack?.pendingExtension?.cards) {
       console.log(`[GameBoard] Extend Accept clicked for ${stackId}`);
-      // Get the last card from pending (the one to add with)
-      const pendingCards = stack.pendingExtension.cards;
-      if (pendingCards && pendingCards.length > 0) {
-        const lastPending = pendingCards[pendingCards.length - 1];
-        console.log(`[GameBoard] Accepting with card: ${lastPending.card.rank}${lastPending.card.suit} from ${lastPending.source}`);
-        // Cast source to the expected type
-        const cardSource = lastPending.source as 'table' | 'hand' | 'captured';
-        actions.acceptBuildExtension(stackId, lastPending.card, cardSource);
-      } else if (stack.pendingExtension.looseCard) {
-        // Legacy format
-        console.log(`[GameBoard] Accepting with loose card: ${stack.pendingExtension.looseCard.rank}${stack.pendingExtension.looseCard.suit}`);
-        actions.acceptBuildExtension(stackId, stack.pendingExtension.looseCard, stack.pendingExtension.looseCard.source || 'table');
-      }
+      // Just pass stackId - server already has the pending cards
+      actions.acceptBuildExtension(stackId);
     }
   }, [table, actions]);
 

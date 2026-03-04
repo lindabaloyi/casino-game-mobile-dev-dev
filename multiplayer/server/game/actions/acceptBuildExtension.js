@@ -58,13 +58,11 @@ function calculateBuildValue(cards) {
  * @returns {object} New game state
  */
 function acceptBuildExtension(state, payload, playerIndex) {
-  const { stackId, card, cardSource = 'hand' } = payload;
+  const { stackId } = payload;
+  // card and cardSource are no longer needed - pending cards are already stored
 
   if (!stackId) {
     throw new Error('acceptBuildExtension: missing stackId');
-  }
-  if (!card?.rank || !card?.suit) {
-    throw new Error('acceptBuildExtension: invalid card');
   }
 
   const newState = cloneState(state);
@@ -90,6 +88,7 @@ function acceptBuildExtension(state, payload, playerIndex) {
   }
 
   // Get pending cards (supports both formats for backward compatibility)
+  // These cards were already removed from their sources when startBuildExtension was called
   let pendingCards = [];
   if (buildStack.pendingExtension.cards) {
     // New array format
@@ -99,91 +98,27 @@ function acceptBuildExtension(state, payload, playerIndex) {
     pendingCards = [buildStack.pendingExtension.looseCard];
   }
 
-  // Find and remove card from its source
-  let playedCard;
-  
-  if (cardSource === 'table') {
-    // Find and remove loose card from table
-    const tableIdx = newState.tableCards.findIndex(
-      tc => !tc.type && tc.rank === card.rank && tc.suit === card.suit,
-    );
-    
-    console.log(`[acceptBuildExtension] Looking for table card: ${card.rank}${card.suit}`);
-    console.log(`[acceptBuildExtension] Table cards:`, newState.tableCards.map(tc => {
-      if (tc.type) return `${tc.type}:${tc.stackId}`;
-      return `${tc.rank}${tc.suit}`;
-    }).join(', '));
-    
-    if (tableIdx === -1) {
-      throw new Error(`acceptBuildExtension: card ${card.rank}${card.suit} not on table`);
-    }
-    
-    playedCard = { ...newState.tableCards[tableIdx], source: 'table' };
-    newState.tableCards.splice(tableIdx, 1);
-    
-  } else if (cardSource === 'hand') {
-    // Find and remove card from player's hand
-    const hand = newState.playerHands[playerIndex];
-    if (!hand) {
-      throw new Error('acceptBuildExtension: player has no hand');
-    }
-    
-    const handIdx = hand.findIndex(
-      c => c.rank === card.rank && c.suit === card.suit,
-    );
-    
-    console.log(`[acceptBuildExtension] Looking for hand card: ${card.rank}${card.suit}`);
-    console.log(`[acceptBuildExtension] Player ${playerIndex} hand:`, hand.map(c => `${c.rank}${c.suit}`).join(', '));
-    
-    if (handIdx === -1) {
-      throw new Error(`acceptBuildExtension: card ${card.rank}${card.suit} not in player's hand`);
-    }
-    
-    playedCard = { ...hand[handIdx], source: 'hand' };
-    hand.splice(handIdx, 1);
-    
-  } else if (cardSource === 'captured') {
-    // Find and remove card from player's captured cards
-    const playerCaptures = newState.playerCaptures[playerIndex];
-    if (!playerCaptures) {
-      throw new Error('acceptBuildExtension: player has no captured cards');
-    }
-    
-    const captureIdx = playerCaptures.findIndex(
-      c => c.rank === card.rank && c.suit === card.suit,
-    );
-    
-    console.log(`[acceptBuildExtension] Looking for captured card: ${card.rank}${card.suit}`);
-    console.log(`[acceptBuildExtension] Player ${playerIndex} captures:`, playerCaptures.map(c => `${c.rank}${c.suit}`).join(', '));
-    
-    if (captureIdx === -1) {
-      throw new Error(`acceptBuildExtension: card ${card.rank}${card.suit} not in player's captures`);
-    }
-    
-    playedCard = { ...playerCaptures[captureIdx], source: 'captured' };
-    playerCaptures.splice(captureIdx, 1);
-    
-  } else {
-    throw new Error(`acceptBuildExtension: unknown cardSource "${cardSource}"`);
-  }
+  // The pending cards were already removed from their sources during startBuildExtension.
+  // We don't need to find/remove them again - just use them directly.
+  console.log(`[acceptBuildExtension] Using pending cards:`, pendingCards.map(c => `${c.rank}${c.suit}`).join(', '));
 
-  // Combine all cards: original build + pending cards + played card
+  // Combine all cards: original build + pending cards
+  // Note: No additional card needed - the pending cards are already the ones being added
   const allCards = [
     ...buildStack.cards,
     ...pendingCards,
-    playedCard,
   ];
 
   // Calculate new build value
-  // Special logic for extensions:
-  // - If sum of pending cards + playedCard == original build value → keep the same build value
+  // For accept, the pending cards are being added to the build
+  // The build value logic:
+  // - If sum of pending cards == original build value → keep the same build value
   // - If sum < original build value → need = buildValue - sum
   const originalValue = buildStack.value;
   const addedPendingValue = pendingCards.reduce((sum, c) => sum + c.value, 0);
-  const addedValue = addedPendingValue + playedCard.value;
   let buildResult;
 
-  if (addedValue === originalValue) {
+  if (addedPendingValue === originalValue) {
     // Adding cards equal to original value - keep same value
     buildResult = {
       value: originalValue,
@@ -191,21 +126,21 @@ function acceptBuildExtension(state, payload, playerIndex) {
       need: 0,
       buildType: 'extend-same',
     };
-    console.log(`[acceptBuildExtension] Added value equals original (${addedValue}), keeping build value: ${originalValue}`);
-  } else if (addedValue < originalValue) {
+    console.log(`[acceptBuildExtension] Added value equals original (${addedPendingValue}), keeping build value: ${originalValue}`);
+  } else if (addedPendingValue < originalValue) {
     // Adding cards less than original value - need is what's left
-    const need = originalValue - addedValue;
+    const need = originalValue - addedPendingValue;
     buildResult = {
       value: originalValue, // Keep original value as target
       base: originalValue,
       need: need,
       buildType: 'extend-need',
     };
-    console.log(`[acceptBuildExtension] Added value (${addedValue}) less than original (${originalValue}), need: ${need}`);
+    console.log(`[acceptBuildExtension] Added value (${addedPendingValue}) less than original (${originalValue}), need: ${need}`);
   } else {
     // Added value > original value - use sum/diff logic
     buildResult = calculateBuildValue(allCards);
-    console.log(`[acceptBuildExtension] Added value (${addedValue}) > original (${originalValue}), using sum/diff logic`);
+    console.log(`[acceptBuildExtension] Added value (${addedPendingValue}) > original (${originalValue}), using sum/diff logic`);
   }
 
   // Validate the extension is possible
@@ -228,7 +163,7 @@ function acceptBuildExtension(state, payload, playerIndex) {
 
   const pendingCardsStr = pendingCards.map(c => `${c.rank}${c.suit}`).join(', ');
   console.log(`[acceptBuildExtension] Player ${playerIndex} extended build ${stackId}`);
-  console.log(`[acceptBuildExtension] Added pending: [${pendingCardsStr}] + ${playedCard.rank}${playedCard.suit} from ${playedCard.source}`);
+  console.log(`[acceptBuildExtension] Added pending cards: [${pendingCardsStr}]`);
   console.log(`[acceptBuildExtension] New build value: ${buildResult.value}, type: ${buildResult.buildType}`);
   console.log(`[acceptBuildExtension] Build cards:`, buildStack.cards.map(c => `${c.rank}${c.suit}`).join(', '));
 
