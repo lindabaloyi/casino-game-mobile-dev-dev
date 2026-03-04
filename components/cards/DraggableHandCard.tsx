@@ -18,7 +18,7 @@
  *   JS thread where refs are always fresh.
  */
 
-import React, { MutableRefObject } from 'react';
+import React, { MutableRefObject, useMemo } from 'react';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -29,6 +29,10 @@ import Animated, {
 import { PlayingCard } from './PlayingCard';
 import { DropBounds } from '../../hooks/useDrag';
 import { TableItem, BuildStack, isBuildStack, TempStack } from '../table/types';
+
+// Card dimensions (normal) - these are the default values
+const DEFAULT_CARD_WIDTH = 56;
+const DEFAULT_CARD_HEIGHT = 84;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -64,6 +68,10 @@ interface Props {
   onDragEnd?: () => void;
   /** Hide this card when opponent is dragging it (for multiplayer sync) */
   isHidden?: boolean;
+  /** Card width for responsive sizing - defaults to 56 */
+  cardWidth?: number;
+  /** Card height for responsive sizing - defaults to 84 */
+  cardHeight?: number;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -84,6 +92,8 @@ export function DraggableHandCard({
   onDragMove,
   onDragEnd,
   isHidden,
+  cardWidth = DEFAULT_CARD_WIDTH,
+  cardHeight = DEFAULT_CARD_HEIGHT,
 }: Props) {
   const opacity = useSharedValue(1);
 
@@ -223,7 +233,7 @@ export function DraggableHandCard({
   if (isHidden) {
     return (
       <Animated.View style={{ opacity: 0 }}>
-        <PlayingCard rank={card.rank} suit={card.suit} />
+        <PlayingCard rank={card.rank} suit={card.suit} width={cardWidth} height={cardHeight} />
       </Animated.View>
     );
   }
@@ -231,7 +241,7 @@ export function DraggableHandCard({
   return (
     <GestureDetector gesture={gesture}>
       <Animated.View style={animatedStyle}>
-        <PlayingCard rank={card.rank} suit={card.suit} />
+        <PlayingCard rank={card.rank} suit={card.suit} width={cardWidth} height={cardHeight} />
       </Animated.View>
     </GestureDetector>
   );

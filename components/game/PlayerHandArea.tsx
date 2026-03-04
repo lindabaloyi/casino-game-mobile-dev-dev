@@ -48,9 +48,9 @@ interface Props {
   opponentDrag?: OpponentDragState | null;
 }
 
-// Card dimensions (normal)
-const CARD_WIDTH = 56;
-const CARD_HEIGHT = 84;
+// Default card dimensions
+const DEFAULT_CARD_WIDTH = 56;
+const DEFAULT_CARD_HEIGHT = 84;
 const CARD_OVERLAP_PERCENT = 0.3;
 
 // Compact card dimensions (when dragging)
@@ -75,41 +75,49 @@ export function PlayerHandArea({
 }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   
-  // Calculate overlap and dimensions dynamically
-  const { cardOverlap, cardWidth, cardHeight, handWidth, containerHeight } = useMemo(() => {
+  // Calculate responsive card dimensions based on screen width
+  const { cardOverlap, cardWidth, cardHeight, handWidth, containerHeight, responsiveCardWidth, responsiveCardHeight } = useMemo(() => {
     const numCards = hand.length;
     
     // Use compact dimensions when player has many cards
     const useCompact = numCards > 7;
-    const cw = useCompact ? COMPACT_CARD_WIDTH : CARD_WIDTH;
-    const ch = useCompact ? COMPACT_CARD_HEIGHT : CARD_HEIGHT;
+    const cw = useCompact ? COMPACT_CARD_WIDTH : DEFAULT_CARD_WIDTH;
+    const ch = useCompact ? COMPACT_CARD_HEIGHT : DEFAULT_CARD_HEIGHT;
+    
+    // Calculate responsive versions that scale with screen width
+    const responsiveCw = Math.min(cw, screenWidth / 7);
+    const responsiveCh = Math.min(ch, responsiveCw * 1.5);
     
     if (numCards <= 1) {
       return { 
         cardOverlap: 0, 
         cardWidth: cw, 
         cardHeight: ch,
-        handWidth: cw + 16,
-        containerHeight: ch + 16
+        handWidth: responsiveCw + 16,
+        containerHeight: responsiveCh + 16,
+        responsiveCardWidth: responsiveCw,
+        responsiveCardHeight: responsiveCh
       };
     }
     
     const availableWidth = screenWidth - 32;
-    const idealOverlap = cw * CARD_OVERLAP_PERCENT;
-    const idealHandWidth = cw + (numCards - 1) * (cw - idealOverlap);
+    const idealOverlap = responsiveCw * CARD_OVERLAP_PERCENT;
+    const idealHandWidth = responsiveCw + (numCards - 1) * (responsiveCw - idealOverlap);
     
     let overlap = idealOverlap;
     if (idealHandWidth > availableWidth) {
-      overlap = Math.max(0, cw - (availableWidth - cw) / (numCards - 1));
+      overlap = Math.max(0, responsiveCw - (availableWidth - responsiveCw) / (numCards - 1));
     }
     
-    const calculatedWidth = cw + (numCards - 1) * (cw - overlap);
+    const calculatedWidth = responsiveCw + (numCards - 1) * (responsiveCw - overlap);
     return { 
       cardOverlap: overlap, 
       cardWidth: cw, 
       cardHeight: ch,
       handWidth: calculatedWidth,
-      containerHeight: ch + 16
+      containerHeight: responsiveCh + 16,
+      responsiveCardWidth: responsiveCw,
+      responsiveCardHeight: responsiveCh
     };
   }, [hand.length, screenWidth]);
 
@@ -136,8 +144,8 @@ export function PlayerHandArea({
               key={cardId}
               style={[
                 { 
-                  width: cardWidth,
-                  height: cardHeight,
+                  width: responsiveCardWidth,
+                  height: responsiveCardHeight,
                   marginRight: index === hand.length - 1 ? 0 : -cardOverlap,
                   zIndex: index + 1
                 }
@@ -159,6 +167,8 @@ export function PlayerHandArea({
                 onDragMove={onDragMove}
                 onDragEnd={onDragEnd}
                 isHidden={isHidden}
+                cardWidth={responsiveCardWidth}
+                cardHeight={responsiveCardHeight}
               />
             </View>
           );

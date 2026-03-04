@@ -10,7 +10,7 @@ interface TableGridProps {
 }
 
 export function TableGrid({ items, renderItem }: TableGridProps) {
-  const { rowDistribution, ROW_GAP } = useTableLayout(items.length);
+  const { rowDistribution, ROW_GAP, CARD_GAP, CARD_HEIGHT } = useTableLayout(items.length);
   
   // Build rows based on distribution
   const rows = useMemo(() => {
@@ -40,6 +40,8 @@ export function TableGrid({ items, renderItem }: TableGridProps) {
           items={row}
           rowIndex={index}
           rowGap={ROW_GAP}
+          cardGap={CARD_GAP}
+          cardHeight={CARD_HEIGHT}
           renderItem={renderItem}
         />
       ))}

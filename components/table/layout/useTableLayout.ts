@@ -3,8 +3,9 @@ import { useWindowDimensions } from 'react-native';
 
 // ── Constants ─────────────────────────────────────────────────────────────────────
 
-export const CARD_WIDTH = 56;
-export const CARD_HEIGHT = 84;
+// Default card dimensions
+const DEFAULT_CARD_WIDTH = 56;
+const DEFAULT_CARD_HEIGHT = 84;
 export const CARD_GAP = 40;
 export const ROW_GAP = 12;
 export const MAX_ROWS = 3;
@@ -65,11 +66,25 @@ export interface TableLayoutResult {
 export function useTableLayout(itemCount: number): TableLayoutResult {
   const { width: screenWidth } = useWindowDimensions();
   
+  // Calculate responsive card dimensions based on screen width
+  const responsiveCardWidth = useMemo(() => {
+    return Math.min(DEFAULT_CARD_WIDTH, screenWidth / 7);
+  }, [screenWidth]);
+  
+  const responsiveCardHeight = useMemo(() => {
+    return responsiveCardWidth * 1.5; // Maintain aspect ratio
+  }, [responsiveCardWidth]);
+  
+  // Calculate responsive gap based on card width
+  const responsiveGap = useMemo(() => {
+    return Math.min(CARD_GAP, responsiveCardWidth * 0.7);
+  }, [responsiveCardWidth]);
+  
   // Calculate max cards per row based on screen width
   const maxCardsPerRow = useMemo(() => {
     const availableWidth = screenWidth - 80;
-    return Math.max(1, Math.floor(availableWidth / (CARD_WIDTH + CARD_GAP)));
-  }, [screenWidth]);
+    return Math.max(1, Math.floor(availableWidth / (responsiveCardWidth + responsiveGap)));
+  }, [screenWidth, responsiveCardWidth, responsiveGap]);
   
   // Calculate row distribution
   const rowDistribution = useMemo(() => {
@@ -79,9 +94,9 @@ export function useTableLayout(itemCount: number): TableLayoutResult {
   return {
     rowDistribution,
     maxCardsPerRow,
-    CARD_WIDTH,
-    CARD_GAP,
+    CARD_WIDTH: responsiveCardWidth,
+    CARD_GAP: responsiveGap,
     ROW_GAP: 12,
-    CARD_HEIGHT,
+    CARD_HEIGHT: responsiveCardHeight,
   };
 }

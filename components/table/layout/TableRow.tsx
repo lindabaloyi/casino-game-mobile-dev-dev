@@ -1,25 +1,26 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { TableItem } from '../types';
-import { CARD_GAP, CARD_HEIGHT } from './useTableLayout';
 
 interface TableRowProps {
   items: TableItem[];
   rowIndex: number;
   rowGap: number;
+  cardGap?: number;
+  cardHeight?: number;
   renderItem: (item: TableItem, index: number) => React.ReactNode;
 }
 
-export function TableRow({ items, rowIndex, rowGap, renderItem }: TableRowProps) {
+export function TableRow({ items, rowIndex, rowGap, cardGap = 40, cardHeight = 84, renderItem }: TableRowProps) {
   return (
     <View 
       style={[
         styles.row,
-        rowIndex > 0 && { marginTop: rowGap }
+        { marginTop: rowGap, minHeight: (cardHeight || 84) + 20 }
       ]}
     >
       {items.map((item, index) => (
-        <View key={`${index}`} style={index > 0 ? { marginLeft: CARD_GAP } : undefined}>
+        <View key={`${index}`} style={index > 0 ? { marginLeft: cardGap } : undefined}>
           {renderItem(item, index)}
         </View>
       ))}
@@ -32,6 +33,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: CARD_HEIGHT + 20,
   },
 });
