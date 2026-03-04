@@ -93,7 +93,7 @@ export function PlayerHandArea({
   // Calculate responsive card dimensions based on screen width
   // Show only top half of card (half height for container)
   // Always use standard DEFAULT dimensions - no conditional scaling
-  const { cardOverlap, handWidth, containerHeight, responsiveCardWidth, responsiveCardHeight } = useMemo(() => {
+  const { cardOverlap, handWidth, containerHeight, responsiveCardWidth, responsiveCardHeight, centerOffset } = useMemo(() => {
     const numCards = hand.length;
     
     // Always use default dimensions - no scaling based on card count
@@ -110,9 +110,10 @@ export function PlayerHandArea({
       return { 
         cardOverlap: 0, 
         handWidth: responsiveCw + 16,
-        containerHeight: halfHeight + 8, // Reduced container height
+        containerHeight: halfHeight + 8,
         responsiveCardWidth: responsiveCw,
-        responsiveCardHeight: responsiveCh
+        responsiveCardHeight: responsiveCh,
+        centerOffset: 0
       };
     }
     
@@ -126,25 +127,26 @@ export function PlayerHandArea({
     }
     
     const calculatedWidth = responsiveCw + (numCards - 1) * (responsiveCw - overlap);
+    // Calculate centering offset - how much to indent from left to center
+    const offset = Math.max(0, (screenWidth - calculatedWidth - 32) / 2);
+    
     return { 
       cardOverlap: overlap, 
       handWidth: calculatedWidth,
-      containerHeight: halfHeight + 8, // Reduced container height
+      containerHeight: halfHeight + 8,
       responsiveCardWidth: responsiveCw,
-      responsiveCardHeight: responsiveCh
+      responsiveCardHeight: responsiveCh,
+      centerOffset: offset
     };
   }, [hand.length, screenWidth]);
 
   return (
-    <View style={[styles.container, { height: containerHeight }]}>
+    <View style={[styles.container, { height: containerHeight, paddingLeft: centerOffset }]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.cardRow,
-          { width: handWidth + 32 }
-        ]}
+        contentContainerStyle={styles.cardRow}
         scrollEnabled={!isMyTurn}
       >
         {hand.map((card, index) => {
@@ -223,6 +225,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     borderTopWidth: 1,
     borderTopColor: '#388E3C',
+    justifyContent: 'center',
   },
   scroll: {
     overflow: 'visible',
