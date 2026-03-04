@@ -60,7 +60,7 @@ export function DraggableTableCard({
 }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   
-  // Calculate responsive card dimensions - same logic as player hand
+  // Calculate responsive card dimensions - matches table card size (56x84 base)
   const responsiveCardWidth = useMemo(() => {
     return Math.min(56, screenWidth / 7);
   }, [screenWidth]);

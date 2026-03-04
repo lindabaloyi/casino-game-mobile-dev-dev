@@ -48,9 +48,9 @@ interface Props {
   opponentDrag?: OpponentDragState | null;
 }
 
-// Default card dimensions - 75% larger for player hand
-const DEFAULT_CARD_WIDTH = 98;
-const DEFAULT_CARD_HEIGHT = 147;
+// Default card dimensions - matching table card size (56x84)
+const DEFAULT_CARD_WIDTH = 56;
+const DEFAULT_CARD_HEIGHT = 84;
 const CARD_OVERLAP_PERCENT = 0.3;
 
 // Compact card dimensions (when dragging)
@@ -77,13 +77,13 @@ export function PlayerHandArea({
   
   // Calculate responsive card dimensions based on screen width
   // Show only top half of card (half height for container)
-  const { cardOverlap, cardWidth, cardHeight, handWidth, containerHeight, responsiveCardWidth, responsiveCardHeight } = useMemo(() => {
+  // Always use standard DEFAULT dimensions - no conditional scaling
+  const { cardOverlap, handWidth, containerHeight, responsiveCardWidth, responsiveCardHeight } = useMemo(() => {
     const numCards = hand.length;
     
-    // Use compact dimensions when player has many cards
-    const useCompact = numCards > 7;
-    const cw = useCompact ? COMPACT_CARD_WIDTH : DEFAULT_CARD_WIDTH;
-    const ch = useCompact ? COMPACT_CARD_HEIGHT : DEFAULT_CARD_HEIGHT;
+    // Always use default dimensions - no scaling based on card count
+    const cw = DEFAULT_CARD_WIDTH;
+    const ch = DEFAULT_CARD_HEIGHT;
     
     // Calculate responsive versions that scale with screen width
     const responsiveCw = Math.min(cw, screenWidth / 7);
@@ -94,8 +94,6 @@ export function PlayerHandArea({
     if (numCards <= 1) {
       return { 
         cardOverlap: 0, 
-        cardWidth: cw, 
-        cardHeight: ch,
         handWidth: responsiveCw + 16,
         containerHeight: halfHeight + 8, // Reduced container height
         responsiveCardWidth: responsiveCw,
@@ -115,8 +113,6 @@ export function PlayerHandArea({
     const calculatedWidth = responsiveCw + (numCards - 1) * (responsiveCw - overlap);
     return { 
       cardOverlap: overlap, 
-      cardWidth: cw, 
-      cardHeight: ch,
       handWidth: calculatedWidth,
       containerHeight: halfHeight + 8, // Reduced container height
       responsiveCardWidth: responsiveCw,
