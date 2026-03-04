@@ -242,8 +242,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionButtons: {
-    flexDirection: 'column',
-    gap: 8,
+    flexDirection: 'row',
+    gap: 12,
     alignItems: 'center',
   },
   actionButton: {
