@@ -9,9 +9,9 @@ export const options = {
 export default function HomeScreen() {
   const router = useRouter();
 
-  const handleSelectMode = (mode: 'single' | 'multiplayer') => {
-    if (mode === 'single') {
-      Alert.alert('Single Player', 'Starting single player game...');
+  const handleSelectMode = (mode: 'cpu' | 'multiplayer') => {
+    if (mode === 'cpu') {
+      router.push('/cpu-game' as any);
     } else {
       router.push('/multiplayer' as any);
     }
@@ -21,8 +21,8 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Casino Card Game</Text>
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} onPress={() => handleSelectMode('single')}>
-          <Text style={styles.buttonText}>Single Player</Text>
+        <TouchableOpacity style={styles.button} onPress={() => handleSelectMode('cpu')}>
+          <Text style={styles.buttonText}>Vs AI</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.button} onPress={() => handleSelectMode('multiplayer')}>
           <Text style={styles.buttonText}>Multiplayer</Text>
