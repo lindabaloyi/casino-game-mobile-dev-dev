@@ -93,8 +93,9 @@ export function GameBoard({
 
   // Show round end modal when round is over
   useEffect(() => {
+    console.log(`[GameBoard] roundInfo updated: isOver=${roundInfo.isOver}, showRoundEnd=${showRoundEnd}`);
     if (roundInfo.isOver && !showRoundEnd) {
-      console.log(`[GameBoard] 🏁 Showing RoundEndModal: round=${roundInfo.roundNumber}, reason=${roundInfo.endReason}`);
+      console.log(`[GameBoard] 🏁 Round ended, showing modal`);
       console.log(`[GameBoard] Final state: cardsRemaining=[${roundInfo.cardsRemaining}]`);
       setShowRoundEnd(true);
     }

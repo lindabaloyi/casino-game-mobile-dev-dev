@@ -1,9 +1,10 @@
 /**
  * createTemp
  * Creates a temporary stack from hand card + loose table card.
+ * NOTE: This does NOT end the turn - player can continue with more actions.
  */
 
-const { cloneState, generateStackId } = require('../GameState');
+const { cloneState, generateStackId, startPlayerTurn, triggerAction } = require('../GameState');
 
 function createTemp(state, payload, playerIndex) {
   const { card, targetCard } = payload;
@@ -116,6 +117,11 @@ function createTemp(state, payload, playerIndex) {
   const willBeHasBase = (buildType === 'diff');
   console.log(`[createTemp] Temp stack created - hasBase will be: ${willBeHasBase} (buildType === 'diff' is ${willBeHasBase})`);
 
+  // Mark turn as started and action triggered (but NOT ended - player can continue)
+  startPlayerTurn(newState, playerIndex);
+  triggerAction(newState, playerIndex);
+  // Do NOT set turnEnded - player can continue with more actions
+  
   return newState;
 }
 

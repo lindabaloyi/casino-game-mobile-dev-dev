@@ -44,12 +44,21 @@ export interface GameState {
   turnCounter: number;
   moveCount: number;
   gameOver: boolean;
-  roundEndReason?: 'cards_depleted' | 'max_moves' | 'all_cards_played';
+  roundEndReason?: 'cards_depleted' | 'max_moves' | 'all_cards_played' | 'all_players_acted';
   // Extended state for temp/build stacks (handled by actions)
   tempStacks?: any[];
   buildStacks?: any[];
   pendingExtensions?: any[];
   stackCounters?: { [key: string]: number };
+  
+  // Turn tracking per round (new)
+  roundPlayers?: Record<number, {
+    playerId: number;
+    turnStarted: boolean;
+    turnEnded: boolean;
+    actionTriggered: boolean;
+    actionCompleted: boolean;
+  }>;
 }
 
 interface UseLocalGameResult {
@@ -110,9 +119,10 @@ export function useLocalGame(playerCount: number = 2): UseLocalGameResult {
       
       console.log(`[useLocalGame] Executed action: ${type} by player ${playerIndex}`);
       setGameState(newState);
-    } catch (error) {
+    } catch (error: any) {
       console.error(`[useLocalGame] Action failed: ${type}`, error);
-      // Don't update state on error - let the error propagate
+      // For local games, we need to alert the user about the error
+      alert(`Action failed: ${error.message}`);
     }
   }, [gameState, actionRouter]);
   

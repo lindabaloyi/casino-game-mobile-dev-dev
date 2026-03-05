@@ -73,6 +73,21 @@ export interface Player {
   team?: TeamId; // Optional: team membership (computed from index if not set)
 }
 
+/**
+ * Per-player turn tracking state for a round.
+ * Used to track whether a player has started/ended their turn.
+ */
+export interface RoundPlayerState {
+  playerId: number;
+  turnStarted: boolean;
+  turnEnded: boolean;
+  actionTriggered: boolean;
+  actionCompleted: boolean;
+}
+
+// Map of player index to their round state
+export type RoundPlayers = Record<number, RoundPlayerState>;
+
 export interface GameState {
   players: Player[];
   table: TableItem[];
@@ -81,6 +96,9 @@ export interface GameState {
   round: number;
   teamScores: [number, number]; // [Team A, Team B]
   playerCount: number; // 2 or 4 players
+  
+  // Turn tracking per round
+  roundPlayers: RoundPlayers;
 }
 
 // ── Team helpers ─────────────────────────────────────────────────────────────

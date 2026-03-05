@@ -38,6 +38,25 @@ function rankValue(rank) {
   return parseInt(rank, 10);
 }
 
+/**
+ * Create round player states for turn tracking.
+ * @param {number} playerCount - Number of players
+ * @returns {object} Map of player index to RoundPlayerState
+ */
+function createRoundPlayers(playerCount) {
+  const roundPlayers = {};
+  for (let i = 0; i < playerCount; i++) {
+    roundPlayers[i] = {
+      playerId: i,
+      turnStarted: false,
+      turnEnded: false,
+      actionTriggered: false,
+      actionCompleted: false,
+    };
+  }
+  return roundPlayers;
+}
+
 function createDeck() {
   const deck = [];
   for (const suit of SUITS) {
@@ -60,6 +79,180 @@ function createDeck() {
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   return deck;
+}
+
+/**
+ * Mark a player's turn as started.
+ * @param {object} state - Game state
+ * @param {number} playerIndex - Player index
+ * @returns {object} Updated state
+ */
+function startPlayerTurn(state, playerIndex) {
+  if (!state.roundPlayers) {
+    state.roundPlayers = createRoundPlayers(state.playerCount || state.players.length);
+    console.log(`[GameState] Created roundPlayers for ${state.playerCount || state.players.length} players`);
+  }
+  if (!state.roundPlayers[playerIndex]) {
+    state.roundPlayers[playerIndex] = {
+      playerId: playerIndex,
+      turnStarted: false,
+      turnEnded: false,
+      actionTriggered: false,
+      actionCompleted: false,
+    };
+  }
+  const wasStarted = state.roundPlayers[playerIndex].turnStarted;
+  state.roundPlayers[playerIndex].turnStarted = true;
+  console.log(`[GameState] startPlayerTurn: player ${playerIndex}, turnStarted: ${wasStarted} -> true, turnCounter: ${state.turnCounter}, currentPlayer: ${state.currentPlayer}`);
+  return state;
+}
+
+/**
+ * Mark a player's turn as ended.
+ * @param {object} state - Game state
+ * @param {number} playerIndex - Player index
+ * @returns {object} Updated state
+ */
+function endPlayerTurn(state, playerIndex) {
+  if (state.roundPlayers && state.roundPlayers[playerIndex]) {
+    const wasEnded = state.roundPlayers[playerIndex].turnEnded;
+    state.roundPlayers[playerIndex].turnEnded = true;
+    console.log(`[GameState] endPlayerTurn: player ${playerIndex}, turnEnded: ${wasEnded} -> true, turnCounter: ${state.turnCounter}`);
+  } else {
+    console.log(`[GameState] endPlayerTurn: WARNING - no roundPlayers[${playerIndex}], creating...`);
+    if (!state.roundPlayers) {
+      state.roundPlayers = createRoundPlayers(state.playerCount || state.players.length);
+    }
+    state.roundPlayers[playerIndex] = {
+      playerId: playerIndex,
+      turnStarted: false,
+      turnEnded: true,
+      actionTriggered: false,
+      actionCompleted: false,
+    };
+  }
+  return state;
+}
+
+/**
+ * Mark an action as triggered for the current player.
+ * @param {object} state - Game state
+ * @param {number} playerIndex - Player index
+ * @returns {object} Updated state
+ */
+function triggerAction(state, playerIndex) {
+  if (!state.roundPlayers) {
+    state.roundPlayers = createRoundPlayers(state.playerCount || state.players.length);
+    console.log(`[GameState] triggerAction: Created roundPlayers for ${state.playerCount || state.players.length} players`);
+  }
+  if (!state.roundPlayers[playerIndex]) {
+    state.roundPlayers[playerIndex] = {
+      playerId: playerIndex,
+      turnStarted: false,
+      turnEnded: false,
+      actionTriggered: false,
+      actionCompleted: false,
+    };
+  }
+  const wasTriggered = state.roundPlayers[playerIndex].actionTriggered;
+  const wasCompleted = state.roundPlayers[playerIndex].actionCompleted;
+  state.roundPlayers[playerIndex].actionTriggered = true;
+  state.roundPlayers[playerIndex].actionCompleted = true;
+  console.log(`[GameState] triggerAction: player ${playerIndex}, actionTriggered: ${wasTriggered} -> true, actionCompleted: ${wasCompleted} -> true, turnCounter: ${state.turnCounter}`);
+  return state;
+}
+
+/**
+ * Check if all players have ended their turn.
+ * @param {object} state - Game state
+ * @returns {boolean} True if all players have turnEnded = true
+ */
+function allPlayersTurnEnded(state) {
+  if (!state.roundPlayers) {
+    console.log(`[GameState] allPlayersTurnEnded: roundPlayers is undefined, returning false`);
+    return false;
+  }
+  const playerIds = Object.keys(state.roundPlayers);
+  if (playerIds.length === 0) {
+    console.log(`[GameState] allPlayersTurnEnded: no players in roundPlayers, returning false`);
+    return false;
+  }
+  
+  // Log each player's status
+  const statusSummary = playerIds.map(id => {
+    const p = state.roundPlayers[id];
+    return `${id}:started=${p.turnStarted},ended=${p.turnEnded},triggered=${p.actionTriggered},completed=${p.actionCompleted}`;
+  }).join('; ');
+  console.log(`[GameState] allPlayersTurnEnded: player status: [${statusSummary}]`);
+  
+  const allEnded = playerIds.every(id => state.roundPlayers[id].turnEnded === true);
+  console.log(`[GameState] allPlayersTurnEnded: result = ${allEnded}, turnCounter: ${state.turnCounter}, round: ${state.round}`);
+  return allEnded;
+}
+
+/**
+ * Force end turn for a player (used for Round 1 validation or disconnection).
+ * @param {object} state - Game state
+ * @param {number} playerIndex - Player index
+ * @returns {object} Updated state
+ */
+function forceEndTurn(state, playerIndex) {
+  if (!state.roundPlayers) {
+    state.roundPlayers = createRoundPlayers(state.playerCount || state.players.length);
+  }
+  if (!state.roundPlayers[playerIndex]) {
+    state.roundPlayers[playerIndex] = {
+      playerId: playerIndex,
+      turnStarted: false,
+      turnEnded: false,
+      actionTriggered: false,
+      actionCompleted: false,
+    };
+  }
+  // Mark as started if not already
+  state.roundPlayers[playerIndex].turnStarted = true;
+  // Mark as having taken an action (default/fold)
+  state.roundPlayers[playerIndex].actionTriggered = true;
+  state.roundPlayers[playerIndex].actionCompleted = true;
+  // Mark turn as ended
+  state.roundPlayers[playerIndex].turnEnded = true;
+  console.log(`[GameState] Force ended turn for player ${playerIndex}`);
+  return state;
+}
+
+/**
+ * Reset round players for a new round.
+ * @param {object} state - Game state
+ * @returns {object} Updated state with fresh roundPlayers
+ */
+function resetRoundPlayers(state) {
+  state.roundPlayers = createRoundPlayers(state.playerCount || state.players.length);
+  return state;
+}
+
+/**
+ * Reset turn flags for all players after a trick is completed.
+ * This is called when all players have ended their turn (trick complete).
+ * @param {object} state - Game state
+ * @returns {object} Updated state with reset turn flags
+ */
+function resetTurnFlags(state) {
+  if (!state.roundPlayers) {
+    console.log(`[GameState] resetTurnFlags: no roundPlayers, creating...`);
+    state.roundPlayers = createRoundPlayers(state.playerCount || state.players.length);
+    return state;
+  }
+  
+  const playerCount = state.playerCount || state.players.length;
+  for (let i = 0; i < playerCount; i++) {
+    if (state.roundPlayers[i]) {
+      state.roundPlayers[i].turnStarted = false;
+      state.roundPlayers[i].turnEnded = false;
+      // actionTriggered and actionCompleted stay as they were (for scoring)
+    }
+  }
+  console.log(`[GameState] resetTurnFlags: reset turn flags for ${playerCount} players`);
+  return state;
 }
 
 /**
@@ -140,6 +333,9 @@ function initializeGame(playerCount = 2) {
     });
   }
   
+  // Create round players for turn tracking
+  const roundPlayers = createRoundPlayers(playerCount);
+  
   const state = {
     deck,
     players,
@@ -149,11 +345,12 @@ function initializeGame(playerCount = 2) {
     scores: new Array(playerCount).fill(0),
     teamScores: [0, 0], // [Team A, Team B]
     turnCounter: 1,
-    turnEnded: false,
     moveCount: 0,
     gameOver: false,
     playerCount,
     stackCounters: { tempP1: 0, tempP2: 0, tempP3: 0, tempP4: 0, buildP1: 0, buildP2: 0, buildP3: 0, buildP4: 0 },
+    // NEW: Turn tracking per round
+    roundPlayers,
   };
   
   // Validate card distribution
@@ -224,6 +421,9 @@ function initializeTestGame(playerCount = 2) {
   
   const tableCards = remainingDeck.splice(0, 4);
   
+  // Create round players for turn tracking
+  const roundPlayers = createRoundPlayers(playerCount);
+  
   return {
     deck: remainingDeck,
     players,
@@ -233,11 +433,12 @@ function initializeTestGame(playerCount = 2) {
     scores: new Array(playerCount).fill(0),
     teamScores: [0, 0],
     turnCounter: 1,
-    turnEnded: false,
     moveCount: 0,
     gameOver: false,
     playerCount,
     stackCounters: { tempP1: 0, tempP2: 0, tempP3: 0, tempP4: 0, buildP1: 0, buildP2: 0, buildP3: 0, buildP4: 0 },
+    // NEW: Turn tracking per round
+    roundPlayers,
   };
 }
 
@@ -265,10 +466,31 @@ function cloneState(state) {
 
 /**
  * Advance turn to the next player
+ * Also increments turnCounter to track total turns played
  */
 function nextTurn(state) {
   const totalPlayers = state.players.length;
-  state.currentPlayer = (state.currentPlayer + 1) % totalPlayers;
+  const oldPlayer = state.currentPlayer;
+  const newPlayer = (state.currentPlayer + 1) % totalPlayers;
+  
+  // Log current state before advancing
+  const oldStatus = state.roundPlayers ? Object.entries(state.roundPlayers).map(([id, p]) => `${id}:ended=${p.turnEnded}`).join('; ') : 'no roundPlayers';
+  console.log(`[GameState] nextTurn: BEFORE - currentPlayer=${oldPlayer} -> ${newPlayer}, turnCounter=${state.turnCounter}, players status: [${oldStatus}]`);
+  
+  state.currentPlayer = newPlayer;
+  
+  // Increment turnCounter to track round progression
+  // This is used by RoundValidator to detect when all players have played
+  if (typeof state.turnCounter === 'number') {
+    state.turnCounter += 1;
+  } else {
+    state.turnCounter = 1;
+  }
+  
+  // Log new state after advancing
+  const newStatus = state.roundPlayers ? Object.entries(state.roundPlayers).map(([id, p]) => `${id}:ended=${p.turnEnded}`).join('; ') : 'no roundPlayers';
+  console.log(`[GameState] nextTurn: AFTER - newPlayer=${newPlayer}, newTurnCounter=${state.turnCounter}, players status: [${newStatus}]`);
+  
   return state;
 }
 
@@ -297,4 +519,13 @@ module.exports = {
   getTeamFromIndex,
   getTeammateIndex,
   validateCardDistribution,
+  // NEW: Turn tracking functions
+  createRoundPlayers,
+  startPlayerTurn,
+  endPlayerTurn,
+  triggerAction,
+  allPlayersTurnEnded,
+  forceEndTurn,
+  resetRoundPlayers,
+  resetTurnFlags,
 };

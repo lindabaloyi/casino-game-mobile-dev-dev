@@ -11,7 +11,7 @@
  * Contract: (state, payload, playerIndex) => newState  (pure, no side effects)
  */
 
-const { cloneState, nextTurn } = require('../GameState');
+const { cloneState, nextTurn, startPlayerTurn, triggerAction } = require('../GameState');
 
 /**
  * @param {object} state       Current game state
@@ -27,9 +27,11 @@ function trail(state, payload, playerIndex) {
     throw new Error('trail: invalid card payload');
   }
 
-  // Check if a card with the same rank already exists on the table
-  const existingCardOfSameRank = state.tableCards.some(
-    tableCard => tableCard.rank === card.rank
+  // Check if a card with the same rank already exists on the table as a LOOSE card only
+  // (temp_stack and build_stack objects don't block trailing - they have cards inside)
+  const looseCards = state.tableCards.filter(tc => !tc.type);
+  const existingCardOfSameRank = looseCards.some(
+    looseCard => looseCard.rank === card.rank
   );
   
   if (existingCardOfSameRank) {
@@ -57,6 +59,17 @@ function trail(state, payload, playerIndex) {
   // Remove from hand, add to table
   const [trailedCard] = hand.splice(cardIndex, 1);
   newState.tableCards.push(trailedCard);
+
+  console.log(`[trail] Player ${playerIndex} played ${card.rank}${card.suit}, cards in hand: ${hand.length}`);
+
+  // Mark turn as started and ended (trail auto-ends turn)
+  startPlayerTurn(newState, playerIndex);
+  triggerAction(newState, playerIndex);
+  // Explicitly set turnEnded since trail ends the turn
+  if (newState.roundPlayers && newState.roundPlayers[playerIndex]) {
+    newState.roundPlayers[playerIndex].turnEnded = true;
+    console.log(`[trail] Player ${playerIndex} turnEnded set to true`);
+  }
 
   // Advance turn
   return nextTurn(newState);

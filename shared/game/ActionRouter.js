@@ -56,6 +56,8 @@ function createActionRouter(config) {
         playerIndex
       );
 
+      console.log(`[ActionRouter] SmartRouter routed "${actionType}" → "${finalType}"`);
+
       // 4. Execute handler — pure function returns new state
       const handler = handlers[finalType];
       const newState = handler(state, finalPayload || {}, playerIndex);

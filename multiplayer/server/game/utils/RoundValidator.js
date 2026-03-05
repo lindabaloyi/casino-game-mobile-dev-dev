@@ -2,60 +2,103 @@
  * RoundValidator
  * Handles round end detection and round summary generation.
  * 
- * 2-player: Round ends when turnCounter >= 22 (10 cards × 2 players + 2)
- * 4-player: Round ends when turnCounter >= 42 (10 cards × 4 players + 2)
+ * Round ends when BOTH:
+ * 1. All players' hands are empty (no cards left to play)
+ * 2. All players have turnEnded = true (final trick completed)
+ * 
+ * This relies on the turn tracking flags system.
  */
+
+const { cloneDeep } = require('../../../../shared/utils/cloneDeep');
+const { allPlayersTurnEnded, forceEndTurn, createRoundPlayers } = require('../../../../shared/game/GameState');
 
 class RoundValidator {
   static STARTING_CARDS = 10;
   
-  static getMaxTurns(playerCount) {
-    // 10 cards per player + 2 buffer for turn logic
-    return (playerCount * 10) + 2;
-  }
-
   /**
    * Check if the current round should end.
-   * Round ends when:
-   * - All player hands are empty
-   * - turnCounter >= max turns for player count
+   * Round ends when BOTH:
+   * 1. All players' hands are empty (all cards played)
+   * 2. All players have turnEnded = true (final trick complete)
    * @param {object} state - Game state
    * @returns {{ ended: boolean, reason?: 'all_cards_played' }}
    */
   static shouldEndRound(state) {
+    console.log(`[RoundValidator] ===== shouldEndRound START =====`);
+
+    // Check 1: All players' hands empty
     const playerCount = state.playerCount || state.players?.length || 2;
-    const maxTurns = this.getMaxTurns(playerCount);
-    const playerHands = state.players || [];
-    
-    // Check ALL players' hands (works for 2 or 4 players)
     let allHandsEmpty = true;
-    let totalCardsInHands = 0;
     for (let i = 0; i < playerCount; i++) {
-      const cards = playerHands[i]?.hand?.length || 0;
-      totalCardsInHands += cards;
-      if (cards > 0) {
+      if (state.players[i]?.hand?.length > 0) {
         allHandsEmpty = false;
+        break;
+      }
+    }
+
+    // Check 2: All players have turnEnded = true
+    const allTurnsEnded = allPlayersTurnEnded(state);
+
+    console.log(`[RoundValidator] allHandsEmpty=${allHandsEmpty}, allTurnsEnded=${allTurnsEnded}`);
+
+    // Round ends when BOTH conditions are true
+    if (allHandsEmpty && allTurnsEnded) {
+      console.log(`[RoundValidator] ✅ Round ending: all cards played and all turns ended`);
+      return { ended: true, reason: 'all_cards_played' };
+    }
+
+    console.log(`[RoundValidator] Round continues: conditions not met`);
+    return { ended: false };
+  }
+
+  /**
+   * CRITICAL: Validate Round 1 cannot end prematurely.
+   * Forces end turns for any player who hasn't acted.
+   * @param {object} state - Game state
+   * @returns {object} Updated state with forced end turns if needed
+   */
+  static validateRound1End(state) {
+    // Only apply to round 1
+    if (state.round !== 1) {
+      console.log(`[RoundValidator] validateRound1End: Not round 1 (current: ${state.round}), skipping`);
+      return state;
+    }
+    
+    console.log(`[RoundValidator] validateRound1End: Checking round 1...`);
+    
+    const players = state.roundPlayers || {};
+    const playerIds = Object.keys(players);
+    
+    // If no roundPlayers yet, initialize them
+    if (playerIds.length === 0) {
+      console.log(`[RoundValidator] validateRound1End: No roundPlayers found, initializing...`);
+      return state;
+    }
+    
+    const incompletePlayers = [];
+    
+    for (const playerId of playerIds) {
+      const playerState = players[playerId];
+      console.log(`[RoundValidator] validateRound1End: player ${playerId}: turnStarted=${playerState.turnStarted}, turnEnded=${playerState.turnEnded}, actionTriggered=${playerState.actionTriggered}`);
+      if (!playerState.turnEnded) {
+        incompletePlayers.push(parseInt(playerId));
       }
     }
     
-    const turnCount = state.turnCounter || 1;
-    const hasPlayed = turnCount >= 2;
-    
-    console.log(`[RoundValidator] Checking round end (${playerCount} players): turnCounter=${turnCount}/${maxTurns}, totalCardsInHands=${totalCardsInHands}`);
-    
-    if (allHandsEmpty && hasPlayed) {
-      console.log(`[RoundValidator] ✅ Round ending: all ${playerCount} hands empty (turn ${turnCount})`);
-      return { ended: true, reason: 'all_cards_played' };
+    if (incompletePlayers.length > 0) {
+      console.log(`[RoundValidator] ⚠️ Round 1 incomplete - forcing end turn for players: ${incompletePlayers.join(', ')}`);
+      
+      // Force end turn for each incomplete player
+      let newState = state;
+      for (const playerId of incompletePlayers) {
+        newState = forceEndTurn(newState, playerId);
+      }
+      
+      return newState;
     }
     
-    // Debug: show why not ending
-    if (!allHandsEmpty) {
-      console.log(`[RoundValidator] Round continues: total ${totalCardsInHands} cards remaining in all hands`);
-    } else if (!hasPlayed) {
-      console.log(`[RoundValidator] Round continues: only ${turnCount} turns played, need at least 2`);
-    }
-    
-    return { ended: false };
+    console.log(`[RoundValidator] validateRound1End: All players have ended turn in round 1`);
+    return state;
   }
 
   /**
@@ -146,29 +189,26 @@ class RoundValidator {
    */
   static prepareNextRound(state) {
     const nextRound = state.round + 1;
+    const oldTurnCounter = state.turnCounter;
     
-    // Reset for next round
+    // Reset for next round - including turn tracking flags
     const newState = {
       ...state,
       round: nextRound,
       moveCount: 0,
-      turnCounter: 1,
+      turnCounter: 1, // Reset to 1 for new round
       currentPlayer: 0,
       tableCards: [],
+      // Reset round players for new round
+      roundPlayers: createRoundPlayers(state.playerCount || state.players.length),
       // Keep scores accumulated
       scores: state.scores,
-      // Keep player hands (if any remaining from previous round logic)
-      // In a real game, you might deal new cards here
+      // Keep team scores
+      teamScores: state.teamScores,
     };
     
-    // If moving to round 2, deal new hands if needed
-    if (nextRound === 2) {
-      // For now, we'll let the existing cards stay in hand
-      // In a full implementation, you might:
-      // 1. Keep captured cards separate
-      // 2. Shuffle and deal new hands
-      // 3. Or use the remaining cards in hand
-    }
+    console.log(`[RoundValidator] prepareNextRound: resetting turnCounter from ${oldTurnCounter} to 1`);
+    console.log(`[RoundValidator] Preparing Round ${nextRound}: turnCounter reset to 1, roundPlayers reset`);
     
     return newState;
   }

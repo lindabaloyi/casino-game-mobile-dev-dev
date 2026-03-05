@@ -8,6 +8,7 @@
  */
 
 const RoundValidator = require('../game/utils/RoundValidator');
+const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn } = require('../../../shared/game/GameState');
 
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking = null) {
@@ -74,6 +75,9 @@ class GameCoordinatorService {
       
       const newState = this.actionRouter.executeAction(gameId, playerIndex, data);
       
+      // Log state after action with turn counter
+      console.log(`[Coordinator] After action: turnCounter=${newState.turnCounter}, P1hand=${newState.players[0].hand.length}, P2hand=${newState.players[1].hand.length}`);
+      
       // Log state after action
       const tableCards = newState.tableCards?.length || 0;
       const playerCount = newState.playerCount || 2;
@@ -89,6 +93,35 @@ class GameCoordinatorService {
       
       // Get the correct matchmaking service for broadcasting
       const mm = this._getMatchmakingForGame(isPartyGame);
+      
+      // Check if all players have ended their turn (trick complete)
+      if (allPlayersTurnEnded(newState)) {
+        console.log(`[Coordinator] ⚡ TRICK COMPLETE - all players have ended their turn ⚡`);
+        
+        // Check if round should end (all hands empty)
+        const playerCount = newState.playerCount || 2;
+        let allHandsEmpty = true;
+        for (let i = 0; i < playerCount; i++) {
+          if (newState.players[i]?.hand?.length > 0) {
+            allHandsEmpty = false;
+            break;
+          }
+        }
+        
+        if (!allHandsEmpty) {
+          // Round continues - reset turn flags for next trick
+          console.log(`[Coordinator] Trick complete, resetting turn flags for next trick`);
+          resetTurnFlags(newState);
+          
+          // Start the next player's turn (the current player after the trick)
+          // The currentPlayer should already be set correctly by nextTurn
+          const nextPlayer = newState.currentPlayer;
+          startPlayerTurn(newState, nextPlayer);
+          console.log(`[Coordinator] Starting next trick: player ${nextPlayer}`);
+        } else {
+          console.log(`[Coordinator] Trick complete, round will end (hands empty)`);
+        }
+      }
       
       // Check if round has ended (both hands empty)
       const roundCheck = RoundValidator.shouldEndRound(newState);

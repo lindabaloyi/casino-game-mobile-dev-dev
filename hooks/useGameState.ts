@@ -43,7 +43,16 @@ export interface GameState {
   turnCounter: number;
   moveCount: number;
   gameOver: boolean;
-  roundEndReason?: 'cards_depleted' | 'max_moves' | 'all_cards_played';
+  roundEndReason?: 'cards_depleted' | 'max_moves' | 'all_cards_played' | 'all_players_acted';
+  
+  // Turn tracking per round (new)
+  roundPlayers?: Record<number, {
+    playerId: number;
+    turnStarted: boolean;
+    turnEnded: boolean;
+    actionTriggered: boolean;
+    actionCompleted: boolean;
+  }>;
 }
 
 /** Opponent drag state for real-time ghost card rendering */

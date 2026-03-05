@@ -1,11 +1,19 @@
 /**
  * useGameRound
  * Custom hook for tracking round state and detecting round end.
- * Round ends when BOTH player hands are empty (cards played).
+ * Round ends when ALL player hands are empty (all cards played).
+ * 
+ * Trick completion is tracked separately via turn flags (turnStarted/turnEnded).
  */
 
 import { useEffect, useState } from 'react';
 import { GameState } from '../useGameState';
+
+export interface RoundPlayerTurnStatus {
+  turnStarted: boolean;
+  turnEnded: boolean;
+  actionCompleted: boolean;
+}
 
 export interface RoundInfo {
   roundNumber: number;
@@ -13,7 +21,10 @@ export interface RoundInfo {
   isOver: boolean;
   turnCounter: number;
   cardsRemaining: number[]; // Array of cards per player
-  endReason?: 'all_cards_played';
+  endReason?: 'all_cards_played' | 'max_turns_reached';
+  
+  // Turn status per player (new)
+  playerTurnStatus?: Record<number, RoundPlayerTurnStatus>;
 }
 
 export function useGameRound(gameState: GameState | null): RoundInfo {
@@ -27,9 +38,13 @@ export function useGameRound(gameState: GameState | null): RoundInfo {
 
   useEffect(() => {
     if (!gameState) {
+      console.log('[useGameRound] No gameState, returning');
       return;
     }
 
+    console.log(`[useGameRound] ===== EFFECT TRIGGERED =====`);
+    console.log(`[useGameRound] State: round=${gameState.round}, turnCounter=${gameState.turnCounter}, currentPlayer=${gameState.currentPlayer}`);
+    
     const playerCount = gameState.playerCount || gameState.players?.length || 2;
     const playerHands = gameState.players || [];
     
@@ -40,18 +55,48 @@ export function useGameRound(gameState: GameState | null): RoundInfo {
     }
     
     const turnCounter = gameState.turnCounter || 1;
+    
+    // Check for unresolved stacks on table (client-side check)
+    const tableCards = gameState.tableCards || [];
+    const tempStacks = tableCards.filter((tc: any) => tc.type === 'temp_stack');
+    const pendingExtensions = tableCards.filter((tc: any) => 
+      tc.type === 'build_stack' && tc.pendingExtension
+    );
+    const hasUnresolved = tempStacks.length > 0 || pendingExtensions.length > 0;
+    
+    console.log(`[useGameRound] Cards per player: [${cardsPerPlayer.join(', ')}], tempStacks: ${tempStacks.length}, pendingExtensions: ${pendingExtensions.length}`);
 
+    // Get turn status per player
+    const playerTurnStatus: Record<number, RoundPlayerTurnStatus> = {};
+    const roundPlayers = gameState.roundPlayers || {};
+    console.log(`[useGameRound] roundPlayers: ${JSON.stringify(roundPlayers)}`);
+    
+    for (let i = 0; i < playerCount; i++) {
+      const rp = roundPlayers[i];
+      playerTurnStatus[i] = {
+        turnStarted: rp?.turnStarted || false,
+        turnEnded: rp?.turnEnded || false,
+        actionCompleted: rp?.actionCompleted || false,
+      };
+      console.log(`[useGameRound] Player ${i}: turnStarted=${playerTurnStatus[i].turnStarted}, turnEnded=${playerTurnStatus[i].turnEnded}, actionCompleted=${playerTurnStatus[i].actionCompleted}`);
+    }
+    
     // Log round state for debugging
-    console.log(`[useGameRound] Round ${gameState.round}: turn=${turnCounter}, ${playerCount} players, cardsPerPlayer=${cardsPerPlayer.join(',')}`);
+    console.log(`[useGameRound] Round ${gameState.round}: turn=${turnCounter}, ${playerCount} players, cardsPerPlayer=[${cardsPerPlayer.join(',')}]`);
 
     // Round ends when ALL conditions are met:
-    // 1. All player hands are empty
-    // 2. At least one full turn has been completed (turnCounter >= 2)
+    // 1. All player hands are empty (all cards played)
+    // 2. At least one full trick has been completed (turnCounter >= playerCount)
+    // 3. No unresolved temp stacks or pending extensions
     const allHandsEmpty = cardsPerPlayer.every(cards => cards === 0);
-    const hasPlayed = turnCounter >= 2;
+    const hasPlayed = turnCounter >= playerCount;
+    
+    console.log(`[useGameRound] Conditions: allHandsEmpty=${allHandsEmpty}, hasPlayed=${hasPlayed}, hasUnresolved=${hasUnresolved}`);
 
-    if (allHandsEmpty && hasPlayed) {
-      console.log(`[useGameRound] ✅ Round OVER: all hands empty`);
+    // Round ends ONLY when all hands are empty (all cards played)
+    if (allHandsEmpty && hasPlayed && !hasUnresolved) {
+      console.log(`[useGameRound] ✅ Round OVER: all hands empty, no unresolved stacks`);
+      console.log(`[useGameRound] End reason: all_cards_played`);
       setRoundInfo({
         roundNumber: gameState.round,
         isActive: false,
@@ -59,19 +104,22 @@ export function useGameRound(gameState: GameState | null): RoundInfo {
         turnCounter,
         cardsRemaining: cardsPerPlayer,
         endReason: 'all_cards_played',
+        playerTurnStatus,
       });
+      console.log(`[useGameRound] ===== ROUND ENDED =====`);
     } else {
       // Round still active
-      console.log(`[useGameRound] Round continues: cardsPerPlayer=${cardsPerPlayer.join(',')}, turn=${turnCounter}`);
+      console.log(`[useGameRound] Round continues: cardsPerPlayer=[${cardsPerPlayer.join(',')}], turn=${turnCounter}, hasUnresolved=${hasUnresolved}`);
       setRoundInfo({
         roundNumber: gameState.round,
         isActive: true,
         isOver: false,
         turnCounter,
         cardsRemaining: cardsPerPlayer,
+        playerTurnStatus,
       });
     }
-  }, [gameState?.players, gameState?.round, gameState?.turnCounter]);
+  }, [gameState?.players, gameState?.round, gameState?.turnCounter, gameState?.roundPlayers]);
 
   return roundInfo;
 }

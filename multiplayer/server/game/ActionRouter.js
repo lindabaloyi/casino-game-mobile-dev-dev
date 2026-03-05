@@ -39,7 +39,8 @@ class ActionRouter {
     // Use shared router for core logic (validates turn, routes action, executes handler)
     const newState = this.sharedRouter.executeAction(state, playerIndex, type, payload);
 
-    console.log(`[ActionRouter] Routed "${type}" → "${type}"`);
+    // Log the actual routed action type
+    console.log(`[ActionRouter] Executed action: ${type}`);
 
     // Persist updated state
     this.gameManager.saveGameState(gameId, newState);

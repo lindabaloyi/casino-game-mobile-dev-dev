@@ -3,7 +3,7 @@
  * Player captures an OPPONENT'S build stack.
  */
 
-const { cloneState, nextTurn } = require('../GameState');
+const { cloneState, nextTurn, startPlayerTurn, triggerAction } = require('../GameState');
 
 function captureOpponent(state, payload, playerIndex) {
   const { card, targetStackId } = payload;
@@ -43,6 +43,14 @@ function captureOpponent(state, payload, playerIndex) {
   const capturedCards = [...buildStack.cards];
   newState.tableCards.splice(stackIdx, 1);
   newState.players[playerIndex].captures.push(...capturedCards, capturingCard);
+
+  // Mark turn as started and ended (capture auto-ends turn)
+  startPlayerTurn(newState, playerIndex);
+  triggerAction(newState, playerIndex);
+  // Explicitly set turnEnded since capture ends the turn
+  if (newState.roundPlayers && newState.roundPlayers[playerIndex]) {
+    newState.roundPlayers[playerIndex].turnEnded = true;
+  }
 
   return nextTurn(newState);
 }

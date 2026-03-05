@@ -19,12 +19,24 @@ export function useActionHandlers(
 
   const handleTrail = useCallback(
     (card: any) => {
+      // Check if player has an active build (blocks trailing)
       const hasActiveBuild = table.some(
         (tc: any) => tc.type === 'build_stack' && tc.owner === playerNumber
       );
       
+      // Check if player has an unresolved temp stack (also blocks trailing)
+      const hasUnresolvedTemp = table.some(
+        (tc: any) => tc.type === 'temp_stack' && tc.owner === playerNumber
+      );
+      
       if (hasActiveBuild) {
         console.log(`[GameBoard] Cannot trail - player ${playerNumber} has an active build`);
+        onDragEndWrapper();
+        return;
+      }
+      
+      if (hasUnresolvedTemp) {
+        console.log(`[GameBoard] Cannot trail - player ${playerNumber} has an unresolved temp stack`);
         onDragEndWrapper();
         return;
       }
