@@ -10,18 +10,28 @@
 const RoundValidator = require('../game/utils/RoundValidator');
 
 class GameCoordinatorService {
-  constructor(gameManager, actionRouter, matchmaking, broadcaster) {
+  constructor(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking = null) {
     this.gameManager  = gameManager;
     this.actionRouter = actionRouter;
     this.matchmaking  = matchmaking;
     this.broadcaster  = broadcaster;
+    this.partyMatchmaking = partyMatchmaking;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   /** Resolve which game + player this socket belongs to, or send error. */
   _resolvePlayer(socket) {
-    const gameId = this.matchmaking.getGameId(socket.id);
+    // First check regular matchmaking
+    let gameId = this.matchmaking.getGameId(socket.id);
+    let isPartyGame = false;
+    
+    // If not in regular game, check party matchmaking
+    if (!gameId && this.partyMatchmaking) {
+      gameId = this.partyMatchmaking.getPartyGameId(socket.id);
+      isPartyGame = true;
+    }
+    
     if (!gameId) {
       this.broadcaster.sendError(socket, 'Not in an active game');
       return null;
@@ -31,7 +41,7 @@ class GameCoordinatorService {
       this.broadcaster.sendError(socket, 'Player not found in game');
       return null;
     }
-    return { gameId, playerIndex };
+    return { gameId, playerIndex, isPartyGame };
   }
 
   // ── Event handlers ────────────────────────────────────────────────────────
@@ -58,10 +68,10 @@ class GameCoordinatorService {
       const newState = this.actionRouter.executeAction(gameId, playerIndex, data);
       
       // Log state after action
-      const p1Cards = newState.playerHands?.[0]?.length || 0;
-      const p2Cards = newState.playerHands?.[1]?.length || 0;
-      const p1Captures = newState.playerCaptures?.[0]?.length || 0;
-      const p2Captures = newState.playerCaptures?.[1]?.length || 0;
+      const p1Cards = newState.players?.[0]?.hand?.length || 0;
+      const p2Cards = newState.players?.[1]?.hand?.length || 0;
+      const p1Captures = newState.players?.[0]?.captures?.length || 0;
+      const p2Captures = newState.players?.[1]?.captures?.length || 0;
       console.log(`[Coordinator] After action: P1hand=${p1Cards}, P2hand=${p2Cards}, P1captures=${p1Captures}, P2captures=${p2Captures}`);
       
       // Check if round has ended (both hands empty)

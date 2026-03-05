@@ -9,8 +9,8 @@ export function useGameComputed(gameState: GameState, playerNumber: number) {
   );
   
   const myHand = useMemo(() => 
-    gameState.playerHands?.[playerNumber] ?? [], 
-    [gameState.playerHands, playerNumber]
+    gameState.players?.[playerNumber]?.hand ?? [], 
+    [gameState.players, playerNumber]
   );
   
   const table = useMemo(() => 
@@ -19,13 +19,13 @@ export function useGameComputed(gameState: GameState, playerNumber: number) {
   );
   
   const playerCaptures = useMemo(() => 
-    gameState.playerCaptures?.[playerNumber] ?? [], 
-    [gameState.playerCaptures, playerNumber]
+    gameState.players?.[playerNumber]?.captures ?? [], 
+    [gameState.players, playerNumber]
   );
   
   const opponentCaptures = useMemo(() => 
-    gameState.playerCaptures?.[playerNumber === 0 ? 1 : 0] ?? [], 
-    [gameState.playerCaptures, playerNumber]
+    gameState.players?.[playerNumber === 0 ? 1 : 0]?.captures ?? [], 
+    [gameState.players, playerNumber]
   );
 
   const tableVersion = useMemo(() => {

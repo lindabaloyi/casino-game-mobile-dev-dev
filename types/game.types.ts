@@ -62,12 +62,15 @@ export function isLooseCard(item: TableItem): item is Card {
 
 // ── Player types ─────────────────────────────────────────────────────────────
 
+export type TeamId = 'A' | 'B';
+
 export interface Player {
   id: number;
   name: string;
   hand: Card[];
   captures: Card[];
   score: number;
+  team?: TeamId; // Optional: team membership (computed from index if not set)
 }
 
 export interface GameState {
@@ -76,6 +79,30 @@ export interface GameState {
   currentPlayer: number;
   phase: 'play' | 'build' | 'scoring';
   round: number;
+  teamScores: [number, number]; // [Team A, Team B]
+  playerCount: number; // 2 or 4 players
+}
+
+// ── Team helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Get team ID from player index.
+ * Players 0,1 = Team A, Players 2,3 = Team B
+ */
+export function getTeamFromIndex(playerIndex: number): TeamId {
+  return playerIndex < 2 ? 'A' : 'B';
+}
+
+/**
+ * Get teammate index (for 2v2 mode)
+ * Returns the other player on the same team
+ */
+export function getTeammateIndex(playerIndex: number): number | null {
+  if (playerIndex < 0 || playerIndex > 3) return null;
+  // Team A: 0↔1, Team B: 2↔3
+  return playerIndex < 2 
+    ? (playerIndex === 0 ? 1 : 0)
+    : (playerIndex === 2 ? 3 : 2);
 }
 
 // ── Action types ─────────────────────────────────────────────────────────────

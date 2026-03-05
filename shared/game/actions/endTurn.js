@@ -7,7 +7,7 @@ const { cloneState } = require('../GameState');
 
 function endTurn(state, payload, playerIndex) {
   const newState = cloneState(state);
-  const totalPlayers = newState.playerHands.length;
+  const totalPlayers = newState.players.length;
   newState.currentPlayer = (playerIndex + 1) % totalPlayers;
   return newState;
 }

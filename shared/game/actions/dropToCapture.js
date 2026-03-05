@@ -30,7 +30,7 @@ function dropToCapture(state, payload, playerIndex) {
 
   newState.tableCards.splice(stackIdx, 1);
   const capturedCards = [...stack.cards];
-  newState.playerCaptures[playerIndex].push(...capturedCards);
+  newState.players[playerIndex].captures.push(...capturedCards);
 
   return nextTurn(newState);
 }

@@ -41,7 +41,7 @@ function trail(state, payload, playerIndex) {
 
   // Clone state for pure function
   const newState = cloneState(state);
-  const hand = newState.playerHands[playerIndex];
+  const hand = newState.players[playerIndex].hand;
 
   // Find the card in the player's hand (match by rank + suit)
   const cardIndex = hand.findIndex(

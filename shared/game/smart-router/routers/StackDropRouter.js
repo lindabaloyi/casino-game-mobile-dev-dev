@@ -71,7 +71,7 @@ class StackDropRouter {
    */
   getCardSource(state, playerIndex, card) {
     // Check if card is in player's hand
-    const playerHand = state.playerHands?.[playerIndex] || [];
+    const playerHand = state.players?.[playerIndex]?.hand || [];
     const inHand = playerHand.some(
       c => c.rank === card.rank && c.suit === card.suit
     );

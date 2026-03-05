@@ -39,8 +39,32 @@ class GameManager {
     console.log(`[GameManager] Game ${gameId} started — deck: ${gameState.deck.length} remaining`);
     
     // Log player hands for debugging
-    console.log(`[GameManager] Player 0 hand:`, gameState.playerHands[0].map(c => `${c.rank}${c.suit}`).join(', '));
-    console.log(`[GameManager] Player 1 hand:`, gameState.playerHands[1].map(c => `${c.rank}${c.suit}`).join(', '));
+    console.log(`[GameManager] Player 0 hand:`, gameState.players[0].hand.map(c => `${c.rank}${c.suit}`).join(', '));
+    console.log(`[GameManager] Player 1 hand:`, gameState.players[1].hand.map(c => `${c.rank}${c.suit}`).join(', '));
+    console.log(`[GameManager] Table cards:`, gameState.tableCards.map(c => `${c.rank}${c.suit}`).join(', '));
+    
+    return { gameId, gameState };
+  }
+
+  /**
+   * Create a new 4-player party game.
+   * @returns {{ gameId: number, gameState: object }}
+   */
+  startPartyGame() {
+    const gameId = this._nextId++;
+    
+    // Party games always use regular deal (not test deal)
+    const gameState = initializeGame(4); // 4 players
+
+    this.activeGames.set(gameId, gameState);
+    this.socketPlayerMap.set(gameId, new Map());
+
+    console.log(`[GameManager] Party Game ${gameId} started — deck: ${gameState.deck.length} remaining, players: ${gameState.playerCount}`);
+    
+    // Log player hands for debugging
+    for (let i = 0; i < 4; i++) {
+      console.log(`[GameManager] Player ${i} (Team ${gameState.players[i].team}) hand:`, gameState.players[i].hand.map(c => `${c.rank}${c.suit}`).join(', '));
+    }
     console.log(`[GameManager] Table cards:`, gameState.tableCards.map(c => `${c.rank}${c.suit}`).join(', '));
     
     return { gameId, gameState };

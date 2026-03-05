@@ -30,10 +30,10 @@ function cancelTemp(state, payload, playerIndex) {
   for (const card of stack.cards) {
     const pureCard = { rank: card.rank, suit: card.suit, value: card.value };
     if (card.source === 'hand') {
-      newState.playerHands[playerIndex].push(pureCard);
+      newState.players[playerIndex].hand.push(pureCard);
     } else if (card.source === 'captured') {
       const opponentIndex = playerIndex === 0 ? 1 : 0;
-      newState.playerCaptures[opponentIndex].push(pureCard);
+      newState.players[opponentIndex].captures.push(pureCard);
     } else {
       newState.tableCards.push(pureCard);
     }

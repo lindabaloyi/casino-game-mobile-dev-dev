@@ -92,6 +92,13 @@ class MatchmakingService {
       .filter(Boolean);
   }
 
+  /**
+   * Get sockets for a party game (stub - uses same gameSocketsMap)
+   */
+  getPartyGameSockets(gameId, io) {
+    return this.getGameSockets(gameId, io);
+  }
+
   getWaitingPlayersCount() {
     return this.waitingPlayers.length;
   }

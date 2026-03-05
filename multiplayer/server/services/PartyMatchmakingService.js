@@ -1,0 +1,176 @@
+/**
+ * PartyMatchmakingService
+ * Manages 4-player party game matchmaking.
+ * Queues players and starts a game when 4 are ready.
+ */
+
+class PartyMatchmakingService {
+  constructor(gameManager) {
+    this.gameManager = gameManager;
+
+    /** Sockets waiting for a party game */
+    this.waitingPlayers = [];
+
+    /** socketId → gameId */
+    this.socketGameMap = new Map();
+
+    /** gameId → socketId[] */
+    this.gameSocketsMap = new Map();
+  }
+
+  // ── Queue management ──────────────────────────────────────────────────────
+
+  /**
+   * Add a socket to the party queue. If 4 players are waiting, start a party game.
+   * @returns {object|null} game result object if a game was created, else null
+   */
+  addToQueue(socket) {
+    // Don't add if already in a game or queue
+    if (this.socketGameMap.has(socket.id)) {
+      console.log(`[PartyMatchmaking] ${socket.id} is already in a game/queue`);
+      return null;
+    }
+
+    console.log(`[PartyMatchmaking] ${socket.id} joined party queue (${this.waitingPlayers.length + 1} waiting)`);
+    this.waitingPlayers.push(socket);
+    this.socketGameMap.set(socket.id, null);
+    
+    return this._tryCreatePartyGame();
+  }
+
+  /**
+   * Alias for addToQueue
+   */
+  addToPartyQueue(socket) {
+    return this.addToQueue(socket);
+  }
+
+  /**
+   * Alias for handleDisconnection
+   */
+  handlePartyDisconnection(socket) {
+    return this.handleDisconnection(socket);
+  }
+
+  _tryCreatePartyGame() {
+    if (this.waitingPlayers.length < 4) return null;
+
+    const players = this.waitingPlayers.splice(0, 4);
+
+    // Start a 4-player game
+    const { gameId, gameState } = this.gameManager.startPartyGame();
+
+    // Map sockets → gameId
+    for (const p of players) {
+      this.socketGameMap.set(p.id, gameId);
+    }
+    this.gameSocketsMap.set(gameId, players.map(p => p.id));
+
+    // Register players in GameManager (0, 1, 2, 3)
+    for (let i = 0; i < 4; i++) {
+      this.gameManager.addPlayerToGame(gameId, players[i].id, i);
+    }
+
+    console.log(`[PartyMatchmaking] Party Game ${gameId} started — P0:${players[0].id} P1:${players[1].id} P2:${players[2].id} P3:${players[3].id}`);
+
+    return {
+      gameId,
+      gameState,
+      players: players.map((socket, index) => ({
+        socket,
+        playerNumber: index
+      })),
+    };
+  }
+
+  // ── Disconnection ─────────────────────────────────────────────────────────
+
+  /**
+   * Clean up when a socket disconnects.
+   * @returns {{ gameId, remainingSockets }|null}
+   */
+  handleDisconnection(socket) {
+    // Remove from queue if still waiting
+    this.waitingPlayers = this.waitingPlayers.filter(s => s.id !== socket.id);
+
+    const gameId = this.socketGameMap.get(socket.id);
+    
+    if (!gameId) {
+      // Wasn't in a game, just return
+      this.socketGameMap.delete(socket.id);
+      return null;
+    }
+
+    this.socketGameMap.delete(socket.id);
+
+    const sockets = (this.gameSocketsMap.get(gameId) || []).filter(id => id !== socket.id);
+    
+    if (sockets.length === 0) {
+      // No more players in this game, clean up
+      this.gameSocketsMap.delete(gameId);
+      this.gameManager.endGame(gameId);
+      console.log(`[PartyMatchmaking] Party game ${gameId} ended (all players disconnected)`);
+    } else {
+      this.gameSocketsMap.set(gameId, sockets);
+      console.log(`[PartyMatchmaking] ${socket.id} left party game ${gameId} (${sockets.length} remaining)`);
+    }
+
+    return { gameId, remainingSockets: sockets };
+  }
+
+  // ── Lookups ─────────────────────────────────────────────────────────────
+
+  getGameId(socketId) {
+    return this.socketGameMap.get(socketId) || null;
+  }
+
+  /**
+   * Get game ID for party (alias for getGameId)
+   */
+  getPartyGameId(socketId) {
+    return this.getGameId(socketId);
+  }
+
+  getGameSockets(gameId, io) {
+    return (this.gameSocketsMap.get(gameId) || [])
+      .map(id => io.sockets.sockets.get(id))
+      .filter(Boolean);
+  }
+
+  /**
+   * Get sockets for a party game (alias for getGameSockets)
+   */
+  getPartyGameSockets(gameId, io) {
+    return this.getGameSockets(gameId, io);
+  }
+
+  getWaitingPlayersCount() {
+    return this.waitingPlayers.length;
+  }
+
+  /**
+   * Get waiting party players count (alias)
+   */
+  getWaitingPartyPlayersCount() {
+    return this.getWaitingPlayersCount();
+  }
+
+  /**
+   * Get the number of players needed to start a party game
+   */
+  getPlayersNeeded() {
+    return Math.max(0, 4 - this.waitingPlayers.length);
+  }
+
+  /**
+   * Get current party queue status
+   */
+  getQueueStatus() {
+    return {
+      waiting: this.waitingPlayers.length,
+      needed: this.getPlayersNeeded()
+    };
+  }
+}
+
+module.exports = PartyMatchmakingService;

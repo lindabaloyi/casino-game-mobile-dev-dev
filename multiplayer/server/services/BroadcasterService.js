@@ -5,10 +5,11 @@
  */
 
 class BroadcasterService {
-  constructor(matchmakingService, gameManager, io) {
+  constructor(matchmakingService, gameManager, io, partyMatchmakingService = null) {
     this.matchmaking = matchmakingService;
     this.gameManager = gameManager;
     this.io = io;
+    this.partyMatchmaking = partyMatchmakingService;
   }
 
   /**
@@ -23,6 +24,23 @@ class BroadcasterService {
         gameId,
         gameState,
         playerNumber,
+      });
+    });
+  }
+
+  /**
+   * Broadcast party game start to all 4 players in a new party game
+   */
+  broadcastPartyGameStart(gameResult) {
+    const { gameId, gameState, players } = gameResult;
+
+    players.forEach(({ socket, playerNumber }) => {
+      console.log(`[Broadcaster] Starting party game ${gameId} for Player ${playerNumber} (${socket.id})`);
+      socket.emit("game-start", {
+        gameId,
+        gameState,
+        playerNumber,
+        isPartyGame: true,
       });
     });
   }
@@ -55,6 +73,27 @@ class BroadcasterService {
 
     if (remainingSockets.length > 0) {
       console.log(`[Broadcaster] Notifying ${remainingSockets.length} player(s) of disconnection in game ${gameId}`);
+      remainingSockets.forEach((otherSocket) => {
+        otherSocket.emit("player-disconnected");
+      });
+    }
+  }
+
+  /**
+   * Broadcast party disconnection to remaining players in party game
+   */
+  broadcastPartyDisconnection(gameId, disconnectedSocketId) {
+    if (!this.partyMatchmaking) return;
+    
+    // Use party matchmaking's getGameSockets method
+    const gameSockets = this.partyMatchmaking.getPartyGameSockets(gameId, this.io);
+
+    const remainingSockets = gameSockets.filter(
+      (socket) => socket.id !== disconnectedSocketId,
+    );
+
+    if (remainingSockets.length > 0) {
+      console.log(`[Broadcaster] Notifying ${remainingSockets.length} player(s) of party disconnection in game ${gameId}`);
       remainingSockets.forEach((otherSocket) => {
         otherSocket.emit("player-disconnected");
       });

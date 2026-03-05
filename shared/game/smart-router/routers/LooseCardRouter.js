@@ -33,7 +33,7 @@ class LooseCardRouter {
     }
 
     // Check for spare cards of the same rank in player's hand
-    const playerHand = state.playerHands?.[playerIndex] || [];
+    const playerHand = state.players?.[playerIndex]?.hand || [];
     const sameRankCards = playerHand.filter(c => c.rank === card.rank);
 
     if (sameRankCards.length === 1) {

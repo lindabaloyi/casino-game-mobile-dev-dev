@@ -39,7 +39,7 @@ function stealBuild(state, payload, playerIndex) {
 
   const opponentOriginalValue = buildStack.value;
 
-  const hand = newState.playerHands[playerIndex];
+  const hand = newState.players[playerIndex].hand;
   const handIdx = hand.findIndex(
     c => c.rank === card.rank && c.suit === card.suit,
   );

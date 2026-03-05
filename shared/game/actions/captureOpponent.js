@@ -16,7 +16,7 @@ function captureOpponent(state, payload, playerIndex) {
   }
 
   const newState = cloneState(state);
-  const hand = newState.playerHands[playerIndex];
+  const hand = newState.players[playerIndex].hand;
 
   const handIdx = hand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
   if (handIdx === -1) {
@@ -42,7 +42,7 @@ function captureOpponent(state, payload, playerIndex) {
 
   const capturedCards = [...buildStack.cards];
   newState.tableCards.splice(stackIdx, 1);
-  newState.playerCaptures[playerIndex].push(...capturedCards, capturingCard);
+  newState.players[playerIndex].captures.push(...capturedCards, capturingCard);
 
   return nextTurn(newState);
 }

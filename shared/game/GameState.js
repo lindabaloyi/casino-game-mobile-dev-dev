@@ -7,10 +7,31 @@
 
 const { cloneDeep } = require('../utils/cloneDeep');
 
-// ── Deck utilities ─────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────
 
 const SUITS = ['♠', '♥', '♦', '♣'];
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+const STARTING_CARDS_PER_PLAYER = 10;
+
+// ── Team helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Get team from player index: 0,1 -> 'A', 2,3 -> 'B'
+ */
+function getTeamFromIndex(playerIndex) {
+  return playerIndex < 2 ? 'A' : 'B';
+}
+
+/**
+ * Get teammate index for 2v2 mode
+ */
+function getTeammateIndex(playerIndex) {
+  if (playerIndex < 0 || playerIndex > 3) return null;
+  // Team A: 0↔1, Team B: 2↔3
+  return playerIndex < 2 
+    ? (playerIndex === 0 ? 1 : 0)
+    : (playerIndex === 2 ? 3 : 2);
+}
 
 function rankValue(rank) {
   if (rank === 'A') return 1;
@@ -33,30 +54,47 @@ function createDeck() {
 
 /**
  * Create a fresh game state.
+ * @param {number} playerCount - Number of players (2 or 4)
  */
-function initializeGame() {
+function initializeGame(playerCount = 2) {
   const deck = createDeck();
-  const playerHands = [deck.splice(0, 10), deck.splice(0, 10)];
+  const players = [];
+  
+  // Deal cards to each player
+  for (let i = 0; i < playerCount; i++) {
+    const hand = deck.splice(0, STARTING_CARDS_PER_PLAYER);
+    players.push({
+      id: i,
+      name: `Player ${i + 1}`,
+      hand,
+      captures: [],
+      score: 0,
+      team: getTeamFromIndex(i)
+    });
+  }
+  
   return {
     deck,
-    playerHands,
+    players,
     tableCards: [],
-    playerCaptures: [[], []],
     currentPlayer: 0,
     round: 1,
-    scores: [0, 0],
+    scores: new Array(playerCount).fill(0),
+    teamScores: [0, 0], // [Team A, Team B]
     turnCounter: 1,
     turnEnded: false,
     moveCount: 0,
     gameOver: false,
-    stackCounters: { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 },
+    playerCount,
+    stackCounters: { tempP1: 0, tempP2: 0, tempP3: 0, tempP4: 0, buildP1: 0, buildP2: 0, buildP3: 0, buildP4: 0 },
   };
 }
 
 /**
  * Create a test game state with specific cards.
+ * @param {number} playerCount - Number of players (2 or 4)
  */
-function initializeTestGame() {
+function initializeTestGame(playerCount = 2) {
   const fullDeck = [];
   for (const suit of SUITS) {
     for (const rank of RANKS) {
@@ -77,24 +115,52 @@ function initializeTestGame() {
     const j = Math.floor(Math.random() * (i + 1));
     [remainingDeck[i], remainingDeck[j]] = [remainingDeck[j], remainingDeck[i]];
   }
-  while (player0Cards.length < 10) {
+  while (player0Cards.length < STARTING_CARDS_PER_PLAYER) {
     player0Cards.push(remainingDeck.pop());
   }
-  const player1Cards = remainingDeck.splice(0, 10);
+  
+  // Create players array with dealt cards
+  const players = [];
+  
+  // Player 0 gets the special hand
+  players.push({
+    id: 0,
+    name: 'Player 1',
+    hand: player0Cards,
+    captures: [],
+    score: 0,
+    team: 'A'
+  });
+  
+  // Other players get dealt hands
+  for (let i = 1; i < playerCount; i++) {
+    const hand = remainingDeck.splice(0, STARTING_CARDS_PER_PLAYER);
+    players.push({
+      id: i,
+      name: `Player ${i + 1}`,
+      hand,
+      captures: [],
+      score: 0,
+      team: getTeamFromIndex(i)
+    });
+  }
+  
   const tableCards = remainingDeck.splice(0, 4);
+  
   return {
     deck: remainingDeck,
-    playerHands: [player0Cards, player1Cards],
+    players,
     tableCards: tableCards,
-    playerCaptures: [[], []],
     currentPlayer: 0,
     round: 1,
-    scores: [0, 0],
+    scores: new Array(playerCount).fill(0),
+    teamScores: [0, 0],
     turnCounter: 1,
     turnEnded: false,
     moveCount: 0,
     gameOver: false,
-    stackCounters: { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 },
+    playerCount,
+    stackCounters: { tempP1: 0, tempP2: 0, tempP3: 0, tempP4: 0, buildP1: 0, buildP2: 0, buildP3: 0, buildP4: 0 },
   };
 }
 
@@ -105,7 +171,7 @@ function generateStackId(state, type, playerIndex) {
   const playerLabel = `P${playerIndex + 1}`;
   const counterKey = `${type}${playerLabel}`;
   if (!state.stackCounters) {
-    state.stackCounters = { tempP1: 0, tempP2: 0, buildP1: 0, buildP2: 0 };
+    state.stackCounters = { tempP1: 0, tempP2: 0, tempP3: 0, tempP4: 0, buildP1: 0, buildP2: 0, buildP3: 0, buildP4: 0 };
   }
   state.stackCounters[counterKey] = (state.stackCounters[counterKey] || 0) + 1;
   const num = state.stackCounters[counterKey];
@@ -124,7 +190,7 @@ function cloneState(state) {
  * Advance turn to the next player
  */
 function nextTurn(state) {
-  const totalPlayers = state.playerHands.length;
+  const totalPlayers = state.players.length;
   state.currentPlayer = (state.currentPlayer + 1) % totalPlayers;
   return state;
 }
@@ -151,4 +217,6 @@ module.exports = {
   getCurrentPlayer,
   isPlayerTurn,
   generateStackId,
+  getTeamFromIndex,
+  getTeammateIndex,
 };

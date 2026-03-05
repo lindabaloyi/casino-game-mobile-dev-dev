@@ -34,7 +34,7 @@ function addToTemp(state, payload, playerIndex) {
     source = 'table';
     cardFound = true;
   } else {
-    const hand = newState.playerHands[playerIndex];
+    const hand = newState.players[playerIndex].hand;
     const handIdx = hand.findIndex(
       c => c.rank === card.rank && c.suit === card.suit,
     );
@@ -44,7 +44,7 @@ function addToTemp(state, payload, playerIndex) {
       cardFound = true;
     } else {
       const opponentIndex = playerIndex === 0 ? 1 : 0;
-      const opponentCaptures = newState.playerCaptures[opponentIndex];
+      const opponentCaptures = newState.players[opponentIndex].captures;
       const captureIdx = opponentCaptures.findIndex(
         c => c.rank === card.rank && c.suit === card.suit,
       );

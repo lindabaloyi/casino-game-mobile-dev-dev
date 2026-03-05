@@ -42,11 +42,11 @@ function declineBuildExtension(state, payload, playerIndex) {
   for (const pending of pendingCards) {
     const { card, source } = pending;
     if (source === 'hand') {
-      newState.playerHands[playerIndex].push({ ...card });
+      newState.players[playerIndex].hand.push({ ...card });
     } else if (source === 'table' || source === undefined) {
       newState.tableCards.push({ rank: card.rank, suit: card.suit, value: card.value });
     } else if (source === 'captured') {
-      newState.playerCaptures[playerIndex].push({ ...card });
+      newState.players[playerIndex].captures.push({ ...card });
     }
   }
 

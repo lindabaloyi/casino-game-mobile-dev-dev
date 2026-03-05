@@ -117,7 +117,7 @@ function findCpuAction(state: GameState, playerIndex: number): { type: string; p
   const smartRouter = new SmartRouter();
   
   // Get CPU's hand
-  const cpuHand = state.playerHands[playerIndex] || [];
+  const cpuHand = state.players?.[playerIndex]?.hand || [];
   
   // If CPU has no cards, end turn
   if (cpuHand.length === 0) {

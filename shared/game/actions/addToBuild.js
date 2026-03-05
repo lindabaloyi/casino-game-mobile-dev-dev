@@ -28,7 +28,7 @@ function addToBuild(state, payload, playerIndex) {
     throw new Error('addToBuild: cannot add to opponent\'s build');
   }
 
-  const hand = newState.playerHands[playerIndex];
+  const hand = newState.players[playerIndex].hand;
   const handIdx = hand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
   if (handIdx === -1) {
     throw new Error(`addToBuild: card ${card.rank}${card.suit} not in hand`);

@@ -9,9 +9,11 @@ export const options = {
 export default function HomeScreen() {
   const router = useRouter();
 
-  const handleSelectMode = (mode: 'cpu' | 'multiplayer') => {
+  const handleSelectMode = (mode: 'cpu' | 'multiplayer' | 'party') => {
     if (mode === 'cpu') {
       router.push('/cpu-game' as any);
+    } else if (mode === 'party') {
+      router.push('/party-game' as any);
     } else {
       router.push('/multiplayer' as any);
     }
@@ -26,6 +28,9 @@ export default function HomeScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.button} onPress={() => handleSelectMode('multiplayer')}>
           <Text style={styles.buttonText}>Multiplayer</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => handleSelectMode('party')}>
+          <Text style={styles.buttonText}>Party Mode (2v2)</Text>
         </TouchableOpacity>
       </View>
     </View>

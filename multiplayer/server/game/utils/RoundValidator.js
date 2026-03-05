@@ -19,9 +19,9 @@ class RoundValidator {
    * @returns {{ ended: boolean, reason?: 'all_cards_played' }}
    */
   static shouldEndRound(state) {
-    const playerHands = state.playerHands || [];
-    const player1Cards = playerHands[0]?.length || 0;
-    const player2Cards = playerHands[1]?.length || 0;
+    const playerHands = state.players || [];
+    const player1Cards = playerHands[0]?.hand?.length || 0;
+    const player2Cards = playerHands[1]?.hand?.length || 0;
     const turnCount = state.turnCounter || 1;
     
     console.log(`[RoundValidator] Checking round end: turnCounter=${turnCount}/22, P1hand=${player1Cards}, P2hand=${player2Cards}`);
@@ -53,12 +53,12 @@ class RoundValidator {
    * @returns {{ round, cardsRemaining, scores, winner }}
    */
   static getRoundSummary(state) {
-    const playerHands = state.playerHands || [];
+    const playerHands = state.players || [];
     
     return {
       round: state.round,
-      cardsRemaining: (playerHands[0]?.length || 0) + 
-                      (playerHands[1]?.length || 0),
+      cardsRemaining: (playerHands[0]?.hand?.length || 0) + 
+                      (playerHands[1]?.hand?.length || 0),
       scores: state.scores || [0, 0],
       winner: this.determineRoundWinner(state)
     };
@@ -82,8 +82,11 @@ class RoundValidator {
    * @returns {{ scores: [number, number], details: object }}
    */
   static calculateScores(state) {
-    const { playerCaptures = [[], []], round } = state;
+    const { playerCaptures = [], round } = state;
     const scores = [0, 0];
+    const players = state.players || [];
+    const p0Captures = players[0]?.captures || [];
+    const p1Captures = players[1]?.captures || [];
     
     // Each round, captured cards stay with the player
     // At end of game, scoring is calculated based on total captured cards
@@ -99,8 +102,8 @@ class RoundValidator {
     return {
       scores,
       details: {
-        player0Captures: playerCaptures[0]?.length || 0,
-        player1Captures: playerCaptures[1]?.length || 0
+        player0Captures: p0Captures.length || 0,
+        player1Captures: p1Captures.length || 0
       }
     };
   }

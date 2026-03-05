@@ -29,7 +29,7 @@ export default function CpuGameScreen() {
     isCpuTurn,
     resetGame,
     startNextRound 
-  } = useLocalGame();
+  } = useLocalGame(2); // 2 players: human vs CPU
   
   // Hook up CPU AI
   useCpuEngine({

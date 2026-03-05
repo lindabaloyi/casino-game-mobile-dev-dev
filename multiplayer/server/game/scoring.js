@@ -90,7 +90,7 @@ function calculateFinalScores(playerCaptures) {
   if (
     !playerCaptures ||
     !Array.isArray(playerCaptures) ||
-    playerCaptures.length !== 2
+    playerCaptures.length < 2
   ) {
     logger.error("Invalid playerCaptures array", { playerCaptures });
     return [0, 0];
@@ -134,11 +134,77 @@ function calculateFinalScores(playerCaptures) {
 }
 
 /**
+ * Calculate team scores from all players' captures
+ * @param {Array} players - Array of player objects with captures
+ * @returns {Array} [teamAScore, teamBScore]
+ */
+function calculateTeamScores(players) {
+  if (!players || !Array.isArray(players)) {
+    return [0, 0];
+  }
+
+  let teamAScore = 0;
+  let teamBScore = 0;
+
+  for (const player of players) {
+    if (!player || !player.captures) continue;
+    
+    const playerScore = calculatePlayerScore(player.captures);
+    const team = player.team || (player.id < 2 ? 'A' : 'B');
+    
+    if (team === 'A') {
+      teamAScore += playerScore;
+    } else {
+      teamBScore += playerScore;
+    }
+  }
+
+  // Team bonuses - in 2v2, both teammates' bonuses count
+  // Check if any team has enough cards for the 20-card bonus
+  const teamACards = players
+    .filter(p => (p.team || (p.id < 2 ? 'A' : 'B')) === 'A')
+    .reduce((sum, p) => sum + (p.captures?.length || 0), 0);
+  const teamBCards = players
+    .filter(p => (p.team || (p.id < 2 ? 'A' : 'B')) === 'B')
+    .reduce((sum, p) => sum + (p.captures?.length || 0), 0);
+
+  if (teamACards >= 20) {
+    teamAScore += 1;
+    logger.info(`🎯 Team A 20-card bonus: +1 point`);
+  }
+  if (teamBCards >= 20) {
+    teamBScore += 1;
+    logger.info(`🎯 Team B 20-card bonus: +1 point`);
+  }
+
+  logger.info(`📊 Team scores: Team A = ${teamAScore}, Team B = ${teamBScore}`);
+  return [teamAScore, teamBScore];
+}
+
+/**
  * Determine the winner based on final scores
  * @param {Array} scores - [player0Score, player1Score]
- * @returns {number|null} Winner player index (0 or 1) or null for tie
+ * @param {number} playerCount - Number of players (2 or 4)
+ * @param {Array} teamScores - [teamAScore, teamBScore] for 4-player mode
+ * @returns {number|null} Winner player index (0 or 1) or null for tie, or 'A'/'B' for team wins
  */
-function determineWinner(scores) {
+function determineWinner(scores, playerCount = 2, teamScores = null) {
+  // For 4-player mode, determine team winner
+  if (playerCount === 4 && teamScores && teamScores.length === 2) {
+    const [teamAScore, teamBScore] = teamScores;
+    if (teamAScore > teamBScore) {
+      logger.info(`🏆 Team A wins with ${teamAScore} points vs ${teamBScore}`);
+      return 'A';
+    } else if (teamBScore > teamAScore) {
+      logger.info(`🏆 Team B wins with ${teamBScore} points vs ${teamAScore}`);
+      return 'B';
+    } else {
+      logger.info(`🤝 Team tie: Both teams have ${teamAScore} points`);
+      return null;
+    }
+  }
+  
+  // 2-player mode
   if (!scores || scores.length !== 2) {
     logger.error("Invalid scores array for winner determination", { scores });
     return null;
@@ -169,11 +235,34 @@ function updateScores(gameState) {
     return gameState;
   }
 
-  const newScores = calculateFinalScores(gameState.playerCaptures);
-  gameState.scores = newScores;
-  gameState.winner = determineWinner(newScores);
+  const players = gameState.players || [];
+  const playerCount = gameState.playerCount || players.length;
 
-  logger.info(`📊 Scores updated: [${newScores[0]}, ${newScores[1]}], Winner: ${gameState.winner !== null ? `Player ${gameState.winner}` : 'Tie'}`);
+  // Calculate per-player scores
+  const perPlayerScores = players.map(p => 
+    calculatePlayerScore(p.captures || [])
+  );
+  gameState.scores = perPlayerScores;
+
+  // Calculate team scores for 4-player mode
+  if (playerCount === 4) {
+    const teamScores = calculateTeamScores(players);
+    gameState.teamScores = teamScores;
+    
+    // Determine team winner
+    gameState.winner = determineWinner(perPlayerScores, playerCount, teamScores);
+    
+    logger.info(`📊 Scores updated: [${perPlayerScores.join(', ')}], Teams: [${teamScores.join(', ')}], Winner: ${gameState.winner !== null ? `Team ${gameState.winner}` : 'Tie'}`);
+  } else {
+    // 2-player mode
+    const p0Captures = players[0]?.captures || [];
+    const p1Captures = players[1]?.captures || [];
+    const newScores = calculateFinalScores([p0Captures, p1Captures]);
+    gameState.scores = newScores;
+    gameState.winner = determineWinner(newScores, playerCount);
+    
+    logger.info(`📊 Scores updated: [${newScores[0]}, ${newScores[1]}], Winner: ${gameState.winner !== null ? `Player ${gameState.winner}` : 'Tie'}`);
+  }
 
   return gameState;
 }
@@ -182,6 +271,7 @@ module.exports = {
   calculateCardPoints,
   calculatePlayerScore,
   calculateFinalScores,
+  calculateTeamScores,
   determineWinner,
   updateScores,
 };

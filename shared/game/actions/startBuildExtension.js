@@ -46,7 +46,7 @@ function startBuildExtension(state, payload, playerIndex) {
     newState.tableCards.splice(tableIdx, 1);
     
   } else if (cardSource === 'hand') {
-    const playerHand = newState.playerHands[playerIndex];
+    const playerHand = newState.players[playerIndex].hand;
     const handIdx = playerHand.findIndex(
       c => c.rank === card.rank && c.suit === card.suit,
     );
@@ -57,7 +57,7 @@ function startBuildExtension(state, payload, playerIndex) {
     playerHand.splice(handIdx, 1);
     
   } else if (cardSource === 'captured') {
-    const playerCaptures = newState.playerCaptures[playerIndex];
+    const playerCaptures = newState.players[playerIndex].captures;
     const captureIdx = playerCaptures.findIndex(
       c => c.rank === card.rank && c.suit === card.suit,
     );

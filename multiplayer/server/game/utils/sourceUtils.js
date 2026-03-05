@@ -44,7 +44,7 @@ function removeCardFromTable(tableCards, card) {
  */
 function removeCardFromSource(gameState, card, source, playerIndex) {
   if (source === 'hand') {
-    const hand = gameState.playerHands[playerIndex];
+    const hand = gameState.players[playerIndex].hand;
     if (removeCardFromHand(hand, card)) {
       return { success: true };
     }

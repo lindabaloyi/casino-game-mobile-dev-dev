@@ -14,7 +14,7 @@ function playFromCaptures(state, payload, playerIndex) {
 
   const newState = cloneState(state);
   const opponentIndex = playerIndex === 0 ? 1 : 0;
-  const opponentCaptures = newState.playerCaptures[opponentIndex];
+  const opponentCaptures = newState.players[opponentIndex].captures;
 
   const capturedIdx = opponentCaptures.findIndex(
     c => c.rank === capturedCard.rank && c.suit === capturedCard.suit,

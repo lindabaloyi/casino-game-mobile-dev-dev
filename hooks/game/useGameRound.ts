@@ -30,8 +30,8 @@ export function useGameRound(gameState: GameState | null): RoundInfo {
       return;
     }
 
-    const player1Cards = gameState.playerHands?.[0]?.length || 0;
-    const player2Cards = gameState.playerHands?.[1]?.length || 0;
+    const player1Cards = gameState.players?.[0]?.hand?.length || 0;
+    const player2Cards = gameState.players?.[1]?.hand?.length || 0;
     const turnCounter = gameState.turnCounter || 1;
 
     // Log round state for debugging
@@ -64,7 +64,7 @@ export function useGameRound(gameState: GameState | null): RoundInfo {
         cardsRemaining: [player1Cards, player2Cards],
       });
     }
-  }, [gameState?.playerHands, gameState?.round, gameState?.turnCounter]);
+  }, [gameState?.players, gameState?.round, gameState?.turnCounter]);
 
   return roundInfo;
 }

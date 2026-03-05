@@ -53,7 +53,7 @@ function addToPendingExtension(state, payload, playerIndex) {
     usedCard = { ...newState.tableCards[tableIdx], source: 'table' };
     newState.tableCards.splice(tableIdx, 1);
   } else if (cardSource === 'hand') {
-    const playerHand = newState.playerHands[playerIndex];
+    const playerHand = newState.players[playerIndex].hand;
     const handIdx = playerHand.findIndex(
       c => c.rank === card.rank && c.suit === card.suit,
     );
@@ -63,7 +63,7 @@ function addToPendingExtension(state, payload, playerIndex) {
     usedCard = { ...playerHand[handIdx], source: 'hand' };
     playerHand.splice(handIdx, 1);
   } else if (cardSource === 'captured') {
-    const playerCaptures = newState.playerCaptures[playerIndex];
+    const playerCaptures = newState.players[playerIndex].captures;
     const captureIdx = playerCaptures.findIndex(
       c => c.rank === card.rank && c.suit === card.suit,
     );

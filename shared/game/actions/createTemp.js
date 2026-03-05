@@ -29,7 +29,7 @@ function createTemp(state, payload, playerIndex) {
     firstSource = 'table';
     firstCardFoundOnTable = true;
   } else {
-    const hand = newState.playerHands[playerIndex];
+    const hand = newState.players[playerIndex].hand;
     const handIdx = hand.findIndex(
       c => c.rank === card.rank && c.suit === card.suit,
     );
@@ -38,7 +38,7 @@ function createTemp(state, payload, playerIndex) {
       firstSource = 'hand';
     } else {
       const opponentIndex = playerIndex === 0 ? 1 : 0;
-      const opponentCaptures = newState.playerCaptures[opponentIndex];
+      const opponentCaptures = newState.players[opponentIndex].captures;
       const captureIdx = opponentCaptures.findIndex(
         c => c.rank === card.rank && c.suit === card.suit,
       );

@@ -1,15 +1,15 @@
 /**
- * useGameState
- * Single hook for all multiplayer game state on the client.
+ * usePartyGameState
+ * Hook for 4-player party (2v2) multiplayer game state on the client.
  *
  * Responsibilities:
  *  - Open the Socket.IO connection (once, on mount)
- *  - Listen for game-start / game-update / player-disconnected / error
+ *  - Join the party matchmaking queue
+ *  - Listen for party-waiting / game-start / game-update / player-disconnected / error
  *  - Expose the current game state + a sendAction() helper
- *  - Handle drag events for real-time shared state
  *
  * Usage:
- *   const { gameState, playerNumber, isConnected, error, sendAction } = useGameState();
+ *   const { gameState, playerNumber, isConnected, isInLobby, playersInLobby, error, sendAction } = usePartyGameState();
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -59,15 +59,19 @@ export interface OpponentDragState {
   targetId?: string;
 }
 
-interface UseGameStateResult {
+interface UsePartyGameStateResult {
   /** Full game state from the server (null until game-start is received) */
   gameState: GameState | null;
-  /** Which player this client is (0 or 1) */
+  /** Which player this client is (0-3) */
   playerNumber: number | null;
   /** Whether the socket is currently connected */
   isConnected: boolean;
-  /** Whether the opponent disconnected */
-  opponentDisconnected: boolean;
+  /** Whether we're in the lobby waiting for players */
+  isInLobby: boolean;
+  /** Number of players currently in the lobby */
+  playersInLobby: number;
+  /** Whether a player disconnected */
+  playerDisconnected: boolean;
   /** Last error message from the server */
   error: string | null;
   /** Send any game action to the server */
@@ -95,13 +99,15 @@ const SOCKET_URL =
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-export function useGameState(): UseGameStateResult {
+export function usePartyGameState(): UsePartyGameStateResult {
   const socketRef = useRef<Socket | null>(null);
 
   const [gameState, setGameState]         = useState<GameState | null>(null);
   const [playerNumber, setPlayerNumber]   = useState<number | null>(null);
   const [isConnected, setIsConnected]     = useState(false);
-  const [opponentDisconnected, setOpponentDisconnected] = useState(false);
+  const [isInLobby, setIsInLobby]         = useState(false);
+  const [playersInLobby, setPlayersInLobby] = useState(0);
+  const [playerDisconnected, setPlayerDisconnected] = useState(false);
   const [error, setError]                 = useState<string | null>(null);
   
   // Opponent drag state for real-time ghost card rendering
@@ -115,14 +121,32 @@ export function useGameState(): UseGameStateResult {
     socketRef.current = socket;
 
     // ── Socket lifecycle ────────────────────────────────────────────────
-    socket.on('connect',    () => setIsConnected(true));
+    socket.on('connect',    () => {
+      setIsConnected(true);
+      // Join the party queue when connected
+      socket.emit('join-party-queue');
+      console.log('[usePartyGameState] Connected, joined party queue');
+    });
     socket.on('disconnect', () => setIsConnected(false));
 
+    // ── Party lobby events ───────────────────────────────────────────────
+    socket.on('party-waiting', (data: { playersJoined: number }) => {
+      console.log('[usePartyGameState] party-waiting:', data);
+      setIsInLobby(true);
+      setPlayersInLobby(data.playersJoined);
+    });
+
     // ── Game events ─────────────────────────────────────────────────────
-    socket.on('game-start', (data: { gameState: GameState; playerNumber: number }) => {
+    socket.on('game-start', (data: { 
+      gameState: GameState; 
+      playerNumber: number;
+      isPartyGame?: boolean;
+    }) => {
+      console.log('[usePartyGameState] game-start received:', data);
       setGameState(data.gameState);
       setPlayerNumber(data.playerNumber);
-      setOpponentDisconnected(false);
+      setIsInLobby(false);
+      setPlayerDisconnected(false);
       setError(null);
       // Clear any stale opponent drag state on game start
       setOpponentDrag(null);
@@ -143,7 +167,7 @@ export function useGameState(): UseGameStateResult {
         winner: number;
       };
     }) => {
-      console.log('[useGameState] round-end received:', data);
+      console.log('[usePartyGameState] round-end received:', data);
       // Update game state with the round end info
       setGameState(prev => prev ? {
         ...prev,
@@ -156,7 +180,7 @@ export function useGameState(): UseGameStateResult {
       winner: number;
       finalScores: number[];
     }) => {
-      console.log('[useGameState] game-over received:', data);
+      console.log('[usePartyGameState] game-over received:', data);
       setGameState(prev => prev ? {
         ...prev,
         gameOver: true,
@@ -169,11 +193,13 @@ export function useGameState(): UseGameStateResult {
     });
 
     socket.on('player-disconnected', () => {
-      setOpponentDisconnected(true);
+      console.log('[usePartyGameState] player-disconnected received');
+      setPlayerDisconnected(true);
       setOpponentDrag(null);
     });
 
     socket.on('error', (data: { message: string }) => {
+      console.log('[usePartyGameState] error received:', data.message);
       setError(data.message);
       // Request fresh state after error to stay in sync
       setTimeout(() => {
@@ -182,13 +208,6 @@ export function useGameState(): UseGameStateResult {
     });
 
     // ── Opponent drag events (for real-time ghost card) ─────────────────
-    // Log all socket events for debugging
-    socket.onAny((eventName, ...args) => {
-      if (eventName.startsWith('opponent-')) {
-        console.log('[useGameState] Socket event:', eventName, args);
-      }
-    });
-
     socket.on('opponent-drag-start', (data: {
       playerIndex: number;
       card: Card;
@@ -196,7 +215,7 @@ export function useGameState(): UseGameStateResult {
       source: 'hand' | 'table' | 'captured';
       position: { x: number; y: number };
     }) => {
-      console.log('[useGameState] opponent-drag-start received:', data);
+      console.log('[usePartyGameState] opponent-drag-start received:', data);
       setOpponentDrag({
         playerIndex: data.playerIndex,
         card: data.card,
@@ -212,7 +231,6 @@ export function useGameState(): UseGameStateResult {
       card: Card;
       position: { x: number; y: number };
     }) => {
-      // console.log('[useGameState] opponent-drag-move:', data);
       setOpponentDrag(prev => prev ? {
         ...prev,
         position: data.position,
@@ -227,7 +245,7 @@ export function useGameState(): UseGameStateResult {
       targetType?: string;
       targetId?: string;
     }) => {
-      console.log('[useGameState] opponent-drag-end received:', data);
+      console.log('[usePartyGameState] opponent-drag-end received:', data);
       
       // Update state with target info for accurate final position
       setOpponentDrag(prev => prev ? {
@@ -239,12 +257,13 @@ export function useGameState(): UseGameStateResult {
       // Clear opponent drag state after a short delay to allow for animation
       setTimeout(() => {
         setOpponentDrag(null);
-      }, 500); // Increased delay for animation
+      }, 500);
     });
 
     return () => {
       socket.off('connect');
       socket.off('disconnect');
+      socket.off('party-waiting');
       socket.off('game-start');
       socket.off('game-update');
       socket.off('round-end');
@@ -298,7 +317,9 @@ export function useGameState(): UseGameStateResult {
     gameState,
     playerNumber,
     isConnected,
-    opponentDisconnected,
+    isInLobby,
+    playersInLobby,
+    playerDisconnected,
     error,
     sendAction,
     requestSync,
@@ -311,4 +332,4 @@ export function useGameState(): UseGameStateResult {
   };
 }
 
-export default useGameState;
+export default usePartyGameState;

@@ -43,6 +43,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="multiplayer" options={{ headerShown: false }} />
         <Stack.Screen name="cpu-game" options={{ headerShown: false }} />
+        <Stack.Screen name="party-game" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar hidden />

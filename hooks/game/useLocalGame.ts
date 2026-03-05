@@ -27,12 +27,20 @@ export interface Card {
 
 export interface GameState {
   deck: Card[];
-  playerHands: Card[][];
+  players: {
+    id: number;
+    name: string;
+    hand: Card[];
+    captures: Card[];
+    score: number;
+    team?: 'A' | 'B';
+  }[];
   tableCards: Card[];
-  playerCaptures: Card[][];
   currentPlayer: number;
   round: number;
   scores: number[];
+  teamScores: [number, number]; // [Team A, Team B]
+  playerCount: number; // 2 or 4
   turnCounter: number;
   moveCount: number;
   gameOver: boolean;
@@ -66,16 +74,18 @@ const CPU_PLAYER = 1;
 /**
  * Create a new local game.
  * This initializes the game state with dealt cards.
+ * @param {number} playerCount - Number of players (2 or 4)
  */
-function createInitialGameState(): GameState {
-  return initializeGame();
+function createInitialGameState(playerCount: number = 2): GameState {
+  return initializeGame(playerCount);
 }
 
 /**
- * Hook for managing local game state (CPU mode)
+ * Hook for managing local game state (CPU mode or Party mode)
+ * @param {number} playerCount - Number of players (2 for CPU mode, 4 for Party mode)
  */
-export function useLocalGame(): UseLocalGameResult {
-  const [gameState, setGameState] = useState<GameState>(() => createInitialGameState());
+export function useLocalGame(playerCount: number = 2): UseLocalGameResult {
+  const [gameState, setGameState] = useState<GameState>(() => createInitialGameState(playerCount));
   
   // Create ActionRouter with all shared handlers
   const actionRouter = useMemo(() => {
@@ -108,18 +118,22 @@ export function useLocalGame(): UseLocalGameResult {
   
   // Reset game to initial state
   const resetGame = useCallback(() => {
-    setGameState(createInitialGameState());
-  }, []);
+    setGameState(createInitialGameState(playerCount));
+  }, [playerCount]);
   
   // Start next round
   const startNextRound = useCallback(() => {
-    // Keep scores but reset round-specific state
-    setGameState(prev => ({
-      ...createInitialGameState(),
-      scores: prev.scores,
-      round: prev.round + 1,
-    }));
-  }, []);
+    // Keep scores and teamScores but reset round-specific state
+    setGameState(prev => {
+      const newState = createInitialGameState(playerCount);
+      return {
+        ...newState,
+        scores: prev.scores,
+        teamScores: prev.teamScores || [0, 0],
+        round: prev.round + 1,
+      };
+    });
+  }, [playerCount]);
   
   // Computed values
   const isCpuTurn = gameState.currentPlayer === CPU_PLAYER && !gameState.gameOver;
