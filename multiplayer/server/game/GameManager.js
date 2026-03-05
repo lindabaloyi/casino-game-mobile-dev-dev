@@ -5,7 +5,7 @@
  * No game logic here — delegates to ActionRouter.
  */
 
-const { initializeGame, initializeTestGame } = require('./GameState.js');
+const { initializeGame, initializeTestGame } = require('../../../shared/game/GameState');
 
 class GameManager {
   constructor() {

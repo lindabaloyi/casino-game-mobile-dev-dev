@@ -15,9 +15,9 @@ const { createActionRouter: createSharedRouter } = require('../../../shared/game
 class ActionRouter {
   constructor(gameManager) {
     this.gameManager = gameManager;
-    // Create shared router with server's handlers
+    // Create shared router with handlers from shared
     this.sharedRouter = createSharedRouter({
-      handlers: require('./actions/index.js'),
+      handlers: require('../../../shared/game/actions'),
     });
   }
 
