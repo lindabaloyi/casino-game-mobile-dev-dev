@@ -53,7 +53,12 @@ class PartyMatchmakingService {
   }
 
   _tryCreatePartyGame() {
-    if (this.waitingPlayers.length < 4) return null;
+    console.log(`[PartyMatchmaking] _tryCreatePartyGame called, waitingPlayers=${this.waitingPlayers.length}`);
+    
+    if (this.waitingPlayers.length < 4) {
+      console.log(`[PartyMatchmaking] Not enough players (${this.waitingPlayers.length}/4), returning null`);
+      return null;
+    }
 
     // CRITICAL: Verify we have exactly 4 ready sockets
     if (this.waitingPlayers.length !== 4) {

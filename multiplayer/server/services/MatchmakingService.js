@@ -99,6 +99,19 @@ class MatchmakingService {
     return this.getGameSockets(gameId, io);
   }
 
+  /**
+   * Remove a socket from the queue (used when player joins party queue instead)
+   */
+  removeFromQueue(socketId) {
+    const wasInQueue = this.waitingPlayers.some(s => s.id === socketId);
+    this.waitingPlayers = this.waitingPlayers.filter(s => s.id !== socketId);
+    this.socketGameMap.delete(socketId);
+    if (wasInQueue) {
+      console.log(`[Matchmaking] ${socketId} removed from queue (joined party queue)`);
+    }
+    return wasInQueue;
+  }
+
   getWaitingPlayersCount() {
     return this.waitingPlayers.length;
   }

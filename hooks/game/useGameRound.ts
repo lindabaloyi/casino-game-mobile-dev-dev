@@ -12,7 +12,7 @@ export interface RoundInfo {
   isActive: boolean;
   isOver: boolean;
   turnCounter: number;
-  cardsRemaining: [number, number]; // [player1, player2]
+  cardsRemaining: number[]; // Array of cards per player
   endReason?: 'all_cards_played';
 }
 
@@ -30,38 +30,45 @@ export function useGameRound(gameState: GameState | null): RoundInfo {
       return;
     }
 
-    const player1Cards = gameState.players?.[0]?.hand?.length || 0;
-    const player2Cards = gameState.players?.[1]?.hand?.length || 0;
+    const playerCount = gameState.playerCount || gameState.players?.length || 2;
+    const playerHands = gameState.players || [];
+    
+    // Get cards for each player (works for 2 or 4 players)
+    const cardsPerPlayer: number[] = [];
+    for (let i = 0; i < playerCount; i++) {
+      cardsPerPlayer.push(playerHands[i]?.hand?.length || 0);
+    }
+    
     const turnCounter = gameState.turnCounter || 1;
 
     // Log round state for debugging
-    console.log(`[useGameRound] Round ${gameState.round}: turn=${turnCounter}, P1hand=${player1Cards}, P2hand=${player2Cards}`);
+    console.log(`[useGameRound] Round ${gameState.round}: turn=${turnCounter}, ${playerCount} players, cardsPerPlayer=${cardsPerPlayer.join(',')}`);
 
-    // Round ends when BOTH conditions are met:
-    // 1. Both player hands are empty (all cards played)
+    // Round ends when ALL conditions are met:
+    // 1. All player hands are empty
     // 2. At least one full turn has been completed (turnCounter >= 2)
-    const handsEmpty = player1Cards === 0 && player2Cards === 0;
+    const allHandsEmpty = cardsPerPlayer.every(cards => cards === 0);
     const hasPlayed = turnCounter >= 2;
 
-    if (handsEmpty && hasPlayed) {
-      console.log(`[useGameRound] ✅ Round OVER: both hands empty`);
+    if (allHandsEmpty && hasPlayed) {
+      console.log(`[useGameRound] ✅ Round OVER: all hands empty`);
       setRoundInfo({
         roundNumber: gameState.round,
         isActive: false,
         isOver: true,
         turnCounter,
-        cardsRemaining: [player1Cards, player2Cards],
+        cardsRemaining: cardsPerPlayer,
         endReason: 'all_cards_played',
       });
     } else {
       // Round still active
-      console.log(`[useGameRound] Round continues: P1=${player1Cards}, P2=${player2Cards}, turn=${turnCounter}`);
+      console.log(`[useGameRound] Round continues: cardsPerPlayer=${cardsPerPlayer.join(',')}, turn=${turnCounter}`);
       setRoundInfo({
         roundNumber: gameState.round,
         isActive: true,
         isOver: false,
         turnCounter,
-        cardsRemaining: [player1Cards, player2Cards],
+        cardsRemaining: cardsPerPlayer,
       });
     }
   }, [gameState?.players, gameState?.round, gameState?.turnCounter]);

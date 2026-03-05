@@ -255,9 +255,7 @@ function updateScores(gameState) {
     logger.info(`📊 Scores updated: [${perPlayerScores.join(', ')}], Teams: [${teamScores.join(', ')}], Winner: ${gameState.winner !== null ? `Team ${gameState.winner}` : 'Tie'}`);
   } else {
     // 2-player mode
-    const p0Captures = players[0]?.captures || [];
-    const p1Captures = players[1]?.captures || [];
-    const newScores = calculateFinalScores([p0Captures, p1Captures]);
+    const newScores = calculateFinalScores(players.map(p => p.captures || []));
     gameState.scores = newScores;
     gameState.winner = determineWinner(newScores, playerCount);
     

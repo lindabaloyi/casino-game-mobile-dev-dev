@@ -51,6 +51,10 @@ io.on('connection', socket => {
   // ── Party Matchmaking: add player to party queue; start 4-player game when ready ──
   socket.on('join-party-queue', () => {
     console.log(`[Server] ${socket.id} joining party queue`);
+    
+    // Remove from regular matchmaking queue first (if present)
+    matchmaking.removeFromQueue(socket.id);
+    
     const partyResult = partyMatchmaking.addToPartyQueue(socket);
     if (partyResult) {
       broadcaster.broadcastPartyGameStart(partyResult);

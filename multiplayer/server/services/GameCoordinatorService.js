@@ -76,7 +76,16 @@ class GameCoordinatorService {
       
       // Log state after action
       const tableCards = newState.tableCards?.length || 0;
-      console.log(`[Coordinator] After action: Table has ${tableCards} cards`);
+      const playerCount = newState.playerCount || 2;
+      console.log(`[Coordinator] After action: Table has ${tableCards} cards, ${playerCount} players`);
+      
+      // Log scores for all players
+      const scores = newState.scores || [];
+      if (playerCount === 4 && newState.teamScores) {
+        console.log(`[Coordinator] Scores: P0=${scores[0]}, P1=${scores[1]}, P2=${scores[2]}, P3=${scores[3]} | TeamA=${newState.teamScores[0]}, TeamB=${newState.teamScores[1]}`);
+      } else {
+        console.log(`[Coordinator] Scores: P0=${scores[0]}, P1=${scores[1]}`);
+      }
       
       // Get the correct matchmaking service for broadcasting
       const mm = this._getMatchmakingForGame(isPartyGame);
