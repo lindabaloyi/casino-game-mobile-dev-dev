@@ -55,10 +55,47 @@ class PartyMatchmakingService {
   _tryCreatePartyGame() {
     if (this.waitingPlayers.length < 4) return null;
 
+    // CRITICAL: Verify we have exactly 4 ready sockets
+    if (this.waitingPlayers.length !== 4) {
+      console.error(`[PartyMatchmaking] ❌ Cannot start game - expected 4 players, have ${this.waitingPlayers.length}`);
+      return null;
+    }
+
     const players = this.waitingPlayers.splice(0, 4);
+
+    // Validate all sockets are connected and valid
+    for (let i = 0; i < players.length; i++) {
+      if (!players[i] || !players[i].id) {
+        console.error(`[PartyMatchmaking] ❌ Invalid socket at index ${i}`);
+        return null;
+      }
+    }
+
+    console.log(`[PartyMatchmaking] ✅ All 4 players ready, starting party game...`);
 
     // Start a 4-player game
     const { gameId, gameState } = this.gameManager.startPartyGame();
+
+    // Validate game state was created properly
+    if (!gameState) {
+      console.error(`[PartyMatchmaking] ❌ Failed to create game state`);
+      return null;
+    }
+
+    if (gameState.players.length !== 4) {
+      console.error(`[PartyMatchmaking] ❌ Game state has wrong player count: ${gameState.players.length}`);
+      return null;
+    }
+
+    // Validate each player has 10 cards
+    for (let i = 0; i < 4; i++) {
+      if (!gameState.players[i].hand || gameState.players[i].hand.length !== 10) {
+        console.error(`[PartyMatchmaking] ❌ Player ${i} has wrong hand size: ${gameState.players[i].hand?.length}`);
+        return null;
+      }
+    }
+
+    console.log(`[PartyMatchmaking] ✅ Game state validated - 4 players with 10 cards each`);
 
     // Map sockets → gameId
     for (const p of players) {

@@ -44,6 +44,13 @@ class GameCoordinatorService {
     return { gameId, playerIndex, isPartyGame };
   }
 
+  /**
+   * Get the appropriate matchmaking service based on whether it's a party game
+   */
+  _getMatchmakingForGame(isPartyGame) {
+    return isPartyGame ? this.partyMatchmaking : this.matchmaking;
+  }
+
   // ── Event handlers ────────────────────────────────────────────────────────
 
   /**
@@ -59,20 +66,20 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex } = ctx;
+    const { gameId, playerIndex, isPartyGame } = ctx;
 
     try {
       // Log the action
-      console.log(`[Coordinator] Action: P${playerIndex} ${data.type} on game ${gameId}`);
+      console.log(`[Coordinator] Action: P${playerIndex} ${data.type} on game ${gameId}${isPartyGame ? ' (party)' : ''}`);
       
       const newState = this.actionRouter.executeAction(gameId, playerIndex, data);
       
       // Log state after action
-      const p1Cards = newState.players?.[0]?.hand?.length || 0;
-      const p2Cards = newState.players?.[1]?.hand?.length || 0;
-      const p1Captures = newState.players?.[0]?.captures?.length || 0;
-      const p2Captures = newState.players?.[1]?.captures?.length || 0;
-      console.log(`[Coordinator] After action: P1hand=${p1Cards}, P2hand=${p2Cards}, P1captures=${p1Captures}, P2captures=${p2Captures}`);
+      const tableCards = newState.tableCards?.length || 0;
+      console.log(`[Coordinator] After action: Table has ${tableCards} cards`);
+      
+      // Get the correct matchmaking service for broadcasting
+      const mm = this._getMatchmakingForGame(isPartyGame);
       
       // Check if round has ended (both hands empty)
       const roundCheck = RoundValidator.shouldEndRound(newState);
@@ -86,7 +93,7 @@ class GameCoordinatorService {
           round: newState.round,
           reason: roundCheck.reason,
           summary,
-        });
+        }, mm);
         
         // Check if game is over
         const gameOverCheck = RoundValidator.checkGameOver(newState);
@@ -97,10 +104,10 @@ class GameCoordinatorService {
           this.broadcaster.broadcastToGame(gameId, 'game-over', {
             winner: gameOverCheck.winner,
             finalScores: gameOverCheck.finalScores,
-          });
+          }, mm);
         }
       } else {
-        this.broadcaster.broadcastGameUpdate(gameId, newState);
+        this.broadcaster.broadcastGameUpdate(gameId, newState, mm);
       }
     } catch (err) {
       console.error(`[Coordinator] game-action failed: ${err.message}`);
@@ -116,7 +123,8 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex } = ctx;
+    const { gameId, playerIndex, isPartyGame } = ctx;
+    const mm = this._getMatchmakingForGame(isPartyGame);
     
     console.log(`[Coordinator] drag-start from P${playerIndex}:`, data);
     
@@ -128,7 +136,7 @@ class GameCoordinatorService {
       source: data.source,
       position: data.position, // normalized 0-1 coordinates
       timestamp: Date.now(),
-    });
+    }, mm);
   }
 
   /**
@@ -139,7 +147,8 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex } = ctx;
+    const { gameId, playerIndex, isPartyGame } = ctx;
+    const mm = this._getMatchmakingForGame(isPartyGame);
 
     // console.log(`[Coordinator] drag-move from P${playerIndex}:`, data);
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-move', {
@@ -147,7 +156,7 @@ class GameCoordinatorService {
       card: data.card,
       position: data.position, // normalized 0-1 coordinates
       timestamp: Date.now(),
-    });
+    }, mm);
   }
 
   /**
@@ -158,7 +167,8 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex } = ctx;
+    const { gameId, playerIndex, isPartyGame } = ctx;
+    const mm = this._getMatchmakingForGame(isPartyGame);
 
     console.log(`[Coordinator] drag-end from P${playerIndex}:`, data);
     // Broadcast end to opponent first
@@ -170,7 +180,7 @@ class GameCoordinatorService {
       targetType: data.targetType,
       targetId: data.targetId,
       timestamp: Date.now(),
-    });
+    }, mm);
   }
 
   /**
@@ -181,7 +191,8 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex } = ctx;
+    const { gameId, playerIndex, isPartyGame } = ctx;
+    const mm = this._getMatchmakingForGame(isPartyGame);
 
     try {
       const state = this.gameManager.getGameState(gameId);
@@ -197,7 +208,7 @@ class GameCoordinatorService {
       console.log(`[Coordinator] Started round ${newState.round}`);
       
       // Broadcast game update with new round
-      this.broadcaster.broadcastGameUpdate(gameId, newState);
+      this.broadcaster.broadcastGameUpdate(gameId, newState, mm);
     } catch (err) {
       console.error(`[Coordinator] start-next-round failed: ${err.message}`);
       this.broadcaster.sendError(socket, err.message);

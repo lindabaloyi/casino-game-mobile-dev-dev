@@ -25,13 +25,13 @@ class GameManager {
    * Set USE_TEST_GAME = true for debugging with specific cards.
    * @returns {{ gameId: number, gameState: object }}
    */
-  startGame() {
+  startGame(playerCount = 2) {
     const gameId = this._nextId++;
     
     // Set to true to use test deal with specific cards
-    const USE_TEST_GAME = true;
+    const USE_TEST_GAME = false;
     
-    const gameState = USE_TEST_GAME ? initializeTestGame() : initializeGame();
+    const gameState = USE_TEST_GAME ? initializeTestGame(playerCount) : initializeGame(playerCount);
 
     this.activeGames.set(gameId, gameState);
     this.socketPlayerMap.set(gameId, new Map());
@@ -53,7 +53,7 @@ class GameManager {
   startPartyGame() {
     const gameId = this._nextId++;
     
-    // Party games always use regular deal (not test deal)
+    // Party games always use regular initialization (not test deal)
     const gameState = initializeGame(4); // 4 players
 
     this.activeGames.set(gameId, gameState);
@@ -61,11 +61,14 @@ class GameManager {
 
     console.log(`[GameManager] Party Game ${gameId} started — deck: ${gameState.deck.length} remaining, players: ${gameState.playerCount}`);
     
-    // Log player hands for debugging
-    for (let i = 0; i < 4; i++) {
-      console.log(`[GameManager] Player ${i} (Team ${gameState.players[i].team}) hand:`, gameState.players[i].hand.map(c => `${c.rank}${c.suit}`).join(', '));
+    // Log player hands for debugging - show ALL cards
+    for (let i = 0; i < (gameState.players?.length || 4); i++) {
+      const hand = gameState.players[i]?.hand || [];
+      const cardIds = hand.map(c => `${c.rank}${c.suit}`).join(', ');
+      console.log(`[GameManager] Player ${i} (Team ${gameState.players[i]?.team || 'A'}) hand (${hand.length} cards):`, cardIds || 'EMPTY');
     }
-    console.log(`[GameManager] Table cards:`, gameState.tableCards.map(c => `${c.rank}${c.suit}`).join(', '));
+    console.log(`[GameManager] Table cards:`, gameState.tableCards?.map(c => `${c.rank}${c.suit}`).join(', ') || 'empty');
+    console.log(`[GameManager] Total cards in game: deck(${gameState.deck.length}) + table(${gameState.tableCards.length}) + hands(${gameState.players.reduce((sum, p) => sum + (p.hand?.length || 0), 0)}) = ${gameState.deck.length + gameState.tableCards.length + gameState.players.reduce((sum, p) => sum + (p.hand?.length || 0), 0)}`);
     
     return { gameId, gameState };
   }

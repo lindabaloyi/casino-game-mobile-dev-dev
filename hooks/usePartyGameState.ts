@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { throttle } from '../utils/throttle';
+import { validateCardDistribution } from '../shared/game/GameState';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -142,7 +143,22 @@ export function usePartyGameState(): UsePartyGameStateResult {
       playerNumber: number;
       isPartyGame?: boolean;
     }) => {
+      // Prevent duplicate game-start events
+      if (gameState && playerNumber !== null) {
+        console.log('[usePartyGameState] Ignoring duplicate game-start event');
+        return;
+      }
+      
       console.log('[usePartyGameState] game-start received:', data);
+      
+      // Validate card distribution
+      const validation = validateCardDistribution(data.gameState);
+      if (!validation.valid) {
+        console.error('[usePartyGameState] ❌ Card distribution validation FAILED:', validation.errors);
+      } else {
+        console.log('[usePartyGameState] ✅ Card distribution validated');
+      }
+      
       setGameState(data.gameState);
       setPlayerNumber(data.playerNumber);
       setIsInLobby(false);
@@ -153,6 +169,11 @@ export function usePartyGameState(): UsePartyGameStateResult {
     });
 
     socket.on('game-update', (state: GameState) => {
+      // Validate card distribution on each update
+      const validation = validateCardDistribution(state);
+      if (!validation.valid) {
+        console.error('[usePartyGameState] ❌ Card distribution validation FAILED:', validation.errors);
+      }
       setGameState(state);
     });
 

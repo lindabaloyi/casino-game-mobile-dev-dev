@@ -21,8 +21,12 @@ interface CapturedCardsViewProps {
   playerCaptures: Card[];
   /** Cards captured by the opponent */
   opponentCaptures: Card[];
-  /** Player number (0 or 1) */
+  /** Player number (0-3) */
   playerNumber: number;
+  /** Total player count (2 or 4) */
+  playerCount?: number;
+  /** All players' captures (for 4-player mode) */
+  allPlayerCaptures?: Card[][];
   /** Whether it's this player's turn */
   isMyTurn?: boolean;
   /** Register captured card position */
@@ -53,6 +57,8 @@ export function CapturedCardsView({
   playerCaptures,
   opponentCaptures,
   playerNumber,
+  playerCount = 2,
+  allPlayerCaptures,
   isMyTurn = false,
   registerCapturedCard,
   unregisterCapturedCard,
@@ -66,16 +72,51 @@ export function CapturedCardsView({
   onExtendBuild,
   opponentDrag,
 }: CapturedCardsViewProps) {
-  const playerLabel = playerNumber === 0 ? 'P1' : 'P2';
-  const opponentLabel = playerNumber === 0 ? 'P2' : 'P1';
+  // Get team info for 4-player mode
+  const isPartyMode = playerCount === 4;
+  const myTeam = playerNumber < 2 ? 'A' : 'B';
+  
+  // Get teammate index (for 4-player mode)
+  const getTeammateIndex = (idx: number): number => {
+    if (idx < 2) return idx === 0 ? 1 : 0; // Team A: 0↔1
+    return idx === 2 ? 3 : 2; // Team B: 2↔3
+  };
+  
+  const teammateIndex = isPartyMode ? getTeammateIndex(playerNumber) : (playerNumber === 0 ? 1 : 0);
+  
+  // For 2-player: opponent is player 1 - 0
+  // For 4-player: opponents are players not on my team
+  const getOpponentIndices = (): number[] => {
+    if (!isPartyMode) return [playerNumber === 0 ? 1 : 0];
+    // In party mode, opponents are players on the other team
+    return playerNumber < 2 ? [2, 3] : [0, 1];
+  };
+  
+  const opponentIndices = getOpponentIndices();
+  
+  const playerLabel = `P${playerNumber + 1}`;
+  const teammateLabel = `P${teammateIndex + 1}`;
+  const opponentLabels = opponentIndices.map(i => `P${i + 1}`);
+
+  // Get captures arrays - use allPlayerCaptures if available
+  const captures = allPlayerCaptures || [];
+  const myCaptures = captures[playerNumber] || playerCaptures;
+  const teammateCaptures = captures[teammateIndex] || [];
+  const opponentCapturesList = opponentIndices.map(i => captures[i] || []);
 
   // Get the top card (last in array = most recently captured)
-  const playerTopCard = playerCaptures.length > 0 
-    ? playerCaptures[playerCaptures.length - 1] 
+  const playerTopCard = myCaptures.length > 0 
+    ? myCaptures[myCaptures.length - 1] 
     : null;
-  const opponentTopCard = opponentCaptures.length > 0 
-    ? opponentCaptures[opponentCaptures.length - 1] 
+  const teammateTopCard = teammateCaptures.length > 0
+    ? teammateCaptures[teammateCaptures.length - 1]
     : null;
+  const opponentTopCards = opponentCapturesList.map(caps => 
+    caps.length > 0 ? caps[caps.length - 1] : null
+  );
+
+  // For backward compatibility
+  const opponentTopCard = opponentTopCards[0] || null;
 
   // Drag state for opponent's card
   const cardRef = useRef<View>(null);
@@ -255,7 +296,11 @@ export function CapturedCardsView({
                              opponentDrag.source === 'captured' &&
                              opponentDrag.cardId === opponentCardId;
 
-  // Create the two sections
+  // Create capture sections based on mode
+  // For 2-player: LEFT = opponent, RIGHT = player
+  // For 4-player: LEFT = opponents (stacked), RIGHT = player + teammate (stacked)
+  
+  // Player section (always on right)
   const playerSection = (
     <View 
       style={styles.captureSection} 
@@ -276,46 +321,74 @@ export function CapturedCardsView({
           </View>
         )}
       </View>
-      <Text style={styles.count}>{playerCaptures.length}</Text>
+      <Text style={styles.count}>{myCaptures.length}</Text>
     </View>
   );
 
-  const opponentSection = (
-    <View style={styles.captureSection} pointerEvents="box-none" key="opponent">
-      <Text style={styles.label}>{opponentLabel}</Text>
-      <GestureDetector gesture={panGesture}>
-        <Animated.View 
-          ref={cardRef}
-          onLayout={handleLayout}
-          style={[
-            styles.cardWrapper, 
-            animatedStyle,
-            isOpponentCardHidden && { opacity: 0 }
-          ]}
-        >
-          {opponentTopCard ? (
+  // Teammate section (for 4-player mode, below player)
+  const teammateSection = isPartyMode ? (
+    <View style={styles.captureSection} key="teammate">
+      <Text style={styles.label}>{teammateLabel}</Text>
+      <View style={styles.cardContainer}>
+        {teammateTopCard ? (
+          <PlayingCard 
+            rank={teammateTopCard.rank} 
+            suit={teammateTopCard.suit} 
+          />
+        ) : (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>-</Text>
+          </View>
+        )}
+      </View>
+      <Text style={styles.count}>{teammateCaptures.length}</Text>
+    </View>
+  ) : null;
+
+  // Opponent section(s) - for 2-player mode, single opponent; for 4-player, two opponents stacked
+  const renderOpponentSection = (index: number) => {
+    const topCard = opponentTopCards[index];
+    const captures = opponentCapturesList[index];
+    const label = opponentLabels[index];
+    
+    return (
+      <View style={styles.captureSection} pointerEvents="box-none" key={`opponent-${index}`}>
+        <Text style={styles.label}>{label}</Text>
+        <View style={styles.cardContainer}>
+          {topCard ? (
             <PlayingCard 
-              rank={opponentTopCard.rank} 
-              suit={opponentTopCard.suit} 
+              rank={topCard.rank} 
+              suit={topCard.suit} 
             />
           ) : (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyText}>-</Text>
             </View>
           )}
-        </Animated.View>
-      </GestureDetector>
-      <Text style={styles.count}>{opponentCaptures.length}</Text>
-    </View>
-  );
+        </View>
+        <Text style={styles.count}>{captures.length}</Text>
+      </View>
+    );
+  };
+
+  // For 4-player mode, render opponents on the left side
+  const opponentSections = isPartyMode 
+    ? opponentIndices.map((_, idx) => renderOpponentSection(idx))
+    : [renderOpponentSection(0)];
 
   // Always: LEFT = opponent captures (draggable), RIGHT = your captures (drop target)
+  // For party mode, we stack player+teammate on right and both opponents on left
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {/* LEFT: opponent's captures (draggable) */}
-      {opponentSection}
-      {/* RIGHT: your captures (drop target) */}
-      {playerSection}
+      {/* LEFT: opponent(s) captures */}
+      <View style={styles.sideContainer}>
+        {opponentSections}
+      </View>
+      {/* RIGHT: your + teammate captures */}
+      <View style={styles.sideContainer}>
+        {playerSection}
+        {teammateSection}
+      </View>
     </View>
   );
 }
@@ -331,6 +404,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
+  },
+  sideContainer: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
   },
   captureSection: {
     alignItems: 'center',

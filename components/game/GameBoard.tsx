@@ -178,6 +178,8 @@ export function GameBoard({
         onCapture={actionHandlers.handleCapture}
         playerCaptures={computed.playerCaptures}
         opponentCaptures={computed.opponentCaptures}
+        playerCount={computed.playerCount}
+        allPlayerCaptures={computed.allPlayerCaptures}
         registerCapturedCard={drag.registerCapturedCard}
         unregisterCapturedCard={drag.unregisterCapturedCard}
         onCapturedCardDragStart={dragHandlers.handleCapturedDragStart}

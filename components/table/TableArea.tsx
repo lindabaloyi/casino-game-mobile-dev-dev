@@ -73,6 +73,10 @@ interface Props {
   // Captured cards arrays
   playerCaptures: Card[];
   opponentCaptures: Card[];
+  /** Total player count (2 or 4) */
+  playerCount?: number;
+  /** All players' captures (for 4-player mode) */
+  allPlayerCaptures?: Card[][];
 
   // Captured card callbacks (for dragging opponent's captured card)
   registerCapturedCard?: (bounds: CapturedCardBounds) => void;
@@ -135,6 +139,8 @@ export function TableArea({
   onCapture,
   playerCaptures,
   opponentCaptures,
+  playerCount,
+  allPlayerCaptures,
   registerCapturedCard,
   unregisterCapturedCard,
   onCapturedCardDragStart,
@@ -242,6 +248,8 @@ export function TableArea({
         playerCaptures={playerCaptures}
         opponentCaptures={opponentCaptures}
         playerNumber={playerNumber}
+        playerCount={playerCount}
+        allPlayerCaptures={allPlayerCaptures}
         isMyTurn={isMyTurn}
         registerCapturedCard={registerCapturedCard}
         unregisterCapturedCard={unregisterCapturedCard}

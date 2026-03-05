@@ -28,6 +28,14 @@ export function useGameComputed(gameState: GameState, playerNumber: number) {
     [gameState.players, playerNumber]
   );
 
+  // For 4-player mode, get all players' captures
+  const allPlayerCaptures = useMemo(() => {
+    if (!gameState.players) return [];
+    return gameState.players.map(p => p?.captures ?? []);
+  }, [gameState.players]);
+
+  const playerCount = gameState.playerCount || 2;
+
   const tableVersion = useMemo(() => {
     const cards = gameState.tableCards ?? [];
     const cardCount = cards.length;
@@ -62,5 +70,7 @@ export function useGameComputed(gameState: GameState, playerNumber: number) {
     tableVersion,
     overlayStackId,
     extendingBuildId,
+    allPlayerCaptures,
+    playerCount,
   };
 }

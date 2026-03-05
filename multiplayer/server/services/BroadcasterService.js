@@ -48,8 +48,10 @@ class BroadcasterService {
   /**
    * Broadcast game update to all players in a game
    */
-  broadcastGameUpdate(gameId, gameState) {
-    const gameSockets = this.matchmaking.getGameSockets(gameId, this.io);
+  broadcastGameUpdate(gameId, gameState, matchmakingService = null) {
+    // Use the provided matchmaking service or default to regular matchmaking
+    const mm = matchmakingService || this.matchmaking;
+    const gameSockets = mm.getGameSockets(gameId, this.io);
 
     console.log(`[Broadcaster] game-update → game ${gameId} (${gameSockets.length} players)`);
 
@@ -111,8 +113,9 @@ class BroadcasterService {
    * Broadcast to all players in a game EXCEPT one socket
    * Used for drag events - sender doesn't need to receive their own broadcasts
    */
-  broadcastToOthers(gameId, excludeSocketId, event, data) {
-    const gameSockets = this.matchmaking.getGameSockets(gameId, this.io);
+  broadcastToOthers(gameId, excludeSocketId, event, data, matchmakingService = null) {
+    const mm = matchmakingService || this.matchmaking;
+    const gameSockets = mm.getGameSockets(gameId, this.io);
 
     const otherSockets = gameSockets.filter(
       (socket) => socket.id !== excludeSocketId,
@@ -130,8 +133,9 @@ class BroadcasterService {
    * Broadcast to ALL players in a game (including sender)
    * Used for round-end and game-over events
    */
-  broadcastToGame(gameId, event, data) {
-    const gameSockets = this.matchmaking.getGameSockets(gameId, this.io);
+  broadcastToGame(gameId, event, data, matchmakingService = null) {
+    const mm = matchmakingService || this.matchmaking;
+    const gameSockets = mm.getGameSockets(gameId, this.io);
 
     console.log(`[Broadcaster] ${event} → game ${gameId} (${gameSockets.length} players)`);
 

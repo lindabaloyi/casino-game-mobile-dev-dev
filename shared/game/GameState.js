@@ -45,11 +45,78 @@ function createDeck() {
       deck.push({ suit, rank, value: rankValue(rank) });
     }
   }
+  
+  // Validate deck has exactly 40 unique cards
+  const cardIds = deck.map(c => `${c.rank}${c.suit}`);
+  const uniqueIds = new Set(cardIds);
+  if (uniqueIds.size !== 40) {
+    console.error(`[GameState] ❌ Deck validation failed: expected 40 unique cards, got ${uniqueIds.size}`);
+  } else {
+    console.log(`[GameState] ✅ Deck created with 40 unique cards`);
+  }
+  
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   return deck;
+}
+
+/**
+ * Validate card distribution - ensure no duplicates across players
+ * @param {object} state - Game state to validate
+ * @returns {{ valid: boolean, errors: string[] }}
+ */
+function validateCardDistribution(state) {
+  const errors = [];
+  const allCards = [];
+  
+  // Collect all cards from all players
+  for (let i = 0; i < state.players.length; i++) {
+    const player = state.players[i];
+    for (const card of player.hand) {
+      const cardId = `${card.rank}${card.suit}`;
+      if (allCards.includes(cardId)) {
+        errors.push(`DUPLICATE: ${cardId} found in player ${i}'s hand (was already in another player's hand)`);
+      }
+      allCards.push(cardId);
+    }
+    for (const card of player.captures) {
+      const cardId = `${card.rank}${card.suit}`;
+      if (allCards.includes(cardId)) {
+        errors.push(`DUPLICATE: ${cardId} found in player ${i}'s captures`);
+      }
+      allCards.push(cardId);
+    }
+  }
+  
+  // Check table cards
+  for (const card of state.tableCards) {
+    const cardId = `${card.rank}${card.suit}`;
+    if (allCards.includes(cardId)) {
+      errors.push(`DUPLICATE: ${cardId} found on table`);
+    }
+    allCards.push(cardId);
+  }
+  
+  // Check deck cards
+  for (const card of state.deck) {
+    const cardId = `${card.rank}${card.suit}`;
+    if (allCards.includes(cardId)) {
+      errors.push(`DUPLICATE: ${cardId} found in deck`);
+    }
+    allCards.push(cardId);
+  }
+  
+  // Total should be exactly 40 (no more, no less)
+  if (allCards.length !== 40) {
+    errors.push(`CARD COUNT: Expected 40 unique cards, got ${allCards.length}`);
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors
+  };
 }
 
 /**
@@ -73,7 +140,7 @@ function initializeGame(playerCount = 2) {
     });
   }
   
-  return {
+  const state = {
     deck,
     players,
     tableCards: [],
@@ -88,6 +155,16 @@ function initializeGame(playerCount = 2) {
     playerCount,
     stackCounters: { tempP1: 0, tempP2: 0, tempP3: 0, tempP4: 0, buildP1: 0, buildP2: 0, buildP3: 0, buildP4: 0 },
   };
+  
+  // Validate card distribution
+  const validation = validateCardDistribution(state);
+  if (!validation.valid) {
+    console.error('[GameState] ❌ Card distribution validation FAILED:', validation.errors);
+  } else {
+    console.log('[GameState] ✅ Card distribution validated - 40 unique cards');
+  }
+  
+  return state;
 }
 
 /**
@@ -219,4 +296,5 @@ module.exports = {
   generateStackId,
   getTeamFromIndex,
   getTeammateIndex,
+  validateCardDistribution,
 };
