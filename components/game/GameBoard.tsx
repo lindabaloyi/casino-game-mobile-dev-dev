@@ -10,7 +10,7 @@
  *   PlayerHandArea  — scrollable draggable hand
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GameState, OpponentDragState } from '../../hooks/useGameState';
 import { useDrag } from '../../hooks/useDrag';
@@ -133,6 +133,54 @@ export function GameBoard({
     dragHandlers.handleDragEnd
   );
 
+  // ── Unified Drop Handler ─────────────────────────────────────────────────
+  // Centralized logic for all stack drops (hand, table, captured cards)
+  // Ensures consistent validation and modal handling
+  // Priority: CAPTURE (direct) > STEAL (modal) > BLOCK
+  const handleDropOnStack = useCallback((
+    card: any,
+    stackId: string,
+    stackOwner: number,
+    stackType: string,
+    source: 'hand' | 'table' | 'captured'
+  ) => {
+    console.log(`[GameBoard] handleDropOnStack - card: ${card.rank}${card.suit}, stack: ${stackId}, type: ${stackType}, source: ${source}`);
+    
+    // Common: Hide end turn button when player makes a new action
+    modals.hideEndTurnButton();
+
+    // Check if this is an opponent's build - validate steal vs capture
+    if (stackType === 'build_stack' && stackOwner !== playerNumber) {
+      const buildStack = computed.table.find(
+        (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
+      );
+      
+      if (buildStack) {
+        const fullStack = buildStack as any;
+        
+        // PRIORITY 1: If card value matches build value → CAPTURE (direct, no modal)
+        if (card.value === fullStack.value) {
+          console.log(`[GameBoard] handleDropOnStack - CAPTURE: card value ${card.value} matches build value ${fullStack.value}`);
+          actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
+          return;
+        }
+        
+        // PRIORITY 2: Check if steal is valid (not a base build)
+        if (fullStack.hasBase === true) {
+          console.log(`[GameBoard] handleDropOnStack - BLOCKED: Cannot steal base build ${stackId} (hasBase: ${fullStack.hasBase}, buildType: ${fullStack.buildType})`);
+          // Fall through to action which will fail appropriately
+        } else {
+          console.log(`[GameBoard] handleDropOnStack - STEAL: card value ${card.value} != build value ${fullStack.value}, opening steal modal`);
+          modals.openStealModal(card, fullStack);
+          return; // Stop here - modal is open
+        }
+      }
+    }
+    
+    // Default: Forward to stackDrop action with source info
+    actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
+  }, [playerNumber, computed.table, modals, actions]);
+
   // Render
   return (
     <View style={styles.root}>
@@ -165,10 +213,7 @@ export function GameBoard({
         findCardAtPoint={drag.findCardAtPoint}
         findTempStackAtPoint={drag.findTempStackAtPoint}
         onTableCardDropOnCard={actions.createTemp}
-        onStackDrop={(card, stackId, owner, stackType) => {
-          console.log(`[GameBoard] onStackDrop - card: ${card.rank}${card.suit}, stack: ${stackId}, type: ${stackType}, owner: P${owner}`);
-          actions.stackDrop(card, stackId, owner, stackType, 'table');
-        }}
+        onStackDrop={(card, stackId, owner, stackType) => handleDropOnStack(card, stackId, owner, stackType, 'table')}
         onTableDragStart={dragHandlers.handleTableDragStart}
         onTableDragMove={dragHandlers.handleDragMove}
         onTableDragEnd={dragHandlers.handleTableDragEnd}
@@ -217,34 +262,7 @@ export function GameBoard({
         findCardAtPoint={drag.findCardAtPoint}
         findTempStackAtPoint={drag.findTempStackAtPoint}
         tableCards={computed.table}
-        onDropOnStack={(card, stackId, stackOwner, stackType) => {
-          console.log(`[GameBoard] onDropOnStack - card: ${card.rank}${card.suit}`);
-          
-          // Hide end turn button when player makes a new action
-          modals.hideEndTurnButton();
-          
-          // Check if this is an opponent's build - show steal modal
-          if (stackType === 'build_stack' && stackOwner !== playerNumber) {
-            // Find the build stack from table
-            const buildStack = computed.table.find(
-              (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
-            );
-            if (buildStack) {
-              // PRE-CHECK: Prevent stealing base builds (hasBase === true means diff build, cannot be stolen)
-              const fullStack = buildStack as any;
-              if (fullStack.hasBase === true) {
-                console.log(`[GameBoard] BLOCKED: Cannot steal base build ${stackId} (hasBase: ${fullStack.hasBase}, buildType: ${fullStack.buildType})`);
-                // Fall through to regular stack drop (which will fail with error since it's not your build)
-              } else {
-                console.log(`[GameBoard] Opening steal modal for opponent's build: ${stackId} (hasBase: ${fullStack.hasBase}, buildType: ${fullStack.buildType})`);
-                modals.openStealModal(card, fullStack);
-                return;
-              }
-            }
-          }
-          
-          actions.stackDrop(card, stackId, stackOwner, stackType, 'hand');
-        }}
+        onDropOnStack={(card, stackId, stackOwner, stackType) => handleDropOnStack(card, stackId, stackOwner, stackType, 'hand')}
         onDropOnCard={(card, targetCard) => {
           console.log(`[GameBoard] onDropOnCard - card: ${card.rank}${card.suit}`);
           modals.hideEndTurnButton();
