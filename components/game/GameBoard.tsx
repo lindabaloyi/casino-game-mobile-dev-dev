@@ -230,9 +230,16 @@ export function GameBoard({
               (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
             );
             if (buildStack) {
-              console.log(`[GameBoard] Opening steal modal for opponent's build: ${stackId}`);
-              modals.openStealModal(card, buildStack as any);
-              return;
+              // PRE-CHECK: Prevent stealing base builds (hasBase === true means diff build, cannot be stolen)
+              const fullStack = buildStack as any;
+              if (fullStack.hasBase === true) {
+                console.log(`[GameBoard] BLOCKED: Cannot steal base build ${stackId} (hasBase: ${fullStack.hasBase}, buildType: ${fullStack.buildType})`);
+                // Fall through to regular stack drop (which will fail with error since it's not your build)
+              } else {
+                console.log(`[GameBoard] Opening steal modal for opponent's build: ${stackId} (hasBase: ${fullStack.hasBase}, buildType: ${fullStack.buildType})`);
+                modals.openStealModal(card, fullStack);
+                return;
+              }
             }
           }
           

@@ -69,6 +69,14 @@ function stealBuild(state, payload, playerIndex) {
   };
 
   recalcBuild(buildStack);
+  // Debug: Log before and after hasBase assignment
+  const beforeHasBase = buildStack.hasBase;
+  console.log(`[stealBuild] BEFORE: buildStack.buildType: ${buildStack.buildType}, hasBase: ${beforeHasBase}`);
+  
+  buildStack.hasBase = (buildStack.buildType !== 'sum');
+  
+  console.log(`[stealBuild] AFTER: buildStack.buildType: ${buildStack.buildType}, hasBase: ${buildStack.hasBase} (buildType !== 'sum' is ${buildStack.hasBase})`);
+  
   const recalculatedValue = buildStack.value;
 
   const previousOwner = buildStack.owner;

@@ -34,8 +34,13 @@ function acceptTemp(state, payload, playerIndex) {
   stack.value = finalValue;
   stack.type = 'build_stack';
   
-  const isBaseBuild = stack.buildType === 'diff' && stack.need === 0;
-  stack.hasBase = isBaseBuild;
+  // Debug: Log before and after hasBase assignment
+  const beforeHasBase = stack.hasBase;
+  console.log(`[acceptTemp] BEFORE: stack.buildType: ${stack.buildType}, hasBase: ${beforeHasBase}`);
+  
+  stack.hasBase = (stack.buildType === 'diff');
+  
+  console.log(`[acceptTemp] AFTER: stack.buildType: ${stack.buildType}, hasBase: ${stack.hasBase} (buildType === 'diff' is ${stack.hasBase})`);
   
   if (stack.stackId && stack.stackId.startsWith('temp')) {
     stack.stackId = stack.stackId.replace('temp', 'build');

@@ -50,6 +50,13 @@ export function useActionHandlers(
 
   const handleConfirmSteal = useCallback(() => {
     if (modals.stealTargetCard && modals.stealTargetStack) {
+      const targetStack = modals.stealTargetStack as any;
+      console.log(`[useActionHandlers] handleConfirmSteal called:`);
+      console.log(`  - handCard: ${modals.stealTargetCard.rank}${modals.stealTargetCard.suit}`);
+      console.log(`  - targetStack: ${modals.stealTargetStack.stackId}`);
+      console.log(`  - targetStack.hasBase: ${modals.stealTargetStack.hasBase}`);
+      console.log(`  - targetStack.buildType: ${targetStack.buildType}`);
+      
       actions.stealBuild(modals.stealTargetCard, modals.stealTargetStack.stackId);
     }
     modals.closeStealModal();

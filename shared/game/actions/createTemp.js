@@ -99,6 +99,8 @@ function createTemp(state, payload, playerIndex) {
     buildType = 'diff';
   }
 
+  console.log(`[createTemp] buildType: ${buildType}, totalSum: ${totalSum}, base: ${base}, need: ${need}`);
+
   newState.tableCards.splice(insertIdx, 0, {
     type: 'temp_stack',
     stackId: generateStackId(newState, 'temp', playerIndex),
@@ -109,6 +111,10 @@ function createTemp(state, payload, playerIndex) {
     need: need,
     buildType: buildType,
   });
+
+  // Debug: Show what hasBase will be set to when temp is accepted
+  const willBeHasBase = (buildType === 'diff');
+  console.log(`[createTemp] Temp stack created - hasBase will be: ${willBeHasBase} (buildType === 'diff' is ${willBeHasBase})`);
 
   return newState;
 }

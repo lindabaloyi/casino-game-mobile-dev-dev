@@ -150,9 +150,16 @@ export function useDragHandlers({
       // Find full build stack from table
       const fullStack = table?.find((tc: any) => tc.stackId === targetStack.stackId);
       
+      // PRE-CHECK: Prevent stealing base builds (hasBase === true means diff build, cannot be stolen)
+      if (fullStack && fullStack.hasBase === true) {
+        console.log(`[useDragHandlers] BLOCKED: Cannot steal base build ${targetStack.stackId} (hasBase: ${fullStack.hasBase}, buildType: ${fullStack.buildType})`);
+        handleDragEnd('stack', 'cancelled', targetStack.stackId);
+        return;
+      }
+      
       // Check if this is an opponent's build - show steal modal
       if (targetStack.owner !== playerNumber && openStealModal && fullStack) {
-        console.log(`[useDragHandlers] Opening steal modal for opponent's build: ${targetStack.stackId}`);
+        console.log(`[useDragHandlers] Opening steal modal for opponent's build: ${targetStack.stackId} (hasBase: ${fullStack.hasBase}, buildType: ${fullStack.buildType})`);
         openStealModal(dragOverlay.draggingCard, fullStack);
         handleDragEnd('stack', 'success', targetStack.stackId);
         return;
