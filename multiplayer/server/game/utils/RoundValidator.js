@@ -191,11 +191,17 @@ class RoundValidator {
   static prepareNextRound(state) {
     const playerCount = state.playerCount || state.players?.length || 2;
     
+    console.log(`[RoundValidator] prepareNextRound: Starting, current round=${state.round}, playerCount=${playerCount}`);
+    console.log(`[RoundValidator] prepareNextRound: Current deck size: ${state.deck?.length || 0}`);
+    console.log(`[RoundValidator] prepareNextRound: Current hands:`, state.players.map(p => p.hand.length));
+    
     // Use the shared startNextRound function from GameState
     const newState = startNextRound(state, playerCount);
     
     if (newState) {
-      console.log(`[RoundValidator] prepareNextRound: Successfully started Round ${newState.round} using shared function`);
+      console.log(`[RoundValidator] prepareNextRound: ✅ Successfully started Round ${newState.round}`);
+      console.log(`[RoundValidator] prepareNextRound: New deck size: ${newState.deck?.length || 0}`);
+      console.log(`[RoundValidator] prepareNextRound: New hands:`, newState.players.map(p => p.hand.length));
       // Keep scores accumulated
       newState.scores = state.scores;
       newState.teamScores = state.teamScores;
@@ -203,7 +209,8 @@ class RoundValidator {
     }
     
     // If null returned, no more rounds allowed
-    console.log('[RoundValidator] prepareNextRound: No more rounds allowed');
+    console.log('[RoundValidator] prepareNextRound: ❌ Failed - returning null');
+    console.log(`[RoundValidator] prepareNextRound: Check conditions - round=${state.round}, playerCount=${playerCount}, deck=${state.deck?.length}`);
     return null;
   }
 

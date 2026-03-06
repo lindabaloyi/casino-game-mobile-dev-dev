@@ -138,6 +138,12 @@ export function useGameState(): UseGameStateResult {
     });
 
     socket.on('game-update', (state: GameState) => {
+      console.log('[useGameState] 💾 game-update RECEIVED from server');
+      console.log('[useGameState] 💾 Server round:', state.round);
+      console.log('[useGameState] 💾 Server turnCounter:', state.turnCounter);
+      console.log('[useGameState] 💾 Server hands:', state.players?.map(p => p.hand.length));
+      console.log('[useGameState] 💾 Server deck remaining:', state.deck?.length);
+      console.log('[useGameState] 💾 Server gameOver:', state.gameOver);
       setGameState(state);
     });
 
@@ -293,8 +299,12 @@ export function useGameState(): UseGameStateResult {
     socketRef.current?.emit('game-action', action);
   };
 
+  // For multiplayer, round transitions are handled automatically by the server.
+  // The startNextRound is a no-op to prevent double triggers.
   const startNextRound = () => {
-    socketRef.current?.emit('start-next-round');
+    // Multiplayer: server handles round transitions automatically
+    // This is intentionally left empty to prevent client-side double triggers
+    console.log('[useGameState] startNextRound called - but multiplayer handles transitions automatically');
   };
 
   const requestSync = () => {

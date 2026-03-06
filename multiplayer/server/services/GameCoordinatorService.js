@@ -8,7 +8,7 @@
  */
 
 const RoundValidator = require('../game/utils/RoundValidator');
-const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn } = require('../../../shared/game/GameState');
+const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn, forceEndTurn } = require('../../../shared/game/GameState');
 
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking = null) {
@@ -124,7 +124,27 @@ class GameCoordinatorService {
       }
       
       // Check if round has ended (both hands empty)
-      const roundCheck = RoundValidator.shouldEndRound(newState);
+      let roundCheck = RoundValidator.shouldEndRound(newState);
+      
+      // Auto-end turns for players with empty hands (they can't play anyway)
+      if (!roundCheck.ended) {
+        const playerCount = newState.playerCount || 2;
+        let autoEndedAny = false;
+        for (let i = 0; i < playerCount; i++) {
+          if (newState.players[i]?.hand?.length === 0 && 
+              newState.roundPlayers?.[i]?.turnEnded === false) {
+            console.log(`[Coordinator] Auto-ending turn for player ${i} (empty hand)`);
+            forceEndTurn(newState, i);
+            autoEndedAny = true;
+          }
+        }
+        // Re-check round end after auto-ending turns
+        if (autoEndedAny) {
+          console.log(`[Coordinator] Re-checking round end after auto-ending empty-hand turns`);
+          roundCheck = RoundValidator.shouldEndRound(newState);
+        }
+      }
+      
       if (roundCheck.ended) {
         console.log(`[Coordinator] ⚠️ Round ${newState.round} ENDED: ${roundCheck.reason} ⚠️`);
         console.log(`[Coordinator] Final scores: P1=${newState.scores?.[0]}, P2=${newState.scores?.[1]}`);
@@ -152,6 +172,9 @@ class GameCoordinatorService {
           const nextState = RoundValidator.prepareNextRound(newState);
           if (nextState) {
             console.log(`[Coordinator] Auto-transitioning to Round ${nextState.round}`);
+            console.log(`[Coordinator] 📡 Broadcasting game-update to clients for Round ${nextState.round}`);
+            console.log(`[Coordinator] 📡 NextState round=${nextState.round}, hands:`, nextState.players.map(p => p.hand.length));
+            console.log(`[Coordinator] 📡 NextState deck remaining:`, nextState.deck.length);
             this.gameManager.saveGameState(gameId, nextState);
             this.broadcaster.broadcastGameUpdate(gameId, nextState, mm);
           } else {

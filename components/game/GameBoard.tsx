@@ -10,7 +10,7 @@
  *   PlayerHandArea  — scrollable draggable hand
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GameState, OpponentDragState } from '../../hooks/useGameState';
 import { useDrag } from '../../hooks/useDrag';
@@ -31,7 +31,7 @@ import { DragGhost } from './DragGhost';
 import { OpponentGhostCard } from './OpponentGhostCard';
 import { ErrorBanner } from '../shared/ErrorBanner';
 import { Card as TableCard } from '../../types';
-import { RoundEndModal } from '../modals/RoundEndModal';
+import { GameOverModal } from '../modals/GameOverModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -61,6 +61,8 @@ export function GameBoard({
   playerNumber,
   sendAction,
   startNextRound,
+  onRestart,
+  onBackToMenu,
   serverError,
   onServerErrorClose,
   opponentDrag,
@@ -71,7 +73,9 @@ export function GameBoard({
   // Local state
   const [errorVersion, setErrorVersion] = useState(0);
   const [dragVersion, setDragVersion] = useState(0);
-  const [showRoundEnd, setShowRoundEnd] = useState(false);
+  
+  // Track round transitions to prevent double triggers
+  const lastProcessedRound = useRef<number>(0);
 
   // Effects
   useEffect(() => {
@@ -91,32 +95,29 @@ export function GameBoard({
   const { getTableBounds } = useTableBounds(drag.dropBounds);
   const roundInfo = useGameRound(gameState);
 
-  // Show round end modal when round is over
+  // KISS Round Transition Logic
+  // When round ends:
+  // - Round 1 → automatically start Round 2 (deal 10 cards each)
+  // - Round 2 → Game Over (handled by gameState.gameOver)
   useEffect(() => {
-    console.log(`[GameBoard] roundInfo updated: isOver=${roundInfo.isOver}, showRoundEnd=${showRoundEnd}`);
-    if (roundInfo.isOver && !showRoundEnd) {
-      console.log(`[GameBoard] 🏁 Round ended, showing modal`);
-      console.log(`[GameBoard] Final state: cardsRemaining=[${roundInfo.cardsRemaining}]`);
-      setShowRoundEnd(true);
+    // Only transition if round just ended and we have startNextRound (local game)
+    if (roundInfo.isOver && startNextRound) {
+      const currentRound = roundInfo.roundNumber;
+      
+      // Prevent double triggers - only process if we haven't already
+      if (lastProcessedRound.current >= currentRound) {
+        return;
+      }
+      lastProcessedRound.current = currentRound;
+      
+      if (currentRound === 1) {
+        // Round 1 ended - automatically start Round 2
+        console.log(`[GameBoard] Round 1 ended, automatically starting Round 2`);
+        startNextRound();
+      }
+      // Round 2 ending is handled by gameState.gameOver (no action needed)
     }
-  }, [roundInfo.isOver, showRoundEnd, roundInfo.roundNumber, roundInfo.endReason, roundInfo.cardsRemaining]);
-
-  // Handle round end modal close
-  // For local game: transition to next round
-  // For multiplayer: server auto-transitions, but we check if round already changed
-  const handleRoundEndClose = () => {
-    setShowRoundEnd(false);
-    
-    // For local game, manually transition to next round
-    // The startNextRound function is only provided for local game mode
-    // (for multiplayer, server auto-transitions)
-    if (startNextRound && roundInfo.roundNumber === 1) {
-      console.log('[GameBoard] Modal closed, starting next round for local game');
-      startNextRound();
-    }
-  };
-
-  // Handle next round
+  }, [roundInfo.isOver, roundInfo.roundNumber, startNextRound]);
 
   // Drag end wrapper
   const handleDragEndWrapper = () => {
@@ -334,18 +335,20 @@ export function GameBoard({
         onStealCompleted={modals.onStealCompleted}
       />
 
-      <RoundEndModal
-        visible={showRoundEnd}
-        roundNumber={roundInfo.roundNumber}
-        endReason={roundInfo.endReason as 'all_cards_played' | undefined}
-        scores={gameState.scores as [number, number]}
-        // For multiplayer: server handles round transitions automatically, so hide Next Round button
-        // For local game: the startNextRound callback will be provided
-        onNextRound={startNextRound ? () => {
-          setShowRoundEnd(false);
-          startNextRound();
+      {/* No Round End Modal - transitions are automatic */}
+      {/* KISS: Round 1 → Round 2 → Game Over */}
+
+      <GameOverModal
+        visible={gameState.gameOver || false}
+        scores={gameState.scores as number[]}
+        playerCount={gameState.playerCount}
+        onPlayAgain={onRestart ? () => {
+          // Reset game - this effectively restarts the game
+          if (gameState.playerCount === 2) {
+            onRestart();
+          }
         } : undefined}
-        onClose={handleRoundEndClose}
+        onBackToMenu={onBackToMenu}
       />
     </View>
   );

@@ -288,9 +288,12 @@ function startNextRound(state, playerCount) {
   
   console.log(`[GameState] startNextRound: Dealing 10 new cards to each player from remaining deck (${state.deck.length} cards left)`);
   
+  // Clone state first to avoid mutation!
+  const newState = cloneDeep(state);
+  
   // Deal 10 new cards to each player from remaining deck
-  const newPlayers = state.players.map(player => {
-    const newHand = state.deck.splice(0, STARTING_CARDS_PER_PLAYER);
+  const newPlayers = newState.players.map(player => {
+    const newHand = newState.deck.splice(0, STARTING_CARDS_PER_PLAYER);
     return {
       ...player,
       hand: newHand,
@@ -298,21 +301,17 @@ function startNextRound(state, playerCount) {
     };
   });
   
-  console.log(`[GameState] startNextRound: New hands dealt, deck now has ${state.deck.length} cards`);
+  console.log(`[GameState] startNextRound: New hands dealt, deck now has ${newState.deck.length} cards`);
   
-  // Return updated state for next round
-  const newState = {
-    ...state,
-    deck: state.deck,
-    players: newPlayers,
-    tableCards: [],
-    currentPlayer: 0,
-    round: state.round + 1,
-    turnCounter: 1,
-    moveCount: 0,
-    // Reset round players for turn tracking
-    roundPlayers: createRoundPlayers(playerCount),
-  };
+  // Update newState with the new players and other round changes
+  newState.players = newPlayers;
+  newState.tableCards = [];
+  newState.currentPlayer = 0;
+  newState.round = state.round + 1;
+  newState.turnCounter = 1;
+  newState.moveCount = 0;
+  // Reset round players for turn tracking
+  newState.roundPlayers = createRoundPlayers(playerCount);
   
   console.log(`[GameState] startNextRound: Round ${newState.round} initialized with fresh hands`);
   
