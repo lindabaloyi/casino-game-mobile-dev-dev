@@ -22,6 +22,7 @@ import { useGameRound } from '../../hooks/game/useGameRound';
 import { useDragHandlers } from '../../hooks/game/useDragHandlers';
 import { useActionHandlers } from '../../hooks/game/useActionHandlers';
 import { useTableBounds } from '../../hooks/game/useTableBounds';
+import { useTurnTimer } from '../../hooks/game/useTurnTimer';
 
 import { GameStatusBar } from './GameStatusBar';
 import { TableArea } from '../table/TableArea';
@@ -103,6 +104,20 @@ export function GameBoard({
   const computed = useGameComputed(gameState, playerNumber);
   const { getTableBounds } = useTableBounds(drag.dropBounds);
   const roundInfo = useGameRound(gameState);
+  
+  // Turn timer - 20 second countdown
+  const turnTimer = useTurnTimer({
+    currentPlayer: gameState.currentPlayer,
+    isMyTurn: computed.isMyTurn,
+    gameOver: gameState.gameOver,
+    modalVisible: modals.showPlayModal || modals.showStealModal,
+    roundOver: roundInfo.isOver,
+    onTimeout: () => {
+      // Auto-end turn when timer expires
+      console.log('[GameBoard] Timer expired - auto-ending turn');
+      actions.endTurn();
+    },
+  });
 
   // KISS Round Transition Logic
   // When round ends:
@@ -223,6 +238,10 @@ export function GameBoard({
         playerNumber={playerNumber}
         scores={gameState.scores as [number, number]}
         cardsRemaining={roundInfo.cardsRemaining as [number, number]}
+        // Timer props
+        timeRemaining={turnTimer.timeRemaining}
+        showTimer={computed.isMyTurn && !gameState.gameOver && !roundInfo.isOver}
+        isLowTime={turnTimer.isLowTime}
       />
 
       <TableArea

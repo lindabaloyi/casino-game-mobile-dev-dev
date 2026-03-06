@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { TurnTimer } from './TurnTimer';
 
 interface Props {
   round: number;
@@ -15,6 +16,10 @@ interface Props {
   movesRemaining?: number;     // Optional: moves remaining in round
   turnsRemaining?: number;     // Optional: turns remaining in round
   cardsRemaining?: [number, number]; // Optional: [player1 cards, player2 cards]
+  // Timer props
+  timeRemaining?: number;
+  showTimer?: boolean;
+  isLowTime?: boolean;
 }
 
 export function GameStatusBar({ 
@@ -25,6 +30,9 @@ export function GameStatusBar({
   movesRemaining,
   turnsRemaining,
   cardsRemaining,
+  timeRemaining,
+  showTimer = false,
+  isLowTime = false,
 }: Props) {
   const isMyTurn = currentPlayer === playerNumber;
 
@@ -37,6 +45,13 @@ export function GameStatusBar({
           {isMyTurn ? 'Your Turn' : "Opponent's Turn"}
         </Text>
       </View>
+
+      {/* Timer - only shown for active player's turn */}
+      <TurnTimer 
+        timeRemaining={timeRemaining ?? 20} 
+        visible={showTimer}
+        isLowTime={isLowTime}
+      />
 
       {turnsRemaining !== undefined && (
         <View style={styles.progressBadge}>
