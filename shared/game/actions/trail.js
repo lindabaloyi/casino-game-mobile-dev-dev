@@ -11,7 +11,7 @@
  * Contract: (state, payload, playerIndex) => newState  (pure, no side effects)
  */
 
-const { cloneState, nextTurn, startPlayerTurn, triggerAction } = require('../');
+const { cloneState, nextTurn, startPlayerTurn, triggerAction, finalizeGame } = require('../');
 
 /**
  * @param {object} state       Current game state
@@ -72,7 +72,17 @@ function trail(state, payload, playerIndex) {
   }
 
   // Advance turn
-  return nextTurn(newState);
+  const resultState = nextTurn(newState);
+  
+  // Check if game is over (deck empty and all hands empty)
+  const deckEmpty = resultState.deck.length === 0;
+  const allHandsEmpty = resultState.players.every(p => p.hand.length === 0);
+  
+  if (deckEmpty && allHandsEmpty) {
+    return finalizeGame(resultState);
+  }
+  
+  return resultState;
 }
 
 module.exports = trail;

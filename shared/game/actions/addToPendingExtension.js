@@ -94,11 +94,7 @@ function addToPendingExtension(state, payload, playerIndex) {
   }
 
   // Add to pending extension array
-  if (!buildStack.pendingExtension.cards) {
-    buildStack.pendingExtension.cards = [buildStack.pendingExtension.looseCard];
-    delete buildStack.pendingExtension.looseCard;
-  }
-  
+  // Cards are already in array format from startBuildExtension
   buildStack.pendingExtension.cards.push({ card: usedCard, source: cardSource });
 
   return newState;

@@ -15,7 +15,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 // Import from shared game module
 // The shared module is in JavaScript (CommonJS) but Metro bundler handles this
 const { createActionRouter } = require('../../shared/game/ActionRouter');
-const { initializeGame, initializeTestGame, startNextRound: startNextRoundFromState } = require('../../shared/game/GameState');
+const { initializeGame, initializeTestGame, startNextRound: startNextRoundFromState, finalizeGame } = require('../../shared/game/GameState');
 const actionHandlers = require('../../shared/game/actions');
 
 // Types matching the server game state
@@ -149,8 +149,14 @@ export function useLocalGame(playerCount: number = 2): UseLocalGameResult {
       
       // If null returned, no more rounds allowed - end the game
       console.log('[useLocalGame] startNextRound: No more rounds allowed, ending game');
+      
+      // Finalize game - this calculates scores from captured cards
+      const finalizedState = finalizeGame(prev);
+      const finalScores = finalizedState.scores || [0, 0];
+      console.log(`[useLocalGame] Finalized scores: P0=${finalScores[0]}, P1=${finalScores[1]}`);
+      
       return {
-        ...prev,
+        ...finalizedState,
         gameOver: true,
       };
     });

@@ -5,6 +5,11 @@
 
 const { cloneState, nextTurn } = require('../');
 
+// Helper to sort cards in ascending order by value (smallest on top)
+function sortBuildCards(cards) {
+  return cards.sort((a, b) => a.value - b.value);
+}
+
 function calculateBuildValue(cards) {
   const totalSum = cards.reduce((sum, c) => sum + c.value, 0);
   
@@ -66,7 +71,12 @@ function acceptBuildExtension(state, payload, playerIndex) {
     buildResult = calculateBuildValue(allCards);
   }
 
+  // Merge cards
   buildStack.cards = [...buildStack.cards, ...pendingCards];
+
+  // --- AUTO-SORT: smallest on top, largest at bottom ---
+  sortBuildCards(buildStack.cards);
+
   buildStack.value = buildResult.value;
   buildStack.base = buildResult.base;
   buildStack.need = buildResult.need;

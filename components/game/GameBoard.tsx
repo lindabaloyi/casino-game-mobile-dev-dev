@@ -309,7 +309,10 @@ export function GameBoard({
         onAcceptStack={computed.overlayStackId ? actionHandlers.handleAcceptClick : (computed.extendingBuildId ? actionHandlers.handleExtendAcceptClick : undefined)}
         onCancelStack={computed.overlayStackId ? actions.cancelTemp : (computed.extendingBuildId ? actionHandlers.handleDeclineExtend : undefined)}
         showEndTurnButton={modals.showEndTurnButton}
-        onEndTurn={actions.endTurn}
+        onEndTurn={() => {
+          modals.hideEndTurnButton();
+          actions.endTurn();
+        }}
       />
 
       <DragGhost 

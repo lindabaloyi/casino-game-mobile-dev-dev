@@ -222,7 +222,7 @@ export function PlayerHandArea({
         </View>
       )}
 
-      {/* End Turn button - shown after steal */}
+      {/* End Turn button - shown after steal - styled to match StackActionStrip */}
       {showEndTurnButton && onEndTurn && (
         <View style={styles.endTurnContainer}>
           <TouchableOpacity
@@ -230,7 +230,7 @@ export function PlayerHandArea({
             onPress={onEndTurn}
             accessibilityLabel="End Turn"
           >
-            <Text style={styles.endTurnText}>➜ End Turn</Text>
+            <Text style={styles.endTurnText}>End Turn</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -302,16 +302,18 @@ const styles = StyleSheet.create({
   },
   endTurnButton: {
     backgroundColor: '#0288D1',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
+    borderRadius: 20,
+    paddingVertical: 7,
+    paddingHorizontal: 20,
+    borderWidth: 1.5,
     borderColor: '#03A9F4',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   endTurnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#333',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
 

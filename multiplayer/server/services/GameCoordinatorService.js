@@ -8,7 +8,7 @@
  */
 
 const RoundValidator = require('../game/utils/RoundValidator');
-const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn, forceEndTurn } = require('../../../shared/game');
+const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn, forceEndTurn, finalizeGame } = require('../../../shared/game');
 
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking = null) {
@@ -172,14 +172,22 @@ class GameCoordinatorService {
         if (gameOverCheck.gameOver) {
           console.log(`[Coordinator] 🏆 GAME OVER: Winner=P${gameOverCheck.winner}, Final scores: ${gameOverCheck.finalScores}`);
           
-          // Calculate detailed game-over stats from current state
-          const playerCount = newState.playerCount || 2;
+          // Finalize game - this calculates scores from captured cards
+          console.log(`[Coordinator] Calling finalizeGame to calculate scores...`);
+          const finalizedState = finalizeGame(newState);
+          
+          // Use calculated scores from finalized state
+          const finalScores = finalizedState.scores || [0, 0];
+          console.log(`[Coordinator] Finalized scores: P0=${finalScores[0]}, P1=${finalScores[1]}`);
+          
+          // Calculate detailed game-over stats from finalized state
+          const playerCount = finalizedState.playerCount || 2;
           const capturedCards = [];
-          const tableCardsRemaining = newState.tableCards?.length || 0;
-          const deckRemaining = newState.deck?.length || 0;
+          const tableCardsRemaining = finalizedState.tableCards?.length || 0;
+          const deckRemaining = finalizedState.deck?.length || 0;
           
           for (let i = 0; i < playerCount; i++) {
-            capturedCards.push(newState.players[i]?.captures?.length || 0);
+            capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
           }
           
           console.log(`[Coordinator] 🏆 Game Over Stats:`);
@@ -187,11 +195,11 @@ class GameCoordinatorService {
           console.log(`[Coordinator]   Table: ${tableCardsRemaining} cards`);
           console.log(`[Coordinator]   Deck: ${deckRemaining} cards`);
           
-          newState.gameOver = true;
-          this.gameManager.saveGameState(gameId, newState);
+          finalizedState.gameOver = true;
+          this.gameManager.saveGameState(gameId, finalizedState);
           this.broadcaster.broadcastToGame(gameId, 'game-over', {
             winner: gameOverCheck.winner,
-            finalScores: gameOverCheck.finalScores,
+            finalScores,
             capturedCards,
             tableCardsRemaining,
             deckRemaining,
@@ -210,22 +218,30 @@ class GameCoordinatorService {
             // No more rounds
             console.log(`[Coordinator] No more rounds, ending game`);
             
-            // Calculate detailed game-over stats from current state
-            const playerCount = newState.playerCount || 2;
+            // Finalize game - this calculates scores from captured cards
+            console.log(`[Coordinator] Calling finalizeGame to calculate scores...`);
+            const finalizedState = finalizeGame(newState);
+            
+            // Use calculated scores from finalized state
+            const finalScores = finalizedState.scores || [0, 0];
+            console.log(`[Coordinator] Finalized scores: P0=${finalScores[0]}, P1=${finalScores[1]}`);
+            
+            // Calculate detailed game-over stats from finalized state
+            const playerCount = finalizedState.playerCount || 2;
             const capturedCards = [];
-            const tableCardsRemaining = newState.tableCards?.length || 0;
-            const deckRemaining = newState.deck?.length || 0;
+            const tableCardsRemaining = finalizedState.tableCards?.length || 0;
+            const deckRemaining = finalizedState.deck?.length || 0;
             
             for (let i = 0; i < playerCount; i++) {
-              capturedCards.push(newState.players[i]?.captures?.length || 0);
+              capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
             }
             
-            newState.gameOver = true;
-            this.gameManager.saveGameState(gameId, newState);
-            const winner = RoundValidator.determineRoundWinner(newState);
+            finalizedState.gameOver = true;
+            this.gameManager.saveGameState(gameId, finalizedState);
+            const winner = RoundValidator.determineRoundWinner(finalizedState);
             this.broadcaster.broadcastToGame(gameId, 'game-over', {
               winner,
-              finalScores: newState.scores,
+              finalScores,
               capturedCards,
               tableCardsRemaining,
               deckRemaining,
@@ -334,23 +350,31 @@ class GameCoordinatorService {
         // No more rounds allowed - end the game
         console.log(`[Coordinator] start-next-round: No more rounds allowed, ending game`);
         
-        // Calculate detailed game-over stats from current state
-        const playerCount = state.playerCount || 2;
+        // Finalize game - this calculates scores from captured cards
+        console.log(`[Coordinator] Calling finalizeGame to calculate scores...`);
+        const finalizedState = finalizeGame(state);
+        
+        // Use calculated scores from finalized state
+        const finalScores = finalizedState.scores || [0, 0];
+        console.log(`[Coordinator] Finalized scores: P0=${finalScores[0]}, P1=${finalScores[1]}`);
+        
+        // Calculate detailed game-over stats from finalized state
+        const playerCount = finalizedState.playerCount || 2;
         const capturedCards = [];
-        const tableCardsRemaining = state.tableCards?.length || 0;
-        const deckRemaining = state.deck?.length || 0;
+        const tableCardsRemaining = finalizedState.tableCards?.length || 0;
+        const deckRemaining = finalizedState.deck?.length || 0;
         
         for (let i = 0; i < playerCount; i++) {
-          capturedCards.push(state.players[i]?.captures?.length || 0);
+          capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
         }
         
-        state.gameOver = true;
-        this.gameManager.saveGameState(gameId, state);
+        finalizedState.gameOver = true;
+        this.gameManager.saveGameState(gameId, finalizedState);
         
-        const winner = RoundValidator.determineRoundWinner(state);
+        const winner = RoundValidator.determineRoundWinner(finalizedState);
         this.broadcaster.broadcastToGame(gameId, 'game-over', {
           winner,
-          finalScores: state.scores,
+          finalScores,
           capturedCards,
           tableCardsRemaining,
           deckRemaining,
