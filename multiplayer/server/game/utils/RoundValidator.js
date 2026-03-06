@@ -10,7 +10,7 @@
  */
 
 const { cloneDeep } = require('../../../../shared/utils/cloneDeep');
-const { allPlayersTurnEnded, forceEndTurn, createRoundPlayers } = require('../../../../shared/game/GameState');
+const { allPlayersTurnEnded, forceEndTurn, createRoundPlayers, startNextRound } = require('../../../../shared/game/GameState');
 
 class RoundValidator {
   static STARTING_CARDS = 10;
@@ -183,34 +183,28 @@ class RoundValidator {
   }
 
   /**
-   * Prepare state for next round.
+   * Prepare state for next round using the shared startNextRound function.
+   * This ensures both local and multiplayer games use the same logic.
    * @param {object} state - Current game state
-   * @returns {object} Updated game state for next round
+   * @returns {object|null} Updated game state for next round, or null if no more rounds allowed
    */
   static prepareNextRound(state) {
-    const nextRound = state.round + 1;
-    const oldTurnCounter = state.turnCounter;
+    const playerCount = state.playerCount || state.players?.length || 2;
     
-    // Reset for next round - including turn tracking flags
-    const newState = {
-      ...state,
-      round: nextRound,
-      moveCount: 0,
-      turnCounter: 1, // Reset to 1 for new round
-      currentPlayer: 0,
-      tableCards: [],
-      // Reset round players for new round
-      roundPlayers: createRoundPlayers(state.playerCount || state.players.length),
+    // Use the shared startNextRound function from GameState
+    const newState = startNextRound(state, playerCount);
+    
+    if (newState) {
+      console.log(`[RoundValidator] prepareNextRound: Successfully started Round ${newState.round} using shared function`);
       // Keep scores accumulated
-      scores: state.scores,
-      // Keep team scores
-      teamScores: state.teamScores,
-    };
+      newState.scores = state.scores;
+      newState.teamScores = state.teamScores;
+      return newState;
+    }
     
-    console.log(`[RoundValidator] prepareNextRound: resetting turnCounter from ${oldTurnCounter} to 1`);
-    console.log(`[RoundValidator] Preparing Round ${nextRound}: turnCounter reset to 1, roundPlayers reset`);
-    
-    return newState;
+    // If null returned, no more rounds allowed
+    console.log('[RoundValidator] prepareNextRound: No more rounds allowed');
+    return null;
   }
 
   /**

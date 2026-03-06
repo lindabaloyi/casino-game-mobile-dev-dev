@@ -15,7 +15,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 // Import from shared game module
 // The shared module is in JavaScript (CommonJS) but Metro bundler handles this
 const { createActionRouter } = require('../../shared/game/ActionRouter');
-const { initializeGame, initializeTestGame } = require('../../shared/game/GameState');
+const { initializeGame, initializeTestGame, startNextRound: startNextRoundFromState } = require('../../shared/game/GameState');
 const actionHandlers = require('../../shared/game/actions');
 
 // Types matching the server game state
@@ -131,16 +131,27 @@ export function useLocalGame(playerCount: number = 2): UseLocalGameResult {
     setGameState(createInitialGameState(playerCount));
   }, [playerCount]);
   
-  // Start next round
+  // Start next round - uses the remaining deck to deal new cards to players
   const startNextRound = useCallback(() => {
-    // Keep scores and teamScores but reset round-specific state
     setGameState(prev => {
-      const newState = createInitialGameState(playerCount);
+      // Try to start next round from remaining deck
+      const newState = startNextRoundFromState(prev, playerCount);
+      
+      if (newState) {
+        // Round 2 started successfully - keep scores from previous round
+        console.log(`[useLocalGame] startNextRound: Successfully started Round ${newState.round}`);
+        return {
+          ...newState,
+          scores: prev.scores,
+          teamScores: prev.teamScores || [0, 0],
+        };
+      }
+      
+      // If null returned, no more rounds allowed - end the game
+      console.log('[useLocalGame] startNextRound: No more rounds allowed, ending game');
       return {
-        ...newState,
-        scores: prev.scores,
-        teamScores: prev.teamScores || [0, 0],
-        round: prev.round + 1,
+        ...prev,
+        gameOver: true,
       };
     });
   }, [playerCount]);

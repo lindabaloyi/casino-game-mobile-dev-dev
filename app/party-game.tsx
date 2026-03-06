@@ -17,7 +17,6 @@ import { StyleSheet, View, Text, ActivityIndicator, TouchableOpacity } from 'rea
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { GameBoard } from '../components/game/GameBoard';
-import GameOverScreen from './game-over';
 import { usePartyGameState } from '../hooks/usePartyGameState';
 
 export const options = {
@@ -124,18 +123,10 @@ export default function PartyGameScreen() {
     );
   }
 
-  // Show game over screen
+  // Show game over - just continue showing the game board
+  // The round end modal will handle displaying final scores
   if (gameState.gameOver) {
-    return (
-      <GameOverScreen
-        gameState={gameState as any}
-        onPlayAgain={() => {
-          console.log('[PartyGame] Play again - would restart matchmaking');
-          router.replace('/' as any);
-        }}
-        onBackToMenu={() => router.replace('/' as any)}
-      />
-    );
+    console.log('[PartyGame] Game over - showing final state');
   }
 
   // Handle null playerNumber for rendering

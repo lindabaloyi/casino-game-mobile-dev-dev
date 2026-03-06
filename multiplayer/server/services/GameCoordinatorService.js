@@ -147,6 +147,24 @@ class GameCoordinatorService {
             winner: gameOverCheck.winner,
             finalScores: gameOverCheck.finalScores,
           }, mm);
+        } else {
+          // Auto-transition to next round for multiplayer
+          const nextState = RoundValidator.prepareNextRound(newState);
+          if (nextState) {
+            console.log(`[Coordinator] Auto-transitioning to Round ${nextState.round}`);
+            this.gameManager.saveGameState(gameId, nextState);
+            this.broadcaster.broadcastGameUpdate(gameId, nextState, mm);
+          } else {
+            // No more rounds
+            console.log(`[Coordinator] No more rounds, ending game`);
+            newState.gameOver = true;
+            this.gameManager.saveGameState(gameId, newState);
+            const winner = RoundValidator.determineRoundWinner(newState);
+            this.broadcaster.broadcastToGame(gameId, 'game-over', {
+              winner,
+              finalScores: newState.scores,
+            }, mm);
+          }
         }
       } else {
         this.broadcaster.broadcastGameUpdate(gameId, newState, mm);
@@ -243,8 +261,23 @@ class GameCoordinatorService {
         return;
       }
 
-      // Prepare next round
+      // Prepare next round using RoundValidator (which now uses shared GameState function)
       const newState = RoundValidator.prepareNextRound(state);
+      
+      if (newState === null) {
+        // No more rounds allowed - end the game
+        console.log(`[Coordinator] start-next-round: No more rounds allowed, ending game`);
+        state.gameOver = true;
+        this.gameManager.saveGameState(gameId, state);
+        
+        const winner = RoundValidator.determineRoundWinner(state);
+        this.broadcaster.broadcastToGame(gameId, 'game-over', {
+          winner,
+          finalScores: state.scores,
+        }, mm);
+        return;
+      }
+      
       this.gameManager.saveGameState(gameId, newState);
       
       console.log(`[Coordinator] Started round ${newState.round}`);

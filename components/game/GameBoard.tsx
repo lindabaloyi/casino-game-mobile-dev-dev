@@ -101,6 +101,21 @@ export function GameBoard({
     }
   }, [roundInfo.isOver, showRoundEnd, roundInfo.roundNumber, roundInfo.endReason, roundInfo.cardsRemaining]);
 
+  // Handle round end modal close
+  // For local game: transition to next round
+  // For multiplayer: server auto-transitions, but we check if round already changed
+  const handleRoundEndClose = () => {
+    setShowRoundEnd(false);
+    
+    // For local game, manually transition to next round
+    // The startNextRound function is only provided for local game mode
+    // (for multiplayer, server auto-transitions)
+    if (startNextRound && roundInfo.roundNumber === 1) {
+      console.log('[GameBoard] Modal closed, starting next round for local game');
+      startNextRound();
+    }
+  };
+
   // Handle next round
 
   // Drag end wrapper
@@ -197,7 +212,7 @@ export function GameBoard({
         currentPlayer={gameState.currentPlayer}
         playerNumber={playerNumber}
         scores={gameState.scores as [number, number]}
-        cardsRemaining={roundInfo.cardsRemaining}
+        cardsRemaining={roundInfo.cardsRemaining as [number, number]}
       />
 
       <TableArea
@@ -322,15 +337,15 @@ export function GameBoard({
       <RoundEndModal
         visible={showRoundEnd}
         roundNumber={roundInfo.roundNumber}
-        endReason={roundInfo.endReason}
+        endReason={roundInfo.endReason as 'all_cards_played' | undefined}
         scores={gameState.scores as [number, number]}
-        onNextRound={() => {
+        // For multiplayer: server handles round transitions automatically, so hide Next Round button
+        // For local game: the startNextRound callback will be provided
+        onNextRound={startNextRound ? () => {
           setShowRoundEnd(false);
-          if (startNextRound) {
-            startNextRound();
-          }
-        }}
-        onClose={() => setShowRoundEnd(false)}
+          startNextRound();
+        } : undefined}
+        onClose={handleRoundEndClose}
       />
     </View>
   );

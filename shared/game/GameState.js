@@ -256,6 +256,70 @@ function resetTurnFlags(state) {
 }
 
 /**
+ * Start the next round by dealing cards from the remaining deck.
+ * For 2-player mode: allows up to 2 rounds total
+ * For 4-player mode: returns null (no Round 2 allowed - game ends after Round 1)
+ * 
+ * @param {object} state - Current game state
+ * @param {number} playerCount - Number of players (2 or 4)
+ * @returns {object|null} Updated state for next round, or null if no more rounds allowed
+ */
+function startNextRound(state, playerCount) {
+  console.log(`[GameState] startNextRound: current round=${state.round}, playerCount=${playerCount}`);
+  
+  // For 4-player: only 1 round allowed (no Round 2)
+  if (playerCount >= 4) {
+    console.log('[GameState] startNextRound: 4-player mode, no Round 2 allowed, returning null');
+    return null;
+  }
+  
+  // For 2-player: allow up to 2 rounds
+  if (state.round >= 2) {
+    console.log('[GameState] startNextRound: Round 2 already completed, returning null');
+    return null;
+  }
+  
+  // Check if we have enough cards in the deck
+  const cardsNeeded = playerCount * STARTING_CARDS_PER_PLAYER; // 20 for 2-player
+  if (state.deck.length < cardsNeeded) {
+    console.log(`[GameState] startNextRound: Not enough cards in deck (have ${state.deck.length}, need ${cardsNeeded}), returning null`);
+    return null;
+  }
+  
+  console.log(`[GameState] startNextRound: Dealing 10 new cards to each player from remaining deck (${state.deck.length} cards left)`);
+  
+  // Deal 10 new cards to each player from remaining deck
+  const newPlayers = state.players.map(player => {
+    const newHand = state.deck.splice(0, STARTING_CARDS_PER_PLAYER);
+    return {
+      ...player,
+      hand: newHand,
+      // Keep captures from previous round
+    };
+  });
+  
+  console.log(`[GameState] startNextRound: New hands dealt, deck now has ${state.deck.length} cards`);
+  
+  // Return updated state for next round
+  const newState = {
+    ...state,
+    deck: state.deck,
+    players: newPlayers,
+    tableCards: [],
+    currentPlayer: 0,
+    round: state.round + 1,
+    turnCounter: 1,
+    moveCount: 0,
+    // Reset round players for turn tracking
+    roundPlayers: createRoundPlayers(playerCount),
+  };
+  
+  console.log(`[GameState] startNextRound: Round ${newState.round} initialized with fresh hands`);
+  
+  return newState;
+}
+
+/**
  * Validate card distribution - ensure no duplicates across players
  * @param {object} state - Game state to validate
  * @returns {{ valid: boolean, errors: string[] }}
@@ -528,4 +592,6 @@ module.exports = {
   forceEndTurn,
   resetRoundPlayers,
   resetTurnFlags,
+  // NEW: Round transition function
+  startNextRound,
 };

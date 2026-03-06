@@ -1,6 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { GameBoard } from '../components/game/GameBoard';
-import GameOverScreen from './game-over';
 import { useGameState } from '../hooks/useGameState';
 
 export const options = {
@@ -20,14 +19,10 @@ export default function MultiplayerScreen() {
     );
   }
 
+  // Show game over - just continue showing the game board
+  // The round end modal will handle displaying final scores
   if (gameState.gameOver) {
-    return (
-      <GameOverScreen
-        gameState={gameState}
-        onPlayAgain={() => console.log('Play again')}
-        onBackToMenu={() => console.log('Back to menu')}
-      />
-    );
+    console.log('[MultiplayerScreen] Game over - showing final state');
   }
 
   return (

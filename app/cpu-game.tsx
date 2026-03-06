@@ -13,15 +13,17 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
 import { GameBoard } from '../components/game/GameBoard';
-import GameOverScreen from './game-over';
 import { useLocalGame, GameState } from '../hooks/game/useLocalGame';
 import { useCpuEngine } from '../hooks/game/useCpuEngine';
+import { useRouter } from 'expo-router';
 
 export const options = {
   headerShown: false,
 };
 
 export default function CpuGameScreen() {
+  const router = useRouter();
+  
   const { 
     gameState, 
     sendAction, 
@@ -48,18 +50,11 @@ export default function CpuGameScreen() {
     );
   }
 
-  // Show game over screen
+  // Show game over - redirect to menu
   if (gameState.gameOver) {
-    return (
-      <GameOverScreen
-        gameState={gameState as any}
-        onPlayAgain={() => {
-          console.log('[CpuGameScreen] Play again');
-          resetGame();
-        }}
-        onBackToMenu={() => console.log('[CpuGameScreen] Back to menu')}
-      />
-    );
+    // For now, just show the game board with a message
+    // The round end modal will handle displaying the final scores
+    console.log('[CpuGameScreen] Game over - showing final state');
   }
 
   return (
