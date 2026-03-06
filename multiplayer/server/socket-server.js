@@ -7,6 +7,7 @@
 const express    = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const os = require('os');
 
 const MatchmakingService    = require('./services/MatchmakingService');
 const PartyMatchmakingService = require('./services/PartyMatchmakingService');
@@ -117,6 +118,20 @@ io.on('connection', socket => {
 
 // ── Server control ────────────────────────────────────────────────────────────
 
+function getLocalIPAddress() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    const iface = interfaces[name];
+    if (!iface) continue;
+    for (const entry of iface) {
+      // Skip internal and non-IPv4 addresses
+      if (entry.internal || entry.family !== 'IPv4') continue;
+      return entry.address;
+    }
+  }
+  return null;
+}
+
 function startServer() {
   gameManager  = new GameManager();
   actionRouter = new ActionRouter(gameManager);
@@ -126,7 +141,17 @@ function startServer() {
   coordinator  = new GameCoordinatorService(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking);
 
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Server] Listening on port ${PORT}`);
+    const lanIp = getLocalIPAddress();
+    console.log(`[Server] ════════════════════════════════════════`);
+    console.log(`[Server] 🎮 Casino Game Server Started!`);
+    console.log(`[Server] ════════════════════════════════════════`);
+    console.log(`[Server] Local:   http://localhost:${PORT}`);
+    if (lanIp) {
+      console.log(`[Server] LAN IP:  http://${lanIp}:${PORT}`);
+      console.log(`[Server] ───────────────────────────────────────`);
+      console.log(`[Server] Share this IP with friends on your network!`);
+    }
+    console.log(`[Server] ════════════════════════════════════════`);
     console.log(`[Server] Registered actions: ${actionRouter.registeredActions().join(', ') || '(none yet)'}`);
   });
 

@@ -130,7 +130,8 @@ export function useDragHandlers({
     // Check loose cards
     const targetCardResult = findCardAtPoint?.(absX, absY);
     if (targetCardResult && dragOverlay.draggingCard) {
-      actions.createTemp(dragOverlay.draggingCard, targetCardResult.card);
+      // Pass the source so SmartRouter can determine capture vs createTemp
+      actions.createTemp(dragOverlay.draggingCard, targetCardResult.card, dragOverlay.dragSource || 'hand');
       handleDragEnd('card', 'success', targetCardResult.id);
       return;
     }

@@ -5,8 +5,15 @@
  * Rules:
  * - Dropped card must be from hand to capture.
  * - Ranks must match for capture.
- * - Capture allowed only if player has exactly one card of that rank in hand.
- * - Otherwise, create a temporary stack.
+ * - For High Ranks (6-10, J, Q, K):
+ *   - If player has another card of same rank (spare) → create temp stack
+ *   - If only that one card → capture
+ * - For Low Ranks (A-5):
+ *   - Check for double card value first (e.g., 4 → 8)
+ *     - If has double → create temp stack (sum build)
+ *   - Else check for spare (same rank)
+ *     - If has spare → create temp stack
+ *   - Else → capture
  */
 
 class LooseCardRouter {
@@ -32,25 +39,64 @@ class LooseCardRouter {
       return { type: 'createTemp', payload: { card, targetCard } };
     }
 
-    // Check for spare cards of the same rank in player's hand
+    // Get player's hand
     const playerHand = state.players?.[playerIndex]?.hand || [];
+    const cardValue = card.value || 0;
+    
+    // Determine if this is a high rank (6-10, J, Q, K) or low rank (A-5)
+    const isHighRank = cardValue > 5;
+    
+    // Count how many cards of this rank the player has in hand (including the one being played)
     const sameRankCards = playerHand.filter(c => c.rank === card.rank);
-
-    if (sameRankCards.length === 1) {
-      // Only one card of this rank (the one being used) – capture the loose card
-      return {
-        type: 'captureOwn',
-        payload: {
-          card,
-          targetType: 'loose',
-          targetRank: targetCard.rank,
-          targetSuit: targetCard.suit
-        }
-      };
+    const hasSpare = sameRankCards.length > 1;
+    
+    if (isHighRank) {
+      // HIGH RANKS (6-10, J, Q, K): Only same-rank stacks allowed
+      // If player has a spare card of this rank → create temp stack
+      // Otherwise → capture
+      if (hasSpare) {
+        console.log(`[LooseCardRouter] High rank ${card.rank}: has spare, creating temp stack`);
+        return { type: 'createTemp', payload: { card, targetCard } };
+      } else {
+        console.log(`[LooseCardRouter] High rank ${card.rank}: no spare, capturing`);
+        return {
+          type: 'captureOwn',
+          payload: {
+            card,
+            targetType: 'loose',
+            targetRank: targetCard.rank,
+            targetSuit: targetCard.suit
+          }
+        };
+      }
+    } else {
+      // LOW RANKS (A-5): Can be same-rank OR sum builds
+      // First, check if player has a card with exactly double the value (for sum build)
+      const doubleValue = cardValue * 2;
+      const hasDouble = playerHand.some(c => c.value === doubleValue);
+      
+      if (hasDouble) {
+        // Has the double card → create sum build temp stack
+        console.log(`[LooseCardRouter] Low rank ${card.rank}: has double (${doubleValue}), creating sum build`);
+        return { type: 'createTemp', payload: { card, targetCard } };
+      } else if (hasSpare) {
+        // No double, but has spare → create same-rank build
+        console.log(`[LooseCardRouter] Low rank ${card.rank}: no double, has spare, creating same-rank build`);
+        return { type: 'createTemp', payload: { card, targetCard } };
+      } else {
+        // No double, no spare → capture
+        console.log(`[LooseCardRouter] Low rank ${card.rank}: no double, no spare, capturing`);
+        return {
+          type: 'captureOwn',
+          payload: {
+            card,
+            targetType: 'loose',
+            targetRank: targetCard.rank,
+            targetSuit: targetCard.suit
+          }
+        };
+      }
     }
-
-    // Multiple cards of this rank – create temporary stack instead
-    return { type: 'createTemp', payload: { card, targetCard } };
   }
 }
 
