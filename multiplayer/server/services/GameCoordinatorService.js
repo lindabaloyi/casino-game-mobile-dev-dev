@@ -69,6 +69,16 @@ class GameCoordinatorService {
 
     const { gameId, playerIndex, isPartyGame } = ctx;
 
+    // Debug: log socket to player index mapping
+    const socketMap = this.gameManager.socketPlayerMap.get(gameId);
+    if (socketMap) {
+      console.log(`[Coordinator] Socket mapping for game ${gameId}:`);
+      for (const [sid, pIdx] of socketMap) {
+        console.log(`  - ${sid.substr(0, 8)}... => Player ${pIdx} ${sid === socket.id ? '(THIS SOCKET)' : ''}`);
+      }
+    }
+    console.log(`[Coordinator] Action from socket ${socket.id.substr(0, 8)}... resolved to playerIndex: ${playerIndex}`);
+
     try {
       // Log the action
       console.log(`[Coordinator] Action: P${playerIndex} ${data.type} on game ${gameId}${isPartyGame ? ' (party)' : ''}`);

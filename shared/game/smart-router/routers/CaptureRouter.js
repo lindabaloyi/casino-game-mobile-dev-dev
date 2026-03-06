@@ -1,6 +1,10 @@
 /**
  * CaptureRouter
  * Handles capture/steal logic for builds.
+ * 
+ * Custom rules for own builds:
+ * - Same-rank builds: if player has another card of that rank (spare), must extend (addToTemp)
+ * - Sum builds: use value comparison
  */
 
 const StackHelper = require('../helpers/StackHelper');
@@ -26,7 +30,8 @@ class CaptureRouter {
     const isOwnBuild = stack.owner === playerIndex;
     
     if (isOwnBuild) {
-      return this.routeOwnBuild(payload, stack);
+      // Pass state and playerIndex to check for spare cards
+      return this.routeOwnBuild(payload, stack, state, playerIndex);
     } else {
       return this.routeOpponentBuild(payload, stack, playerIndex);
     }
@@ -34,21 +39,54 @@ class CaptureRouter {
 
   /**
    * Route capture of own build
+   * Now handles same-rank builds with spare check.
    */
-  routeOwnBuild(payload, stack) {
-    // Can addToTemp if card value doesn't match build value
-    if (payload.card.value !== stack.value) {
-      return { 
-        type: 'addToTemp', 
-        payload: { card: payload.card, stackId: payload.targetStackId } 
-      };
+  routeOwnBuild(payload, stack, state, playerIndex) {
+    const { card } = payload;
+
+    // Check if this is a same-rank build (all cards have the same rank)
+    const isSameRankBuild = stack.cards.length > 0 && 
+                            stack.cards.every(c => c.rank === stack.cards[0].rank);
+
+    if (isSameRankBuild) {
+      const buildRank = stack.cards[0].rank;
+
+      // Count how many cards of that rank the player has in hand (including the one being played)
+      const hand = state.players[playerIndex].hand;
+      const sameRankCount = hand.filter(c => c.rank === buildRank).length;
+
+      console.log(`[CaptureRouter] Same-rank build (${buildRank}): player has ${sameRankCount} in hand`);
+
+      // If there is a spare (more than one), the player must extend the build
+      if (sameRankCount > 1) {
+        console.log(`[CaptureRouter] Has spare → extending build with startBuildExtension`);
+        return { 
+          type: 'startBuildExtension', 
+          payload: { card, stackId: payload.targetStackId, cardSource: 'hand' } 
+        };
+      } else {
+        // No spare → capture the build
+        console.log(`[CaptureRouter] No spare → capturing own build`);
+        return { type: 'captureOwn', payload };
+      }
+    } else {
+      // Sum build (mixed ranks) – use value comparison
+      if (card.value === stack.value) {
+        console.log(`[CaptureRouter] Sum build: value matches (${card.value}) → capturing`);
+        return { type: 'captureOwn', payload };
+      } else {
+        // Value doesn't match – maybe they're trying to add to the sum build?
+        console.log(`[CaptureRouter] Sum build: value doesn't match → trying addToTemp`);
+        return { 
+          type: 'addToTemp', 
+          payload: { card, stackId: payload.targetStackId } 
+        };
+      }
     }
-    // Value matches = capture own build
-    return { type: 'captureOwn', payload };
   }
 
   /**
-   * Route capture of opponent's build
+   * Route capture of opponent's build (unchanged)
    */
   routeOpponentBuild(payload, stack, playerIndex) {
     // Card value matches build value = capture (not steal)

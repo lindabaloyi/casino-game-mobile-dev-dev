@@ -7,7 +7,7 @@
  * - Shows the TOP card (last in array = most recently captured)
  */
 
-import React, { useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useRef, useEffect, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
@@ -53,6 +53,132 @@ interface CapturedCardsViewProps {
   opponentDrag?: OpponentDragState | null;
 }
 
+// ── Draggable Opponent Capture Card Component ─────────────────────────────────────
+
+interface DraggableOpponentCardProps {
+  card: Card;
+  opponentIndex: number;
+  isMyTurn: boolean;
+  onDragStart?: (card: Card, absoluteX: number, absoluteY: number) => void;
+  onDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onDragEnd?: (card: Card, absX: number, absY: number) => void;
+  findCardAtPoint?: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
+  findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
+  playerNumber: number;
+  opponentDrag?: OpponentDragState | null;
+  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
+}
+
+function DraggableOpponentCard({
+  card,
+  isMyTurn,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  findCardAtPoint,
+  findTempStackAtPoint,
+  playerNumber,
+  opponentDrag,
+  onExtendBuild
+}: DraggableOpponentCardProps) {
+  const cardRef = useRef<View>(null);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const isDragging = useSharedValue(false);
+  const draggedCard = useSharedValue<Card | null>(null);
+
+  const handleDragEndInternal = useCallback((card: Card, absX: number, absY: number) => {
+    if (!onDragEnd || !findCardAtPoint || !findTempStackAtPoint) {
+      return;
+    }
+
+    // Check if dropped on a loose card
+    const targetCardResult = findCardAtPoint(absX, absY);
+    if (targetCardResult) {
+      onDragEnd(card, absX, absY);
+      return;
+    }
+
+    // Check if dropped on a temp stack or build stack
+    const targetStack = findTempStackAtPoint(absX, absY);
+    if (targetStack) {
+      if (targetStack.stackType === 'build_stack' && targetStack.owner === playerNumber) {
+        if (onExtendBuild) {
+          onExtendBuild(card, targetStack.stackId, 'captured');
+        }
+      } else if (targetStack.owner === playerNumber) {
+        onDragEnd(card, absX, absY);
+      }
+      return;
+    }
+
+    // Reset position
+    translateX.value = 0;
+    translateY.value = 0;
+  }, [onDragEnd, findCardAtPoint, findTempStackAtPoint, playerNumber, onExtendBuild, translateX, translateY]);
+
+  const panGesture = Gesture.Pan()
+    .enabled(isMyTurn)
+    .onStart((event) => {
+      isDragging.value = true;
+      draggedCard.value = card;
+      if (onDragStart) onDragStart(card, event.absoluteX, event.absoluteY);
+    })
+    .onUpdate((event) => {
+      if (isDragging.value) {
+        translateX.value = event.translationX;
+        translateY.value = event.translationY;
+        if (onDragMove) onDragMove(event.absoluteX, event.absoluteY);
+      }
+    })
+    .onEnd((event) => {
+      if (isDragging.value && draggedCard.value) {
+        handleDragEndInternal(draggedCard.value, event.absoluteX, event.absoluteY);
+      }
+      setTimeout(() => {
+        translateX.value = 0;
+        translateY.value = 0;
+        isDragging.value = false;
+        draggedCard.value = null;
+      }, 100);
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+    zIndex: isDragging.value ? 100 : 1,
+    opacity: isDragging.value ? 0 : 1,
+  }));
+
+  // Check if this card is being dragged by opponent
+  const cardId = `${card.rank}${card.suit}`;
+  const isHidden = opponentDrag?.isDragging &&
+                   opponentDrag.source === 'captured' &&
+                   opponentDrag.cardId === cardId;
+
+  if (isHidden) {
+    return (
+      <View style={styles.emptyCard}>
+        <Text style={styles.emptyText}>-</Text>
+      </View>
+    );
+  }
+
+  return (
+    <GestureDetector gesture={panGesture}>
+      <Animated.View style={animatedStyle}>
+        <View ref={cardRef}>
+          <PlayingCard rank={card.rank} suit={card.suit} />
+        </View>
+      </Animated.View>
+    </GestureDetector>
+  );
+}
+
+// ── Main CapturedCardsView Component ───────────────────────────────────────────
+
 export function CapturedCardsView({
   playerCaptures,
   opponentCaptures,
@@ -74,7 +200,6 @@ export function CapturedCardsView({
 }: CapturedCardsViewProps) {
   // Get team info for 4-player mode
   const isPartyMode = playerCount === 4;
-  const myTeam = playerNumber < 2 ? 'A' : 'B';
   
   // Get teammate index (for 4-player mode)
   const getTeammateIndex = (idx: number): number => {
@@ -115,26 +240,8 @@ export function CapturedCardsView({
     caps.length > 0 ? caps[caps.length - 1] : null
   );
 
-  // For backward compatibility
-  const opponentTopCard = opponentTopCards[0] || null;
-
-  // Drag state for opponent's card
-  const cardRef = useRef<View>(null);
+  // Player capture pile ref
   const playerCaptureRef = useRef<View>(null);
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const isDragging = useSharedValue(false);
-  const draggedCard = useSharedValue<Card | null>(null);
-
-  // Register position on mount/layout
-  const handleLayout = useCallback(() => {
-    if (cardRef.current && registerCapturedCard && opponentTopCard) {
-      cardRef.current.measureInWindow((x, y, width, height) => {
-        console.log('[CapturedCardsView] Registering opponent card position:', { x, y, width, height, card: opponentTopCard });
-        registerCapturedCard({ x, y, width, height, card: opponentTopCard });
-      });
-    }
-  }, [registerCapturedCard, opponentTopCard]);
 
   // Register player capture pile bounds
   const handlePlayerCaptureLayout = useCallback(() => {
@@ -145,19 +252,6 @@ export function CapturedCardsView({
       });
     }
   }, [registerCapturePile, playerNumber]);
-
-  // Re-register when opponent's top card changes
-  useEffect(() => {
-    if (cardRef.current && registerCapturedCard && opponentTopCard) {
-      // Small delay to ensure the view is laid out
-      setTimeout(() => {
-        cardRef.current?.measureInWindow((x, y, width, height) => {
-          console.log('[CapturedCardsView] Re-registering opponent card:', { x, y, width, height, card: opponentTopCard });
-          registerCapturedCard({ x, y, width, height, card: opponentTopCard });
-        });
-      }, 100);
-    }
-  }, [registerCapturedCard, opponentTopCard]);
 
   // Register player capture pile on mount
   useEffect(() => {
@@ -171,23 +265,25 @@ export function CapturedCardsView({
     }
   }, [registerCapturePile, playerNumber]);
 
+  // Handle drag start for opponent cards
   const handleDragStartInternal = useCallback((card: Card, absX: number, absY: number) => {
-    console.log('[CapturedCardsView] Drag started:', card, 'at', absX, absY);
+    console.log('[CapturedCardsView] Opponent drag started:', card, 'at', absX, absY);
     if (onDragStart) onDragStart(card, absX, absY);
   }, [onDragStart]);
 
+  // Handle drag move for opponent cards
   const handleDragMoveInternal = useCallback((x: number, y: number) => {
     if (onDragMove) onDragMove(x, y);
   }, [onDragMove]);
 
-  // Handle drop using finger position directly (like DraggableHandCard does)
+  // Handle drag end for opponent cards - need to use absolute position from event
   const handleDragEndInternal = useCallback((card: Card, absX: number, absY: number) => {
     if (!onDragEnd || !findCardAtPoint || !findTempStackAtPoint) {
       console.log('[CapturedCardsView] Drag ended - missing callbacks');
       return;
     }
 
-    console.log('[CapturedCardsView] === Captured Card Drag End ===');
+    console.log('[CapturedCardsView] === Opponent Captured Card Drag End ===');
     console.log('[CapturedCardsView] Dragging card:', `${card.rank}${card.suit}`);
     console.log('[CapturedCardsView] Drop position:', { absX, absY });
 
@@ -205,14 +301,13 @@ export function CapturedCardsView({
       return;
     }
 
-    // Check if dropped on a temp stack or build stack (using finger position directly)
+    // Check if dropped on a temp stack or build stack
     const targetStack = findTempStackAtPoint(absX, absY);
     if (targetStack) {
       console.log('[CapturedCardsView] Dropped on stack:', targetStack);
       
       // Check if it's a build stack - can extend own build
       if (targetStack.stackType === 'build_stack' && targetStack.owner === playerNumber) {
-        // Extending own build with captured card
         console.log('[CapturedCardsView] Extending own build with captured card');
         if (onExtendBuild) {
           onExtendBuild(card, targetStack.stackId, 'captured');
@@ -222,6 +317,7 @@ export function CapturedCardsView({
       
       // Can only add to own temp stack
       if (targetStack.owner === playerNumber) {
+        console.log('[CapturedCardsView] Adding to own temp stack');
         onDragEnd(card, undefined, targetStack.stackId);
       } else {
         console.log('[CapturedCardsView] Cannot add to opponent stack');
@@ -229,51 +325,8 @@ export function CapturedCardsView({
       return;
     }
 
-    console.log('[CapturedCardsView] No valid drop target found at finger position');
-    // No valid drop target - reset position
-    translateX.value = 0;
-    translateY.value = 0;
-  }, [findCardAtPoint, findTempStackAtPoint, onDragEnd, onExtendBuild, playerNumber, translateX, translateY]);
-
-  const panGesture = Gesture.Pan()
-    .enabled(isMyTurn && !!opponentTopCard)
-    .onStart((event) => {
-      if (opponentTopCard) {
-        isDragging.value = true;
-        draggedCard.value = opponentTopCard;
-        runOnJS(handleDragStartInternal)(opponentTopCard, event.absoluteX, event.absoluteY);
-      }
-    })
-    .onUpdate((event) => {
-      if (isDragging.value) {
-        translateX.value = event.translationX;
-        translateY.value = event.translationY;
-        runOnJS(handleDragMoveInternal)(event.absoluteX, event.absoluteY);
-      }
-    })
-    .onEnd((event) => {
-      if (isDragging.value && draggedCard.value) {
-        // Use the finger's absolute position directly for hit detection
-        runOnJS(handleDragEndInternal)(draggedCard.value, event.absoluteX, event.absoluteY);
-      }
-      // Reset after a short delay to allow for action processing
-      setTimeout(() => {
-        translateX.value = 0;
-        translateY.value = 0;
-        isDragging.value = false;
-        draggedCard.value = null;
-      }, 100);
-    });
-
-  // Hide the card while dragging - only show ghost overlay
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-    ],
-    zIndex: isDragging.value ? 100 : 1,
-    opacity: isDragging.value ? 0 : 1,  // Hide original when dragging
-  }));
+    console.log('[CapturedCardsView] No valid drop target found');
+  }, [findCardAtPoint, findTempStackAtPoint, onDragEnd, onExtendBuild, playerNumber]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -287,19 +340,6 @@ export function CapturedCardsView({
     };
   }, [unregisterCapturedCard, unregisterCapturePile]);
 
-  // Always show: LEFT = opponent captures, RIGHT = your captures
-  // (regardless of playerNumber, each player sees their own pile on the right)
-
-  // Check if opponent is dragging this captured card
-  const opponentCardId = opponentTopCard ? `${opponentTopCard.rank}${opponentTopCard.suit}` : null;
-  const isOpponentCardHidden = opponentDrag?.isDragging &&
-                             opponentDrag.source === 'captured' &&
-                             opponentDrag.cardId === opponentCardId;
-
-  // Create capture sections based on mode
-  // For 2-player: LEFT = opponent, RIGHT = player
-  // For 4-player: LEFT = opponents (stacked), RIGHT = player + teammate (stacked)
-  
   // Player section (always on right)
   const playerSection = (
     <View 
@@ -345,26 +385,43 @@ export function CapturedCardsView({
     </View>
   ) : null;
 
-  // Opponent section(s) - for 2-player mode, single opponent; for 4-player, two opponents stacked
+  // Render opponent sections with draggable cards
   const renderOpponentSection = (index: number) => {
     const topCard = opponentTopCards[index];
     const captures = opponentCapturesList[index];
     const label = opponentLabels[index];
     
-    return (
-      <View style={styles.captureSection} pointerEvents="box-none" key={`opponent-${index}`}>
-        <Text style={styles.label}>{label}</Text>
-        <View style={styles.cardContainer}>
-          {topCard ? (
-            <PlayingCard 
-              rank={topCard.rank} 
-              suit={topCard.suit} 
-            />
-          ) : (
+    if (!topCard) {
+      return (
+        <View style={styles.captureSection} key={`opponent-${index}`}>
+          <Text style={styles.label}>{label}</Text>
+          <View style={styles.cardContainer}>
             <View style={styles.emptyCard}>
               <Text style={styles.emptyText}>-</Text>
             </View>
-          )}
+          </View>
+          <Text style={styles.count}>{captures.length}</Text>
+        </View>
+      );
+    }
+    
+    return (
+      <View style={styles.captureSection} key={`opponent-${index}`}>
+        <Text style={styles.label}>{label}</Text>
+        <View style={styles.cardContainer}>
+          <DraggableOpponentCard
+            card={topCard}
+            opponentIndex={opponentIndices[index]}
+            isMyTurn={isMyTurn}
+            onDragStart={handleDragStartInternal}
+            onDragMove={handleDragMoveInternal}
+            onDragEnd={handleDragEndInternal}
+            findCardAtPoint={findCardAtPoint}
+            findTempStackAtPoint={findTempStackAtPoint}
+            playerNumber={playerNumber}
+            opponentDrag={opponentDrag}
+            onExtendBuild={onExtendBuild}
+          />
         </View>
         <Text style={styles.count}>{captures.length}</Text>
       </View>
@@ -377,7 +434,6 @@ export function CapturedCardsView({
     : [renderOpponentSection(0)];
 
   // Always: LEFT = opponent captures (draggable), RIGHT = your captures (drop target)
-  // For party mode, we stack player+teammate on right and both opponents on left
   return (
     <View style={styles.container} pointerEvents="box-none">
       {/* LEFT: opponent(s) captures */}
@@ -422,12 +478,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   cardContainer: {
-    width: 56,
-    height: 84,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardWrapper: {
     width: 56,
     height: 84,
     justifyContent: 'center',
