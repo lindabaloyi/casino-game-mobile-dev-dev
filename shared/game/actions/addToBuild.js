@@ -39,6 +39,20 @@ function addToBuild(state, payload, playerIndex) {
 
   const newValue = buildStack.cards.reduce((sum, c) => sum + c.value, 0);
   buildStack.value = newValue;
+  
+  // --- VALIDATION: Check if opponent already has a build with the same value ---
+  const opponentIndex = playerIndex === 0 ? 1 : 0;
+  const opponentBuilds = newState.tableCards.filter(
+    tc => tc.type === 'build_stack' && tc.owner === opponentIndex && tc.stackId !== stackId
+  );
+  
+  const opponentHasSameValue = opponentBuilds.some(build => build.value === newValue);
+  
+  if (opponentHasSameValue) {
+    throw new Error(
+      `addToBuild: Cannot have build with value ${newValue} - opponent already has a build with this value`
+    );
+  }
 
   return newState;
 }

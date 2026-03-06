@@ -77,6 +77,20 @@ function stealBuild(state, payload, playerIndex) {
   
   console.log(`[stealBuild] AFTER: buildStack.buildType: ${buildStack.buildType}, hasBase: ${buildStack.hasBase} (buildType !== 'sum' is ${buildStack.hasBase})`);
   
+  // --- VALIDATION: Check if opponent already has a build with the same value ---
+  const opponentIndex = playerIndex === 0 ? 1 : 0;
+  const opponentBuilds = newState.tableCards.filter(
+    tc => tc.type === 'build_stack' && tc.owner === opponentIndex && tc.stackId !== stackId
+  );
+  
+  const opponentHasSameValue = opponentBuilds.some(build => build.value === buildStack.value);
+  
+  if (opponentHasSameValue) {
+    throw new Error(
+      `stealBuild: Cannot have build with value ${buildStack.value} - opponent already has a build with this value`
+    );
+  }
+  
   const recalculatedValue = buildStack.value;
 
   const previousOwner = buildStack.owner;

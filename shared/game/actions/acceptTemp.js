@@ -31,6 +31,21 @@ function acceptTemp(state, payload, playerIndex) {
   }
 
   const finalValue = buildValue || stack.value;
+  
+  // --- VALIDATION: Check if opponent already has a build with the same value ---
+  const opponentIndex = playerIndex === 0 ? 1 : 0;
+  const opponentBuilds = newState.tableCards.filter(
+    tc => tc.type === 'build_stack' && tc.owner === opponentIndex
+  );
+  
+  const opponentHasSameValue = opponentBuilds.some(build => build.value === finalValue);
+  
+  if (opponentHasSameValue) {
+    throw new Error(
+      `acceptTemp: Cannot accept build with value ${finalValue} - opponent already has a build with this value`
+    );
+  }
+
   stack.value = finalValue;
   stack.type = 'build_stack';
   
