@@ -99,7 +99,7 @@ export function PlayerHandArea({
   // Calculate responsive card dimensions based on screen width
   // Show only top half of card (half height for container)
   // Always use standard DEFAULT dimensions - no conditional scaling
-  const { cardOverlap, handWidth, containerHeight, responsiveCardWidth, responsiveCardHeight, centerOffset } = useMemo(() => {
+  const { cardOverlap, handWidth, containerHeight, responsiveCardWidth, responsiveCardHeight, centerOffset, shouldCenterCards, containerPaddingHorizontal } = useMemo(() => {
     const numCards = hand.length;
     
     // Always use default dimensions - no scaling based on card count
@@ -112,6 +112,25 @@ export function PlayerHandArea({
     // Half height for showing only top portion of card
     const halfHeight = responsiveCh * 0.5;
     
+    // Calculate card width for 6 cards case
+    const sixCardWidth = responsiveCw * 6;
+    
+    // Special case: exactly 6 cards - no fanning, side by side with no overlap
+    // But still calculate centering offset to keep cards centered
+    if (numCards === 6) {
+      const offset = Math.max(0, (screenWidth - sixCardWidth - 32) / 2);
+      return { 
+        cardOverlap: 0, 
+        handWidth: sixCardWidth,
+        containerHeight: halfHeight + 8,
+        responsiveCardWidth: responsiveCw,
+        responsiveCardHeight: responsiveCh,
+        centerOffset: offset,
+        shouldCenterCards: false,
+        containerPaddingHorizontal: 16
+      };
+    }
+    
     if (numCards <= 1) {
       return { 
         cardOverlap: 0, 
@@ -119,7 +138,9 @@ export function PlayerHandArea({
         containerHeight: halfHeight + 8,
         responsiveCardWidth: responsiveCw,
         responsiveCardHeight: responsiveCh,
-        centerOffset: 0
+        centerOffset: 0,
+        shouldCenterCards: false,
+        containerPaddingHorizontal: 16
       };
     }
     
@@ -133,7 +154,7 @@ export function PlayerHandArea({
     }
     
     const calculatedWidth = responsiveCw + (numCards - 1) * (responsiveCw - overlap);
-    // Calculate centering offset - how much to indent from left to center
+    // Calculate centering offset - always use screen width, not affected by table
     const offset = Math.max(0, (screenWidth - calculatedWidth - 32) / 2);
     
     return { 
@@ -142,17 +163,27 @@ export function PlayerHandArea({
       containerHeight: halfHeight + 8,
       responsiveCardWidth: responsiveCw,
       responsiveCardHeight: responsiveCh,
-      centerOffset: offset
+      centerOffset: offset,
+      shouldCenterCards: false,
+      containerPaddingHorizontal: 16
     };
   }, [hand.length, screenWidth]);
 
+  // Card row style - centered when shouldCenterCards is true (6 cards)
+  const cardRowStyle = useMemo(() => {
+    return [
+      styles.cardRow,
+      shouldCenterCards && styles.cardRowCentered
+    ];
+  }, [shouldCenterCards]);
+
   return (
-    <View style={[styles.container, { height: containerHeight, paddingLeft: centerOffset }]}>
+    <View style={[styles.container, { height: containerHeight, paddingLeft: centerOffset, paddingRight: containerPaddingHorizontal }]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.scroll}
-        contentContainerStyle={styles.cardRow}
+        contentContainerStyle={cardRowStyle}
         scrollEnabled={!isMyTurn}
       >
         {hand.map((card, index) => {
@@ -256,6 +287,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'flex-start',
     paddingHorizontal: 8,
+  },
+  cardRowCentered: {
+    justifyContent: 'center',
   },
   actionStripContainer: {
     position: 'absolute',
