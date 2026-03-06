@@ -3,7 +3,7 @@
  * Player starts extending their own build by locking a card to it.
  */
 
-const { cloneState } = require('../GameState');
+const { cloneState } = require('../');
 
 function startBuildExtension(state, payload, playerIndex) {
   const { stackId, card, cardSource = 'table' } = payload;
@@ -57,12 +57,29 @@ function startBuildExtension(state, payload, playerIndex) {
     playerHand.splice(handIdx, 1);
     
   } else if (cardSource === 'captured') {
-    const playerCaptures = newState.players[playerIndex].captures;
-    const captureIdx = playerCaptures.findIndex(
-      c => c.rank === card.rank && c.suit === card.suit,
+    // Check player's own captures first, then opponent's captures
+    // (allows using cards from opponent's capture pile when extending build)
+    let playerCaptures = newState.players[playerIndex].captures;
+    let captureIdx = playerCaptures.findIndex(
+      c => String(c.rank).toLowerCase() === String(card.rank).toLowerCase() && 
+           String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),
     );
+    
+    // If not found in player's captures, check opponent's captures
     if (captureIdx === -1) {
-      throw new Error(`startBuildExtension: card ${card.rank}${card.suit} not in player's captures`);
+      const opponentIndex = playerIndex === 0 ? 1 : 0;
+      const opponentCaptures = newState.players[opponentIndex].captures;
+      captureIdx = opponentCaptures.findIndex(
+        c => String(c.rank).toLowerCase() === String(card.rank).toLowerCase() && 
+             String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),
+      );
+      if (captureIdx !== -1) {
+        playerCaptures = opponentCaptures;
+      }
+    }
+    
+    if (captureIdx === -1) {
+      throw new Error(`startBuildExtension: card ${card.rank}${card.suit} not in player's or opponent's captures`);
     }
     usedCard = { ...playerCaptures[captureIdx], source: 'captured' };
     playerCaptures.splice(captureIdx, 1);

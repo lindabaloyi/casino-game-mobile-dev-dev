@@ -3,7 +3,7 @@
  * Player cancels their pending temp stack.
  */
 
-const { cloneState } = require('../GameState');
+const { cloneState } = require('../');
 
 function cancelTemp(state, payload, playerIndex) {
   const { stackId } = payload;

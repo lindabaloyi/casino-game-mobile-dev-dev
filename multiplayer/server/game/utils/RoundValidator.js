@@ -10,7 +10,7 @@
  */
 
 const { cloneDeep } = require('../../../../shared/utils/cloneDeep');
-const { allPlayersTurnEnded, forceEndTurn, createRoundPlayers, startNextRound } = require('../../../../shared/game/GameState');
+const { allPlayersTurnEnded, forceEndTurn, createRoundPlayers, startNextRound } = require('../../../../shared/game');
 
 class RoundValidator {
   static STARTING_CARDS = 10;

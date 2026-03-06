@@ -3,7 +3,7 @@
  * Player declines/cancels their build extension.
  */
 
-const { cloneState } = require('../GameState');
+const { cloneState } = require('../');
 
 function declineBuildExtension(state, payload, playerIndex) {
   const { stackId } = payload;

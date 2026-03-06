@@ -3,7 +3,7 @@
  * Player drops a temp stack onto their own capture pile.
  */
 
-const { cloneState, nextTurn } = require('../GameState');
+const { cloneState, nextTurn, finalizeGame } = require('../');
 
 function dropToCapture(state, payload, playerIndex) {
   const { stackId } = payload;
@@ -32,7 +32,20 @@ function dropToCapture(state, payload, playerIndex) {
   const capturedCards = [...stack.cards];
   newState.players[playerIndex].captures.push(...capturedCards);
 
-  return nextTurn(newState);
+  // Track last capture for end-of-game cleanup
+  newState.lastCapturePlayer = playerIndex;
+
+  const resultState = nextTurn(newState);
+  
+  // Check if game is over (deck empty and all hands empty)
+  const deckEmpty = resultState.deck.length === 0;
+  const allHandsEmpty = resultState.players.every(p => p.hand.length === 0);
+  
+  if (deckEmpty && allHandsEmpty) {
+    return finalizeGame(resultState);
+  }
+  
+  return resultState;
 }
 
 module.exports = dropToCapture;

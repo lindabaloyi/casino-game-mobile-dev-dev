@@ -3,7 +3,7 @@
  * Player accepts their pending temp stack.
  */
 
-const { cloneState, nextTurn, generateStackId } = require('../GameState');
+const { cloneState, nextTurn, generateStackId } = require('../');
 
 function acceptTemp(state, payload, playerIndex) {
   const { stackId, buildValue } = payload;

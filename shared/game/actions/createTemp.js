@@ -4,7 +4,7 @@
  * NOTE: This does NOT end the turn - player can continue with more actions.
  */
 
-const { cloneState, generateStackId, startPlayerTurn, triggerAction } = require('../GameState');
+const { cloneState, generateStackId, startPlayerTurn, triggerAction } = require('../');
 
 function createTemp(state, payload, playerIndex) {
   const { card, targetCard } = payload;

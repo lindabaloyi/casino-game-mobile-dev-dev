@@ -3,7 +3,7 @@
  * Player adds a card to their existing temp stack.
  */
 
-const { cloneState } = require('../GameState');
+const { cloneState } = require('../');
 
 function addToTemp(state, payload, playerIndex) {
   const card = payload.card || payload.tableCard || payload.handCard;

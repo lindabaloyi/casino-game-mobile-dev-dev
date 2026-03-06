@@ -3,7 +3,7 @@
  * Player adds a card to their existing build.
  */
 
-const { cloneState } = require('../GameState');
+const { cloneState } = require('../');
 
 function addToBuild(state, payload, playerIndex) {
   const card = payload.card || payload.handCard;

@@ -3,7 +3,7 @@
  * Player captures either loose card or build stack.
  */
 
-const { cloneState, nextTurn, startPlayerTurn, triggerAction } = require('../GameState');
+const { cloneState, nextTurn, startPlayerTurn, triggerAction, finalizeGame } = require('../');
 
 function getPossibleCaptureValues(cards) {
   if (cards.length === 0) return [];
@@ -94,6 +94,9 @@ function capture(state, payload, playerIndex) {
 
   newState.players[playerIndex].captures.push(...capturedCards, capturingCard);
   
+  // Track last capture for end-of-game cleanup
+  newState.lastCapturePlayer = playerIndex;
+  
   // Mark turn as started and ended (capture auto-ends turn)
   startPlayerTurn(newState, playerIndex);
   triggerAction(newState, playerIndex);
@@ -102,7 +105,17 @@ function capture(state, payload, playerIndex) {
     newState.roundPlayers[playerIndex].turnEnded = true;
   }
   
-  return nextTurn(newState);
+  const resultState = nextTurn(newState);
+  
+  // Check if game is over (deck empty and all hands empty)
+  const deckEmpty = resultState.deck.length === 0;
+  const allHandsEmpty = resultState.players.every(p => p.hand.length === 0);
+  
+  if (deckEmpty && allHandsEmpty) {
+    return finalizeGame(resultState);
+  }
+  
+  return resultState;
 }
 
 module.exports = capture;

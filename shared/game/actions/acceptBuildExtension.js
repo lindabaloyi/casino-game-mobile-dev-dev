@@ -3,7 +3,7 @@
  * Player accepts their build extension.
  */
 
-const { cloneState, nextTurn } = require('../GameState');
+const { cloneState, nextTurn } = require('../');
 
 function calculateBuildValue(cards) {
   const totalSum = cards.reduce((sum, c) => sum + c.value, 0);

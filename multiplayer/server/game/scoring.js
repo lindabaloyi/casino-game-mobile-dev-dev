@@ -3,8 +3,13 @@
  * Calculates points based on captured cards with specific rules
  */
 
-const { createLogger } = require("../utils/logger");
-const logger = createLogger("Scoring");
+// Simple console-based logger
+const logger = {
+  debug: (...args) => console.log('[Scoring] DEBUG:', ...args),
+  info: (...args) => console.log('[Scoring] INFO:', ...args),
+  warn: (...args) => console.warn('[Scoring] WARN:', ...args),
+  error: (...args) => console.error('[Scoring] ERROR:', ...args),
+};
 
 /**
  * Calculate points for an individual card
@@ -61,10 +66,15 @@ function calculatePlayerScore(capturedCards) {
     logger.debug(`♠ Spades bonus: ${spadeCount} spades ≥ 6, +2 points`);
   }
 
-  // 4. Card count bonus: Player with 21 or more cards has 2 points
+  // 4. Card count bonuses:
+  //    - 21 or more cards → 2 points
+  //    - Exactly 20 cards   → 1 point
   if (totalCards >= 21) {
     score += 2;
     logger.debug(`🃏 Card count bonus: ${totalCards} cards ≥ 21, +2 points`);
+  } else if (totalCards === 20) {
+    score += 1;
+    logger.debug(`🃏 Card count bonus: exactly 20 cards, +1 point`);
   }
 
   logger.debug(`Player score calculation: ${score} points`, {
@@ -82,7 +92,7 @@ function calculatePlayerScore(capturedCards) {
 }
 
 /**
- * Calculate final scores for both players with special rules
+ * Calculate final scores for both players (2‑player mode)
  * @param {Array} playerCaptures - Array of [player0Captures, player1Captures]
  * @returns {Array} [player0Score, player1Score]
  */
@@ -98,18 +108,8 @@ function calculateFinalScores(playerCaptures) {
 
   const [p0Cards, p1Cards] = playerCaptures;
 
-  let p0Score = calculatePlayerScore(p0Cards || []);
-  let p1Score = calculatePlayerScore(p1Cards || []);
-
-  const p0TotalCards = (p0Cards || []).length;
-  const p1TotalCards = (p1Cards || []).length;
-
-  // Special case: If players have 20 cards each, 1 point each player
-  if (p0TotalCards === 20 && p1TotalCards === 20) {
-    p0Score += 1;
-    p1Score += 1;
-    logger.info(`🎯 20-card tie: Both players have 20 cards, +1 point each`);
-  }
+  const p0Score = calculatePlayerScore(p0Cards || []);
+  const p1Score = calculatePlayerScore(p1Cards || []);
 
   const totalScore = p0Score + p1Score;
   const expectedTotal = 11;
@@ -120,8 +120,8 @@ function calculateFinalScores(playerCaptures) {
       {
         p0Score,
         p1Score,
-        p0Cards: p0TotalCards,
-        p1Cards: p1TotalCards,
+        p0Cards: (p0Cards || []).length,
+        p1Cards: (p1Cards || []).length,
       },
     );
   } else {

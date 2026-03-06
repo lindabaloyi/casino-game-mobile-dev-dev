@@ -4,7 +4,7 @@
  * Used for multi-action turns (e.g., after createTemp).
  */
 
-const { cloneState, nextTurn, endPlayerTurn } = require('../GameState');
+const { cloneState, nextTurn, endPlayerTurn } = require('../');
 
 function endTurn(state, payload, playerIndex) {
   console.log(`[endTurn] Player ${playerIndex} explicitly ending turn, turnCounter before: ${state.turnCounter}`);

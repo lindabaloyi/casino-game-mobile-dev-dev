@@ -3,7 +3,7 @@
  * Player uses opponent's captured top card to create temp stack.
  */
 
-const { cloneState, generateStackId } = require('../GameState');
+const { cloneState, generateStackId } = require('../');
 
 function playFromCaptures(state, payload, playerIndex) {
   const { capturedCard, targetCard, targetStackId } = payload;

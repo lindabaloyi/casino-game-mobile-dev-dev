@@ -11,7 +11,7 @@
  * Contract: (state, payload, playerIndex) => newState  (pure, no side effects)
  */
 
-const { cloneState, nextTurn, startPlayerTurn, triggerAction } = require('../GameState');
+const { cloneState, nextTurn, startPlayerTurn, triggerAction } = require('../');
 
 /**
  * @param {object} state       Current game state

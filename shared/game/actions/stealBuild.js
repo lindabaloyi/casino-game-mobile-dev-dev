@@ -3,7 +3,7 @@
  * Player steals an opponent's build by adding a card from their hand.
  */
 
-const { cloneState } = require('../GameState');
+const { cloneState } = require('../');
 
 function stealBuild(state, payload, playerIndex) {
   const card = payload.card || payload.handCard;

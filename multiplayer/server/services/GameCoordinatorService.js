@@ -8,7 +8,7 @@
  */
 
 const RoundValidator = require('../game/utils/RoundValidator');
-const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn, forceEndTurn } = require('../../../shared/game/GameState');
+const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn, forceEndTurn } = require('../../../shared/game');
 
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking = null) {
