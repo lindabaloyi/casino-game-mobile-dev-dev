@@ -38,17 +38,9 @@ export function GameStatusBar({
         </Text>
       </View>
 
-      <Text style={styles.text}>{scores[0]} – {scores[1]}</Text>
-
       {turnsRemaining !== undefined && (
         <View style={styles.progressBadge}>
           <Text style={styles.progressText}>{turnsRemaining} turns</Text>
-        </View>
-      )}
-
-      {cardsRemaining !== undefined && (
-        <View style={styles.cardsBadge}>
-          <Text style={styles.progressText}>P1:{cardsRemaining[0]} P2:{cardsRemaining[1]}</Text>
         </View>
       )}
     </View>
