@@ -7,7 +7,7 @@ export const options = {
 };
 
 export default function MultiplayerScreen() {
-  const { gameState, playerNumber, sendAction, startNextRound, error, clearError, opponentDrag, emitDragStart, emitDragMove, emitDragEnd } = useGameState();
+  const { gameState, gameOverData, playerNumber, sendAction, startNextRound, error, clearError, opponentDrag, emitDragStart, emitDragMove, emitDragEnd } = useGameState();
 
   if (!gameState) {
     return (
@@ -28,6 +28,7 @@ export default function MultiplayerScreen() {
   return (
     <GameBoard
       gameState={gameState}
+      gameOverData={gameOverData}
       playerNumber={playerNumber ?? 0}
       sendAction={sendAction}
       startNextRound={startNextRound}

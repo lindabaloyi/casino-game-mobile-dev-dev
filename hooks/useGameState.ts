@@ -71,6 +71,14 @@ export interface OpponentDragState {
 interface UseGameStateResult {
   /** Full game state from the server (null until game-start is received) */
   gameState: GameState | null;
+  /** Game over data from server (for consistent modal display) */
+  gameOverData: {
+    winner: number;
+    finalScores: number[];
+    capturedCards?: number[];
+    tableCardsRemaining?: number;
+    deckRemaining?: number;
+  } | null;
   /** Which player this client is (0 or 1) */
   playerNumber: number | null;
   /** Whether the socket is currently connected */
@@ -115,6 +123,15 @@ export function useGameState(): UseGameStateResult {
   
   // Opponent drag state for real-time ghost card rendering
   const [opponentDrag, setOpponentDrag] = useState<OpponentDragState | null>(null);
+  
+  // Game over data (stored when game-over event received, used for modal)
+  const [gameOverData, setGameOverData] = useState<{
+    winner: number;
+    finalScores: number[];
+    capturedCards?: number[];
+    tableCardsRemaining?: number;
+    deckRemaining?: number;
+  } | null>(null);
 
   useEffect(() => {
     const socket = io(SOCKET_URL, {
@@ -175,6 +192,10 @@ export function useGameState(): UseGameStateResult {
       deckRemaining?: number;
     }) => {
       console.log('[useGameState] game-over received:', data);
+      
+      // Store game-over data for use in modal (this ensures consistent data across clients)
+      setGameOverData(data);
+      console.log('[useGameState] Stored game-over data for modal');
       
       // Add delay before showing game over to let final state settle
       console.log('[useGameState] Showing game over in 3 seconds...');
@@ -324,6 +345,7 @@ export function useGameState(): UseGameStateResult {
 
   return {
     gameState,
+    gameOverData,  // Stored game-over data for consistent modal display
     playerNumber,
     isConnected,
     opponentDisconnected,

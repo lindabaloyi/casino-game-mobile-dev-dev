@@ -37,6 +37,14 @@ import { GameOverModal } from '../modals/GameOverModal';
 
 interface GameBoardProps {
   gameState: GameState;
+  /** Game over data from server - ensures consistent modal display across clients */
+  gameOverData?: {
+    winner: number;
+    finalScores: number[];
+    capturedCards?: number[];
+    tableCardsRemaining?: number;
+    deckRemaining?: number;
+  } | null;
   playerNumber: number;
   sendAction: (action: { type: string; payload?: Record<string, unknown> }) => void;
   startNextRound?: () => void;
@@ -58,6 +66,7 @@ interface GameBoardProps {
 
 export function GameBoard({
   gameState,
+  gameOverData,
   playerNumber,
   sendAction,
   startNextRound,
@@ -340,11 +349,11 @@ export function GameBoard({
 
       <GameOverModal
         visible={gameState.gameOver || false}
-        scores={gameState.scores as number[]}
+        scores={gameOverData?.finalScores || gameState.scores as number[]}
         playerCount={gameState.playerCount}
-        capturedCards={gameState.players?.map(p => p.captures?.length || 0) || []}
-        tableCardsRemaining={gameState.tableCards?.length || 0}
-        deckRemaining={gameState.deck?.length || 0}
+        capturedCards={gameOverData?.capturedCards || gameState.players?.map(p => p.captures?.length || 0) || []}
+        tableCardsRemaining={gameOverData?.tableCardsRemaining ?? gameState.tableCards?.length ?? 0}
+        deckRemaining={gameOverData?.deckRemaining ?? gameState.deck?.length ?? 0}
         onPlayAgain={onRestart ? () => {
           // Reset game - this effectively restarts the game
           if (gameState.playerCount === 2) {
