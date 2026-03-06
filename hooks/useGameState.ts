@@ -170,13 +170,22 @@ export function useGameState(): UseGameStateResult {
     socket.on('game-over', (data: {
       winner: number;
       finalScores: number[];
+      capturedCards?: number[];
+      tableCardsRemaining?: number;
+      deckRemaining?: number;
     }) => {
       console.log('[useGameState] game-over received:', data);
-      setGameState(prev => prev ? {
-        ...prev,
-        gameOver: true,
-        scores: data.finalScores,
-      } : null);
+      
+      // Add delay before showing game over to let final state settle
+      console.log('[useGameState] Showing game over in 3 seconds...');
+      setTimeout(() => {
+        console.log('[useGameState] Delay complete, setting gameOver=true');
+        setGameState(prev => prev ? {
+          ...prev,
+          gameOver: true,
+          scores: data.finalScores,
+        } : null);
+      }, 3000); // 3 second delay
     });
 
     socket.on('game-state-sync', (data: { gameState: GameState }) => {

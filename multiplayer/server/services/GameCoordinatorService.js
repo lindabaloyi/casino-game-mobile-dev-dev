@@ -161,11 +161,30 @@ class GameCoordinatorService {
         const gameOverCheck = RoundValidator.checkGameOver(newState);
         if (gameOverCheck.gameOver) {
           console.log(`[Coordinator] 🏆 GAME OVER: Winner=P${gameOverCheck.winner}, Final scores: ${gameOverCheck.finalScores}`);
+          
+          // Calculate detailed game-over stats from current state
+          const playerCount = newState.playerCount || 2;
+          const capturedCards = [];
+          const tableCardsRemaining = newState.tableCards?.length || 0;
+          const deckRemaining = newState.deck?.length || 0;
+          
+          for (let i = 0; i < playerCount; i++) {
+            capturedCards.push(newState.players[i]?.captures?.length || 0);
+          }
+          
+          console.log(`[Coordinator] 🏆 Game Over Stats:`);
+          console.log(`[Coordinator]   Captured: P0=${capturedCards[0]}, P1=${capturedCards[1]}`);
+          console.log(`[Coordinator]   Table: ${tableCardsRemaining} cards`);
+          console.log(`[Coordinator]   Deck: ${deckRemaining} cards`);
+          
           newState.gameOver = true;
           this.gameManager.saveGameState(gameId, newState);
           this.broadcaster.broadcastToGame(gameId, 'game-over', {
             winner: gameOverCheck.winner,
             finalScores: gameOverCheck.finalScores,
+            capturedCards,
+            tableCardsRemaining,
+            deckRemaining,
           }, mm);
         } else {
           // Auto-transition to next round for multiplayer
@@ -180,12 +199,26 @@ class GameCoordinatorService {
           } else {
             // No more rounds
             console.log(`[Coordinator] No more rounds, ending game`);
+            
+            // Calculate detailed game-over stats from current state
+            const playerCount = newState.playerCount || 2;
+            const capturedCards = [];
+            const tableCardsRemaining = newState.tableCards?.length || 0;
+            const deckRemaining = newState.deck?.length || 0;
+            
+            for (let i = 0; i < playerCount; i++) {
+              capturedCards.push(newState.players[i]?.captures?.length || 0);
+            }
+            
             newState.gameOver = true;
             this.gameManager.saveGameState(gameId, newState);
             const winner = RoundValidator.determineRoundWinner(newState);
             this.broadcaster.broadcastToGame(gameId, 'game-over', {
               winner,
               finalScores: newState.scores,
+              capturedCards,
+              tableCardsRemaining,
+              deckRemaining,
             }, mm);
           }
         }
@@ -290,6 +323,17 @@ class GameCoordinatorService {
       if (newState === null) {
         // No more rounds allowed - end the game
         console.log(`[Coordinator] start-next-round: No more rounds allowed, ending game`);
+        
+        // Calculate detailed game-over stats from current state
+        const playerCount = state.playerCount || 2;
+        const capturedCards = [];
+        const tableCardsRemaining = state.tableCards?.length || 0;
+        const deckRemaining = state.deck?.length || 0;
+        
+        for (let i = 0; i < playerCount; i++) {
+          capturedCards.push(state.players[i]?.captures?.length || 0);
+        }
+        
         state.gameOver = true;
         this.gameManager.saveGameState(gameId, state);
         
@@ -297,6 +341,9 @@ class GameCoordinatorService {
         this.broadcaster.broadcastToGame(gameId, 'game-over', {
           winner,
           finalScores: state.scores,
+          capturedCards,
+          tableCardsRemaining,
+          deckRemaining,
         }, mm);
         return;
       }

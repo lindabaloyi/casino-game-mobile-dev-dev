@@ -11,6 +11,9 @@ interface GameOverModalProps {
   visible: boolean;
   scores: number[];
   playerCount: number;
+  capturedCards?: number[];
+  tableCardsRemaining?: number;
+  deckRemaining?: number;
   onPlayAgain?: () => void;
   onBackToMenu?: () => void;
 }
@@ -19,6 +22,9 @@ export function GameOverModal({
   visible,
   scores,
   playerCount,
+  capturedCards,
+  tableCardsRemaining,
+  deckRemaining,
   onPlayAgain,
   onBackToMenu,
 }: GameOverModalProps) {
@@ -85,6 +91,37 @@ export function GameOverModal({
                   <Text style={styles.playerLabel}>Player 2:</Text>
                   <Text style={styles.scoreValue}>{score2}</Text>
                 </View>
+                
+                {/* Detailed stats section */}
+                {(capturedCards || tableCardsRemaining !== undefined) && (
+                  <View style={styles.detailsSection}>
+                    <Text style={styles.detailsTitle}>Round Details</Text>
+                    {capturedCards && (
+                      <>
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailLabel}>P1 Captured:</Text>
+                          <Text style={styles.detailValue}>{capturedCards[0] || 0}</Text>
+                        </View>
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailLabel}>P2 Captured:</Text>
+                          <Text style={styles.detailValue}>{capturedCards[1] || 0}</Text>
+                        </View>
+                      </>
+                    )}
+                    {tableCardsRemaining !== undefined && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Table Cards:</Text>
+                        <Text style={styles.detailValue}>{tableCardsRemaining}</Text>
+                      </View>
+                    )}
+                    {deckRemaining !== undefined && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Deck Remaining:</Text>
+                        <Text style={styles.detailValue}>{deckRemaining}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
               </>
             ) : (
               <>
@@ -222,6 +259,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
+  },
+  // New styles for detailed stats
+  detailsSection: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    width: '100%',
+  },
+  detailsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#666',
+    textAlign: 'center',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginVertical: 2,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#424242',
   },
 });
 

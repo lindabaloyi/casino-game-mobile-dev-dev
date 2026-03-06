@@ -9,11 +9,11 @@ const { cloneState, generateStackId, startPlayerTurn, triggerAction } = require(
 function createTemp(state, payload, playerIndex) {
   const { card, targetCard } = payload;
 
-  if (!card?.rank || !card?.suit) {
-    throw new Error('createTemp: invalid card payload');
+  if (!card?.rank || !card?.suit || card?.value === undefined) {
+    throw new Error('createTemp: invalid card payload - missing rank, suit, or value');
   }
-  if (!targetCard?.rank || !targetCard?.suit) {
-    throw new Error('createTemp: invalid targetCard payload');
+  if (!targetCard?.rank || !targetCard?.suit || targetCard?.value === undefined) {
+    throw new Error('createTemp: invalid targetCard payload - missing rank, suit, or value');
   }
 
   const newState = cloneState(state);
@@ -78,7 +78,18 @@ function createTemp(state, payload, playerIndex) {
   const newTargetIdx = newState.tableCards.findIndex(
     tc => !tc.type && tc.rank === targetCard.rank && tc.suit === targetCard.suit,
   );
+  
+  if (newTargetIdx === -1) {
+    console.log(`[createTemp] Target card not found on table, returning original state`);
+    return state;
+  }
+  
   const [tableCard] = newState.tableCards.splice(newTargetIdx, 1);
+  
+  if (!tableCard || tableCard.value === undefined) {
+    console.log(`[createTemp] Table card missing value property:`, tableCard);
+    return state;
+  }
 
   const [bottom, top] = firstCard.value >= tableCard.value
     ? [{ ...firstCard, source: firstSource }, { ...tableCard, source: 'table' }]

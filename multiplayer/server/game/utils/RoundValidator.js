@@ -39,12 +39,23 @@ class RoundValidator {
     // Check 2: All players have turnEnded = true
     const allTurnsEnded = allPlayersTurnEnded(state);
 
-    console.log(`[RoundValidator] allHandsEmpty=${allHandsEmpty}, allTurnsEnded=${allTurnsEnded}`);
+    // Check 3: No unresolved stacks on table (temp stacks, pending builds)
+    const tableCards = state.tableCards || [];
+    const tempStacks = tableCards.filter(tc => tc.type === 'temp_stack');
+    const pendingExtensions = tableCards.filter(tc => tc.type === 'build_stack' && tc.pendingExtension);
+    const hasUnresolved = tempStacks.length > 0 || pendingExtensions.length > 0;
+    
+    console.log(`[RoundValidator] allHandsEmpty=${allHandsEmpty}, allTurnsEnded=${allTurnsEnded}, hasUnresolved=${hasUnresolved}`);
+    console.log(`[RoundValidator] Table: tempStacks=${tempStacks.length}, pendingExtensions=${pendingExtensions.length}`);
 
-    // Round ends when BOTH conditions are true
-    if (allHandsEmpty && allTurnsEnded) {
-      console.log(`[RoundValidator] ✅ Round ending: all cards played and all turns ended`);
+    // Round ends when BOTH conditions are true AND no unresolved stacks
+    if (allHandsEmpty && allTurnsEnded && !hasUnresolved) {
+      console.log(`[RoundValidator] ✅ Round ending: all cards played, all turns ended, no unresolved stacks`);
       return { ended: true, reason: 'all_cards_played' };
+    }
+    
+    if (hasUnresolved) {
+      console.log(`[RoundValidator] Round continues: unresolved stacks on table (${tempStacks.length} temp, ${pendingExtensions.length} pending)`);
     }
 
     console.log(`[RoundValidator] Round continues: conditions not met`);

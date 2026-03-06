@@ -342,6 +342,9 @@ export function GameBoard({
         visible={gameState.gameOver || false}
         scores={gameState.scores as number[]}
         playerCount={gameState.playerCount}
+        capturedCards={gameState.players?.map(p => p.captures?.length || 0) || []}
+        tableCardsRemaining={gameState.tableCards?.length || 0}
+        deckRemaining={gameState.deck?.length || 0}
         onPlayAgain={onRestart ? () => {
           // Reset game - this effectively restarts the game
           if (gameState.playerCount === 2) {

@@ -303,9 +303,14 @@ function startNextRound(state, playerCount) {
   
   console.log(`[GameState] startNextRound: New hands dealt, deck now has ${newState.deck.length} cards`);
   
+  // Preserve loose (non-stack) cards from previous round's table
+  // Filter to keep only cards without 'type' property (loose cards)
+  const looseTableCards = newState.tableCards.filter(tc => !tc.type);
+  console.log(`[GameState] startNextRound: Preserving ${looseTableCards.length} loose cards from previous round`);
+  
   // Update newState with the new players and other round changes
   newState.players = newPlayers;
-  newState.tableCards = [];
+  newState.tableCards = looseTableCards;  // Keep loose cards, temp stacks are cleared
   newState.currentPlayer = 0;
   newState.round = state.round + 1;
   newState.turnCounter = 1;
