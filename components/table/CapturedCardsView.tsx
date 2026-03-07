@@ -15,6 +15,8 @@ import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
 import { CapturePileBounds, CapturedCardBounds } from '../../hooks/useDrag';
 import { OpponentDragState } from '../../hooks/useGameState';
+import { getTeamFromIndex } from '../../shared/game/team';
+import { getTeamColors, TEAM_A_COLORS, TEAM_B_COLORS, type TeamColors } from '../../constants/teamColors';
 
 interface CapturedCardsViewProps {
   /** Cards captured by the player */
@@ -236,9 +238,22 @@ export function CapturedCardsView({
     return `P${teamPlayer}`;
   };
   
-  const playerLabel = getPlayerLabel(playerNumber);
-  const teammateLabel = isPartyMode ? getPlayerLabel(teammateIndex) : `P${teammateIndex + 1}`;
-  const opponentLabels = opponentIndices.map(i => isPartyMode ? getPlayerLabel(i) : `P${i + 1}`);
+  // Get team colors for a player
+  const getPlayerTeamColors = (playerIdx: number): TeamColors => {
+    const team = getTeamFromIndex(playerIdx);
+    return team === 'A' ? TEAM_A_COLORS : TEAM_B_COLORS;
+  };
+  
+  // Create styled label with team background color
+  const createTeamLabel = (playerIdx: number, captureCount: number) => {
+    const colors = getPlayerTeamColors(playerIdx);
+    const label = getPlayerLabel(playerIdx);
+    return (
+      <View style={[styles.teamLabelContainer, { backgroundColor: colors.primary }]}>
+        <Text style={styles.teamLabelText}>{label} ({captureCount})</Text>
+      </View>
+    );
+  };
 
   // Get captures arrays - use allPlayerCaptures if available
   const captures = allPlayerCaptures || [];
@@ -358,6 +373,10 @@ export function CapturedCardsView({
   }, [unregisterCapturedCard, unregisterCapturePile]);
 
   // Player section (always on right)
+  const isPlayerActive = currentPlayerIndex === playerNumber;
+  const playerTeamColors = getPlayerTeamColors(playerNumber);
+  const playerRingColor = isPlayerActive ? playerTeamColors.primary : 'transparent';
+  
   const playerSection = (
     <View 
       style={styles.captureSection} 
@@ -365,8 +384,12 @@ export function CapturedCardsView({
       onLayout={handlePlayerCaptureLayout}
       key="player"
     >
-      <Text style={styles.labelWithCount}>{playerLabel} ({myCaptures.length})</Text>
-      <View style={styles.cardContainer}>
+      {createTeamLabel(playerNumber, myCaptures.length)}
+      <View style={[
+        styles.cardContainer,
+        isPlayerActive && styles.cardContainerActive,
+        { borderColor: playerRingColor }
+      ]}>
         {playerTopCard ? (
           <PlayingCard 
             rank={playerTopCard.rank} 
@@ -382,10 +405,18 @@ export function CapturedCardsView({
   );
 
   // Teammate section (for 4-player mode, below player)
+  const isTeammateActive = currentPlayerIndex === teammateIndex;
+  const teammateTeamColors = getPlayerTeamColors(teammateIndex);
+  const teammateRingColor = isTeammateActive ? teammateTeamColors.primary : 'transparent';
+  
   const teammateSection = isPartyMode ? (
     <View style={styles.captureSection} key="teammate">
-      <Text style={styles.labelWithCount}>{teammateLabel} ({teammateCaptures.length})</Text>
-      <View style={styles.cardContainer}>
+      {createTeamLabel(teammateIndex, teammateCaptures.length)}
+      <View style={[
+        styles.cardContainer,
+        isTeammateActive && styles.cardContainerActive,
+        { borderColor: teammateRingColor }
+      ]}>
         {teammateTopCard ? (
           <PlayingCard 
             rank={teammateTopCard.rank} 
@@ -404,13 +435,20 @@ export function CapturedCardsView({
   const renderOpponentSection = (index: number) => {
     const topCard = opponentTopCards[index];
     const captures = opponentCapturesList[index];
-    const label = opponentLabels[index];
+    const opponentIdx = opponentIndices[index];
+    const isOpponentActive = currentPlayerIndex === opponentIdx;
+    const opponentTeamColors = getPlayerTeamColors(opponentIdx);
+    const opponentRingColor = isOpponentActive ? opponentTeamColors.primary : 'transparent';
     
     if (!topCard) {
       return (
         <View style={styles.captureSection} key={`opponent-${index}`}>
-          <Text style={styles.labelWithCount}>{label} ({captures.length})</Text>
-          <View style={styles.cardContainer}>
+          {createTeamLabel(opponentIdx, captures.length)}
+          <View style={[
+            styles.cardContainer,
+            isOpponentActive && styles.cardContainerActive,
+            { borderColor: opponentRingColor }
+          ]}>
             <View style={styles.emptyCard}>
               <Text style={styles.emptyText}>-</Text>
             </View>
@@ -421,8 +459,12 @@ export function CapturedCardsView({
     
     return (
       <View style={styles.captureSection} key={`opponent-${index}`}>
-        <Text style={styles.labelWithCount}>{label} ({captures.length})</Text>
-        <View style={styles.cardContainer}>
+        {createTeamLabel(opponentIdx, captures.length)}
+        <View style={[
+          styles.cardContainer,
+          isOpponentActive && styles.cardContainerActive,
+          { borderColor: opponentRingColor }
+        ]}>
           <DraggableOpponentCard
             card={topCard}
             opponentIndex={opponentIndices[index]}
@@ -490,11 +532,29 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 4,
   },
+  teamLabelContainer: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginBottom: 4,
+  },
+  teamLabelText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
   cardContainer: {
     width: 56,
     height: 84,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  cardContainerActive: {
+    borderWidth: 3,
   },
   emptyCard: {
     width: 56,

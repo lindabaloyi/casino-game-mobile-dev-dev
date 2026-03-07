@@ -236,6 +236,7 @@ export function GameBoard({
         round={gameState.round}
         currentPlayer={gameState.currentPlayer}
         playerNumber={playerNumber}
+        playerCount={gameState.playerCount}
         scores={gameState.scores as [number, number]}
         cardsRemaining={roundInfo.cardsRemaining as [number, number]}
         // Timer props

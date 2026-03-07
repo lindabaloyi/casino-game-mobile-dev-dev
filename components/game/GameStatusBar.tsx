@@ -7,11 +7,13 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { TurnTimer } from './TurnTimer';
+import { TurnIndicator } from '../ui/TurnIndicator';
 
 interface Props {
   round: number;
-  currentPlayer: number;   // 0 or 1 — index of the player whose turn it is
+  currentPlayer: number;   // 0-3 — index of the player whose turn it is
   playerNumber: number;    // which player is viewing this screen
+  playerCount?: number;     // total players (2 or 4)
   scores: [number, number];
   movesRemaining?: number;     // Optional: moves remaining in round
   turnsRemaining?: number;     // Optional: turns remaining in round
@@ -25,7 +27,8 @@ interface Props {
 export function GameStatusBar({ 
   round, 
   currentPlayer, 
-  playerNumber, 
+  playerNumber,
+  playerCount = 2,
   scores,
   movesRemaining,
   turnsRemaining,
@@ -35,16 +38,18 @@ export function GameStatusBar({
   isLowTime = false,
 }: Props) {
   const isMyTurn = currentPlayer === playerNumber;
+  const isPartyMode = playerCount === 4;
 
   return (
     <View style={styles.bar}>
       <Text style={styles.text}>Round {round}</Text>
 
-      <View style={[styles.badge, { backgroundColor: isMyTurn ? '#4CAF50' : '#F44336' }]}>
-        <Text style={styles.badgeText}>
-          {isMyTurn ? 'Your Turn' : "Opponent's Turn"}
-        </Text>
-      </View>
+      {/* Turn indicator with team colors */}
+      <TurnIndicator
+        currentPlayerIndex={currentPlayer}
+        playerIndex={playerNumber}
+        isPartyMode={isPartyMode}
+      />
 
       {/* Timer - only shown for active player's turn */}
       <TurnTimer 
