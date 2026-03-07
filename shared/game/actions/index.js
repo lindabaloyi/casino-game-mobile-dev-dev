@@ -41,6 +41,9 @@ const actionHandlers = {
   captureOpponent:     require('./captureOpponent'),
   playFromCaptures:    require('./playFromCaptures'),
   dropToCapture:       require('./dropToCapture'),
+
+  // ── Shiya (Party Mode) ───────────────────────────────────────────────────────
+  shiya:               require('./shiya'),
 };
 
 module.exports = actionHandlers;

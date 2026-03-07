@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { GameState } from '../useGameState';
 import { TempStack, BuildStack } from '../../types';
+import { areTeammates } from '../../shared/game/team';
 
 export function useGameComputed(gameState: GameState, playerNumber: number) {
   const isMyTurn = useMemo(() => 
@@ -61,6 +62,28 @@ export function useGameComputed(gameState: GameState, playerNumber: number) {
     return myExtending?.stackId ?? null;
   }, [table, isMyTurn, playerNumber]);
 
+  // Find a build that can be Shiya'd (teammate's build with matching card in hand)
+  // Only for party mode (4 players)
+  const selectedBuild = useMemo(() => {
+    if (gameState.playerCount !== 4 || !isMyTurn) return null;
+    
+    const myHand = gameState.players?.[playerNumber]?.hand ?? [];
+    const builds = table.filter((tc: any) => tc.type === 'build_stack') as any[];
+    
+    for (const build of builds) {
+      // Must be owned by a teammate
+      if (!areTeammates(playerNumber, build.owner)) continue;
+      // Must not already have Shiya active
+      if (build.shiyaActive) continue;
+      // Must have a matching card in hand
+      const hasMatch = myHand.some((card: any) => card.value === build.value);
+      if (hasMatch) {
+        return build;
+      }
+    }
+    return null;
+  }, [table, isMyTurn, gameState.playerCount, gameState.players, playerNumber]);
+
   return {
     isMyTurn,
     myHand,
@@ -72,5 +95,6 @@ export function useGameComputed(gameState: GameState, playerNumber: number) {
     extendingBuildId,
     allPlayerCaptures,
     playerCount,
+    selectedBuild,
   };
 }

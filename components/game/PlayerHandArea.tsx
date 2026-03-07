@@ -17,11 +17,38 @@ import { DropBounds } from '../../hooks/useDrag';
 import { TableItem } from '../table/types';
 import { OpponentDragState } from '../../hooks/useGameState';
 import { StackActionStrip } from '../table/StackActionStrip';
+import { areTeammates } from '../../shared/game/team';
 
 interface Card {
   rank: string;
   suit: string;
   value: number;
+}
+
+interface BuildStack {
+  owner: number;
+  value: number;
+  cards: Card[];
+  cardsMap: Record<string, Card>;
+  name: string;
+  buildType: 'solo' | 'extendable';
+  stackType: 'build';
+  stackId?: string;
+  /** Whether Shiya is active on this build (party mode only) */
+  shiyaActive?: boolean;
+}
+
+interface Player {
+  hand: Card[];
+  captures: Card[];
+  score: number;
+  buildStacks: BuildStack[];
+}
+
+interface GameState {
+  players: Player[];
+  playerCount: number;
+  table: TableItem[];
 }
 
 interface Props {
@@ -61,6 +88,14 @@ interface Props {
   showEndTurnButton?: boolean;
   /** End turn callback */
   onEndTurn?: () => void;
+  /** Game state for Shiya qualification check */
+  gameState?: GameState;
+  /** Current player index */
+  currentPlayer?: number;
+  /** Selected build for Shiya check */
+  selectedBuild?: any | null;
+  /** Shiya callback - for party mode capture of teammate's build */
+  onShiya?: (stackId: string) => void;
 }
 
 // Default card dimensions - matching table card size (56x84)
@@ -93,6 +128,10 @@ export function PlayerHandArea({
   onCancelStack,
   showEndTurnButton,
   onEndTurn,
+  gameState,
+  currentPlayer,
+  selectedBuild,
+  onShiya,
 }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   
@@ -169,6 +208,17 @@ export function PlayerHandArea({
     };
   }, [hand.length, screenWidth]);
 
+  // Check if Shiya action is available for selected build
+  // The button appears when player taps on a qualifying build (before/during turn)
+  const canShiya = useMemo(() => {
+    // Must have selectedBuild and onShiya callback
+    // (selectedBuild is now set by tapping on a build, validated in GameBoard)
+    if (!selectedBuild || !onShiya) {
+      return false;
+    }
+    return true;
+  }, [selectedBuild, onShiya]);
+
   // Card row style - centered when shouldCenterCards is true (6 cards)
   const cardRowStyle = useMemo(() => {
     return [
@@ -229,29 +279,46 @@ export function PlayerHandArea({
         })}
       </ScrollView>
       
-      {/* Action strip for pending stack - positioned on the right side */}
-      {activeStackId && activeStackType && onAcceptStack && onCancelStack && (
+      {/* Action strip for pending stack OR Shiya - positioned on the right side */}
+      {((activeStackId && activeStackType && onAcceptStack && onCancelStack) || canShiya) ? (
         <View style={styles.actionStripContainer}>
           <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.acceptButton]}
-              onPress={() => onAcceptStack(activeStackId)}
-              accessibilityLabel={activeStackType === 'extend_build' ? 'Extend' : 'Accept'}
-            >
-              <Text style={styles.actionButtonText}>
-                {activeStackType === 'extend_build' ? 'Extend' : 'Accept'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.cancelButton]}
-              onPress={() => onCancelStack(activeStackId)}
-              accessibilityLabel="Cancel"
-            >
-              <Text style={styles.actionButtonText}>Cancel</Text>
-            </TouchableOpacity>
+            {activeStackId && activeStackType && onAcceptStack && onCancelStack && (
+              <>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.acceptButton]}
+                  onPress={() => onAcceptStack && activeStackId && onAcceptStack(activeStackId)}
+                  accessibilityLabel={activeStackType === 'extend_build' ? 'Extend' : 'Accept'}
+                >
+                  <Text style={styles.actionButtonText}>
+                    {activeStackType === 'extend_build' ? 'Extend' : 'Accept'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.cancelButton]}
+                  onPress={() => onCancelStack && activeStackId && onCancelStack(activeStackId)}
+                  accessibilityLabel="Cancel"
+                >
+                  <Text style={styles.actionButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {canShiya && (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.shiyaButton]}
+                onPress={() => {
+                  if (selectedBuild && onShiya) {
+                    onShiya(`build_${selectedBuild.owner}_${selectedBuild.value}`);
+                  }
+                }}
+                accessibilityLabel="Shiya"
+              >
+                <Text style={styles.actionButtonText}>Shiya</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
-      )}
+      ) : null}
 
       {/* End Turn button - shown after steal - styled to match StackActionStrip */}
       {showEndTurnButton && onEndTurn && (
@@ -320,6 +387,10 @@ const styles = StyleSheet.create({
   cancelButton: {
     backgroundColor: '#f44336',
     borderColor: '#d32f2f',
+  },
+  shiyaButton: {
+    backgroundColor: '#FF9800',
+    borderColor: '#F57C00',
   },
   actionButtonText: {
     color: '#fff',

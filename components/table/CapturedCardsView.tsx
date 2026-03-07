@@ -377,6 +377,13 @@ export function CapturedCardsView({
   const playerTeamColors = getPlayerTeamColors(playerNumber);
   const playerRingColor = isPlayerActive ? playerTeamColors.primary : 'transparent';
   
+  console.log('[CapturedCardsView] Player ring check:', {
+    currentPlayerIndex,
+    playerNumber,
+    isPlayerActive,
+    playerRingColor
+  });
+  
   const playerSection = (
     <View 
       style={styles.captureSection} 
@@ -409,6 +416,13 @@ export function CapturedCardsView({
   const teammateTeamColors = getPlayerTeamColors(teammateIndex);
   const teammateRingColor = isTeammateActive ? teammateTeamColors.primary : 'transparent';
   
+  console.log('[CapturedCardsView] Teammate ring check:', {
+    currentPlayerIndex,
+    teammateIndex,
+    isTeammateActive,
+    teammateRingColor
+  });
+  
   const teammateSection = isPartyMode ? (
     <View style={styles.captureSection} key="teammate">
       {createTeamLabel(teammateIndex, teammateCaptures.length)}
@@ -439,6 +453,14 @@ export function CapturedCardsView({
     const isOpponentActive = currentPlayerIndex === opponentIdx;
     const opponentTeamColors = getPlayerTeamColors(opponentIdx);
     const opponentRingColor = isOpponentActive ? opponentTeamColors.primary : 'transparent';
+    
+    console.log('[CapturedCardsView] Opponent ring check:', {
+      index,
+      opponentIdx,
+      currentPlayerIndex,
+      isOpponentActive,
+      opponentRingColor
+    });
     
     if (!topCard) {
       return (

@@ -10,6 +10,8 @@ interface BuildStackItemProps {
   // Party mode props for team colors
   isPartyMode?: boolean;
   currentPlayerIndex?: number;
+  /** Callback when build is tapped - for Shiya selection */
+  onBuildTap?: (stack: BuildStack) => void;
 }
 
 export function BuildStackItem({
@@ -19,6 +21,7 @@ export function BuildStackItem({
   unregisterTempStack,
   isPartyMode,
   currentPlayerIndex,
+  onBuildTap,
 }: BuildStackItemProps) {
   return (
     <BuildStackView
@@ -29,6 +32,7 @@ export function BuildStackItem({
       unregisterTempStack={unregisterTempStack}
       isPartyMode={isPartyMode}
       currentPlayerIndex={currentPlayerIndex}
+      onBuildTap={onBuildTap}
     />
   );
 }

@@ -31,6 +31,8 @@ interface TableItemRendererProps {
   // Party mode props for team colors
   isPartyMode?: boolean;
   currentPlayerIndex?: number;
+  /** Callback when a build is tapped - for Shiya selection */
+  onBuildTap?: (stack: BuildStack) => void;
 }
 
 export function TableItemRenderer(props: TableItemRendererProps) {

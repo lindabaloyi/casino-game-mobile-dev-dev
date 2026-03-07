@@ -12,7 +12,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
 import { BuildStack } from './types';
 import { TempStackBounds } from '../../hooks/useDrag';
@@ -60,6 +60,8 @@ interface Props {
   currentPlayerIndex?: number;
   /** Whether this is party mode (4-player) */
   isPartyMode?: boolean;
+  /** Callback when build is tapped - for Shiya selection */
+  onBuildTap?: (stack: BuildStack) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -71,6 +73,7 @@ export function BuildStackView({
   unregisterTempStack,
   currentPlayerIndex,
   isPartyMode = false,
+  onBuildTap,
 }: Props) {
   const viewRef = useRef<View>(null);
 
@@ -178,7 +181,8 @@ export function BuildStackView({
   if (!bottom || !top) return null;
 
   return (
-    <View ref={viewRef} style={styles.container} onLayout={onLayout}>
+    <TouchableOpacity onPress={() => onBuildTap?.(stack)} activeOpacity={0.7}>
+      <View ref={viewRef} style={styles.container} onLayout={onLayout}>
       {/* Base card — highest value (bottom of stack) */}
       <View style={styles.cardBottom}>
         <PlayingCard rank={bottom.rank} suit={bottom.suit} />
@@ -210,6 +214,7 @@ export function BuildStackView({
         </View>
       )}
     </View>
+    </TouchableOpacity>
   );
 }
 

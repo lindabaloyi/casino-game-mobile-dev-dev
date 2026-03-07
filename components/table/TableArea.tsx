@@ -115,6 +115,9 @@ interface Props {
   // Party mode props for team colors
   isPartyMode?: boolean;
   currentPlayerIndex?: number;
+  
+  /** Callback when a build is tapped - for Shiya selection */
+  onBuildTap?: (stack: BuildStack) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -165,6 +168,7 @@ export function TableArea({
   disableOverlays = false,
   isPartyMode,
   currentPlayerIndex,
+  onBuildTap,
 }: Props) {
   // Separate item types
   const tempStacks = tableCards.filter(isTempStack) as TempStack[];
@@ -222,6 +226,7 @@ export function TableArea({
         isHidden={hidden}
         isPartyMode={isPartyMode}
         currentPlayerIndex={currentPlayerIndex}
+        onBuildTap={onBuildTap}
       />
     );
   };

@@ -33,6 +33,7 @@ import { OpponentGhostCard } from './OpponentGhostCard';
 import { ErrorBanner } from '../shared/ErrorBanner';
 import { Card as TableCard } from '../../types';
 import { GameOverModal } from '../modals/GameOverModal';
+import { areTeammates } from '../../shared/game/team';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -83,6 +84,7 @@ export function GameBoard({
   // Local state
   const [errorVersion, setErrorVersion] = useState(0);
   const [dragVersion, setDragVersion] = useState(0);
+  const [selectedBuildForShiya, setSelectedBuildForShiya] = useState<any>(null);
   
   // Track round transitions to prevent double triggers
   const lastProcessedRound = useRef<number>(0);
@@ -147,6 +149,43 @@ export function GameBoard({
   const handleDragEndWrapper = () => {
     setDragVersion(v => v + 1);
   };
+
+  // Handle build tap for Shiya selection
+  const handleBuildTap = useCallback((build: any) => {
+    console.log(`[GameBoard] handleBuildTap - build: ${build?.stackId}, owner: ${build?.owner}, value: ${build?.value}`);
+    
+    // Only set as selected if it's a teammate's build and we have a matching card
+    if (!build || gameState.playerCount !== 4) {
+      setSelectedBuildForShiya(null);
+      return;
+    }
+    
+    // Check if it's a teammate's build
+    if (!areTeammates(playerNumber, build.owner)) {
+      console.log(`[GameBoard] handleBuildTap - not a teammate's build`);
+      setSelectedBuildForShiya(null);
+      return;
+    }
+    
+    // Check if Shiya is already active
+    if (build.shiyaActive) {
+      console.log(`[GameBoard] handleBuildTap - Shiya already active`);
+      setSelectedBuildForShiya(null);
+      return;
+    }
+    
+    // Check if we have a matching card
+    const myHand = gameState.players?.[playerNumber]?.hand ?? [];
+    const hasMatch = myHand.some((card: any) => card.value === build.value);
+    
+    if (hasMatch) {
+      console.log(`[GameBoard] handleBuildTap - selected build for Shiya: ${build.stackId}`);
+      setSelectedBuildForShiya(build);
+    } else {
+      console.log(`[GameBoard] handleBuildTap - no matching card in hand`);
+      setSelectedBuildForShiya(null);
+    }
+  }, [gameState, playerNumber]);
 
   // Drag handlers
   const dragHandlers = useDragHandlers({
@@ -300,6 +339,7 @@ export function GameBoard({
         // Disable only the temp stack overlay when action buttons are shown in player hand
         // ExtensionOverlay should still show when extendingBuildId is set
         disableOverlays={!!computed.overlayStackId}
+        onBuildTap={handleBuildTap}
       />
 
       <PlayerHandArea
@@ -335,6 +375,14 @@ export function GameBoard({
         onEndTurn={() => {
           modals.hideEndTurnButton();
           actions.endTurn();
+        }}
+        // Shiya props - party mode build capture
+        gameState={gameState}
+        currentPlayer={gameState.currentPlayer}
+        selectedBuild={selectedBuildForShiya}
+        onShiya={(stackId) => {
+          console.log(`[GameBoard] Shiya action on stack: ${stackId}`);
+          actions.shiya(stackId);
         }}
       />
 

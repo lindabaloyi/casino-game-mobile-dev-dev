@@ -134,6 +134,14 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
+  // Shiya action - party mode only, capture teammate's build
+  const shiya = useCallback((stackId: string) => {
+    sendAction({ 
+      type: 'shiya', 
+      payload: { stackId } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
   return {
     createTemp,
     addToTemp,
@@ -150,6 +158,7 @@ export function useGameActions(sendAction: SendAction) {
     extendBuild,
     endTurn,
     stackDrop,
+    shiya,
   };
 }
 
