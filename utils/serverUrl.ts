@@ -30,10 +30,10 @@ export class ServerUrlResolver {
 
   constructor(config?: Partial<ServerConfig>) {
     this.config = {
-      localUrl: process.env.SOCKET_URL_LOCAL || 'http://localhost:3001',
-      lanUrl: process.env.SOCKET_URL_LAN || 'http://192.168.18.14:3001',
-      productionUrl: process.env.SOCKET_URL_PRODUCTION,
-      enableAutoDetect: process.env.AUTODETECT_ENABLED === 'true' ? true : false,
+      localUrl: process.env.EXPO_PUBLIC_SOCKET_URL_LOCAL || process.env.SOCKET_URL_LOCAL || 'http://localhost:3001',
+      lanUrl: process.env.EXPO_PUBLIC_SOCKET_URL_LAN || process.env.SOCKET_URL_LAN || 'http://192.168.18.14:3001',
+      productionUrl: process.env.EXPO_PUBLIC_SOCKET_URL_PRODUCTION || process.env.SOCKET_URL_PRODUCTION,
+      enableAutoDetect: process.env.EXPO_PUBLIC_AUTODETECT_ENABLED === 'true' || process.env.AUTODETECT_ENABLED === 'true' ? true : false,
       fallbackUrl: 'http://localhost:3001',
       ...config
     };

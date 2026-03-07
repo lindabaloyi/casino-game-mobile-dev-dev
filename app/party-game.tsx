@@ -17,7 +17,7 @@ import { StyleSheet, View, Text, ActivityIndicator, TouchableOpacity } from 'rea
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { GameBoard } from '../components/game/GameBoard';
-import { usePartyGameState } from '../hooks/usePartyGameState';
+import { useMultiplayerGame } from '../hooks/useGameState';
 
 export const options = {
   headerShown: false,
@@ -42,7 +42,7 @@ export default function PartyGameScreen() {
     emitDragStart,
     emitDragMove,
     emitDragEnd,
-  } = usePartyGameState();
+  } = useMultiplayerGame({ mode: 'party' });
 
   // Not connected yet - show connecting screen
   if (!isConnected) {

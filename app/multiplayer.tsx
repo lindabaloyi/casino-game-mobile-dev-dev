@@ -1,13 +1,13 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { GameBoard } from '../components/game/GameBoard';
-import { useGameState } from '../hooks/useGameState';
+import { useMultiplayerGame } from '../hooks/useMultiplayerGame';
 
 export const options = {
   headerShown: false,
 };
 
 export default function MultiplayerScreen() {
-  const { gameState, gameOverData, playerNumber, sendAction, startNextRound, error, clearError, opponentDrag, emitDragStart, emitDragMove, emitDragEnd } = useGameState();
+  const { gameState, gameOverData, playerNumber, sendAction, startNextRound, error, clearError, opponentDrag, emitDragStart, emitDragMove, emitDragEnd } = useMultiplayerGame({ mode: 'duel' });
 
   if (!gameState) {
     return (
