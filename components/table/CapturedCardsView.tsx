@@ -483,22 +483,56 @@ export function CapturedCardsView({
     );
   };
 
-  // For 4-player mode, render opponents on the left side
-  const opponentSections = isPartyMode 
-    ? opponentIndices.map((_, idx) => renderOpponentSection(idx))
-    : [renderOpponentSection(0)];
+  // For 4-player mode: LEFT = [opponent1, opponent2], RIGHT = [player, teammate]
+  // Current: Purple P1 + Purple P2 on LEFT, Orange P1 + Orange P2 on RIGHT
+  // Swapped: Purple P1 + Orange P2 on LEFT, Orange P1 + Purple P2 on RIGHT
+  const leftSidePlayerIndices: number[] = isPartyMode 
+    ? [opponentIndices[0], teammateIndex]  // Purple P1 + Orange P2 (SWAPPED)
+    : [opponentIndices[0]];
+  
+  const rightSidePlayerIndices: number[] = isPartyMode 
+    ? [playerNumber, opponentIndices[1]]  // Orange P1 + Purple P2 (SWAPPED)
+    : [playerNumber];
 
-  // Always: LEFT = opponent captures (draggable), RIGHT = your captures (drop target)
+  // Helper to render a player section by index
+  const renderPlayerSectionByIndex = (idx: number, isMyOwn: boolean) => {
+    if (idx === playerNumber) {
+      return playerSection;
+    } else if (idx === teammateIndex) {
+      return teammateSection;
+    } else {
+      // It's an opponent - find its position in opponentIndices
+      const oppIdx = opponentIndices.indexOf(idx);
+      if (oppIdx >= 0) {
+        return renderOpponentSection(oppIdx);
+      }
+      return null;
+    }
+  };
+
+  // Render left side players
+  const leftSideSections = leftSidePlayerIndices.map((idx: number, i: number) => (
+    <View key={`left-${i}`}>
+      {renderPlayerSectionByIndex(idx, false)}
+    </View>
+  ));
+
+  // Render right side players
+  const rightSideSections = rightSidePlayerIndices.map((idx: number, i: number) => (
+    <View key={`right-${i}`}>
+      {renderPlayerSectionByIndex(idx, idx === playerNumber)}
+    </View>
+  ));
+
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {/* LEFT: opponent(s) captures */}
+      {/* LEFT side */}
       <View style={styles.sideContainer}>
-        {opponentSections}
+        {leftSideSections}
       </View>
-      {/* RIGHT: your + teammate captures */}
+      {/* RIGHT side */}
       <View style={styles.sideContainer}>
-        {playerSection}
-        {teammateSection}
+        {rightSideSections}
       </View>
     </View>
   );
