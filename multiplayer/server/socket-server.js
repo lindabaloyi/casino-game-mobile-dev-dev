@@ -60,23 +60,21 @@ io.on('connection', socket => {
     if (partyResult) {
       broadcaster.broadcastPartyGameStart(partyResult);
     } else {
-      // Notify player they're in waiting
-      socket.emit('party-waiting', {
-        playersJoined: partyMatchmaking.getWaitingPartyPlayersCount()
-      });
+      // Broadcast to ALL waiting players (not just the joining player)
+      partyMatchmaking.broadcastPartyWaiting(io);
     }
   });
 
-  // ── Game events ──────────────────────────────────────────────────────
+  // ── Game events ──────────────────────────────────────────────────────────────
   socket.on('game-action', data => coordinator.handleGameAction(socket, data));
   socket.on('start-next-round', () => coordinator.handleStartNextRound(socket));
 
-  // ── Drag events (for real-time shared state) ────────────────────────────
+  // ── Drag events (for real-time shared state) ───────────────────────────────
   socket.on('drag-start', data => coordinator.handleDragStart(socket, data));
   socket.on('drag-move', data => coordinator.handleDragMove(socket, data));
   socket.on('drag-end', data => coordinator.handleDragEnd(socket, data));
 
-  // ── State sync (client can request the current state at any time) ────
+  // ── State sync (client can request the current state at any time) ─────────
   socket.on('request-sync', () => {
     // Check regular matchmaking first
     let gameId = matchmaking.getGameId(socket.id);
@@ -92,7 +90,13 @@ io.on('connection', socket => {
     socket.emit('game-state-sync', { gameState: state, serverTime: Date.now() });
   });
 
-  // ── Disconnect ───────────────────────────────────────────────────────
+  // ── Lobby status request (for polling) ───────────────────────────────────────
+  socket.on('request-lobby-status', () => {
+    const waitingCount = partyMatchmaking.getWaitingPartyPlayersCount();
+    socket.emit('party-waiting', { playersJoined: waitingCount });
+  });
+
+  // ── Disconnect ───────────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
     console.log(`[Server] Disconnected: ${socket.id}`);
     
@@ -136,7 +140,7 @@ function startServer() {
   gameManager  = new GameManager();
   actionRouter = new ActionRouter(gameManager);
   matchmaking  = new MatchmakingService(gameManager);
-  partyMatchmaking = new PartyMatchmakingService(gameManager);
+  partyMatchmaking = new PartyMatchmakingService(gameManager, io);
   broadcaster  = new BroadcasterService(matchmaking, gameManager, io, partyMatchmaking);
   coordinator  = new GameCoordinatorService(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking);
 

@@ -54,8 +54,11 @@ export default function PartyGameScreen() {
     );
   }
 
-  // In lobby waiting for players
-  if (isInLobby || !gameState) {
+  // Show game only when gameState exists (game started)
+  // This ensures we don't show game with null gameState
+  const showGame = gameState != null;
+  
+  if (!showGame) {
     const playersNeeded = 4 - playersInLobby;
     return (
       <View style={styles.lobbyContainer}>

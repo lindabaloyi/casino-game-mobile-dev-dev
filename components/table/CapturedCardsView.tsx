@@ -348,7 +348,7 @@ export function CapturedCardsView({
       onLayout={handlePlayerCaptureLayout}
       key="player"
     >
-      <Text style={styles.label}>{playerLabel}</Text>
+      <Text style={styles.labelWithCount}>{playerLabel} ({myCaptures.length})</Text>
       <View style={styles.cardContainer}>
         {playerTopCard ? (
           <PlayingCard 
@@ -361,14 +361,13 @@ export function CapturedCardsView({
           </View>
         )}
       </View>
-      <Text style={styles.count}>{myCaptures.length}</Text>
     </View>
   );
 
   // Teammate section (for 4-player mode, below player)
   const teammateSection = isPartyMode ? (
     <View style={styles.captureSection} key="teammate">
-      <Text style={styles.label}>{teammateLabel}</Text>
+      <Text style={styles.labelWithCount}>{teammateLabel} ({teammateCaptures.length})</Text>
       <View style={styles.cardContainer}>
         {teammateTopCard ? (
           <PlayingCard 
@@ -381,7 +380,6 @@ export function CapturedCardsView({
           </View>
         )}
       </View>
-      <Text style={styles.count}>{teammateCaptures.length}</Text>
     </View>
   ) : null;
 
@@ -394,20 +392,19 @@ export function CapturedCardsView({
     if (!topCard) {
       return (
         <View style={styles.captureSection} key={`opponent-${index}`}>
-          <Text style={styles.label}>{label}</Text>
+          <Text style={styles.labelWithCount}>{label} ({captures.length})</Text>
           <View style={styles.cardContainer}>
             <View style={styles.emptyCard}>
               <Text style={styles.emptyText}>-</Text>
             </View>
           </View>
-          <Text style={styles.count}>{captures.length}</Text>
         </View>
       );
     }
     
     return (
       <View style={styles.captureSection} key={`opponent-${index}`}>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.labelWithCount}>{label} ({captures.length})</Text>
         <View style={styles.cardContainer}>
           <DraggableOpponentCard
             card={topCard}
@@ -423,7 +420,6 @@ export function CapturedCardsView({
             onExtendBuild={onExtendBuild}
           />
         </View>
-        <Text style={styles.count}>{captures.length}</Text>
       </View>
     );
   };
@@ -471,7 +467,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 70,
   },
-  label: {
+  labelWithCount: {
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
@@ -497,12 +493,6 @@ const styles = StyleSheet.create({
   emptyText: {
     color: 'rgba(255,255,255,0.5)',
     fontSize: 24,
-  },
-  count: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: 4,
   },
 });
 

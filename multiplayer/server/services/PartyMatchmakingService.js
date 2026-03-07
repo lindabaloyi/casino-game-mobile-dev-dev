@@ -5,8 +5,9 @@
  */
 
 class PartyMatchmakingService {
-  constructor(gameManager) {
+  constructor(gameManager, io = null) {
     this.gameManager = gameManager;
+    this.io = io;
 
     /** Sockets waiting for a party game */
     this.waitingPlayers = [];
@@ -36,6 +37,19 @@ class PartyMatchmakingService {
     this.socketGameMap.set(socket.id, null);
     
     return this._tryCreatePartyGame();
+  }
+
+  /**
+   * Broadcast party-waiting event to ALL waiting players
+   * This ensures all players in the lobby see the updated count
+   */
+  broadcastPartyWaiting(io) {
+    const count = this.waitingPlayers.length;
+    console.log(`[PartyMatchmaking] Broadcasting party-waiting to ${count} players`);
+    
+    this.waitingPlayers.forEach(playerSocket => {
+      playerSocket.emit('party-waiting', { playersJoined: count });
+    });
   }
 
   /**
@@ -188,6 +202,13 @@ class PartyMatchmakingService {
 
   getWaitingPlayersCount() {
     return this.waitingPlayers.length;
+  }
+
+  /**
+   * Get socket IDs of all waiting players (for broadcasting)
+   */
+  getWaitingPlayerIds() {
+    return this.waitingPlayers.map(s => s.id);
   }
 
   /**
