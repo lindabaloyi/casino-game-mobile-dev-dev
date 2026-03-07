@@ -7,6 +7,9 @@ interface BuildStackItemProps {
   tableVersion: number;
   registerTempStack: (stackId: string, bounds: any) => void;
   unregisterTempStack: (stackId: string) => void;
+  // Party mode props for team colors
+  isPartyMode?: boolean;
+  currentPlayerIndex?: number;
 }
 
 export function BuildStackItem({
@@ -14,6 +17,8 @@ export function BuildStackItem({
   tableVersion,
   registerTempStack,
   unregisterTempStack,
+  isPartyMode,
+  currentPlayerIndex,
 }: BuildStackItemProps) {
   return (
     <BuildStackView
@@ -22,6 +27,8 @@ export function BuildStackItem({
       layoutVersion={tableVersion}
       registerTempStack={registerTempStack}
       unregisterTempStack={unregisterTempStack}
+      isPartyMode={isPartyMode}
+      currentPlayerIndex={currentPlayerIndex}
     />
   );
 }

@@ -28,10 +28,13 @@ interface TableItemRendererProps {
   onTempStackDragEnd?: (stack: TempStack) => void;
   onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
   isHidden?: boolean;
+  // Party mode props for team colors
+  isPartyMode?: boolean;
+  currentPlayerIndex?: number;
 }
 
 export function TableItemRenderer(props: TableItemRendererProps) {
-  const { item, isHidden, tableVersion, ...rest } = props;
+  const { item, isHidden, tableVersion, isPartyMode, currentPlayerIndex, ...rest } = props;
   
   if (isLooseCard(item)) {
     return <LooseCardItem card={item} isHidden={isHidden} tableVersion={tableVersion} {...rest} />;
@@ -42,7 +45,7 @@ export function TableItemRenderer(props: TableItemRendererProps) {
   }
   
   if (isBuildStack(item)) {
-    return <BuildStackItem stack={item} tableVersion={tableVersion} {...rest} />;
+    return <BuildStackItem stack={item} tableVersion={tableVersion} isPartyMode={isPartyMode} currentPlayerIndex={currentPlayerIndex} {...rest} />;
   }
   
   return null;

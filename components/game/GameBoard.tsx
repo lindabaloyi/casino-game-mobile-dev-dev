@@ -249,6 +249,9 @@ export function GameBoard({
         tableVersion={computed.tableVersion}
         isMyTurn={computed.isMyTurn}
         playerNumber={playerNumber}
+        // Party mode props for team colors
+        isPartyMode={gameState.playerCount === 4}
+        currentPlayerIndex={gameState.currentPlayer}
         tableRef={drag.tableRef}
         onTableLayout={drag.onTableLayout}
         registerCard={drag.registerCard}

@@ -199,15 +199,97 @@ function resetTurnFlags(state) {
 }
 
 /**
+ * Party Turn Sequence for 4-player games
+ * Order: Team A P1 (0) → Team B P1 (2) → Team A P2 (1) → Team B P2 (3)
+ */
+const PARTY_TURN_SEQUENCE = [0, 2, 1, 3];
+
+/**
+ * Get the party turn sequence for 4-player games.
+ * @returns {number[]} Array of player indices in turn order
+ */
+function getPartyTurnSequence() {
+  return PARTY_TURN_SEQUENCE;
+}
+
+/**
+ * Get the next player in party game turn sequence.
+ * Order: Team A P1 (0) → Team B P1 (2) → Team A P2 (1) → Team B P2 (3) → repeat
+ * @param {number} currentPlayer - Current player index (0-3)
+ * @returns {number} Next player index
+ */
+function getNextPartyPlayer(currentPlayer) {
+  const currentIndex = PARTY_TURN_SEQUENCE.indexOf(currentPlayer);
+  
+  if (currentIndex === -1) {
+    // Not in sequence (shouldn't happen), default to first
+    console.warn(`[turn] getNextPartyPlayer: player ${currentPlayer} not in sequence, defaulting to 0`);
+    return PARTY_TURN_SEQUENCE[0];
+  }
+  
+  const nextIndex = (currentIndex + 1) % PARTY_TURN_SEQUENCE.length;
+  return PARTY_TURN_SEQUENCE[nextIndex];
+}
+
+/**
+ * Check if game should use party turn order (4 players)
+ * @param {number} playerCount - Number of players
+ * @returns {boolean} True if party turn order should be used
+ */
+function isPartyGame(playerCount) {
+  return playerCount === 4;
+}
+
+/**
+ * Skip a player's turn due to disconnection.
+ * Move to next player in sequence.
+ * @param {object} state - Game state
+ * @param {number} disconnectedPlayerIndex - Index of disconnected player
+ * @returns {object} Updated state
+ */
+function skipDisconnectedPlayer(state, disconnectedPlayerIndex) {
+  const totalPlayers = state.players.length;
+  let nextPlayer;
+  
+  if (isPartyGame(totalPlayers)) {
+    nextPlayer = getNextPartyPlayer(disconnectedPlayerIndex);
+  } else {
+    nextPlayer = (disconnectedPlayerIndex + 1) % totalPlayers;
+  }
+  
+  // Mark the disconnected player's turn as skipped
+  if (state.roundPlayers && state.roundPlayers[disconnectedPlayerIndex]) {
+    state.roundPlayers[disconnectedPlayerIndex].turnSkipped = true;
+    state.roundPlayers[disconnectedPlayerIndex].turnEnded = true;
+  }
+  
+  state.currentPlayer = nextPlayer;
+  console.log(`[turn] skipDisconnectedPlayer: skipped player ${disconnectedPlayerIndex}, now Player ${nextPlayer}'s turn`);
+  
+  return state;
+}
+
+/**
  * Advance turn to the next player
  * Also increments turnCounter to track total turns played
+ * For 4-player party games, uses team-based turn order: Team A P1 → Team B P1 → Team A P2 → Team B P2
  * @param {object} state - Game state
  * @returns {object} Updated state
  */
 function nextTurn(state) {
   const totalPlayers = state.players.length;
   const oldPlayer = state.currentPlayer;
-  const newPlayer = (state.currentPlayer + 1) % totalPlayers;
+  
+  let newPlayer;
+  
+  // Use party turn order for 4-player games
+  if (isPartyGame(totalPlayers)) {
+    newPlayer = getNextPartyPlayer(oldPlayer);
+    console.log(`[turn] nextTurn: Party mode - Player ${oldPlayer} → Player ${newPlayer}`);
+  } else {
+    // Standard sequential order for 2-player games
+    newPlayer = (state.currentPlayer + 1) % totalPlayers;
+  }
 
   // Log current state before advancing
   const oldStatus = state.roundPlayers ? Object.entries(state.roundPlayers).map(([id, p]) => `${id}:ended=${p.turnEnded}`).join('; ') : 'no roundPlayers';
@@ -260,4 +342,10 @@ module.exports = {
   nextTurn,
   getCurrentPlayer,
   isPlayerTurn,
+  // Party turn order exports
+  PARTY_TURN_SEQUENCE,
+  getPartyTurnSequence,
+  getNextPartyPlayer,
+  isPartyGame,
+  skipDisconnectedPlayer,
 };

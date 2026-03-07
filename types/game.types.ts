@@ -104,6 +104,30 @@ export interface GameState {
 // ── Team helpers ─────────────────────────────────────────────────────────────
 
 /**
+ * Party turn sequence for 4-player games
+ * Order: Team A P1 (0) → Team B P1 (2) → Team A P2 (1) → Team B P2 (3)
+ */
+export const PARTY_TURN_SEQUENCE = [0, 2, 1, 3] as const;
+export type PartyTurnSequence = readonly [0, 2, 1, 3];
+
+/**
+ * Get the next player in party turn sequence
+ */
+export function getNextPartyPlayer(currentPlayer: number): number {
+  const sequence = [...PARTY_TURN_SEQUENCE];
+  const currentIndex = sequence.indexOf(currentPlayer as 0 | 2 | 1 | 3);
+  if (currentIndex === -1) return sequence[0];
+  return sequence[(currentIndex + 1) % sequence.length];
+}
+
+/**
+ * Check if game uses party turn order (4 players)
+ */
+export function isPartyGame(playerCount: number): boolean {
+  return playerCount === 4;
+}
+
+/**
  * Get team ID from player index.
  * Players 0,1 = Team A, Players 2,3 = Team B
  */
@@ -121,6 +145,81 @@ export function getTeammateIndex(playerIndex: number): number | null {
   return playerIndex < 2 
     ? (playerIndex === 0 ? 1 : 0)
     : (playerIndex === 2 ? 3 : 2);
+}
+
+/**
+ * Get player position label (P1 or P2) within their team
+ * Team A: 0=P1, 1=P2 | Team B: 2=P1, 3=P2
+ */
+export function getPlayerPositionLabel(playerIndex: number): 'P1' | 'P2' {
+  return playerIndex % 2 === 0 ? 'P1' : 'P2';
+}
+
+/**
+ * Get full player tag (e.g., "Team A P1")
+ */
+export function getPlayerTag(playerIndex: number): string {
+  const team = getTeamFromIndex(playerIndex);
+  const position = getPlayerPositionLabel(playerIndex);
+  return `Team ${team} ${position}`;
+}
+
+/**
+ * Check if two players are teammates
+ */
+export function areTeammates(player1: number, player2: number): boolean {
+  return getTeamFromIndex(player1) === getTeamFromIndex(player2);
+}
+
+// ── Team Colors ───────────────────────────────────────────────────────────────
+
+export interface TeamColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+  text: string;
+  border: string;
+}
+
+/**
+ * Team A colors - Coral/Red theme
+ * Players 0 and 1 belong to Team A
+ */
+export const TEAM_A_COLORS: TeamColors = {
+  primary: '#FF6B6B',
+  secondary: '#FFE3E3',
+  accent: '#C92A2A',
+  background: '#FFF5F5',
+  text: '#8B0000',
+  border: '#FF8787',
+};
+
+/**
+ * Team B colors - Blue theme
+ * Players 2 and 3 belong to Team B
+ */
+export const TEAM_B_COLORS: TeamColors = {
+  primary: '#4DABF7',
+  secondary: '#E3F2FD',
+  accent: '#1864AB',
+  background: '#F0F7FF',
+  text: '#0D47A1',
+  border: '#74C0FC',
+};
+
+/**
+ * Get team colors by team ID
+ */
+export function getTeamColors(teamId: TeamId): TeamColors {
+  return teamId === 'A' ? TEAM_A_COLORS : TEAM_B_COLORS;
+}
+
+/**
+ * Get the opposite team's colors
+ */
+export function getOppositeTeamColors(teamId: TeamId): TeamColors {
+  return teamId === 'A' ? TEAM_B_COLORS : TEAM_A_COLORS;
 }
 
 // ── Action types ─────────────────────────────────────────────────────────────

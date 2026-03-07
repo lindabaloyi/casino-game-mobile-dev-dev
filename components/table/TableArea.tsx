@@ -111,6 +111,10 @@ interface Props {
   
   // Disable stack overlays when action buttons are shown in player hand
   disableOverlays?: boolean;
+  
+  // Party mode props for team colors
+  isPartyMode?: boolean;
+  currentPlayerIndex?: number;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -159,6 +163,8 @@ export function TableArea({
   onDeclineExtend,
   opponentDrag,
   disableOverlays = false,
+  isPartyMode,
+  currentPlayerIndex,
 }: Props) {
   // Separate item types
   const tempStacks = tableCards.filter(isTempStack) as TempStack[];
@@ -214,6 +220,8 @@ export function TableArea({
         onTempStackDragEnd={onTempStackDragEnd}
         onDropToCapture={onDropToCapture}
         isHidden={hidden}
+        isPartyMode={isPartyMode}
+        currentPlayerIndex={currentPlayerIndex}
       />
     );
   };
@@ -262,6 +270,8 @@ export function TableArea({
         unregisterCapturePile={unregisterCapturePile}
         onExtendBuild={onExtendBuild}
         opponentDrag={opponentDrag}
+        isPartyMode={isPartyMode}
+        currentPlayerIndex={currentPlayerIndex}
       />
     </View>
   );

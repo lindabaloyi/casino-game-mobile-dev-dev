@@ -51,6 +51,10 @@ interface CapturedCardsViewProps {
   onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
   /** Opponent's drag state - for hiding cards when opponent is dragging */
   opponentDrag?: OpponentDragState | null;
+  /** Party mode flag - for team colors */
+  isPartyMode?: boolean;
+  /** Current player index - for highlighting current turn */
+  currentPlayerIndex?: number;
 }
 
 // ── Draggable Opponent Capture Card Component ─────────────────────────────────────
@@ -197,9 +201,11 @@ export function CapturedCardsView({
   onDragEnd,
   onExtendBuild,
   opponentDrag,
+  isPartyMode: isPartyModeProp,
+  currentPlayerIndex,
 }: CapturedCardsViewProps) {
-  // Get team info for 4-player mode
-  const isPartyMode = playerCount === 4;
+  // Get team info for 4-player mode - use prop if available
+  const isPartyMode = isPartyModeProp ?? playerCount === 4;
   
   // Get teammate index (for 4-player mode)
   const getTeammateIndex = (idx: number): number => {
@@ -219,9 +225,20 @@ export function CapturedCardsView({
   
   const opponentIndices = getOpponentIndices();
   
-  const playerLabel = `P${playerNumber + 1}`;
-  const teammateLabel = `P${teammateIndex + 1}`;
-  const opponentLabels = opponentIndices.map(i => `P${i + 1}`);
+  // Player labels for display
+  // For party mode: P1/P2 (minimal notation)
+  // For 2-player: P1/P2
+  const getPlayerLabel = (playerIdx: number): string => {
+    if (!isPartyMode) return `P${playerIdx + 1}`;
+    
+    // Party mode: just show P1/P2 within team (minimal notation)
+    const teamPlayer = playerIdx < 2 ? playerIdx + 1 : playerIdx - 1;
+    return `P${teamPlayer}`;
+  };
+  
+  const playerLabel = getPlayerLabel(playerNumber);
+  const teammateLabel = isPartyMode ? getPlayerLabel(teammateIndex) : `P${teammateIndex + 1}`;
+  const opponentLabels = opponentIndices.map(i => isPartyMode ? getPlayerLabel(i) : `P${i + 1}`);
 
   // Get captures arrays - use allPlayerCaptures if available
   const captures = allPlayerCaptures || [];

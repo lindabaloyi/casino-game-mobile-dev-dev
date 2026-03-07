@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-// Timer duration in seconds
-export const TURN_TIMER_DURATION = 20;
+// Timer duration in seconds (3 minutes = 180 seconds)
+export const TURN_TIMER_DURATION = 180;
 
 // Low time threshold (seconds) - triggers warning visual
 export const LOW_TIME_THRESHOLD = 5;

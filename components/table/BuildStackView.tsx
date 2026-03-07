@@ -8,13 +8,28 @@
  * - Shows build value badge
  * - Shows EXTEND indicator when extending
  * - Always shows 2 cards (base and top) like TempStack
+ * - In party mode, shows team colors and "friendly"/"enemy" indicator
  */
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
 import { BuildStack } from './types';
 import { TempStackBounds } from '../../hooks/useDrag';
+import { PlayerIcon } from '../ui/PlayerIcon';
+import { 
+  getTeamFromIndex, 
+  getPlayerPositionLabel, 
+  getPlayerTag
+} from '../../shared/game/team';
+import { 
+  getTeamColors as getTeamColorsFromConstants, 
+  TEAM_A_COLORS,
+  TEAM_B_COLORS,
+  NEUTRAL_COLORS,
+  type TeamId,
+  type TeamColors 
+} from '../../constants/teamColors';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -24,6 +39,15 @@ const STACK_OFFSET = 6;
 const BADGE_H      = 22;
 const STACK_PAD    = 4;
 
+// Canonical purple from Team B colors
+export const CANONICAL_PURPLE = TEAM_B_COLORS.primary;
+
+// Gold color for Team A
+export const TEAM_A_GOLD = TEAM_A_COLORS.primary;
+
+// White color
+export const WHITE = '#FFFFFF';
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -32,6 +56,10 @@ interface Props {
   layoutVersion: number;
   registerTempStack: (stackId: string, bounds: TempStackBounds) => void;
   unregisterTempStack: (stackId: string) => void;
+  /** Current player index (for party mode team colors) */
+  currentPlayerIndex?: number;
+  /** Whether this is party mode (4-player) */
+  isPartyMode?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -40,9 +68,36 @@ export function BuildStackView({
   stack, 
   layoutVersion, 
   registerTempStack, 
-  unregisterTempStack, 
+  unregisterTempStack,
+  currentPlayerIndex,
+  isPartyMode = false,
 }: Props) {
   const viewRef = useRef<View>(null);
+
+  // Calculate team colors for party mode
+  const { ownerTeam, ownerTag, ownerPosition, colors } = useMemo(() => {
+    const team = getTeamFromIndex(stack.owner) as TeamId;
+    const tag = getPlayerTag(stack.owner);
+    const position = getPlayerPositionLabel(stack.owner);
+    
+    // Get team colors based on party mode and team
+    let teamColors: TeamColors;
+    
+    if (isPartyMode) {
+      // Use team-specific colors
+      teamColors = team === 'A' ? TEAM_A_COLORS : TEAM_B_COLORS;
+    } else {
+      // Default neutral colors for non-party mode
+      teamColors = NEUTRAL_COLORS;
+    }
+    
+    return { 
+      ownerTeam: team, 
+      ownerTag: tag, 
+      ownerPosition: position,
+      colors: teamColors,
+    };
+  }, [stack.owner, isPartyMode]);
 
   // bottom = highest-value card (base)
   // top    = most recently added card
@@ -64,26 +119,29 @@ export function BuildStackView({
   // Calculate remaining need
   const remainingNeed = stack.value - totalPendingValue;
   
-  let displayValue: string;
-  let badgeColor: string;
-  
-  if (isExtending) {
-    if (remainingNeed > 0) {
-      // Incomplete extension - need more to complete
-      displayValue = `-${remainingNeed}`;
-      badgeColor = '#E53935'; // red for incomplete
+  // Build value badge color - use team colors throughout
+  const getBadgeColor = (): string => {
+    if (isExtending) {
+      if (remainingNeed > 0) {
+        // Incomplete extension - use accent color for warning
+        return colors.accent;
+      } else {
+        // Complete - use team-specific color: purple for Team B, gold for Team A
+        return ownerTeam === 'B' ? CANONICAL_PURPLE : TEAM_A_GOLD;
+      }
     } else {
-      // Complete - total pending equals or exceeds build value
-      displayValue = stack.value.toString();
-      badgeColor = '#9C27B0'; // purple for completed
+      // Completed build - use team-specific color: purple for Team B, gold for Team A
+      return ownerTeam === 'B' ? CANONICAL_PURPLE : TEAM_A_GOLD;
     }
-  } else {
-    displayValue = stack.value?.toString() ?? '-';
-    badgeColor = '#9C27B0'; // purple for completed build
-  }
+  };
+  
+  const displayValue = isExtending && remainingNeed > 0 
+    ? `-${remainingNeed}` 
+    : (stack.value?.toString() ?? '-');
+  const badgeColor = getBadgeColor();
 
-  // Owner label or EXTEND indicator
-  const showExtending = isExtending;
+  // Owner label color based on team
+  const ownerTextColor = isPartyMode ? colors.text : NEUTRAL_COLORS.text;
 
   // ── Position registration ─────────────────────────────────────────────────
   const onLayout = useCallback(() => {
@@ -131,19 +189,24 @@ export function BuildStackView({
         <PlayingCard rank={top.rank} suit={top.suit} />
       </View>
 
-      {/* Build value badge */}
+      {/* Build value badge - centered on card, square with rounded corners */}
       <View style={[styles.valueBadge, { backgroundColor: badgeColor }]}>
         <Text style={styles.valueText}>{displayValue}</Text>
       </View>
 
-      {/* Owner indicator or EXTEND badge */}
-      {showExtending ? (
-        <View style={styles.extendBadge}>
-          <Text style={styles.extendText}>EXTEND</Text>
+      {/* Owner indicator - top-right corner with team colors */}
+      {isPartyMode ? (
+        <View style={styles.ownerBadgeContainer}>
+          <PlayerIcon 
+            playerIndex={stack.owner} 
+            size="small" 
+          />
         </View>
       ) : (
-        <View style={styles.ownerBadge}>
-          <Text style={styles.ownerText}>P{stack.owner + 1}</Text>
+        <View style={styles.ownerBadgeContainer}>
+          <View style={[styles.ownerBadge, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.ownerText, { color: ownerTextColor }]}>P{stack.owner + 1}</Text>
+          </View>
         </View>
       )}
     </View>
@@ -175,11 +238,12 @@ const styles = StyleSheet.create({
   },
   valueBadge: {
     position: 'absolute',
-    top: -8,
-    right: -8,
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -18 }, { translateY: -18 }],
+    width: 36,
+    height: 36,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -193,23 +257,24 @@ const styles = StyleSheet.create({
   },
   valueText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
     paddingHorizontal: 4,
   },
-  ownerBadge: {
+  ownerBadgeContainer: {
     position: 'absolute',
-    bottom:   0,
-    left:     0,
-    right:    0,
+    top: -4,
+    right: -4,
+    alignItems: 'center',
+  },
+  ownerBadge: {
     alignItems: 'center',
   },
   ownerText: {
     color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
-    backgroundColor: '#f59e0b', // amber
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -223,11 +288,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   extendText: {
-    color: '#fff',
+    color: WHITE,
     fontSize: 9,
     fontWeight: 'bold',
     letterSpacing: 1,
-    backgroundColor: '#8b5cf6', // purple
+    backgroundColor: CANONICAL_PURPLE, // canonical purple - also used for EXTEND badge
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
