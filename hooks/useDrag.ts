@@ -104,11 +104,13 @@ export function useDrag() {
    */
   const findCardAtPoint = useCallback(
     (x: number, y: number, excludeId?: string): { id: string; card: { rank: string; suit: string; value: number } } | null => {
+      console.log(`[useDrag] findCardAtPoint called with (${x}, ${y}), registered cards: ${cardPositions.current.size}`);
       for (const [id, bounds] of cardPositions.current) {
         if (excludeId && id === excludeId) continue;
         const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
         const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
         if (inX && inY) {
+          console.log(`[useDrag] Found card ${id} at bounds:`, bounds);
           return { id, card: bounds.card };
         }
       }
@@ -157,9 +159,11 @@ export function useDrag() {
   /** Returns the temp stack at (x, y), or null (direct hit). */
   const findTempStackAtPoint = useCallback(
     (x: number, y: number): { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null => {
-      for (const [, bounds] of tempStackPositions.current) {
+      console.log(`[useDrag] findTempStackAtPoint called with (${x}, ${y}), registered stacks: ${tempStackPositions.current.size}`);
+      for (const [stackId, bounds] of tempStackPositions.current) {
         const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
         const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
+        console.log(`[useDrag] Checking stack ${stackId}: bounds=(${bounds.x}, ${bounds.y}, ${bounds.width}, ${bounds.height}), inX=${inX}, inY=${inY}`);
         if (inX && inY) {
           return { stackId: bounds.stackId, owner: bounds.owner, stackType: bounds.stackType };
         }

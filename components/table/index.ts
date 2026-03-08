@@ -1,5 +1,8 @@
 // Table components barrel export
 export { TableArea, default } from './TableArea';
+export { CapturedCardsView, default as CapturedCardsViewDefault } from './CapturedCardsView';
+export { CapturePile } from './CapturePile';
+export { DraggableOpponentCard } from './DraggableOpponentCard';
 
 // Types
 export type { Card, TempStack, BuildStack, AnyStack, TableItem } from './types';

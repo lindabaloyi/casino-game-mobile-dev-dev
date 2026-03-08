@@ -77,7 +77,9 @@ export function useActionHandlers(
   const handleExtendBuild = useCallback((card: any, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' = 'table') => {
     console.log(`[GameBoard] extendBuild - card: ${card.rank}${card.suit}, stackId: ${buildStackId}, cardSource: ${cardSource}`);
     actions.extendBuild(card, buildStackId, cardSource);
-  }, [actions]);
+    // End the drag to clear ghost overlay
+    onDragEndWrapper();
+  }, [actions, onDragEndWrapper]);
 
   const handleExtendAcceptClick = useCallback((stackId: string) => {
     const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;

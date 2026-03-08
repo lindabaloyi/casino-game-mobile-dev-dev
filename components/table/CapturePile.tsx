@@ -1,0 +1,230 @@
+/**
+ * CapturePile
+ * Renders a single capture pile: label and top card.
+ * Can be draggable (for opponents) or non-draggable (for player/teammate).
+ */
+
+import React, { useRef, useCallback, useEffect } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { PlayingCard } from '../cards/PlayingCard';
+import { DraggableOpponentCard } from './DraggableOpponentCard';
+import { Card } from './types';
+import { OpponentDragState } from '../../hooks/useGameState';
+import { CapturePileBounds } from '../../hooks/useDrag';
+import { type TeamColors } from '../../constants/teamColors';
+
+interface CapturePileProps {
+  /** Player index for this pile (0-3) */
+  playerIndex: number;
+  /** Captured cards array */
+  captures: Card[];
+  /** Whether this player is currently active (their turn) */
+  isActive: boolean;
+  /** Whether the card can be dragged (only true for opponents) */
+  isDraggable: boolean;
+  /** Current player number (for determining friendly builds) */
+  playerNumber: number;
+  /** Total player count */
+  playerCount: number;
+  /** Whether party mode is enabled */
+  isPartyMode: boolean;
+  /** Drag callbacks */
+  onDragStart?: (card: Card, x: number, y: number) => void;
+  onDragMove?: (x: number, y: number) => void;
+  onDragEnd?: (card: Card, x: number, y: number) => void;
+  /** Find card at point callback */
+  findCardAtPoint?: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
+  /** Find temp stack at point callback */
+  findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
+  /** Extend build callback */
+  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
+  /** Opponent drag state */
+  opponentDrag?: OpponentDragState | null;
+  /** Registration callbacks */
+  registerCapturePile?: (bounds: CapturePileBounds) => void;
+  unregisterCapturePile?: () => void;
+  /** Team utilities */
+  getPlayerLabel: (idx: number) => string;
+  getPlayerTeamColors: (idx: number) => TeamColors;
+}
+
+export function CapturePile({
+  playerIndex,
+  captures,
+  isActive,
+  isDraggable,
+  playerNumber,
+  playerCount,
+  isPartyMode,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  findCardAtPoint,
+  findTempStackAtPoint,
+  onExtendBuild,
+  opponentDrag,
+  registerCapturePile,
+  unregisterCapturePile,
+  getPlayerLabel,
+  getPlayerTeamColors,
+}: CapturePileProps) {
+  // Get top card (last in array = most recently captured)
+  const topCard = captures.length > 0 ? captures[captures.length - 1] : null;
+  const colors = getPlayerTeamColors(playerIndex);
+  const label = getPlayerLabel(playerIndex);
+  const ringColor = isActive ? colors.primary : 'transparent';
+
+  // Ref for measuring this pile
+  const pileRef = useRef<View>(null);
+  const hasRegisteredRef = useRef(false);
+
+  // Register pile bounds on mount
+  useEffect(() => {
+    if (pileRef.current && registerCapturePile && !hasRegisteredRef.current) {
+      const timeout = setTimeout(() => {
+        pileRef.current?.measureInWindow((x, y, width, height) => {
+          console.log('[CapturePile] Registering pile bounds:', { x, y, width, height, playerIndex });
+          registerCapturePile({ x, y, width, height, playerIndex });
+          hasRegisteredRef.current = true;
+        });
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [registerCapturePile, playerIndex]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (unregisterCapturePile) {
+        unregisterCapturePile();
+      }
+    };
+  }, [unregisterCapturePile]);
+
+  // Internal drag handlers
+  const handleDragStart = useCallback((card: Card, x: number, y: number) => {
+    console.log('[CapturePile] Drag started:', card, 'at', x, y);
+    onDragStart?.(card, x, y);
+  }, [onDragStart]);
+
+  const handleDragMove = useCallback((x: number, y: number) => {
+    onDragMove?.(x, y);
+  }, [onDragMove]);
+
+  const handleDragEnd = useCallback((card: Card, x: number, y: number) => {
+    onDragEnd?.(card, x, y);
+  }, [onDragEnd]);
+
+  // Render the card (draggable or non-draggable)
+  const renderCard = () => {
+    if (!topCard) {
+      return (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyText}>-</Text>
+        </View>
+      );
+    }
+
+    if (isDraggable && onDragStart && onDragMove && onDragEnd) {
+      return (
+        <DraggableOpponentCard
+          card={topCard}
+          opponentIndex={playerIndex}
+          isMyTurn={isActive}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+          findCardAtPoint={findCardAtPoint}
+          findTempStackAtPoint={findTempStackAtPoint}
+          playerNumber={playerNumber}
+          playerCount={playerCount}
+          isPartyMode={isPartyMode}
+          opponentDrag={opponentDrag}
+          onExtendBuild={onExtendBuild}
+        />
+      );
+    }
+
+    // Non-draggable card (player or teammate)
+    return <PlayingCard rank={topCard.rank} suit={topCard.suit} />;
+  };
+
+  return (
+    <View
+      ref={pileRef}
+      style={[
+        styles.captureSection,
+        {
+          borderColor: ringColor,
+          shadowColor: ringColor !== 'transparent' ? colors.primary : 'transparent',
+          shadowOpacity: ringColor !== 'transparent' ? 0.8 : 0,
+        },
+      ]}
+    >
+      <View style={[styles.teamLabelContainer, { backgroundColor: colors.primary }]}>
+        <Text style={styles.teamLabelText}>{label} ({captures.length})</Text>
+      </View>
+      <View style={[styles.cardContainer, isActive && styles.cardContainerActive]}>
+        {renderCard()}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  captureSection: {
+    alignItems: 'center',
+    width: 70,
+    padding: 4,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  teamLabelContainer: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginBottom: 2,
+  },
+  teamLabelText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  cardContainer: {
+    width: 56,
+    height: 84,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  cardContainerActive: {
+    borderWidth: 3,
+  },
+  emptyCard: {
+    width: 56,
+    height: 84,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 24,
+  },
+});
+
+export default CapturePile;
