@@ -221,33 +221,39 @@ export function useDrag() {
     [],
   );
 
-  // ── Capture pile position (player's own capture pile) ───────────────────────
-  const capturePilePosition = useRef<CapturePileBounds | null>(null);
+  // ── Capture pile positions (one per player) ───────────────────────
+  const capturePilePositions = useRef<Map<number, CapturePileBounds>>(new Map());
 
   const registerCapturePile = useCallback((bounds: CapturePileBounds) => {
-    capturePilePosition.current = bounds;
+    capturePilePositions.current.set(bounds.playerIndex, bounds);
   }, []);
 
-  const unregisterCapturePile = useCallback(() => {
-    capturePilePosition.current = null;
+  const unregisterCapturePile = useCallback((playerIndex?: number) => {
+    if (playerIndex !== undefined) {
+      capturePilePositions.current.delete(playerIndex);
+    } else {
+      capturePilePositions.current.clear();
+    }
   }, []);
 
-  /** Returns the capture pile bounds if point is within it, or null. */
+  /** Returns the capture pile bounds if point is within any pile, or null. */
   const findCapturePileAtPoint = useCallback(
     (x: number, y: number): CapturePileBounds | null => {
-      const bounds = capturePilePosition.current;
-      if (!bounds) {
-        console.log('[useDrag] findCapturePileAtPoint - no capture pile registered');
+      if (capturePilePositions.current.size === 0) {
+        console.log('[useDrag] findCapturePileAtPoint - no capture piles registered');
         return null;
       }
-      
-      const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
-      const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
-      
-      console.log(`[useDrag] findCapturePileAtPoint - x: ${x}, y: ${y}, bounds:`, bounds, `inX: ${inX}, inY: ${inY}`);
-      
-      if (inX && inY) {
-        return bounds;
+
+      // Check all registered capture piles
+      for (const [playerIndex, bounds] of capturePilePositions.current) {
+        const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
+        const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
+        
+        console.log(`[useDrag] findCapturePileAtPoint - checking player ${playerIndex}: x: ${x}, y: ${y}, bounds:`, bounds, `inX: ${inX}, inY: ${inY}`);
+        
+        if (inX && inY) {
+          return bounds;
+        }
       }
       return null;
     },
@@ -278,8 +284,8 @@ export function useDrag() {
     registerCapturedCard,
     unregisterCapturedCard,
     findCapturedCardAtPoint,
-    // Capture pile position
-    capturePilePosition,
+    // Capture pile positions
+    capturePilePositions,
     registerCapturePile,
     unregisterCapturePile,
     findCapturePileAtPoint,
