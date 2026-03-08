@@ -3,7 +3,7 @@
  * Renders a build_stack (accepted temp stack).
  * 
  * Characteristics:
- * - NOT draggable (no drag gesture)
+ * - Draggable by owner when there's a pending extension (can capture instead of accepting)
  * - Shows owner indicator (P1 or P2)
  * - Shows build value badge
  * - Shows EXTEND indicator when extending
@@ -13,9 +13,11 @@
 
 import React, { useCallback, useEffect, useRef, useMemo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { PlayingCard } from '../cards/PlayingCard';
 import { BuildStack } from './types';
-import { TempStackBounds } from '../../hooks/useDrag';
+import { TempStackBounds, CapturePileBounds } from '../../hooks/useDrag';
 import { PlayerIcon } from '../ui/PlayerIcon';
 import { 
   getTeamFromIndex, 
@@ -62,6 +64,14 @@ interface Props {
   isPartyMode?: boolean;
   /** Callback when build is tapped - for Shiya selection */
   onBuildTap?: (stack: BuildStack) => void;
+  // Drag props - enabled when build has pending extension
+  isMyTurn?: boolean;
+  playerNumber?: number;
+  findCapturePileAtPoint?: (x: number, y: number) => CapturePileBounds | null;
+  onDragStart?: (stack: BuildStack) => void;
+  onDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onDragEnd?: (stack: BuildStack) => void;
+  onDropToCapture?: (stack: BuildStack) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -74,11 +84,100 @@ export function BuildStackView({
   currentPlayerIndex,
   isPartyMode = false,
   onBuildTap,
+  isMyTurn,
+  playerNumber,
+  findCapturePileAtPoint,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  onDropToCapture,
 }: Props) {
   const viewRef = useRef<View>(null);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const isDragging = useSharedValue(false);
+
+  // bottom = highest-value card (base)
+  // top    = most recently added card
+  const bottom = stack.cards[0];
+  const top    = stack.cards[stack.cards.length - 1];
+  
+  // Check if there's a pending extension (supports both old looseCard and new cards format)
+  const pendingExtension = stack.pendingExtension;
+  const isExtending = !!(pendingExtension?.looseCard || pendingExtension?.cards);
+
+  // Build is draggable when:
+  // - It's the player's turn
+  // - They own the build
+  // - There's a pending extension on the build
+  const canDrag = isMyTurn && 
+    playerNumber !== undefined && 
+    stack.owner === playerNumber && 
+    isExtending;
+
+  // ── Drag handlers ────────────────────────────────────────────────────────
+  const handleDragStartInternal = useCallback(() => {
+    if (onDragStart) {
+      onDragStart(stack);
+    }
+  }, [onDragStart, stack]);
+
+  const handleDragMoveInternal = useCallback((x: number, y: number) => {
+    if (onDragMove) {
+      onDragMove(x, y);
+    }
+  }, [onDragMove]);
+
+  const handleDragEndInternal = useCallback((absX: number, absY: number) => {
+    translateX.value = 0;
+    translateY.value = 0;
+    isDragging.value = false;
+
+    // Check if dropped on player's own capture pile
+    if (findCapturePileAtPoint && playerNumber !== undefined) {
+      const pile = findCapturePileAtPoint(absX, absY);
+      if (pile && pile.playerIndex === playerNumber) {
+        console.log('[BuildStackView] Dropped on own capture pile:', pile);
+        if (onDropToCapture) {
+          onDropToCapture(stack);
+        }
+        return;
+      }
+    }
+
+    // Otherwise, call normal onDragEnd
+    if (onDragEnd) {
+      onDragEnd(stack);
+    }
+  }, [findCapturePileAtPoint, onDropToCapture, onDragEnd, stack, playerNumber, translateX, translateY, isDragging]);
+
+  const panGesture = Gesture.Pan()
+    .enabled(!!canDrag)
+    .onStart(() => {
+      isDragging.value = true;
+      runOnJS(handleDragStartInternal)();
+    })
+    .onUpdate((event) => {
+      if (isDragging.value) {
+        translateX.value = event.translationX;
+        translateY.value = event.translationY;
+        runOnJS(handleDragMoveInternal)(event.absoluteX, event.absoluteY);
+      }
+    })
+    .onEnd((event) => {
+      runOnJS(handleDragEndInternal)(event.absoluteX, event.absoluteY);
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+    zIndex: isDragging.value ? 100 : 1,
+  }));
 
   // Calculate team colors for party mode
-  const { ownerTeam, ownerTag, ownerPosition, colors } = useMemo(() => {
+  const { ownerTeam, colors } = useMemo(() => {
     const team = getTeamFromIndex(stack.owner) as TeamId;
     const tag = getPlayerTag(stack.owner);
     const position = getPlayerPositionLabel(stack.owner);
@@ -101,15 +200,6 @@ export function BuildStackView({
       colors: teamColors,
     };
   }, [stack.owner, isPartyMode]);
-
-  // bottom = highest-value card (base)
-  // top    = most recently added card
-  const bottom = stack.cards[0];
-  const top    = stack.cards[stack.cards.length - 1];
-  
-  // Check if there's a pending extension (supports both old looseCard and new cards format)
-  const pendingExtension = stack.pendingExtension;
-  const isExtending = !!(pendingExtension?.looseCard || pendingExtension?.cards);
   
   // Calculate total pending value (sum of all pending cards for multi-card extensions)
   let totalPendingValue = 0;
@@ -181,8 +271,18 @@ export function BuildStackView({
   if (!bottom || !top) return null;
 
   return (
-    <TouchableOpacity onPress={() => onBuildTap?.(stack)} activeOpacity={0.7}>
-      <View ref={viewRef} style={styles.container} onLayout={onLayout}>
+    <GestureDetector gesture={panGesture}>
+      <Animated.View 
+        ref={viewRef} 
+        style={[styles.container, animatedStyle]} 
+        onLayout={onLayout}
+      >
+        {/* Tap handler for Shiya selection - only works when not dragging */}
+        <TouchableOpacity 
+          style={styles.tapArea} 
+          onPress={() => !isDragging.value && onBuildTap?.(stack)} 
+          activeOpacity={0.7}
+        />
       {/* Base card — highest value (bottom of stack) */}
       <View style={styles.cardBottom}>
         <PlayingCard rank={bottom.rank} suit={bottom.suit} />
@@ -213,8 +313,8 @@ export function BuildStackView({
           </View>
         </View>
       )}
-    </View>
-    </TouchableOpacity>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -225,6 +325,14 @@ const styles = StyleSheet.create({
     width:    CARD_W + STACK_OFFSET + STACK_PAD,
     height:   CARD_H + STACK_OFFSET + BADGE_H,
     position: 'relative',
+  },
+  tapArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 50,
   },
   cardBottom: {
     position: 'absolute',

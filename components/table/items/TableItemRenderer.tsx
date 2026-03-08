@@ -27,6 +27,8 @@ interface TableItemRendererProps {
   onTempStackDragMove?: (absoluteX: number, absoluteY: number) => void;
   onTempStackDragEnd?: (stack: TempStack) => void;
   onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
+  /** Callback for dropping a build stack (with pending extension) onto capture pile */
+  onDropBuildToCapture?: (stack: BuildStack) => void;
   isHidden?: boolean;
   // Party mode props for team colors
   isPartyMode?: boolean;
@@ -36,7 +38,21 @@ interface TableItemRendererProps {
 }
 
 export function TableItemRenderer(props: TableItemRendererProps) {
-  const { item, isHidden, tableVersion, isPartyMode, currentPlayerIndex, ...rest } = props;
+  const { 
+    item, 
+    isHidden, 
+    tableVersion, 
+    isPartyMode, 
+    currentPlayerIndex, 
+    onDropBuildToCapture,
+    onDropToCapture: _onDropToCapture, // exclude from rest
+    ...rest 
+  } = props;
+  
+  // For build stacks, use onDropBuildToCapture if provided
+  const buildStackProps = onDropBuildToCapture 
+    ? { onDropToCapture: onDropBuildToCapture } 
+    : {};
   
   if (isLooseCard(item)) {
     return <LooseCardItem card={item} isHidden={isHidden} tableVersion={tableVersion} {...rest} />;
@@ -47,7 +63,14 @@ export function TableItemRenderer(props: TableItemRendererProps) {
   }
   
   if (isBuildStack(item)) {
-    return <BuildStackItem stack={item} tableVersion={tableVersion} isPartyMode={isPartyMode} currentPlayerIndex={currentPlayerIndex} {...rest} />;
+    return <BuildStackItem 
+      stack={item} 
+      tableVersion={tableVersion} 
+      isPartyMode={isPartyMode} 
+      currentPlayerIndex={currentPlayerIndex}
+      {...buildStackProps}
+      {...rest}
+    />;
   }
   
   return null;

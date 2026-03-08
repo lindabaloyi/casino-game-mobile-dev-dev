@@ -91,6 +91,8 @@ interface Props {
   unregisterCapturePile?: () => void;
   /** Callback for dropping a temp stack onto capture pile */
   onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
+  /** Callback for dropping a build stack (with pending extension) onto capture pile */
+  onDropBuildToCapture?: (stack: BuildStack) => void;
   
   // Temp stack drag handlers
   onTempStackDragStart?: (stack: TempStack) => void;
@@ -157,6 +159,7 @@ export function TableArea({
   registerCapturePile,
   unregisterCapturePile,
   onDropToCapture,
+  onDropBuildToCapture,
   onTempStackDragStart,
   onTempStackDragMove,
   onTempStackDragEnd,
@@ -223,6 +226,7 @@ export function TableArea({
         onTempStackDragMove={onTempStackDragMove}
         onTempStackDragEnd={onTempStackDragEnd}
         onDropToCapture={onDropToCapture}
+        onDropBuildToCapture={onDropBuildToCapture}
         isHidden={hidden}
         isPartyMode={isPartyMode}
         currentPlayerIndex={currentPlayerIndex}

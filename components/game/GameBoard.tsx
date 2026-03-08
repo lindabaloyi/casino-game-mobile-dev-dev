@@ -334,6 +334,11 @@ export function GameBoard({
         registerCapturePile={drag.registerCapturePile}
         unregisterCapturePile={drag.unregisterCapturePile}
         onDropToCapture={actions.dropToCapture}
+        onDropBuildToCapture={(stack) => {
+          console.log(`[GameBoard] onDropBuildToCapture - stack: ${stack.stackId}, owner: ${stack.owner}`);
+          // Call dropToCapture with stackType = 'build_stack'
+          actions.dropToCapture({ stackId: stack.stackId, stackType: 'build_stack' });
+        }}
         extendingBuildId={computed.extendingBuildId}
         onExtendBuild={actionHandlers.handleExtendBuild}
         onAcceptExtend={actionHandlers.handleExtendAcceptClick}

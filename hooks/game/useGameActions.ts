@@ -65,10 +65,21 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
-  const dropToCapture = useCallback((stack: any, source: 'hand' | 'captured') => {
+  const dropToCapture = useCallback((stackOrPayload: any, source?: 'hand' | 'captured') => {
+    // Support both old API (stack, source) and new API ({ stackId, stackType })
+    let payload: { stackId: string; stackType?: string };
+    
+    if (typeof stackOrPayload === 'object' && 'stackId' in stackOrPayload) {
+      // New API: { stackId, stackType }
+      payload = stackOrPayload;
+    } else {
+      // Old API: (stack, source)
+      payload = { stackId: stackOrPayload.stackId };
+    }
+    
     sendAction({ 
       type: 'dropToCapture', 
-      payload: { stackId: stack.stackId } as unknown as Record<string, unknown> 
+      payload: payload as unknown as Record<string, unknown> 
     });
   }, [sendAction]);
 
