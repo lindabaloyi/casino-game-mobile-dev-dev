@@ -77,9 +77,10 @@ function startBuildExtension(state, payload, playerIndex) {
     // Search for the card in captures (own first, then teammates if party, then opponents)
     let capturedCard = null;
     let sourcePlayer = null;
+    let captureIdx = -1;
 
-    // Search own captures
-    let captureIdx = newState.players[playerIndex].captures.findIndex(
+    // Search own captures first
+    captureIdx = newState.players[playerIndex].captures.findIndex(
       c => String(c.rank).toLowerCase() === String(card.rank).toLowerCase() && 
            String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),
     );
@@ -90,10 +91,8 @@ function startBuildExtension(state, payload, playerIndex) {
 
     // If not found and in party mode, search teammates' captures
     if (!capturedCard && isPartyMode) {
-      const teammates = [0, 1, 2, 3].filter(idx => 
-        idx !== playerIndex && areTeammates(playerIndex, idx)
-      );
-      for (const tIdx of teammates) {
+      const teammateIndices = (playerIndex < 2) ? [1, 0] : [3, 2]; // Team A: 0↔1, Team B: 2↔3
+      for (const tIdx of teammateIndices) {
         captureIdx = newState.players[tIdx].captures.findIndex(
           c => String(c.rank).toLowerCase() === String(card.rank).toLowerCase() && 
                String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),
@@ -106,12 +105,14 @@ function startBuildExtension(state, payload, playerIndex) {
       }
     }
 
-    // If still not found, search opponents' captures (any player not on same team)
+    // If still not found, search ALL opponents' captures (in both party and duel mode)
     if (!capturedCard) {
-      const opponents = [0, 1, 2, 3].filter(idx => 
-        !areTeammates(playerIndex, idx)
-      );
-      for (const oIdx of opponents) {
+      // In party mode: check both opponents; in duel mode: check the single opponent
+      const opponentIndices = isPartyMode 
+        ? (playerIndex < 2 ? [2, 3] : [0, 1])  // Team A: 0,1 vs Team B: 2,3
+        : [playerIndex === 0 ? 1 : 0];
+      
+      for (const oIdx of opponentIndices) {
         captureIdx = newState.players[oIdx].captures.findIndex(
           c => String(c.rank).toLowerCase() === String(card.rank).toLowerCase() && 
                String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),

@@ -87,6 +87,7 @@ export function CapturedCardsView({
     getPlayerLabel,
     getPlayerTeamColors,
     isOpponent,
+    isTeammate,
   } = usePlayerTeam(playerNumber, playerCount);
 
   // Override isPartyMode if explicitly provided
@@ -116,8 +117,18 @@ export function CapturedCardsView({
     return [];
   };
 
-  // Determine if a pile is draggable (only opponents are draggable)
-  const isPileDraggable = (idx: number): boolean => isOpponent(idx);
+  // Determine if a pile is draggable
+  // In party mode: only opponents are draggable, not teammate
+  // In non-party mode: the single opponent is draggable
+  const isPileDraggable = (idx: number): boolean => {
+    // Use inline logic to ensure we're using the correct party mode
+    // An opponent is anyone who is NOT the current player and NOT the teammate (in party mode)
+    if (idx === playerNumber) return false; // Can't drag own cards
+    if (finalIsPartyMode && idx === teammateIndex) return false; // Can't drag teammate's cards in party mode
+    // All other players (opponents) are draggable
+    console.log('[CapturedCardsView] isPileDraggable:', { idx, playerNumber, teammateIndex, finalIsPartyMode, result: true });
+    return true;
+  };
 
   // Build left and right side player lists
   // Party mode: LEFT = one opponent + teammate (2 slots), RIGHT = player + other opponent (2 slots)
@@ -129,6 +140,16 @@ export function CapturedCardsView({
     ? [playerNumber, opponentIndices[1]] // player + other opponent on right (2 slots)
     : [playerNumber]; // player on right in 2-player
 
+  console.log('[CapturedCardsView] Layout setup:', {
+    playerNumber,
+    playerCount,
+    finalIsPartyMode,
+    teammateIndex,
+    opponentIndices,
+    leftSideIndices,
+    rightSideIndices
+  });
+
   // Render a single pile
   const renderPile = (idx: number) => {
     const pileCaptures = getCapturesForIndex(idx);
@@ -139,6 +160,7 @@ export function CapturedCardsView({
         playerIndex={idx}
         captures={pileCaptures}
         isActive={currentPlayerIndex === idx}
+        isMyTurn={isMyTurn}
         isDraggable={isPileDraggable(idx)}
         playerNumber={playerNumber}
         playerCount={playerCount}

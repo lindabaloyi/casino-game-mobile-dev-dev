@@ -416,6 +416,7 @@ export function GameBoard({
           targetId={opponentDrag.targetId}
           cardPositions={drag.cardPositions.current}
           stackPositions={drag.tempStackPositions.current}
+          capturePositions={drag.capturePilePositions.current}
         />
       )}
 

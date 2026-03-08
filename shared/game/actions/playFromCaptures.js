@@ -13,14 +13,56 @@ function playFromCaptures(state, payload, playerIndex) {
   }
 
   const newState = cloneState(state);
-  const opponentIndex = playerIndex === 0 ? 1 : 0;
-  const opponentCaptures = newState.players[opponentIndex].captures;
-
-  const capturedIdx = opponentCaptures.findIndex(
+  
+  // Find the card in own captures, teammate's (party), or opponents' captures
+  let capturedIdx = -1;
+  let sourcePlayer = null;
+  let opponentCaptures = [];
+  
+  // Check own captures first
+  opponentCaptures = newState.players[playerIndex].captures;
+  capturedIdx = opponentCaptures.findIndex(
     c => c.rank === capturedCard.rank && c.suit === capturedCard.suit,
   );
-  if (capturedIdx === -1) {
-    throw new Error(`playFromCaptures: captured card ${capturedCard.rank}${capturedCard.suit} not found in opponent's captures`);
+  if (capturedIdx !== -1) {
+    sourcePlayer = playerIndex;
+  } else if (state.isPartyMode) {
+    // Check teammate's captures
+    const teammateIndex = playerIndex < 2 ? (playerIndex === 0 ? 1 : 0) : (playerIndex === 2 ? 3 : 2);
+    opponentCaptures = newState.players[teammateIndex].captures;
+    capturedIdx = opponentCaptures.findIndex(
+      c => c.rank === capturedCard.rank && c.suit === capturedCard.suit,
+    );
+    if (capturedIdx !== -1) {
+      sourcePlayer = teammateIndex;
+    } else {
+      // Check ALL opponents' captures
+      const opponentIndices = playerIndex < 2 ? [2, 3] : [0, 1];
+      for (const oIdx of opponentIndices) {
+        opponentCaptures = newState.players[oIdx].captures;
+        capturedIdx = opponentCaptures.findIndex(
+          c => c.rank === capturedCard.rank && c.suit === capturedCard.suit,
+        );
+        if (capturedIdx !== -1) {
+          sourcePlayer = oIdx;
+          break;
+        }
+      }
+    }
+  } else {
+    // Duel mode: check single opponent
+    const opponentIndex = playerIndex === 0 ? 1 : 0;
+    opponentCaptures = newState.players[opponentIndex].captures;
+    capturedIdx = opponentCaptures.findIndex(
+      c => c.rank === capturedCard.rank && c.suit === capturedCard.suit,
+    );
+    if (capturedIdx !== -1) {
+      sourcePlayer = opponentIndex;
+    }
+  }
+
+  if (capturedIdx === -1 || sourcePlayer === null) {
+    throw new Error(`playFromCaptures: captured card ${capturedCard.rank}${capturedCard.suit} not found in any capture pile`);
   }
   const [usedCard] = opponentCaptures.splice(capturedIdx, 1);
 

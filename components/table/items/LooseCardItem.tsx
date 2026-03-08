@@ -36,9 +36,13 @@ export function LooseCardItem({
   onTableDragEnd,
   isHidden,
 }: LooseCardItemProps) {
+  // Generate a unique key using rank, suit to handle potential duplicates
+  // In practice, duplicate cards shouldn't exist in a standard deck
+  const cardKey = `${card.rank}${card.suit}`;
+  
   return (
     <DraggableLooseCard
-      key={`${card.rank}${card.suit}`}
+      key={cardKey}
       card={card}
       isMyTurn={isMyTurn}
       playerNumber={playerNumber}

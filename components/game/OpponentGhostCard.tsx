@@ -32,6 +32,8 @@ interface OpponentGhostCardProps {
   // Position registries to find target's actual position
   cardPositions?: Map<string, { x: number; y: number; width: number; height: number }>;
   stackPositions?: Map<string, { x: number; y: number; width: number; height: number }>;
+  // Capture pile positions (player index -> bounds)
+  capturePositions?: Map<number, { x: number; y: number; width: number; height: number }>;
 }
 
 const CARD_WIDTH = 56;
@@ -45,6 +47,7 @@ export function OpponentGhostCard({
   targetId,
   cardPositions,
   stackPositions,
+  capturePositions,
 }: OpponentGhostCardProps) {
   // Get initial position for shared values
   const initialBounds = {
@@ -70,8 +73,9 @@ export function OpponentGhostCard({
     
     // Determine display position with target snapping
     let displayPosition = position;
+    let shouldFadeOut = false;
     
-    if (targetId && (cardPositions || stackPositions)) {
+    if (targetId && (cardPositions || stackPositions || capturePositions)) {
       if (targetType === 'card' && cardPositions) {
         const targetPos = cardPositions.get(targetId);
         if (targetPos) {
@@ -80,6 +84,7 @@ export function OpponentGhostCard({
             y: (targetPos.y + targetPos.height / 2) / bounds.height,
           };
           isFinalPosition.current = true;
+          shouldFadeOut = true;
         }
       } else if ((targetType === 'stack' || targetType === 'temp_stack') && stackPositions) {
         const targetPos = stackPositions.get(targetId);
@@ -89,6 +94,19 @@ export function OpponentGhostCard({
             y: (targetPos.y + targetPos.height / 2) / bounds.height,
           };
           isFinalPosition.current = true;
+          shouldFadeOut = true;
+        }
+      } else if (targetType === 'capture' && capturePositions) {
+        // targetId could be the player index as a string or number
+        const playerIndex = parseInt(targetId, 10);
+        const targetPos = capturePositions.get(playerIndex);
+        if (targetPos) {
+          displayPosition = {
+            x: (targetPos.x + targetPos.width / 2) / bounds.width,
+            y: (targetPos.y + targetPos.height / 2) / bounds.height,
+          };
+          isFinalPosition.current = true;
+          shouldFadeOut = true;
         }
       }
     }
@@ -97,24 +115,21 @@ export function OpponentGhostCard({
     const absPos = denormalizePosition(displayPosition.x, displayPosition.y, bounds);
 
     // Animate to new position
-    if (isFinalPosition.current) {
-      // Final position: snap smoothly then fade out
-      translateX.value = withSpring(absPos.x - CARD_WIDTH / 2, {
-        damping: 15,
-        stiffness: 150,
-      });
+    if (shouldFadeOut) {
+      // Final position: snap smoothly then fade out using spring callback
+      translateX.value = withSpring(
+        absPos.x - CARD_WIDTH / 2,
+        { damping: 15, stiffness: 150 },
+        (finished) => {
+          if (finished) {
+            opacity.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
+          }
+        }
+      );
       translateY.value = withSpring(absPos.y - CARD_HEIGHT / 2, {
         damping: 15,
         stiffness: 150,
       });
-      
-      // Start fade out after reaching target
-      setTimeout(() => {
-        opacity.value = withTiming(0, {
-          duration: 300,
-          easing: Easing.out(Easing.ease),
-        });
-      }, 100);
     } else {
       // During drag: smooth follow with slight lag for natural feel
       translateX.value = withSpring(absPos.x - CARD_WIDTH / 2, {
@@ -127,7 +142,7 @@ export function OpponentGhostCard({
       });
       opacity.value = 0.8; // Reset opacity if it was fading
     }
-  }, [position.x, position.y, targetType, targetId, tableBounds.width, tableBounds.height]);
+  }, [position.x, position.y, targetType, targetId, tableBounds.width, tableBounds.height, cardPositions, stackPositions, capturePositions]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [

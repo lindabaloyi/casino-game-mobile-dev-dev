@@ -89,16 +89,24 @@ function addToPendingExtension(state, payload, playerIndex) {
            String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),
     );
     
-    // If not found in player's captures, check opponent's captures
+    // If not found in player's captures, check all opponents' captures
     if (captureIdx === -1) {
-      const opponentIndex = playerIndex === 0 ? 1 : 0;
-      const opponentCaptures = newState.players[opponentIndex].captures;
-      captureIdx = opponentCaptures.findIndex(
-        c => String(c.rank).toLowerCase() === String(card.rank).toLowerCase() && 
-             String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),
-      );
-      if (captureIdx !== -1) {
-        playerCaptures = opponentCaptures;
+      // In party mode, check all opponents; in duel mode, check the single opponent
+      const isPartyMode = newState.playerCount === 4;
+      const opponentIndices = isPartyMode 
+        ? (playerIndex < 2 ? [2, 3] : [0, 1])  // Team A: 0,1 vs Team B: 2,3
+        : [playerIndex === 0 ? 1 : 0];
+      
+      for (const opponentIndex of opponentIndices) {
+        const opponentCaptures = newState.players[opponentIndex].captures;
+        captureIdx = opponentCaptures.findIndex(
+          c => String(c.rank).toLowerCase() === String(card.rank).toLowerCase() && 
+               String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),
+        );
+        if (captureIdx !== -1) {
+          playerCaptures = opponentCaptures;
+          break;
+        }
       }
     }
     

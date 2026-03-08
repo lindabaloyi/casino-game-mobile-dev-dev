@@ -185,10 +185,18 @@ export function TempStackView({
     zIndex: isDragging.value ? 100 : 1,
   }));
 
-  if (!bottom || !top) {
-    console.log(`[TempStackView] Returning null - no bottom/top cards! bottom: ${bottom}, top: ${top}`);
+  // Handle the case where stack might have only 1 card (shouldn't normally happen but could during edge cases)
+  // Don't return null - render what's available
+  const hasBottom = bottom && stack.cards.length >= 1;
+  const hasTop = top && stack.cards.length >= 2;
+  
+  // If we don't have at least a bottom card, return null (shouldn't normally happen)
+  if (!hasBottom) {
+    console.log(`[TempStackView] No bottom card in stack ${stack.stackId}, cards length: ${stack.cards.length}`);
     return null;
   }
+
+  console.log(`[TempStackView] Rendering with canDrag=${canDrag}, hasBottom=${hasBottom}, hasTop=${hasTop}`);
 
   console.log(`[TempStackView] Rendering with canDrag=${canDrag}, gesture enabled=${!!canDrag}`);
 

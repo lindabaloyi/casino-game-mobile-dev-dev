@@ -20,6 +20,8 @@ interface CapturePileProps {
   captures: Card[];
   /** Whether this player is currently active (their turn) */
   isActive: boolean;
+  /** Whether it's the current player's turn (for enabling drag) */
+  isMyTurn: boolean;
   /** Whether the card can be dragged (only true for opponents) */
   isDraggable: boolean;
   /** Current player number (for determining friendly builds) */
@@ -52,6 +54,7 @@ export function CapturePile({
   playerIndex,
   captures,
   isActive,
+  isMyTurn,
   isDraggable,
   playerNumber,
   playerCount,
@@ -130,7 +133,7 @@ export function CapturePile({
         <DraggableOpponentCard
           card={topCard}
           opponentIndex={playerIndex}
-          isMyTurn={isActive}
+          isMyTurn={isMyTurn}  // Use the isMyTurn prop - whether IT'S OUR TURN, not opponent's turn
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}

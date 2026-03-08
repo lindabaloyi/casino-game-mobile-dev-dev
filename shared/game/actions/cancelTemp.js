@@ -32,8 +32,14 @@ function cancelTemp(state, payload, playerIndex) {
     if (card.source === 'hand') {
       newState.players[playerIndex].hand.push(pureCard);
     } else if (card.source === 'captured') {
-      const opponentIndex = playerIndex === 0 ? 1 : 0;
-      newState.players[opponentIndex].captures.push(pureCard);
+      // In party mode, try to return to original owner if available
+      if (card.originalOwner !== undefined) {
+        newState.players[card.originalOwner].captures.push(pureCard);
+      } else {
+        // Fallback to duel mode logic (return to opponent)
+        const opponentIndex = playerIndex === 0 ? 1 : 0;
+        newState.players[opponentIndex].captures.push(pureCard);
+      }
     } else {
       newState.tableCards.push(pureCard);
     }

@@ -19,7 +19,7 @@ export interface DraggableOpponentCardProps {
   isMyTurn: boolean;
   onDragStart?: (card: Card, absoluteX: number, absoluteY: number) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
-  onDragEnd?: (card: Card, absX: number, absY: number) => void;
+  onDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string) => void;
   findCardAtPoint?: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   playerNumber: number;
@@ -62,15 +62,14 @@ export function DraggableOpponentCard({
   const draggedCard = useSharedValue<Card | null>(null);
 
   const handleDragEndInternal = useCallback((card: Card, absX: number, absY: number) => {
+    // If required callbacks are missing, reset locally but still try to signal parent
     if (!onDragEnd || !findCardAtPoint || !findTempStackAtPoint) {
-      return;
-    }
-
-    // Check if dropped on a loose card
-    const targetCardResult = findCardAtPoint(absX, absY);
-    if (targetCardResult) {
-      onDragEnd(card, absX, absY);
-      // Reset position
+      console.log('[DraggableOpponentCard] Missing callbacks in handleDragEndInternal, resetting locally');
+      // Still try to call onDragEnd to clean up ghost - pass undefined to indicate cancelled
+      if (onDragEnd) {
+        onDragEnd(card, undefined, undefined);
+      }
+      // Always reset local drag state
       translateX.value = 0;
       translateY.value = 0;
       isDragging.value = false;
@@ -78,38 +77,46 @@ export function DraggableOpponentCard({
       return;
     }
 
-    // Check if dropped on a temp stack or build stack
-    const targetStack = findTempStackAtPoint(absX, absY);
-    if (targetStack) {
-      // Can extend own or teammate's build (in party mode)
-      if (targetStack.stackType === 'build_stack' && isFriendlyBuild(targetStack.owner)) {
-        if (onExtendBuild) {
-          onExtendBuild(card, targetStack.stackId, 'captured');
+    let handled = false;
+
+    // Check if dropped on a loose card
+    const targetCardResult = findCardAtPoint(absX, absY);
+    if (targetCardResult) {
+      console.log('[DraggableOpponentCard] Dropped on card:', targetCardResult.card);
+      onDragEnd(card, targetCardResult.card);
+      handled = true;
+    } else {
+      // Check if dropped on a temp stack or build stack
+      const targetStack = findTempStackAtPoint(absX, absY);
+      if (targetStack) {
+        // Can extend own or teammate's build (in party mode)
+        if (targetStack.stackType === 'build_stack' && isFriendlyBuild(targetStack.owner)) {
+          if (onExtendBuild) {
+            console.log('[DraggableOpponentCard] Extending build:', targetStack.stackId);
+            onExtendBuild(card, targetStack.stackId, 'captured');
+            handled = true;
+          }
+        } else if (targetStack.owner === playerNumber) {
+          // Can only add to own temp stack
+          console.log('[DraggableOpponentCard] Dropped on own stack:', targetStack.stackId);
+          onDragEnd(card, undefined, targetStack.stackId);
+          handled = true;
         }
-        // Reset position immediately after extending
-        translateX.value = 0;
-        translateY.value = 0;
-        isDragging.value = false;
-        draggedCard.value = null;
-        return;
-      } else if (targetStack.owner === playerNumber) {
-        // Can only add to own temp stack
-        onDragEnd(card, absX, absY);
-        // Reset position
-        translateX.value = 0;
-        translateY.value = 0;
-        isDragging.value = false;
-        draggedCard.value = null;
-        return;
       }
     }
 
-    // Reset position
+    // If no valid target was found, signal a cancelled drop to ensure ghost is cleaned up
+    if (!handled) {
+      console.log('[DraggableOpponentCard] Drag missed - calling onDragEnd with undefined to clean up ghost');
+      onDragEnd(card, undefined, undefined);
+    }
+
+    // Always reset local drag state
     translateX.value = 0;
     translateY.value = 0;
     isDragging.value = false;
     draggedCard.value = null;
-  }, [onDragEnd, findCardAtPoint, findTempStackAtPoint, playerNumber, onExtendBuild, translateX, translateY, isDragging, draggedCard, isFriendlyBuild]);
+  }, [onDragEnd, findCardAtPoint, findTempStackAtPoint, onExtendBuild, playerNumber, isFriendlyBuild, translateX, translateY, isDragging, draggedCard]);
 
   const panGesture = Gesture.Pan()
     .enabled(isMyTurn)

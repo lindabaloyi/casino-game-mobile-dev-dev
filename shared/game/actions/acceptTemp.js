@@ -33,12 +33,29 @@ function acceptTemp(state, payload, playerIndex) {
   const finalValue = buildValue || stack.value;
   
   // --- VALIDATION: Check if opponent already has a build with the same value ---
-  const opponentIndex = playerIndex === 0 ? 1 : 0;
-  const opponentBuilds = newState.tableCards.filter(
-    tc => tc.type === 'build_stack' && tc.owner === opponentIndex
-  );
+  // In party mode: check ALL opponents; in duel mode: check single opponent
+  let opponentHasSameValue = false;
   
-  const opponentHasSameValue = opponentBuilds.some(build => build.value === finalValue);
+  if (state.isPartyMode) {
+    // Party mode: check both opponents
+    const opponentIndices = playerIndex < 2 ? [2, 3] : [0, 1];
+    for (const oIdx of opponentIndices) {
+      const opponentBuilds = newState.tableCards.filter(
+        tc => tc.type === 'build_stack' && tc.owner === oIdx
+      );
+      if (opponentBuilds.some(build => build.value === finalValue)) {
+        opponentHasSameValue = true;
+        break;
+      }
+    }
+  } else {
+    // Duel mode: check single opponent
+    const opponentIndex = playerIndex === 0 ? 1 : 0;
+    const opponentBuilds = newState.tableCards.filter(
+      tc => tc.type === 'build_stack' && tc.owner === opponentIndex
+    );
+    opponentHasSameValue = opponentBuilds.some(build => build.value === finalValue);
+  }
   
   if (opponentHasSameValue) {
     throw new Error(

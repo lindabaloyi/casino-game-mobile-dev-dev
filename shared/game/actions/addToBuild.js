@@ -60,12 +60,29 @@ function addToBuild(state, payload, playerIndex) {
   buildStack.value = newValue;
   
   // --- VALIDATION: Check if opponent already has a build with the same value ---
-  const opponentIndex = playerIndex === 0 ? 1 : 0;
-  const opponentBuilds = newState.tableCards.filter(
-    tc => tc.type === 'build_stack' && tc.owner === opponentIndex && tc.stackId !== stackId
-  );
+  // In party mode: check ALL opponents; in duel mode: check single opponent
+  let opponentHasSameValue = false;
   
-  const opponentHasSameValue = opponentBuilds.some(build => build.value === newValue);
+  if (newState.isPartyMode) {
+    // Party mode: check both opponents
+    const opponentIndices = playerIndex < 2 ? [2, 3] : [0, 1];
+    for (const oIdx of opponentIndices) {
+      const opponentBuilds = newState.tableCards.filter(
+        tc => tc.type === 'build_stack' && tc.owner === oIdx && tc.stackId !== stackId
+      );
+      if (opponentBuilds.some(build => build.value === newValue)) {
+        opponentHasSameValue = true;
+        break;
+      }
+    }
+  } else {
+    // Duel mode: check single opponent
+    const opponentIndex = playerIndex === 0 ? 1 : 0;
+    const opponentBuilds = newState.tableCards.filter(
+      tc => tc.type === 'build_stack' && tc.owner === opponentIndex && tc.stackId !== stackId
+    );
+    opponentHasSameValue = opponentBuilds.some(build => build.value === newValue);
+  }
   
   if (opponentHasSameValue) {
     throw new Error(
