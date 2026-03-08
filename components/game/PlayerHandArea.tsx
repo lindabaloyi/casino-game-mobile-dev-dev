@@ -308,7 +308,8 @@ export function PlayerHandArea({
                 style={[styles.actionButton, styles.shiyaButton]}
                 onPress={() => {
                   if (selectedBuild && onShiya) {
-                    onShiya(`build_${selectedBuild.owner}_${selectedBuild.value}`);
+                    // Use the actual stackId from the selected build
+                    onShiya(selectedBuild.stackId);
                   }
                 }}
                 accessibilityLabel="Shiya"

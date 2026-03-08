@@ -9,6 +9,7 @@
 
 const StackHelper = require('../helpers/StackHelper');
 const StealValidator = require('../validators/StealValidator');
+const { areTeammates } = require('../../team');
 
 class CaptureRouter {
   /**
@@ -43,6 +44,20 @@ class CaptureRouter {
    */
   routeOwnBuild(payload, stack, state, playerIndex) {
     const { card } = payload;
+
+    // Check if build has Shiya active from a teammate
+    // If so, route capture attempt to extend instead (blocks transfer to capture pile)
+    if (stack.shiyaActive && stack.shiyaPlayer !== undefined) {
+      const isShiyaByTeammate = areTeammates(stack.owner, stack.shiyaPlayer) && stack.shiyaPlayer !== stack.owner;
+      
+      if (isShiyaByTeammate) {
+        console.log(`[CaptureRouter] Build has Shiya from teammate → extending build instead of capturing`);
+        return { 
+          type: 'startBuildExtension', 
+          payload: { card, stackId: payload.targetStackId, cardSource: 'hand' } 
+        };
+      }
+    }
 
     // Check if this is a same-rank build (all cards have the same rank)
     const isSameRankBuild = stack.cards.length > 0 && 

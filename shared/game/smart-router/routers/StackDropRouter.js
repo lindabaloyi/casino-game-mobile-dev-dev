@@ -10,6 +10,7 @@ const StackHelper = require('../helpers/StackHelper');
 const CaptureRouter = require('./CaptureRouter');
 const ExtendRouter = require('./ExtendRouter');
 const LooseCardRouter = require('./LooseCardRouter');
+const { areTeammates } = require('../../team');
 
 class StackDropRouter {
   constructor() {
@@ -162,7 +163,7 @@ class StackDropRouter {
     // 1. Pending extension? Delegate to ExtendRouter
     if (stack.pendingExtension?.looseCard || stack.pendingExtension?.cards) {
       const cardSource = this.getCardSource(state, playerIndex, card);
-      return this.extendRouter.route({ stackId, card, cardSource }, state);
+      return this.extendRouter.route({ stackId, card, cardSource }, state, playerIndex);
     }
 
     // 2. Determine where the dropped card is coming from
@@ -182,7 +183,18 @@ class StackDropRouter {
 
     // 4. If card is from hand, check if it can capture this build
     // Note: In party mode, friendly builds (teammates) should NOT be capturable - card should stack instead
+    // Also: If build has Shiya from teammate, owner CANNOT capture - must extend instead
     if (source === 'hand') {
+      // Check if Shiya is active from a teammate - if so, owner cannot capture
+      if (stack.shiyaActive && stack.shiyaPlayer !== undefined) {
+        const isShiyaByTeammate = areTeammates(stack.owner, stack.shiyaPlayer) && stack.shiyaPlayer !== stack.owner;
+        if (isShiyaByTeammate) {
+          console.log(`[StackDropRouter] Build has Shiya from teammate → owner cannot capture, routing to extend`);
+          const cardSource = this.getCardSource(state, playerIndex, card);
+          return this.extendRouter.route({ stackId, card, cardSource }, state, playerIndex);
+        }
+      }
+      
       const buildCards = stack.cards || [];
       let canCapture = false;
 
@@ -213,7 +225,8 @@ class StackDropRouter {
     }
 
     // 5. Otherwise, delegate to ExtendRouter (stacking the card)
-    return this.extendRouter.route({ stackId, card, cardSource: source }, state);
+    const cardSource = this.getCardSource(state, playerIndex, card);
+    return this.extendRouter.route({ stackId, card, cardSource }, state, playerIndex);
   }
 
   /**

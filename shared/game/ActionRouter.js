@@ -16,6 +16,9 @@
 
 const SmartRouter = require('./smart-router');
 
+// Actions that don't require turn validation in party mode
+const OUT_OF_TURN_ACTIONS = ['shiya'];
+
 /**
  * Creates an ActionRouter with the given handlers.
  * @param {object} config - Configuration object
@@ -42,8 +45,14 @@ function createActionRouter(config) {
         throw new Error(`Unknown action "${actionType}". Registered: ${known}`);
       }
 
-      // 2. Guard: wrong player's turn
-      if (state.currentPlayer !== playerIndex) {
+      // 2. Guard: wrong player's turn (skip for certain actions in party mode)
+      const isPartyMode = state.playerCount === 4;
+      const isOutOfTurnAction = OUT_OF_TURN_ACTIONS.includes(actionType);
+      const canActOutOfTurn = isPartyMode && isOutOfTurnAction;
+      
+      console.log(`[ActionRouter] Turn check: playerCount=${state.playerCount}, actionType=${actionType}, isPartyMode=${isPartyMode}, isOutOfTurnAction=${isOutOfTurnAction}, canActOutOfTurn=${canActOutOfTurn}, currentPlayer=${state.currentPlayer}, playerIndex=${playerIndex}`);
+      
+      if (!canActOutOfTurn && state.currentPlayer !== playerIndex) {
         throw new Error(`Not your turn (current: ${state.currentPlayer}, your: ${playerIndex})`);
       }
 

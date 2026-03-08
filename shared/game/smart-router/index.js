@@ -50,7 +50,7 @@ class SmartRouter {
         return this.captureRouter.route(payload, state, playerIndex);
       
       case 'extendBuild':
-        return this.extendRouter.route(payload, state);
+        return this.extendRouter.route(payload, state, playerIndex);
       
       case 'createTemp':
         // If there's a targetCard, route through smart loose card logic

@@ -34,6 +34,10 @@ export interface BuildStack {
     // Legacy single-card format
     looseCard?: Card;
   };
+  // Shiya (party mode) - indicates build was claimed by teammate
+  shiyaActive?: boolean;
+  shiyaPlayer?: number;
+  previousOwner?: number;
 }
 
 export type AnyStack = TempStack | BuildStack;
