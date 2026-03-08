@@ -133,9 +133,13 @@ export function BuildStackView({
     translateY.value = 0;
     isDragging.value = false;
 
+    console.log(`[BuildStackView] Drag end - absX: ${absX}, absY: ${absY}, playerNumber: ${playerNumber}, canDrag: ${canDrag}`);
+
     // Check if dropped on player's own capture pile
     if (findCapturePileAtPoint && playerNumber !== undefined) {
       const pile = findCapturePileAtPoint(absX, absY);
+      console.log(`[BuildStackView] findCapturePileAtPoint result:`, pile);
+      
       if (pile && pile.playerIndex === playerNumber) {
         console.log('[BuildStackView] Dropped on own capture pile:', pile);
         if (onDropToCapture) {
@@ -146,10 +150,11 @@ export function BuildStackView({
     }
 
     // Otherwise, call normal onDragEnd
+    console.log('[BuildStackView] Not dropped on capture pile - calling onDragEnd');
     if (onDragEnd) {
       onDragEnd(stack);
     }
-  }, [findCapturePileAtPoint, onDropToCapture, onDragEnd, stack, playerNumber, translateX, translateY, isDragging]);
+  }, [findCapturePileAtPoint, onDropToCapture, onDragEnd, stack, playerNumber, translateX, translateY, isDragging, canDrag]);
 
   const panGesture = Gesture.Pan()
     .enabled(!!canDrag)

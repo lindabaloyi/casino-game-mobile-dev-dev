@@ -67,12 +67,15 @@ export function TempStackView({
   // Only temp_stack can be dragged, and only by the owner on their turn
   const canDrag = isMyTurn && playerNumber !== undefined && stack.owner === playerNumber;
 
+  // Debug logging - check every render
+  console.log(`[TempStackView] === RENDER CHECK === stackId: ${stack.stackId}`);
+  console.log(`[TempStackView] stack.owner: ${stack.owner}, playerNumber: ${playerNumber}, isMyTurn: ${isMyTurn}`);
+  console.log(`[TempStackView] canDrag calculation: ${isMyTurn} && ${playerNumber !== undefined} && ${stack.owner} === ${playerNumber} = ${canDrag}`);
+
   // bottom = highest-value card (base)
   // top    = most recently added card
   const bottom = stack.cards[0];
   const top    = stack.cards[stack.cards.length - 1];
-
-  console.log(`[TempStackView] Rendering stack ${stack.stackId} with ${stack.cards.length} cards:`, stack.cards.map(c => `${c.rank}${c.suit}(${c.source})`));
 
   // Use server-provided values (value and need)
   const displayValue = stack.need > 0 ? `-${stack.need}` : stack.value?.toString() ?? '-';
@@ -132,27 +135,33 @@ export function TempStackView({
     translateY.value = 0;
     isDragging.value = false;
 
+    console.log(`[TempStackView] Drag end - absX: ${absX}, absY: ${absY}, playerNumber: ${playerNumber}, canDrag: ${canDrag}`);
+
     // Check if dropped on player's own capture pile
     if (findCapturePileAtPoint && playerNumber !== undefined) {
       const pile = findCapturePileAtPoint(absX, absY);
+      console.log(`[TempStackView] findCapturePileAtPoint result:`, pile);
+      
       if (pile && pile.playerIndex === playerNumber) {
         console.log('[TempStackView] Dropped on own capture pile:', pile);
         if (onDropToCapture) {
+          console.log('[TempStackView] Calling onDropToCapture with stack:', stack.stackId);
           onDropToCapture(stack, 'hand');
         }
         return;
       }
     }
-
-    // Otherwise, call normal onDragEnd
+    
+    console.log('[TempStackView] Not dropped on capture pile - calling onDragEnd');
     if (onDragEnd) {
       onDragEnd(stack);
     }
-  }, [findCapturePileAtPoint, onDropToCapture, onDragEnd, stack, playerNumber, translateX, translateY, isDragging]);
+  }, [findCapturePileAtPoint, onDropToCapture, onDragEnd, stack, playerNumber, translateX, translateY, isDragging, canDrag]);
 
   const panGesture = Gesture.Pan()
     .enabled(!!canDrag)
     .onStart(() => {
+      console.log('[TempStackView] ===== GESTURE START =====');
       isDragging.value = true;
       runOnJS(handleDragStartInternal)();
     })
@@ -164,6 +173,7 @@ export function TempStackView({
       }
     })
     .onEnd((event) => {
+      console.log('[TempStackView] ===== GESTURE END =====');
       runOnJS(handleDragEndInternal)(event.absoluteX, event.absoluteY);
     });
 
@@ -175,7 +185,12 @@ export function TempStackView({
     zIndex: isDragging.value ? 100 : 1,
   }));
 
-  if (!bottom || !top) return null;
+  if (!bottom || !top) {
+    console.log(`[TempStackView] Returning null - no bottom/top cards! bottom: ${bottom}, top: ${top}`);
+    return null;
+  }
+
+  console.log(`[TempStackView] Rendering with canDrag=${canDrag}, gesture enabled=${!!canDrag}`);
 
   return (
     <GestureDetector gesture={panGesture}>

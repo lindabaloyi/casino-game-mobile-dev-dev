@@ -67,15 +67,18 @@ export function useGameActions(sendAction: SendAction) {
 
   const dropToCapture = useCallback((stackOrPayload: any, source?: 'hand' | 'captured') => {
     // Support both old API (stack, source) and new API ({ stackId, stackType })
-    let payload: { stackId: string; stackType?: string };
+    let payload: { stackId: string; stackType?: string; source?: 'hand' | 'captured' };
     
     if (typeof stackOrPayload === 'object' && 'stackId' in stackOrPayload) {
       // New API: { stackId, stackType }
       payload = stackOrPayload;
     } else {
       // Old API: (stack, source)
-      payload = { stackId: stackOrPayload.stackId };
+      // Include source so server knows if temp stack came from hand or captured pile
+      payload = { stackId: stackOrPayload.stackId, source };
     }
+    
+    console.log(`[useGameActions] dropToCapture payload:`, payload);
     
     sendAction({ 
       type: 'dropToCapture', 

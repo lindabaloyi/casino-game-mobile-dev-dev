@@ -45,7 +45,7 @@ export function TableItemRenderer(props: TableItemRendererProps) {
     isPartyMode, 
     currentPlayerIndex, 
     onDropBuildToCapture,
-    onDropToCapture: _onDropToCapture, // exclude from rest
+    onDropToCapture,
     ...rest 
   } = props;
   
@@ -54,15 +54,23 @@ export function TableItemRenderer(props: TableItemRendererProps) {
     ? { onDropToCapture: onDropBuildToCapture } 
     : {};
   
+  // For temp stacks, use onDropToCapture
+  const tempStackProps = onDropToCapture 
+    ? { onDropToCapture: onDropToCapture } 
+    : {};
+  
   if (isLooseCard(item)) {
+    console.log(`[TableItemRenderer] Rendering LooseCard: ${item.rank}${item.suit}`);
     return <LooseCardItem card={item} isHidden={isHidden} tableVersion={tableVersion} {...rest} />;
   }
   
   if (isTempStack(item)) {
-    return <TempStackItem stack={item} tableVersion={tableVersion} {...rest} />;
+    console.log(`[TableItemRenderer] Rendering TempStack: ${item.stackId}, owner: ${item.owner}, has onDropToCapture: ${!!onDropToCapture}`);
+    return <TempStackItem stack={item} tableVersion={tableVersion} {...tempStackProps} {...rest} />;
   }
   
   if (isBuildStack(item)) {
+    console.log(`[TableItemRenderer] Rendering BuildStack: ${item.stackId}, owner: ${item.owner}, pendingExt: ${!!item.pendingExtension}`);
     return <BuildStackItem 
       stack={item} 
       tableVersion={tableVersion} 

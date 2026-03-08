@@ -232,10 +232,15 @@ export function useDrag() {
   const findCapturePileAtPoint = useCallback(
     (x: number, y: number): CapturePileBounds | null => {
       const bounds = capturePilePosition.current;
-      if (!bounds) return null;
+      if (!bounds) {
+        console.log('[useDrag] findCapturePileAtPoint - no capture pile registered');
+        return null;
+      }
       
       const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
       const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
+      
+      console.log(`[useDrag] findCapturePileAtPoint - x: ${x}, y: ${y}, bounds:`, bounds, `inX: ${inX}, inY: ${inY}`);
       
       if (inX && inY) {
         return bounds;

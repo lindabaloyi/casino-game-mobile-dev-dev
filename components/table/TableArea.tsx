@@ -180,6 +180,9 @@ export function TableArea({
   );
   const looseCards = tableCards.filter(isLooseCard) as Card[];
 
+  console.log(`[TableArea] tableCards: ${tableCards.length}, tempStacks: ${tempStacks.length}, looseCards: ${looseCards.length}`);
+  console.log(`[TableArea] tableCards:`, tableCards.map((tc: any) => ({ type: tc.type, stackId: tc.stackId, owner: tc.owner })));
+
   // Visibility logic
   const { isCardHidden } = useCardVisibility(opponentDrag);
 

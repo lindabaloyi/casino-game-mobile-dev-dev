@@ -154,8 +154,15 @@ export function GameBoard({
   const handleBuildTap = useCallback((build: any) => {
     console.log(`[GameBoard] handleBuildTap - build: ${build?.stackId}, owner: ${build?.owner}, value: ${build?.value}`);
     
-    // Only set as selected if it's a teammate's build and we have a matching card
+    // Only set as selected if it's a teammate's build (NOT own build) and we have a matching card
     if (!build || gameState.playerCount !== 4) {
+      setSelectedBuildForShiya(null);
+      return;
+    }
+    
+    // Check if it's NOT own build (must be teammate's build, not own)
+    if (build.owner === playerNumber) {
+      console.log(`[GameBoard] handleBuildTap - cannot Shiya own build`);
       setSelectedBuildForShiya(null);
       return;
     }

@@ -32,6 +32,11 @@ function shiya(state, payload, playerIndex) {
     throw new Error(`Build not found: ${stackId}`);
   }
   
+  // Validate build is owned by a teammate (not own build)
+  if (tableCard.owner === playerIndex) {
+    throw new Error('You cannot use Shiya on your own build');
+  }
+  
   // Validate build is owned by a teammate
   if (!areTeammates(playerIndex, tableCard.owner)) {
     throw new Error('You can only use Shiya on your teammate\'s build');
