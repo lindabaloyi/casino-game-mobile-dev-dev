@@ -15,7 +15,7 @@ import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
 import { CapturePileBounds, CapturedCardBounds } from '../../hooks/useDrag';
 import { OpponentDragState } from '../../hooks/useGameState';
-import { getTeamFromIndex } from '../../shared/game/team';
+import { getTeamFromIndex, areTeammates } from '../../shared/game/team';
 import { getTeamColors, TEAM_A_COLORS, TEAM_B_COLORS, type TeamColors } from '../../constants/teamColors';
 
 interface CapturedCardsViewProps {
@@ -71,6 +71,8 @@ interface DraggableOpponentCardProps {
   findCardAtPoint?: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   playerNumber: number;
+  playerCount?: number;
+  isPartyMode?: boolean;
   opponentDrag?: OpponentDragState | null;
   onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
 }
@@ -84,9 +86,22 @@ function DraggableOpponentCard({
   findCardAtPoint,
   findTempStackAtPoint,
   playerNumber,
+  playerCount = 2,
+  isPartyMode: isPartyModeProp,
   opponentDrag,
   onExtendBuild
 }: DraggableOpponentCardProps) {
+  // Determine party mode
+  const isPartyMode = isPartyModeProp ?? playerCount === 4;
+  
+  // Helper to check if a build is friendly (owner or teammate in party mode)
+  const isFriendlyBuild = (buildOwner: number): boolean => {
+    if (buildOwner === playerNumber) return true;
+    if (isPartyMode) {
+      return areTeammates(playerNumber, buildOwner);
+    }
+    return false;
+  };
   const cardRef = useRef<View>(null);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -108,11 +123,13 @@ function DraggableOpponentCard({
     // Check if dropped on a temp stack or build stack
     const targetStack = findTempStackAtPoint(absX, absY);
     if (targetStack) {
-      if (targetStack.stackType === 'build_stack' && targetStack.owner === playerNumber) {
+      // Can extend own or teammate's build (in party mode)
+      if (targetStack.stackType === 'build_stack' && isFriendlyBuild(targetStack.owner)) {
         if (onExtendBuild) {
           onExtendBuild(card, targetStack.stackId, 'captured');
         }
       } else if (targetStack.owner === playerNumber) {
+        // Can only add to own temp stack
         onDragEnd(card, absX, absY);
       }
       return;
@@ -208,6 +225,17 @@ export function CapturedCardsView({
 }: CapturedCardsViewProps) {
   // Get team info for 4-player mode - use prop if available
   const isPartyMode = isPartyModeProp ?? playerCount === 4;
+  
+  // Helper to check if a build is friendly (owner or teammate in party mode)
+  const isFriendlyBuild = (buildOwner: number): boolean => {
+    // Same owner → always friendly
+    if (buildOwner === playerNumber) return true;
+    // Party mode → check teammates
+    if (isPartyMode) {
+      return areTeammates(playerNumber, buildOwner);
+    }
+    return false;
+  };
   
   // Get teammate index (for 4-player mode)
   const getTeammateIndex = (idx: number): number => {
@@ -338,21 +366,21 @@ export function CapturedCardsView({
     if (targetStack) {
       console.log('[CapturedCardsView] Dropped on stack:', targetStack);
       
-      // Check if it's a build stack - can extend own build
-      if (targetStack.stackType === 'build_stack' && targetStack.owner === playerNumber) {
-        console.log('[CapturedCardsView] Extending own build with captured card');
+      // Check if it's a build stack - can extend own or teammate's build
+      if (targetStack.stackType === 'build_stack' && isFriendlyBuild(targetStack.owner)) {
+        console.log('[CapturedCardsView] Extending own/teammate build with captured card');
         if (onExtendBuild) {
           onExtendBuild(card, targetStack.stackId, 'captured');
         }
         return;
       }
       
-      // Can only add to own temp stack
+      // Can only add to own temp stack (not teammate's in this case - temp is personal)
       if (targetStack.owner === playerNumber) {
         console.log('[CapturedCardsView] Adding to own temp stack');
         onDragEnd(card, undefined, targetStack.stackId);
       } else {
-        console.log('[CapturedCardsView] Cannot add to opponent stack');
+        console.log('[CapturedCardsView] Cannot add to opponent/other stack');
       }
       return;
     }
@@ -377,16 +405,13 @@ export function CapturedCardsView({
   const playerTeamColors = getPlayerTeamColors(playerNumber);
   const playerRingColor = isPlayerActive ? playerTeamColors.primary : 'transparent';
   
-  console.log('[CapturedCardsView] Player ring check:', {
-    currentPlayerIndex,
-    playerNumber,
-    isPlayerActive,
-    playerRingColor
-  });
-  
   const playerSection = (
     <View 
-      style={styles.captureSection} 
+      style={[styles.captureSection, { 
+        borderColor: playerRingColor,
+        shadowColor: playerRingColor !== 'transparent' ? playerTeamColors.primary : 'transparent',
+        shadowOpacity: playerRingColor !== 'transparent' ? 0.8 : 0,
+      }]} 
       ref={playerCaptureRef} 
       onLayout={handlePlayerCaptureLayout}
       key="player"
@@ -394,8 +419,7 @@ export function CapturedCardsView({
       {createTeamLabel(playerNumber, myCaptures.length)}
       <View style={[
         styles.cardContainer,
-        isPlayerActive && styles.cardContainerActive,
-        { borderColor: playerRingColor }
+        isPlayerActive && styles.cardContainerActive
       ]}>
         {playerTopCard ? (
           <PlayingCard 
@@ -416,20 +440,16 @@ export function CapturedCardsView({
   const teammateTeamColors = getPlayerTeamColors(teammateIndex);
   const teammateRingColor = isTeammateActive ? teammateTeamColors.primary : 'transparent';
   
-  console.log('[CapturedCardsView] Teammate ring check:', {
-    currentPlayerIndex,
-    teammateIndex,
-    isTeammateActive,
-    teammateRingColor
-  });
-  
   const teammateSection = isPartyMode ? (
-    <View style={styles.captureSection} key="teammate">
+    <View style={[styles.captureSection, { 
+      borderColor: teammateRingColor,
+      shadowColor: teammateRingColor !== 'transparent' ? teammateTeamColors.primary : 'transparent',
+      shadowOpacity: teammateRingColor !== 'transparent' ? 0.8 : 0,
+    }]} key="teammate">
       {createTeamLabel(teammateIndex, teammateCaptures.length)}
       <View style={[
         styles.cardContainer,
-        isTeammateActive && styles.cardContainerActive,
-        { borderColor: teammateRingColor }
+        isTeammateActive && styles.cardContainerActive
       ]}>
         {teammateTopCard ? (
           <PlayingCard 
@@ -454,22 +474,17 @@ export function CapturedCardsView({
     const opponentTeamColors = getPlayerTeamColors(opponentIdx);
     const opponentRingColor = isOpponentActive ? opponentTeamColors.primary : 'transparent';
     
-    console.log('[CapturedCardsView] Opponent ring check:', {
-      index,
-      opponentIdx,
-      currentPlayerIndex,
-      isOpponentActive,
-      opponentRingColor
-    });
-    
     if (!topCard) {
       return (
-        <View style={styles.captureSection} key={`opponent-${index}`}>
+        <View style={[styles.captureSection, { 
+          borderColor: opponentRingColor,
+          shadowColor: opponentRingColor !== 'transparent' ? opponentTeamColors.primary : 'transparent',
+          shadowOpacity: opponentRingColor !== 'transparent' ? 0.8 : 0,
+        }]} key={`opponent-${index}`}>
           {createTeamLabel(opponentIdx, captures.length)}
           <View style={[
             styles.cardContainer,
-            isOpponentActive && styles.cardContainerActive,
-            { borderColor: opponentRingColor }
+            isOpponentActive && styles.cardContainerActive
           ]}>
             <View style={styles.emptyCard}>
               <Text style={styles.emptyText}>-</Text>
@@ -480,12 +495,15 @@ export function CapturedCardsView({
     }
     
     return (
-      <View style={styles.captureSection} key={`opponent-${index}`}>
+      <View style={[styles.captureSection, { 
+        borderColor: opponentRingColor,
+        shadowColor: opponentRingColor !== 'transparent' ? opponentTeamColors.primary : 'transparent',
+        shadowOpacity: opponentRingColor !== 'transparent' ? 0.8 : 0,
+      }]} key={`opponent-${index}`}>
         {createTeamLabel(opponentIdx, captures.length)}
         <View style={[
           styles.cardContainer,
-          isOpponentActive && styles.cardContainerActive,
-          { borderColor: opponentRingColor }
+          isOpponentActive && styles.cardContainerActive
         ]}>
           <DraggableOpponentCard
             card={topCard}
@@ -497,6 +515,8 @@ export function CapturedCardsView({
             findCardAtPoint={findCardAtPoint}
             findTempStackAtPoint={findTempStackAtPoint}
             playerNumber={playerNumber}
+            playerCount={playerCount}
+            isPartyMode={isPartyMode}
             opponentDrag={opponentDrag}
             onExtendBuild={onExtendBuild}
           />
@@ -581,6 +601,16 @@ const styles = StyleSheet.create({
   captureSection: {
     alignItems: 'center',
     width: 70,
+    padding: 4,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
   },
   labelWithCount: {
     color: '#fff',
@@ -589,14 +619,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   teamLabelContainer: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    marginBottom: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginBottom: 2,
   },
   teamLabelText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
     textAlign: 'center',
   },

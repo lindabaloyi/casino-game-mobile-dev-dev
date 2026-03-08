@@ -5,6 +5,12 @@
 
 const { cloneState } = require('../');
 
+// Helper to check if two players are teammates in a 4‑player game
+function areTeammates(playerA, playerB) {
+  // Players 0,1 = Team A ; Players 2,3 = Team B
+  return (playerA < 2 && playerB < 2) || (playerA >= 2 && playerB >= 2);
+}
+
 function addToBuild(state, payload, playerIndex) {
   const card = payload.card || payload.handCard;
   const stackId = payload.stackId;
@@ -24,7 +30,20 @@ function addToBuild(state, payload, playerIndex) {
 
   const buildStack = newState.tableCards[stackIdx];
 
-  if (buildStack.owner !== playerIndex) {
+  const isPartyMode = newState.playerCount === 4;
+  const owner = buildStack.owner;
+
+  // Validate permission to add to build
+  let allowed = false;
+  if (isPartyMode) {
+    // Teammates can add to each other's builds
+    allowed = areTeammates(owner, playerIndex);
+  } else {
+    // Duel mode: only the owner can add to their build
+    allowed = owner === playerIndex;
+  }
+
+  if (!allowed) {
     throw new Error('addToBuild: cannot add to opponent\'s build');
   }
 

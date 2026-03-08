@@ -79,7 +79,6 @@ export function useDrag() {
   const onTableLayout = useCallback(() => {
     tableRef.current?.measureInWindow((x, y, width, height) => {
       dropBounds.current = { x, y, width, height };
-      console.log('[useDrag] Table layout measured:', { x, y, width, height });
     });
   }, []);
 
@@ -88,7 +87,6 @@ export function useDrag() {
 
   const registerCard = useCallback((id: string, bounds: CardBounds) => {
     cardPositions.current.set(id, bounds);
-    console.log('[useDrag] Card registered:', id, 'bounds:', bounds);
   }, []);
 
   const unregisterCard = useCallback((id: string) => {
@@ -106,20 +104,14 @@ export function useDrag() {
    */
   const findCardAtPoint = useCallback(
     (x: number, y: number, excludeId?: string): { id: string; card: { rank: string; suit: string; value: number } } | null => {
-      console.log(`[useDrag] findCardAtPoint called at (${x}, ${y}), excludeId: ${excludeId}`);
-      console.log(`[useDrag] cardPositions has ${cardPositions.current.size} cards:`, Array.from(cardPositions.current.keys()));
-      
       for (const [id, bounds] of cardPositions.current) {
         if (excludeId && id === excludeId) continue;
         const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
         const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
-        console.log(`[useDrag] Checking card ${id}: bounds=(${bounds.x},${bounds.y},${bounds.width}x${bounds.height}), inX=${inX}, inY=${inY}`);
         if (inX && inY) {
-          console.log(`[useDrag] HIT! Found card:`, { id, card: bounds.card });
           return { id, card: bounds.card };
         }
       }
-      console.log(`[useDrag] No card found at (${x}, ${y})`);
       return null;
     },
     [],
@@ -151,7 +143,6 @@ export function useDrag() {
 
   const registerTempStack = useCallback((stackId: string, bounds: TempStackBounds) => {
     tempStackPositions.current.set(stackId, bounds);
-    console.log('[useDrag] TempStack registered:', stackId, 'bounds:', bounds);
   }, []);
 
   const unregisterTempStack = useCallback((stackId: string) => {

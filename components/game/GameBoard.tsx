@@ -229,8 +229,12 @@ export function GameBoard({
     // Common: Hide end turn button when player makes a new action
     modals.hideEndTurnButton();
 
+    // Check if this is a friendly build (owner OR teammate in party mode)
+    const isPartyMode = gameState.playerCount === 4;
+    const isFriendlyBuild = stackOwner === playerNumber || (isPartyMode && areTeammates(playerNumber, stackOwner));
+    
     // Check if this is an opponent's build - validate steal vs capture
-    if (stackType === 'build_stack' && stackOwner !== playerNumber) {
+    if (stackType === 'build_stack' && !isFriendlyBuild) {
       const buildStack = computed.table.find(
         (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
       );

@@ -2,7 +2,7 @@
  * StackDropRouter
  * Handles all stack drop decisions.
  * - temp_stack → addToTemp
- * - build_stack → check ownership + hand for smart routing
+ * - build_stack → check ownership + team for smart routing
  * - loose card (via createTemp pathway) → check hand for capture vs temp
  */
 
@@ -53,15 +53,13 @@ class StackDropRouter {
       throw new Error(`Build stack "${stackId}" not found`);
     }
     
-    console.log(`[StackDropRouter] routeBuildStackDrop - stackId: ${stackId}, stack owner: ${stack.owner}, playerIndex: ${playerIndex}, stack cards: ${stack.cards?.length || 0}`);
-    if (stack.cards && stack.cards.length > 0) {
-      console.log(`[StackDropRouter] stack cards: ${stack.cards.map(c => c.rank + c.suit).join(', ')}, value: ${stack.value}`);
-    }
+    console.log(`[StackDropRouter] routeBuildStackDrop - stackId: ${stackId}, owner: ${stack.owner}, player: ${playerIndex}, playerCount: ${state.playerCount}`);
+
+    // Determine if the build is friendly (owner or teammate in party mode)
+    const isFriendly = this.isFriendlyBuild(stack, playerIndex, state);
+    console.log(`[StackDropRouter] isFriendlyBuild result: ${isFriendly}, ownerTeam: ${stack.owner < 2 ? 'A' : 'B'}, playerTeam: ${playerIndex < 2 ? 'A' : 'B'}`);
     
-    const isOwnBuild = stack.owner === playerIndex;
-    console.log(`[StackDropRouter] isOwnBuild: ${isOwnBuild} (stack.owner=${stack.owner} vs playerIndex=${playerIndex})`);
-    
-    if (isOwnBuild) {
+    if (isFriendly) {
       return this.routeOwnBuildDrop(payload, stack, state, playerIndex);
     } else {
       return this.routeOpponentBuildDrop(payload, stack, state, playerIndex);
@@ -69,40 +67,54 @@ class StackDropRouter {
   }
 
   /**
-   * Determine the source of a card (hand or table)
-   * @param {object} state - Game state
-   * @param {number} playerIndex - Player index
-   * @param {object} card - Card to check
-   * @returns {string} 'hand' or 'table'
+   * Check if the player is allowed to treat this build as "friendly"
+   * (owner or teammate in party mode)
+   */
+  isFriendlyBuild(stack, playerIndex, state) {
+    // Same owner → always friendly
+    if (stack.owner === playerIndex) {
+      console.log(`[StackDropRouter] isFriendlyBuild: same owner (${stack.owner} === ${playerIndex}) → true`);
+      return true;
+    }
+
+    // Party mode (4 players) → check teammates
+    console.log(`[StackDropRouter] isFriendlyBuild: playerCount=${state.playerCount}, checking party mode`);
+    if (state.playerCount === 4) {
+      // Players 0,1 = Team A ; 2,3 = Team B
+      const ownerTeam = stack.owner < 2 ? 'A' : 'B';
+      const playerTeam = playerIndex < 2 ? 'A' : 'B';
+      console.log(`[StackDropRouter] isFriendlyBuild: ownerTeam=${ownerTeam}, playerTeam=${playerTeam}`);
+      return ownerTeam === playerTeam;
+    }
+
+    // Duel mode → only owner is friendly
+    console.log(`[StackDropRouter] isFriendlyBuild: duel mode → false`);
+    return false;
+  }
+
+  /**
+   * Determine the source of a card (hand, table, or capture)
+   * Note: This is a simplified version; in practice the payload should contain the source.
    */
   getCardSource(state, playerIndex, card) {
-    // Check if card is in player's hand
+    // Check player's hand
     const playerHand = state.players?.[playerIndex]?.hand || [];
-    const inHand = playerHand.some(
-      c => c.rank === card.rank && c.suit === card.suit
-    );
-    if (inHand) {
+    if (playerHand.some(c => c.rank === card.rank && c.suit === card.suit)) {
       return 'hand';
     }
 
-    // Check if card is on table (loose card)
-    const onTable = state.tableCards.find(
-      tc => !tc.type && 
-            tc.rank === card.rank && tc.suit === card.suit
-    );
-    if (onTable) {
+    // Check table
+    if (state.tableCards.some(tc => !tc.type && tc.rank === card.rank && tc.suit === card.suit)) {
       return 'table';
     }
 
-    // Default to 'hand' if not found (fallback to avoid breaking)
-    return 'hand';
+    // Check captures (own first, then teammates in party mode)
+    // For a complete solution, the UI should provide the source in the payload.
+    return 'hand'; // fallback
   }
 
   /**
    * Calculate possible capture values for a set of cards (same rank)
-   * Used for determining if a hand card can capture a build
-   * @param {Array} cards - Array of cards (all same rank)
-   * @returns {Array} Array of possible sum values
    */
   getPossibleCaptureValues(cards) {
     if (!cards || cards.length === 0) return [];
@@ -129,32 +141,20 @@ class StackDropRouter {
 
   /**
    * Check if player has spare cards of the SAME RANK as the dropped card
-   * Returns { canExtend: boolean, reason: string }
-   * 
-   * Rule: If player drops a card on their own build and has another card 
-   * of the same rank in hand (spare), they must extend instead of capture.
-   * 
-   * This applies to ALL build types (same-rank or sum).
    */
   checkForExtension(hand, droppedCardRank) {
-    // Count how many cards of the dropped card's rank are in hand
     const sameRankCount = hand.filter(c => c.rank === droppedCardRank).length;
-    
-    console.log(`[StackDropRouter] checkForExtension - dropped card rank: ${droppedCardRank}, same rank in hand: ${sameRankCount}`);
-    
-    // If player has more than 1 of this rank (spare exists), must extend
     if (sameRankCount > 1) {
       return { 
         canExtend: true, 
         reason: `spare ${droppedCardRank} exists (${sameRankCount} in hand)`
       };
     }
-    
     return { canExtend: false, reason: 'no spare of dropped card rank' };
   }
 
   /**
-   * Route drop on own build
+   * Route drop on own (or friendly) build
    */
   routeOwnBuildDrop(payload, stack, state, playerIndex) {
     const { stackId, card } = payload;
@@ -165,68 +165,46 @@ class StackDropRouter {
       return this.extendRouter.route({ stackId, card, cardSource }, state);
     }
 
-    // 2. Determine where the dropped card is coming from.
+    // 2. Determine where the dropped card is coming from
     const source = this.getCardSource(state, playerIndex, card);
 
     // 3. Check for spare cards that could extend the build
-    // If player has spare cards of the same rank as dropped card, must extend instead of capture
-    const buildCards = stack.cards || [];
-    console.log(`[StackDropRouter] routeOwnBuildDrop - card: ${card.rank}, buildCards: ${buildCards.length}, stackId: ${stackId}`);
+    const hand = state.players[playerIndex].hand;
+    const extensionCheck = this.checkForExtension(hand, card.rank);
     
-    if (buildCards.length > 0) {
-      const hand = state.players[playerIndex].hand;
-      const isSameRankBuild = buildCards.every(c => c.rank === buildCards[0].rank);
-      
-      console.log(`[StackDropRouter] isSameRankBuild: ${isSameRankBuild}, build value: ${stack.value}`);
-      
-      // Check for spares - this applies to ALL build types
-      const extensionCheck = this.checkForExtension(hand, card.rank);
-      
-      if (extensionCheck.canExtend) {
-        console.log(`[StackDropRouter] >>> Has extension opportunity (${extensionCheck.reason}) → extending build with startBuildExtension`);
-        return { 
-          type: 'startBuildExtension', 
-          payload: { card, stackId, cardSource: source } 
-        };
-      } else {
-        console.log(`[StackDropRouter] No extension opportunity → proceeding to capture check`);
-      }
+    if (extensionCheck.canExtend) {
+      console.log(`[StackDropRouter] Extending build: ${extensionCheck.reason}`);
+      return { 
+        type: 'startBuildExtension', 
+        payload: { card, stackId, cardSource: source } 
+      };
     }
 
-    // 4. If card is from hand, check if it can capture this build.
+    // 4. If card is from hand, check if it can capture this build
+    // Note: In party mode, friendly builds (teammates) should NOT be capturable - card should stack instead
     if (source === 'hand') {
+      const buildCards = stack.cards || [];
       let canCapture = false;
 
-      if (buildCards.length > 0) {
+      // Only allow capture if it's the owner's build (not teammate's)
+      const isOwner = stack.owner === playerIndex;
+      
+      if (isOwner && buildCards.length > 0) {
         const allSameRank = buildCards.every(c => c.rank === buildCards[0].rank);
         
         if (allSameRank) {
-          // Identical cards: possible capture values = subset sums.
           const possibleValues = this.getPossibleCaptureValues(buildCards);
-          console.log(`[StackDropRouter] Same-rank build, possible capture values: ${possibleValues.join(', ')}`);
           if (possibleValues.includes(card.value)) {
-            console.log(`[StackDropRouter] Card value ${card.value} IS in possible values → can capture`);
             canCapture = true;
-          } else {
-            console.log(`[StackDropRouter] Card value ${card.value} NOT in possible values → cannot capture`);
           }
         } else {
-          // Mixed cards: must match build.value.
-          console.log(`[StackDropRouter] Sum build, build value: ${stack.value}, card value: ${card.value}`);
           if (card.value === stack.value) {
-            console.log(`[StackDropRouter] Values match → can capture`);
             canCapture = true;
-          } else {
-            console.log(`[StackDropRouter] Values don't match → cannot capture`);
           }
         }
-      } else {
-        // Empty build (shouldn't happen), fallback to value match.
-        if (card.value === stack.value) canCapture = true;
       }
 
       if (canCapture) {
-        console.log(`[StackDropRouter] >>> Returning captureOwn`);
         return {
           type: 'captureOwn',
           payload: { card, targetType: 'build', targetStackId: stackId }
@@ -234,8 +212,7 @@ class StackDropRouter {
       }
     }
 
-    // 5. Otherwise, it's an extension
-    console.log(`[StackDropRouter] >>> Falling through to extendRouter`);
+    // 5. Otherwise, delegate to ExtendRouter (stacking the card)
     return this.extendRouter.route({ stackId, card, cardSource: source }, state);
   }
 
@@ -243,7 +220,6 @@ class StackDropRouter {
    * Route drop on opponent's build
    */
   routeOpponentBuildDrop(payload, stack, state, playerIndex) {
-    // Delegate to CaptureRouter for opponent build logic
     return this.captureRouter.route(
       { card: payload.card, targetType: 'build', targetStackId: payload.stackId },
       state,

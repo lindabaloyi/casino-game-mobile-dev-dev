@@ -5,6 +5,12 @@
 
 const { cloneState, nextTurn } = require('../');
 
+// Helper to check if two players are teammates in a 4‑player game
+function areTeammates(playerA, playerB) {
+  // Players 0,1 = Team A ; Players 2,3 = Team B
+  return (playerA < 2 && playerB < 2) || (playerA >= 2 && playerB >= 2);
+}
+
 // Helper to sort cards in ascending order by value (smallest on top)
 function sortBuildCards(cards) {
   return cards.sort((a, b) => a.value - b.value);
@@ -42,7 +48,20 @@ function acceptBuildExtension(state, payload, playerIndex) {
 
   const buildStack = newState.tableCards[stackIdx];
 
-  if (buildStack.owner !== playerIndex) {
+  const isPartyMode = newState.playerCount === 4;
+  const owner = buildStack.owner;
+
+  // Validate permission to accept extension
+  let allowed = false;
+  if (isPartyMode) {
+    // Teammates can accept each other's build extensions
+    allowed = areTeammates(owner, playerIndex);
+  } else {
+    // Duel mode: only the owner can accept
+    allowed = owner === playerIndex;
+  }
+
+  if (!allowed) {
     throw new Error('acceptBuildExtension: only owner can extend their build');
   }
 

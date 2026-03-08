@@ -55,12 +55,26 @@ export function useGameComputed(gameState: GameState, playerNumber: number) {
   const extendingBuildId = useMemo(() => {
     if (!isMyTurn) return null;
     
+    // In party mode (4 players), show action strip for own builds AND teammate's builds
+    // that have pending extensions - the owner should be able to accept/decline
+    const isPartyMode = gameState.playerCount === 4;
+    
     const myExtending = table.find(
-      (tc: any) => tc.type === 'build_stack' && tc.owner === playerNumber && 
-        (tc.pendingExtension?.looseCard || tc.pendingExtension?.cards),
+      (tc: any) => {
+        if (tc.type !== 'build_stack') return false;
+        if (!tc.pendingExtension?.looseCard && !tc.pendingExtension?.cards) return false;
+        
+        // Check ownership
+        if (tc.owner === playerNumber) return true;
+        
+        // Party mode: also show for teammate's builds
+        if (isPartyMode && areTeammates(tc.owner, playerNumber)) return true;
+        
+        return false;
+      },
     ) as BuildStack | undefined;
     return myExtending?.stackId ?? null;
-  }, [table, isMyTurn, playerNumber]);
+  }, [table, isMyTurn, playerNumber, gameState.playerCount]);
 
   // Find a build that can be Shiya'd (teammate's build with matching card in hand)
   // Only for party mode (4 players)

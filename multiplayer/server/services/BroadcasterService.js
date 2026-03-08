@@ -129,7 +129,14 @@ class BroadcasterService {
     );
 
     if (otherSockets.length > 0) {
-      console.log(`[Broadcaster] ${event} → game ${gameId} (${otherSockets.length} other player(s))`);
+      // Extract player info from data for logging
+      let playerInfo = '';
+      if (data?.playerIndex !== undefined) {
+        const pIdx = data.playerIndex;
+        const team = pIdx < 2 ? 'TeamA' : 'TeamB';
+        playerInfo = `[P${pIdx} ${team}]`;
+      }
+      console.log(`[Broadcaster] ${event} → game ${gameId} (${otherSockets.length} other player(s)) ${playerInfo}`);
       otherSockets.forEach((otherSocket) => {
         otherSocket.emit(event, data);
       });

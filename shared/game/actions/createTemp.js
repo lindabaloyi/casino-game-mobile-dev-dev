@@ -80,16 +80,10 @@ function createTemp(state, payload, playerIndex) {
   );
   
   if (newTargetIdx === -1) {
-    console.log(`[createTemp] Target card not found on table, returning original state`);
     return state;
   }
   
   const [tableCard] = newState.tableCards.splice(newTargetIdx, 1);
-  
-  if (!tableCard || tableCard.value === undefined) {
-    console.log(`[createTemp] Table card missing value property:`, tableCard);
-    return state;
-  }
 
   const [bottom, top] = firstCard.value >= tableCard.value
     ? [{ ...firstCard, source: firstSource }, { ...tableCard, source: 'table' }]
@@ -111,8 +105,6 @@ function createTemp(state, payload, playerIndex) {
     buildType = 'diff';
   }
 
-  console.log(`[createTemp] buildType: ${buildType}, totalSum: ${totalSum}, base: ${base}, need: ${need}`);
-
   newState.tableCards.splice(insertIdx, 0, {
     type: 'temp_stack',
     stackId: generateStackId(newState, 'temp', playerIndex),
@@ -124,14 +116,9 @@ function createTemp(state, payload, playerIndex) {
     buildType: buildType,
   });
 
-  // Debug: Show what hasBase will be set to when temp is accepted
-  const willBeHasBase = (buildType === 'diff');
-  console.log(`[createTemp] Temp stack created - hasBase will be: ${willBeHasBase} (buildType === 'diff' is ${willBeHasBase})`);
-
   // Mark turn as started and action triggered (but NOT ended - player can continue)
   startPlayerTurn(newState, playerIndex);
   triggerAction(newState, playerIndex);
-  // Do NOT set turnEnded - player can continue with more actions
   
   return newState;
 }

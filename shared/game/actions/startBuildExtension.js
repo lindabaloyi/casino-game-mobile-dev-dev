@@ -1,9 +1,15 @@
 /**
  * startBuildExtension
- * Player starts extending their own build by locking a card to it.
+ * Player starts extending their own (or teammate's) build by locking a card to it.
  */
 
 const { cloneState } = require('../');
+
+// Helper to check if two players are teammates in a 4‑player game
+function areTeammates(playerA, playerB) {
+  // Players 0,1 = Team A ; Players 2,3 = Team B
+  return (playerA < 2 && playerB < 2) || (playerA >= 2 && playerB >= 2);
+}
 
 function startBuildExtension(state, payload, playerIndex) {
   const { stackId, card, cardSource = 'table' } = payload;
@@ -16,6 +22,7 @@ function startBuildExtension(state, payload, playerIndex) {
   }
 
   const newState = cloneState(state);
+  const isPartyMode = newState.playerCount === 4; // or use newState.mode === 'party'
 
   // Find the build stack
   const stackIdx = newState.tableCards.findIndex(
@@ -26,10 +33,20 @@ function startBuildExtension(state, payload, playerIndex) {
   }
 
   const buildStack = newState.tableCards[stackIdx];
+  const owner = buildStack.owner;
 
-  // Validate ownership
-  if (buildStack.owner !== playerIndex) {
-    throw new Error('startBuildExtension: only owner can extend their build');
+  // Validate permission to extend
+  let allowed = false;
+  if (isPartyMode) {
+    // Teammates can extend each other's builds
+    allowed = areTeammates(owner, playerIndex);
+  } else {
+    // Duel mode: only the owner can extend
+    allowed = owner === playerIndex;
+  }
+
+  if (!allowed) {
+    throw new Error('startBuildExtension: not authorized to extend this build');
   }
 
   // Remove card from its source
@@ -57,32 +74,69 @@ function startBuildExtension(state, payload, playerIndex) {
     playerHand.splice(handIdx, 1);
     
   } else if (cardSource === 'captured') {
-    // Check player's own captures first, then opponent's captures
-    // (allows using cards from opponent's capture pile when extending build)
-    let playerCaptures = newState.players[playerIndex].captures;
-    let captureIdx = playerCaptures.findIndex(
+    // Search for the card in captures (own first, then teammates if party, then opponents)
+    let capturedCard = null;
+    let sourcePlayer = null;
+
+    // Search own captures
+    let captureIdx = newState.players[playerIndex].captures.findIndex(
       c => String(c.rank).toLowerCase() === String(card.rank).toLowerCase() && 
            String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),
     );
-    
-    // If not found in player's captures, check opponent's captures
-    if (captureIdx === -1) {
-      const opponentIndex = playerIndex === 0 ? 1 : 0;
-      const opponentCaptures = newState.players[opponentIndex].captures;
-      captureIdx = opponentCaptures.findIndex(
-        c => String(c.rank).toLowerCase() === String(card.rank).toLowerCase() && 
-             String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),
+    if (captureIdx !== -1) {
+      capturedCard = newState.players[playerIndex].captures[captureIdx];
+      sourcePlayer = playerIndex;
+    }
+
+    // If not found and in party mode, search teammates' captures
+    if (!capturedCard && isPartyMode) {
+      const teammates = [0, 1, 2, 3].filter(idx => 
+        idx !== playerIndex && areTeammates(playerIndex, idx)
       );
-      if (captureIdx !== -1) {
-        playerCaptures = opponentCaptures;
+      for (const tIdx of teammates) {
+        captureIdx = newState.players[tIdx].captures.findIndex(
+          c => String(c.rank).toLowerCase() === String(card.rank).toLowerCase() && 
+               String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),
+        );
+        if (captureIdx !== -1) {
+          capturedCard = newState.players[tIdx].captures[captureIdx];
+          sourcePlayer = tIdx;
+          break;
+        }
       }
     }
-    
-    if (captureIdx === -1) {
-      throw new Error(`startBuildExtension: card ${card.rank}${card.suit} not in player's or opponent's captures`);
+
+    // If still not found, search opponents' captures (any player not on same team)
+    if (!capturedCard) {
+      const opponents = [0, 1, 2, 3].filter(idx => 
+        !areTeammates(playerIndex, idx)
+      );
+      for (const oIdx of opponents) {
+        captureIdx = newState.players[oIdx].captures.findIndex(
+          c => String(c.rank).toLowerCase() === String(card.rank).toLowerCase() && 
+               String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),
+        );
+        if (captureIdx !== -1) {
+          capturedCard = newState.players[oIdx].captures[captureIdx];
+          sourcePlayer = oIdx;
+          break;
+        }
+      }
     }
-    usedCard = { ...playerCaptures[captureIdx], source: 'captured' };
-    playerCaptures.splice(captureIdx, 1);
+
+    if (!capturedCard) {
+      throw new Error(`startBuildExtension: card ${card.rank}${card.suit} not found in any capture pile`);
+    }
+
+    // Remove the card from the source player's captures
+    const sourceCaptures = newState.players[sourcePlayer].captures;
+    const srcIdx = sourceCaptures.findIndex(
+      c => String(c.rank).toLowerCase() === String(card.rank).toLowerCase() && 
+           String(c.suit).toLowerCase() === String(card.suit).toLowerCase(),
+    );
+    usedCard = { ...sourceCaptures[srcIdx], source: 'captured', originalOwner: sourcePlayer };
+    sourceCaptures.splice(srcIdx, 1);
+    
   } else {
     throw new Error(`startBuildExtension: unknown cardSource "${cardSource}"`);
   }

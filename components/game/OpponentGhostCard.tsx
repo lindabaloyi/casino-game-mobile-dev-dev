@@ -62,16 +62,11 @@ export function OpponentGhostCard({
   const isFinalPosition = useRef(false);
 
   useEffect(() => {
-    console.log('[OpponentGhostCard] Position updated:', position);
-    console.log('[OpponentGhostCard] Target info:', { targetType, targetId });
-    console.log('[OpponentGhostCard] Table bounds:', tableBounds);
-    
     // Get actual bounds being used (handles fallback case)
     const bounds = {
       width: tableBounds.width > 0 ? tableBounds.width : 400,
       height: tableBounds.height > 0 ? tableBounds.height : 300,
     };
-    console.log('[OpponentGhostCard] Using bounds for denorm:', bounds);
     
     // Determine display position with target snapping
     let displayPosition = position;
@@ -100,7 +95,6 @@ export function OpponentGhostCard({
 
     // Convert to absolute coordinates
     const absPos = denormalizePosition(displayPosition.x, displayPosition.y, bounds);
-    console.log('[OpponentGhostCard] Normalized:', displayPosition, '→ Absolute:', absPos);
 
     // Animate to new position
     if (isFinalPosition.current) {

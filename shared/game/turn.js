@@ -34,7 +34,6 @@ function createRoundPlayers(playerCount) {
 function startPlayerTurn(state, playerIndex) {
   if (!state.roundPlayers) {
     state.roundPlayers = createRoundPlayers(state.playerCount || state.players.length);
-    console.log(`[turn] Created roundPlayers for ${state.playerCount || state.players.length} players`);
   }
   if (!state.roundPlayers[playerIndex]) {
     state.roundPlayers[playerIndex] = {
@@ -45,9 +44,7 @@ function startPlayerTurn(state, playerIndex) {
       actionCompleted: false,
     };
   }
-  const wasStarted = state.roundPlayers[playerIndex].turnStarted;
   state.roundPlayers[playerIndex].turnStarted = true;
-  console.log(`[turn] startPlayerTurn: player ${playerIndex}, turnStarted: ${wasStarted} -> true, turnCounter: ${state.turnCounter}, currentPlayer: ${state.currentPlayer}`);
   return state;
 }
 
@@ -58,23 +55,19 @@ function startPlayerTurn(state, playerIndex) {
  * @returns {object} Updated state
  */
 function endPlayerTurn(state, playerIndex) {
-  if (state.roundPlayers && state.roundPlayers[playerIndex]) {
-    const wasEnded = state.roundPlayers[playerIndex].turnEnded;
-    state.roundPlayers[playerIndex].turnEnded = true;
-    console.log(`[turn] endPlayerTurn: player ${playerIndex}, turnEnded: ${wasEnded} -> true, turnCounter: ${state.turnCounter}`);
-  } else {
-    console.log(`[turn] endPlayerTurn: WARNING - no roundPlayers[${playerIndex}], creating...`);
-    if (!state.roundPlayers) {
-      state.roundPlayers = createRoundPlayers(state.playerCount || state.players.length);
-    }
+  if (!state.roundPlayers) {
+    state.roundPlayers = createRoundPlayers(state.playerCount || state.players.length);
+  }
+  if (!state.roundPlayers[playerIndex]) {
     state.roundPlayers[playerIndex] = {
       playerId: playerIndex,
       turnStarted: false,
-      turnEnded: true,
+      turnEnded: false,
       actionTriggered: false,
       actionCompleted: false,
     };
   }
+  state.roundPlayers[playerIndex].turnEnded = true;
   return state;
 }
 
@@ -87,7 +80,6 @@ function endPlayerTurn(state, playerIndex) {
 function triggerAction(state, playerIndex) {
   if (!state.roundPlayers) {
     state.roundPlayers = createRoundPlayers(state.playerCount || state.players.length);
-    console.log(`[turn] triggerAction: Created roundPlayers for ${state.playerCount || state.players.length} players`);
   }
   if (!state.roundPlayers[playerIndex]) {
     state.roundPlayers[playerIndex] = {
@@ -98,11 +90,8 @@ function triggerAction(state, playerIndex) {
       actionCompleted: false,
     };
   }
-  const wasTriggered = state.roundPlayers[playerIndex].actionTriggered;
-  const wasCompleted = state.roundPlayers[playerIndex].actionCompleted;
   state.roundPlayers[playerIndex].actionTriggered = true;
   state.roundPlayers[playerIndex].actionCompleted = true;
-  console.log(`[turn] triggerAction: player ${playerIndex}, actionTriggered: ${wasTriggered} -> true, actionCompleted: ${wasCompleted} -> true, turnCounter: ${state.turnCounter}`);
   return state;
 }
 
@@ -113,24 +102,14 @@ function triggerAction(state, playerIndex) {
  */
 function allPlayersTurnEnded(state) {
   if (!state.roundPlayers) {
-    console.log(`[turn] allPlayersTurnEnded: roundPlayers is undefined, returning false`);
     return false;
   }
   const playerIds = Object.keys(state.roundPlayers);
   if (playerIds.length === 0) {
-    console.log(`[turn] allPlayersTurnEnded: no players in roundPlayers, returning false`);
     return false;
   }
 
-  // Log each player's status
-  const statusSummary = playerIds.map(id => {
-    const p = state.roundPlayers[id];
-    return `${id}:started=${p.turnStarted},ended=${p.turnEnded},triggered=${p.actionTriggered},completed=${p.actionCompleted}`;
-  }).join('; ');
-  console.log(`[turn] allPlayersTurnEnded: player status: [${statusSummary}]`);
-
   const allEnded = playerIds.every(id => state.roundPlayers[id].turnEnded === true);
-  console.log(`[turn] allPlayersTurnEnded: result = ${allEnded}, turnCounter: ${state.turnCounter}, round: ${state.round}`);
   return allEnded;
 }
 
@@ -153,14 +132,10 @@ function forceEndTurn(state, playerIndex) {
       actionCompleted: false,
     };
   }
-  // Mark as started if not already
   state.roundPlayers[playerIndex].turnStarted = true;
-  // Mark as having taken an action (default/fold)
   state.roundPlayers[playerIndex].actionTriggered = true;
   state.roundPlayers[playerIndex].actionCompleted = true;
-  // Mark turn as ended
   state.roundPlayers[playerIndex].turnEnded = true;
-  console.log(`[turn] Force ended turn for player ${playerIndex}`);
   return state;
 }
 
@@ -181,7 +156,6 @@ function resetRoundPlayers(state) {
  */
 function resetTurnFlags(state) {
   if (!state.roundPlayers) {
-    console.log(`[turn] resetTurnFlags: no roundPlayers, creating...`);
     state.roundPlayers = createRoundPlayers(state.playerCount || state.players.length);
     return state;
   }
@@ -191,10 +165,8 @@ function resetTurnFlags(state) {
     if (state.roundPlayers[i]) {
       state.roundPlayers[i].turnStarted = false;
       state.roundPlayers[i].turnEnded = false;
-      // actionTriggered and actionCompleted stay as they were (for scoring)
     }
   }
-  console.log(`[turn] resetTurnFlags: reset turn flags for ${playerCount} players`);
   return state;
 }
 
@@ -257,14 +229,12 @@ function skipDisconnectedPlayer(state, disconnectedPlayerIndex) {
     nextPlayer = (disconnectedPlayerIndex + 1) % totalPlayers;
   }
   
-  // Mark the disconnected player's turn as skipped
   if (state.roundPlayers && state.roundPlayers[disconnectedPlayerIndex]) {
     state.roundPlayers[disconnectedPlayerIndex].turnSkipped = true;
     state.roundPlayers[disconnectedPlayerIndex].turnEnded = true;
   }
   
   state.currentPlayer = nextPlayer;
-  console.log(`[turn] skipDisconnectedPlayer: skipped player ${disconnectedPlayerIndex}, now Player ${nextPlayer}'s turn`);
   
   return state;
 }
@@ -285,15 +255,9 @@ function nextTurn(state) {
   // Use party turn order for 4-player games
   if (isPartyGame(totalPlayers)) {
     newPlayer = getNextPartyPlayer(oldPlayer);
-    console.log(`[turn] nextTurn: Party mode - Player ${oldPlayer} → Player ${newPlayer}`);
   } else {
-    // Standard sequential order for 2-player games
     newPlayer = (state.currentPlayer + 1) % totalPlayers;
   }
-
-  // Log current state before advancing
-  const oldStatus = state.roundPlayers ? Object.entries(state.roundPlayers).map(([id, p]) => `${id}:ended=${p.turnEnded}`).join('; ') : 'no roundPlayers';
-  console.log(`[turn] nextTurn: BEFORE - currentPlayer=${oldPlayer} -> ${newPlayer}, turnCounter=${state.turnCounter}, players status: [${oldStatus}]`);
 
   state.currentPlayer = newPlayer;
 
@@ -303,10 +267,6 @@ function nextTurn(state) {
   } else {
     state.turnCounter = 1;
   }
-
-  // Log new state after advancing
-  const newStatus = state.roundPlayers ? Object.entries(state.roundPlayers).map(([id, p]) => `${id}:ended=${p.turnEnded}`).join('; ') : 'no roundPlayers';
-  console.log(`[turn] nextTurn: AFTER - newPlayer=${newPlayer}, newTurnCounter=${state.turnCounter}, players status: [${newStatus}]`);
 
   return state;
 }

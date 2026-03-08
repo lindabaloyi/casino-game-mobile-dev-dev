@@ -5,6 +5,12 @@
 
 const { cloneState } = require('../');
 
+// Helper to check if two players are teammates in a 4‑player game
+function areTeammates(playerA, playerB) {
+  // Players 0,1 = Team A ; Players 2,3 = Team B
+  return (playerA < 2 && playerB < 2) || (playerA >= 2 && playerB >= 2);
+}
+
 function declineBuildExtension(state, payload, playerIndex) {
   const { stackId } = payload;
 
@@ -23,7 +29,20 @@ function declineBuildExtension(state, payload, playerIndex) {
 
   const buildStack = newState.tableCards[stackIdx];
 
-  if (buildStack.owner !== playerIndex) {
+  const isPartyMode = newState.playerCount === 4;
+  const owner = buildStack.owner;
+
+  // Validate permission to decline extension
+  let allowed = false;
+  if (isPartyMode) {
+    // Teammates can decline each other's build extensions
+    allowed = areTeammates(owner, playerIndex);
+  } else {
+    // Duel mode: only the owner can decline
+    allowed = owner === playerIndex;
+  }
+
+  if (!allowed) {
     throw new Error('declineBuildExtension: only owner can decline their build extension');
   }
 

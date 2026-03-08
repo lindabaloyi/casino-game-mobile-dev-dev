@@ -5,6 +5,12 @@
 
 const { cloneState } = require('../');
 
+// Helper to check if two players are teammates in a 4‑player game
+function areTeammates(playerA, playerB) {
+  // Players 0,1 = Team A ; Players 2,3 = Team B
+  return (playerA < 2 && playerB < 2) || (playerA >= 2 && playerB >= 2);
+}
+
 function addToPendingExtension(state, payload, playerIndex) {
   const { stackId, card, cardSource } = payload;
 
@@ -30,8 +36,20 @@ function addToPendingExtension(state, payload, playerIndex) {
 
   const buildStack = newState.tableCards[stackIdx];
 
-  // Validate ownership
-  if (buildStack.owner !== playerIndex) {
+  const isPartyMode = newState.playerCount === 4;
+  const owner = buildStack.owner;
+
+  // Validate permission to extend
+  let allowed = false;
+  if (isPartyMode) {
+    // Teammates can extend each other's builds
+    allowed = areTeammates(owner, playerIndex);
+  } else {
+    // Duel mode: only the owner can extend
+    allowed = owner === playerIndex;
+  }
+
+  if (!allowed) {
     throw new Error('addToPendingExtension: only owner can extend their build');
   }
 
