@@ -8,7 +8,7 @@
  * - Shows build value with need indicator
  */
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
@@ -16,6 +16,7 @@ import { PlayingCard } from '../cards/PlayingCard';
 import { TempStack } from './types';
 import { TempStackBounds, CapturePileBounds } from '../../hooks/useDrag';
 import { getStackConfig } from '../../constants/stackActions';
+import { getBuildHint } from '../../utils/buildCalculator';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -77,9 +78,33 @@ export function TempStackView({
   const bottom = stack.cards[0];
   const top    = stack.cards[stack.cards.length - 1];
 
-  // Use server-provided values (value and need)
-  const displayValue = stack.need > 0 ? `-${stack.need}` : stack.value?.toString() ?? '-';
-  const badgeColor = stack.need > 0 ? '#E53935' : '#9C27B0'; // Red for incomplete, Purple for complete
+  // Compute build hint dynamically from card values
+  const hint = useMemo(() => {
+    if (!stack.cards || stack.cards.length < 2) return null;
+    const values = stack.cards.map(c => c.value);
+    return getBuildHint(values);
+  }, [stack.cards]);
+
+  // Determine display value and badge color
+  // Priority: computed hint > server-provided values
+  let displayValue: string;
+  let badgeColor: string;
+  
+  if (hint) {
+    if (hint.need === 0) {
+      // Complete stack - show target value with purple badge
+      displayValue = hint.value.toString();
+      badgeColor = '#9C27B0'; // Purple for complete
+    } else {
+      // Incomplete stack - show needed value with red badge
+      displayValue = `-${hint.need}`;
+      badgeColor = '#E53935'; // Red for incomplete
+    }
+  } else {
+    // Fallback to server-provided values
+    displayValue = stack.need > 0 ? `-${stack.need}` : stack.value?.toString() ?? '-';
+    badgeColor = stack.need > 0 ? '#E53935' : '#9C27B0';
+  }
 
   // ── Position registration ─────────────────────────────────────────────────
   const onLayout = useCallback(() => {
