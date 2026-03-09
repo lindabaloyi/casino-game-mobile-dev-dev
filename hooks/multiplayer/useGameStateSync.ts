@@ -8,12 +8,13 @@
  *  - Manage local game state
  *  - Handle player disconnection
  *  - Expose game actions
+ *  - Validate card inventory to detect desync
  * 
  * Usage:
  *   const { gameState, gameOverData, playerNumber, sendAction, requestSync } = useGameStateSync(socket);
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -80,6 +81,56 @@ export interface UseGameStateSyncResult {
   clearError: () => void;
 }
 
+// ── Card Count Validation Helper ──────────────────────────────────────────────
+
+/**
+ * Count all cards in the game state
+ * Returns breakdown for debugging
+ */
+function countAllCards(state: GameState): { total: number; breakdown: Record<string, number> } {
+  const breakdown: Record<string, number> = {};
+  
+  // Count deck
+  breakdown.deck = state.deck?.length ?? 0;
+  
+  // Count each player's hand
+  state.players?.forEach((player, idx) => {
+    breakdown[`player${idx}_hand`] = player.hand?.length ?? 0;
+    breakdown[`player${idx}_captures`] = player.captures?.length ?? 0;
+  });
+  
+  // Count table cards (loose cards only, not stacks)
+  const looseCards = state.tableCards?.filter((tc: any) => !tc.type) ?? [];
+  breakdown.looseCards = looseCards.length;
+  
+  // Count cards in temp stacks
+  const tempStackCards = state.tableCards
+    ?.filter((tc: any) => tc.type === 'temp_stack' && tc.cards)
+    .flatMap((tc: any) => tc.cards) ?? [];
+  breakdown.tempStackCards = tempStackCards.length;
+  
+  // Count cards in build stacks
+  const buildStackCards = state.tableCards
+    ?.filter((tc: any) => tc.type === 'build_stack' && tc.cards)
+    .flatMap((tc: any) => tc.cards) ?? [];
+  breakdown.buildStackCards = buildStackCards.length;
+  
+  // Total
+  const total = Object.values(breakdown).reduce((sum, val) => sum + val, 0);
+  
+  return { total, breakdown };
+}
+
+/**
+ * Validate card inventory - returns expected total based on player count
+ * Game uses 40 cards (reduced deck)
+ * 2 players: each gets 10 cards, 20 on table = 20 dealt + 20 table = 40
+ * 4 players: each gets 10 cards, 0 on table = 40 dealt + 0 table = 40
+ */
+function getExpectedCardTotal(playerCount: number): number {
+  return 40; // Reduced deck (40 cards)
+}
+
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult {
@@ -108,6 +159,54 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       socket.off('game-start', handleGameStart);
     };
   }, [socket]);
+
+  // ── Card Count Validation ───────────────────────────────────────────────────
+  // Validate card inventory on every state update to detect desync early
+  const prevCardCount = useRef<number>(0);
+  
+  useEffect(() => {
+    if (!gameState) return;
+    
+    const { total, breakdown } = countAllCards(gameState);
+    const expected = getExpectedCardTotal(gameState.playerCount);
+    
+    // Log card count on state change
+    console.log('[useGameStateSync] Card count:', {
+      expected,
+      actual: total,
+      breakdown,
+      round: gameState.round,
+      moveCount: gameState.moveCount
+    });
+    
+    // Check for unexpected changes
+    if (prevCardCount.current !== 0 && prevCardCount.current !== total) {
+      const diff = total - prevCardCount.current;
+      if (Math.abs(diff) > 1) {
+        // More than 1 card change is unexpected
+        console.error('[useGameStateSync] ⚠️ UNEXPECTED CARD COUNT CHANGE:', {
+          previous: prevCardCount.current,
+          current: total,
+          diff,
+          breakdown
+        });
+      }
+    }
+    
+    // Validate against expected total
+    if (total !== expected) {
+      console.error('[useGameStateSync] ⚠️ CARD COUNT MISMATCH:', {
+        expected,
+        actual: total,
+        diff: expected - total,
+        breakdown
+      });
+      // Note: We don't auto-request sync here as it could cause loops
+      // The server will validate and reject invalid actions
+    }
+    
+    prevCardCount.current = total;
+  }, [gameState]);
 
   // Handle game-update event
   useEffect(() => {
