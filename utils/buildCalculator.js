@@ -1,9 +1,15 @@
 /**
  * Build Calculator Utilities
  * 
- * Provides functions to calculate build hints for incomplete stacks.
- * Helps players understand what card is needed to complete a build.
+ * Client-side build calculator. This re-exports functions from shared/game/buildCalculator
+ * for client-side use in components like TempStackView.
+ * 
+ * Note: For server-side validation, use shared/game/buildCalculator directly.
  */
+
+// Re-export all functions from shared build calculator
+// These are duplicated here for client-side use since we can't easily import
+// from the shared folder in React Native components
 
 /**
  * Counts bits in a mask (helper for subset iteration).
@@ -30,13 +36,13 @@ function bitCount(mask) {
  * @returns {number|null} Build target if legal, null otherwise
  */
 function getBuildTargetForSubset(subsetValues) {
+  if (!subsetValues || subsetValues.length === 0) return null;
+  
   const total = subsetValues.reduce((a, b) => a + b, 0);
   
   if (total <= 10) {
-    // Sum build: target = total
     return total;
   } else {
-    // Difference build: target = largest card
     const max = Math.max(...subsetValues);
     const otherSum = total - max;
     if (max - otherSum >= 0) {
@@ -47,35 +53,28 @@ function getBuildTargetForSubset(subsetValues) {
 }
 
 /**
- * Checks if a complete set of cards can be partitioned into legal builds.
+ * Calculates the build value for a complete set of cards.
+ * Checks if the cards can be partitioned into valid multi-card builds.
  * 
  * @param {number[]} values - Array of card values
- * @returns {number|null} Build target if complete, null otherwise
+ * @returns {{ value: number, need: number, buildType: string }|null} Build info if valid, null otherwise
  */
-function calculateBuildValue(values) {
+function calculateMultiBuildValue(values) {
   const n = values.length;
   if (n < 2) return null;
   
-  // For a complete multi-build, we need to find if cards can be partitioned
-  // into valid builds. We try all possible partitions using bitmask.
-  
-  // First, check if the entire set forms a valid build
   const total = values.reduce((a, b) => a + b, 0);
   
-  // If total <= 10, it could be a single sum build
   if (total <= 10) {
-    return total;
+    return { value: total, need: 0, buildType: 'sum' };
   }
   
-  // Try to partition into multiple builds
-  // For simplicity, we check if we can partition into exactly 2 builds
   const maxMask = 1 << n;
   
   for (let mask = 1; mask < maxMask; mask++) {
     const size1 = bitCount(mask);
     if (size1 < 1 || size1 >= n) continue;
     
-    // Get values for first subset
     const subset1 = [];
     for (let i = 0; i < n; i++) {
       if (mask & (1 << i)) {
@@ -83,7 +82,6 @@ function calculateBuildValue(values) {
       }
     }
     
-    // Get values for second subset (complement)
     const subset2 = [];
     for (let i = 0; i < n; i++) {
       if (!(mask & (1 << i))) {
@@ -94,9 +92,8 @@ function calculateBuildValue(values) {
     const target1 = getBuildTargetForSubset(subset1);
     const target2 = getBuildTargetForSubset(subset2);
     
-    // Both subsets must form valid builds with the same target
     if (target1 !== null && target2 !== null && target1 === target2) {
-      return target1;
+      return { value: target1, need: 0, buildType: 'multi' };
     }
   }
   
@@ -117,18 +114,16 @@ export function getBuildHint(values) {
   if (n < 2) return null;
 
   // First check if the whole set is already a valid multi-build
-  const completeTarget = calculateBuildValue(values);
+  const completeTarget = calculateMultiBuildValue(values);
   if (completeTarget !== null) {
-    return { value: completeTarget, need: 0 };
+    return { value: completeTarget.value, need: 0 };
   }
 
   // Search for a subset (size >= 2) that forms a legal build and leaves exactly one card
-  // Iterate subsets in increasing order of size to get a deterministic "first"
   for (let size = 2; size <= n; size++) {
     for (let mask = 0; mask < (1 << n); mask++) {
       if (bitCount(mask) !== size) continue;
 
-      // Collect indices and values of the subset
       const subsetIndices = [];
       for (let i = 0; i < n; i++) {
         if (mask & (1 << i)) subsetIndices.push(i);
@@ -137,19 +132,18 @@ export function getBuildHint(values) {
       const target = getBuildTargetForSubset(subsetValues);
       if (target === null) continue;
 
-      // Check complement - should leave exactly one card
       const remainingIndices = Array.from({ length: n }, (_, i) => i).filter(i => !(mask & (1 << i)));
       if (remainingIndices.length === 1) {
         const remainingValue = values[remainingIndices[0]];
         const need = target - remainingValue;
-        if (need >= 1 && need <= 10) { // need must be a valid card value
+        if (need >= 1 && need <= 10) {
           return { value: target, need };
         }
       }
     }
   }
 
-  return null; // no hint found
+  return null;
 }
 
 export default getBuildHint;

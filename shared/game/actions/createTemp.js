@@ -5,6 +5,7 @@
  */
 
 const { cloneState, generateStackId, startPlayerTurn, triggerAction } = require('../');
+const { calculateBuildValue } = require('../buildCalculator');
 
 function createTemp(state, payload, playerIndex) {
   const { card, targetCard } = payload;
@@ -123,30 +124,20 @@ function createTemp(state, payload, playerIndex) {
     : [{ ...tableCard, source: 'table' }, { ...firstCard, source: firstSource }];
 
   const cards = [bottom, top];
-  const totalSum = cards.reduce((sum, c) => sum + c.value, 0);
   
-  let base, need, buildType;
-  if (totalSum <= 10) {
-    base = totalSum;
-    need = 0;
-    buildType = 'sum';
-  } else {
-    const sorted = [...cards].sort((a, b) => b.value - a.value);
-    base = sorted[0].value;
-    const otherSum = sorted.slice(1).reduce((sum, c) => sum + c.value, 0);
-    need = base - otherSum;
-    buildType = 'diff';
-  }
-
+  // Use the shared build calculator to compute value
+  const values = cards.map(c => c.value);
+  const buildInfo = calculateBuildValue(values);
+  
   newState.tableCards.splice(insertIdx, 0, {
     type: 'temp_stack',
     stackId: generateStackId(newState, 'temp', playerIndex),
     cards: [bottom, top],
     owner: playerIndex,
-    value: base,
-    base: base,
-    need: need,
-    buildType: buildType,
+    value: buildInfo.value,
+    base: buildInfo.value,
+    need: buildInfo.need,
+    buildType: buildInfo.buildType,
   });
 
   // Mark turn as started and action triggered (but NOT ended - player can continue)

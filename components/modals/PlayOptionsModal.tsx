@@ -6,10 +6,11 @@
  * Shows: Combined card preview with + indicator for card being added
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from '../../types';
+import { getBuildHint } from '../../utils/buildCalculator';
 
 interface PlayOptionsModalProps {
   visible: boolean;
@@ -26,40 +27,108 @@ export function PlayOptionsModal({
   onConfirm,
   onCancel,
 }: PlayOptionsModalProps) {
-  // Handle undefined cards gracefully
+  // Calculate card values first (for use in hooks)
+  const cardValues = cards?.map(c => c.value) ?? [];
+  const totalSum = cards?.reduce((sum, c) => sum + c.value, 0) ?? 0;
+  
+  // Get the hint for the current stack (what's needed to complete)
+  const hint = useMemo(() => getBuildHint(cardValues), [cardValues]);
+  
+  // Calculate all possible build values from the cards
+  const possibleBuildValues = useMemo(() => {
+    const values = new Set<number>();
+    
+    // Add total sum if <= 10 (sum build)
+    if (totalSum <= 10) {
+      values.add(totalSum);
+    }
+    
+    // Add hint value if complete (need === 0)
+    if (hint && hint.need === 0) {
+      values.add(hint.value);
+    }
+    
+    // Add the "need" value if there's an incomplete build
+    if (hint && hint.need > 0) {
+      values.add(hint.value);  // The target value
+      values.add(hint.need);  // The card value needed
+    }
+    
+    // Also check for single card values (same rank builds)
+    const allSameRank = cards && cards.length > 1 && cards.every(c => c.rank === cards[0].rank);
+    if (allSameRank && cardValues[0] <= 10) {
+      values.add(cardValues[0]);
+    }
+    
+    return Array.from(values).sort((a, b) => a - b);
+  }, [cardValues, hint, cards, totalSum]);
+  
+  // Determine the primary build display info
+  const buildInfo = useMemo(() => {
+    if (hint) {
+      if (hint.need === 0) {
+        return { 
+          display: `Complete: ${hint.value}`, 
+          subDisplay: `All cards form valid build(s)`,
+          isComplete: true 
+        };
+      } else {
+        return { 
+          display: `Build ${hint.value}`, 
+          subDisplay: `Need ${hint.need} to complete`,
+          isComplete: false 
+        };
+      }
+    }
+    
+    // Fallback to simple calculation
+    if (totalSum <= 10) {
+      return { 
+        display: `Total: ${totalSum}`, 
+        subDisplay: `Sum build`,
+        isComplete: true 
+      };
+    }
+    
+    // Diff build fallback
+    const sorted = [...(cards || [])].sort((a, b) => b.value - a.value);
+    const buildValue = sorted[0]?.value ?? 0;
+    return { 
+      display: `Base: ${buildValue}`, 
+      subDisplay: `Need ${totalSum - buildValue}`,
+      isComplete: false 
+    };
+  }, [hint, totalSum, cards]);
+  
+  // Check which build values have matching cards in hand
+  const matchingOptions = useMemo(() => {
+    return possibleBuildValues.filter(val => 
+      (playerHand ?? []).some(card => card.value === val)
+    );
+  }, [possibleBuildValues, playerHand]);
+  
+  // Determine build type for display
+  const buildType = totalSum <= 10 ? 'sum' : 'diff';
+  const sortedCards = [...(cards || [])].sort((a, b) => b.value - a.value);
+  const buildValue = sortedCards[0]?.value ?? 0;
+  
+  // Handle undefined cards gracefully - render nothing if no valid cards
   if (!cards || !Array.isArray(cards) || cards.length === 0) {
     return null;
   }
   
-  // Calculate available build options based on cards and player's hand
-  const totalSum = cards.reduce((sum, c) => sum + c.value, 0);
-  
-  let buildValue, buildType;
-  if (totalSum <= 10) {
-    // SUM BUILD: all cards add together
-    buildValue = totalSum;
-    buildType = 'sum';
-  } else {
-    // DIFF BUILD: largest is base
-    const sorted = [...cards].sort((a, b) => b.value - a.value);
-    const base = sorted[0].value;
-    const otherSum = sorted.slice(1).reduce((sum, c) => sum + c.value, 0);
-    const need = base - otherSum;
-    
-    buildValue = base;
-    buildType = need === 0 ? 'diff' : 'diff-incomplete';
-  }
-  
-  // Check: total sum
-  const hasTotalMatch = playerHand.some(c => c.value === totalSum);
-  
-  // Check: diff base value
-  const hasDiffMatch = buildType.startsWith('diff') && playerHand.some(c => c.value === buildValue);
-  
-  // Check for pairs
-  const allSameRank = cards.length > 1 && cards.every(c => c.rank === cards[0].rank);
-  const singleValue = allSameRank ? cards[0].value : null;
-  const hasSingleMatch = singleValue && playerHand.some(c => c.value === singleValue);
+  // Determine match status for UI
+  const hasTotalMatch = matchingOptions.includes(totalSum);
+  const hasDiffMatch = matchingOptions.includes(buildValue);
+  const hasSingleMatch = (() => {
+    const allSameRank = cards.length > 1 && cards.every(c => c.rank === cards[0].rank);
+    const singleValue = allSameRank ? cards[0].value : null;
+    return singleValue !== null && matchingOptions.includes(singleValue);
+  })();
+  const singleValue = (() => {
+    const allSameRank = cards.length > 1 && cards.every(c => c.rank === cards[0].rank);
+    return allSameRank ? cards[0].value : null;
+  })();
 
   return (
     <Modal

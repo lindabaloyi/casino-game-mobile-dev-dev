@@ -1,0 +1,215 @@
+/**
+ * Shared Build Calculator Utilities
+ * 
+ * Provides functions to calculate build values for multi-card stacks.
+ * Used by both server (for validation) and client (for UI hints).
+ */
+
+/**
+ * Counts bits in a mask (helper for subset iteration).
+ * @param {number} mask - Bitmask to count bits in
+ * @returns {number} Number of set bits
+ */
+function bitCount(mask) {
+  let count = 0;
+  while (mask) {
+    count += mask & 1;
+    mask >>= 1;
+  }
+  return count;
+}
+
+/**
+ * Returns the build target for a single subset if it forms a legal build.
+ * 
+ * Legal builds:
+ * - Sum build: target = sum of all cards (when sum <= 10)
+ * - Difference build: target = largest card, need = largest - (sum - largest)
+ * 
+ * @param {number[]} subsetValues - Array of card values
+ * @returns {number|null} Build target if legal, null otherwise
+ */
+function getBuildTargetForSubset(subsetValues) {
+  if (!subsetValues || subsetValues.length === 0) return null;
+  
+  const total = subsetValues.reduce((a, b) => a + b, 0);
+  
+  if (total <= 10) {
+    // Sum build: target = total
+    return total;
+  } else {
+    // Difference build: target = largest card
+    const max = Math.max(...subsetValues);
+    const otherSum = total - max;
+    if (max - otherSum >= 0) {
+      return max;
+    }
+  }
+  return null;
+}
+
+/**
+ * Calculates the build value for a complete set of cards.
+ * Checks if the cards can be partitioned into valid multi-card builds.
+ * 
+ * @param {number[]} values - Array of card values
+ * @returns {{ value: number, need: number, buildType: string }|null} Build info if valid, null otherwise
+ */
+function calculateMultiBuildValue(values) {
+  const n = values.length;
+  if (n < 2) return null;
+  
+  // First, check if the entire set forms a valid single build
+  const total = values.reduce((a, b) => a + b, 0);
+  
+  // If total <= 10, it could be a single sum build
+  if (total <= 10) {
+    return { value: total, need: 0, buildType: 'sum' };
+  }
+  
+  // Try to partition into multiple builds
+  // For n cards, we try partitions into 2, 3, ..., n-1 builds
+  const maxMask = 1 << n;
+  
+  // Try all possible partitions
+  for (let mask = 1; mask < maxMask; mask++) {
+    const size1 = bitCount(mask);
+    if (size1 < 1 || size1 >= n) continue;
+    
+    // Get values for first subset
+    const subset1 = [];
+    for (let i = 0; i < n; i++) {
+      if (mask & (1 << i)) {
+        subset1.push(values[i]);
+      }
+    }
+    
+    // Get values for second subset (complement)
+    const subset2 = [];
+    for (let i = 0; i < n; i++) {
+      if (!(mask & (1 << i))) {
+        subset2.push(values[i]);
+      }
+    }
+    
+    const target1 = getBuildTargetForSubset(subset1);
+    const target2 = getBuildTargetForSubset(subset2);
+    
+    // Both subsets must form valid builds with the same target
+    if (target1 !== null && target2 !== null && target1 === target2) {
+      return { value: target1, need: 0, buildType: 'multi' };
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Calculates the build value for a set of cards (including incomplete stacks).
+ * This is the main function used by the server to calculate stack values.
+ * 
+ * @param {number[]} values - Array of card values
+ * @returns {{ value: number, need: number, buildType: string }} Build info
+ */
+function calculateBuildValue(values) {
+  const n = values.length;
+  if (n < 1) {
+    return { value: 0, need: 0, buildType: 'none' };
+  }
+  
+  if (n === 1) {
+    return { value: values[0], need: 0, buildType: 'single' };
+  }
+  
+  // First try multi-build partition
+  const multiBuild = calculateMultiBuildValue(values);
+  if (multiBuild !== null) {
+    return multiBuild;
+  }
+  
+  // Fall back to simple 2-card logic for incomplete stacks
+  const total = values.reduce((a, b) => a + b, 0);
+  
+  if (total <= 10) {
+    return { value: total, need: 0, buildType: 'sum' };
+  }
+  
+  // Difference build
+  const sorted = [...values].sort((a, b) => b - a);
+  const base = sorted[0];
+  const otherSum = sorted.slice(1).reduce((sum, c) => sum + c, 0);
+  const need = base - otherSum;
+  
+  return { 
+    value: base, 
+    need: need > 0 ? need : 0, 
+    buildType: 'diff' 
+  };
+}
+
+/**
+ * Gets all possible capture values for a build (for validation).
+ * Returns values that can capture this build.
+ * 
+ * @param {number[]} values - Array of card values in the build
+ * @returns {number[]} Array of possible capture values
+ */
+function getPossibleCaptureValues(values) {
+  const buildInfo = calculateBuildValue(values);
+  if (!buildInfo) return [];
+  
+  const { value, need } = buildInfo;
+  const possibleValues = [value];
+  
+  // If there's a need, the card that satisfies need can also capture
+  if (need > 0) {
+    possibleValues.push(need);
+  }
+  
+  // For multi-builds, also consider the need for each partition
+  if (buildInfo.buildType === 'multi') {
+    // For a multi-build like [5,2,4,3] = 7+7, you can capture with 7
+    // Also check if there's a need based on subsets
+    const n = values.length;
+    const maxMask = 1 << n;
+    
+    for (let mask = 1; mask < maxMask; mask++) {
+      const size = bitCount(mask);
+      if (size < 2 || size >= n) continue;
+      
+      const subset = [];
+      for (let i = 0; i < n; i++) {
+        if (mask & (1 << i)) {
+          subset.push(values[i]);
+        }
+      }
+      
+      const target = getBuildTargetForSubset(subset);
+      if (target !== null) {
+        possibleValues.push(target);
+      }
+    }
+  }
+  
+  return [...new Set(possibleValues)].sort((a, b) => a - b);
+}
+
+/**
+ * Checks if a card can capture a build.
+ * 
+ * @param {number} cardValue - Value of the playing card
+ * @param {number[]} buildValues - Values of cards in the build
+ * @returns {boolean} True if the card can capture
+ */
+function canCaptureBuild(cardValue, buildValues) {
+  const possibleValues = getPossibleCaptureValues(buildValues);
+  return possibleValues.includes(cardValue);
+}
+
+module.exports = {
+  calculateBuildValue,
+  calculateMultiBuildValue,
+  getBuildTargetForSubset,
+  getPossibleCaptureValues,
+  canCaptureBuild,
+};

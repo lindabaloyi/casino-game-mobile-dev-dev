@@ -11,6 +11,7 @@ const CaptureRouter = require('./CaptureRouter');
 const ExtendRouter = require('./ExtendRouter');
 const LooseCardRouter = require('./LooseCardRouter');
 const { areTeammates } = require('../../team');
+const { canCaptureBuild, calculateBuildValue } = require('../../buildCalculator');
 
 class StackDropRouter {
   constructor() {
@@ -202,18 +203,9 @@ class StackDropRouter {
       const isOwner = stack.owner === playerIndex;
       
       if (isOwner && buildCards.length > 0) {
-        const allSameRank = buildCards.every(c => c.rank === buildCards[0].rank);
-        
-        if (allSameRank) {
-          const possibleValues = this.getPossibleCaptureValues(buildCards);
-          if (possibleValues.includes(card.value)) {
-            canCapture = true;
-          }
-        } else {
-          if (card.value === stack.value) {
-            canCapture = true;
-          }
-        }
+        // Use the shared build calculator for proper multi-card build validation
+        const buildValues = buildCards.map(c => c.value);
+        canCapture = canCaptureBuild(card.value, buildValues);
       }
 
       if (canCapture) {

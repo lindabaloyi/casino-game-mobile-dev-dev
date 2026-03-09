@@ -4,6 +4,7 @@
  */
 
 const { cloneState } = require('../');
+const { calculateBuildValue } = require('../buildCalculator');
 
 function addToTemp(state, payload, playerIndex) {
   const card = payload.card || payload.tableCard || payload.handCard;
@@ -107,24 +108,14 @@ function addToTemp(state, payload, playerIndex) {
 
   stack.cards.push({ ...card, source });
 
-  const totalSum = stack.cards.reduce((sum, c) => sum + c.value, 0);
+  // Use the shared build calculator to compute value for multi-card builds
+  const values = stack.cards.map(c => c.value);
+  const buildInfo = calculateBuildValue(values);
   
-  if (totalSum <= 10) {
-    stack.value = totalSum;
-    stack.base = totalSum;
-    stack.need = 0;
-    stack.buildType = 'sum';
-  } else {
-    const sorted = [...stack.cards].sort((a, b) => b.value - a.value);
-    const base = sorted[0].value;
-    const otherSum = sorted.slice(1).reduce((sum, c) => sum + c.value, 0);
-    const need = base - otherSum;
-    
-    stack.value = base;
-    stack.base = base;
-    stack.need = need;
-    stack.buildType = 'diff';
-  }
+  stack.value = buildInfo.value;
+  stack.base = buildInfo.value;
+  stack.need = buildInfo.need;
+  stack.buildType = buildInfo.buildType;
 
   return newState;
 }
