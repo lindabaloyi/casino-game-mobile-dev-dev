@@ -53,9 +53,9 @@ export function useActionHandlers(
     }
   }, [table, modals]);
 
-  const handleConfirmPlay = useCallback((buildValue: number) => {
+  const handleConfirmPlay = useCallback((buildValue: number, originalOwner?: number) => {
     if (modals.selectedTempStack) {
-      actions.acceptTemp(modals.selectedTempStack.stackId, buildValue);
+      actions.acceptTemp(modals.selectedTempStack.stackId, buildValue, originalOwner);
     }
     modals.closePlayModal();
   }, [modals, actions]);

@@ -18,7 +18,7 @@ interface PlayOptionsModalProps {
   playerHand: Card[];
   teamCapturedBuilds?: { 0: { value: number; originalOwner: number; capturedBy: number }[]; 1: { value: number; originalOwner: number; capturedBy: number }[] };
   playerNumber: number;
-  onConfirm: (buildValue: number) => void;
+  onConfirm: (buildValue: number, originalOwner?: number) => void;
   onCancel: () => void;
 }
 
@@ -232,7 +232,7 @@ export function PlayOptionsModal({
               <TouchableOpacity 
                 key={`team-${index}`}
                 style={[styles.optionButton, styles.teamOption]} 
-                onPress={() => onConfirm(build.value)}
+                onPress={() => onConfirm(build.value, build.originalOwner)}
               >
                 <Text style={styles.optionText}>Build {build.value} (Team Build)</Text>
               </TouchableOpacity>

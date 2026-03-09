@@ -6,7 +6,7 @@
 const { cloneState, nextTurn, generateStackId } = require('../');
 
 function acceptTemp(state, payload, playerIndex) {
-  const { stackId, buildValue } = payload;
+  const { stackId, buildValue, originalOwner } = payload;
 
   if (!stackId) throw new Error('acceptTemp: missing stackId');
 
@@ -73,6 +73,13 @@ function acceptTemp(state, payload, playerIndex) {
   stack.hasBase = (stack.buildType === 'diff');
   
   console.log(`[acceptTemp] AFTER: stack.buildType: ${stack.buildType}, hasBase: ${stack.hasBase} (buildType === 'diff' is ${stack.hasBase})`);
+  
+  // For cooperative rebuild: transfer ownership to original owner (the victim)
+  if (originalOwner !== undefined && originalOwner !== null) {
+    console.log(`[acceptTemp] Cooperative rebuild - setting owner to originalOwner: ${originalOwner}`);
+    stack.owner = originalOwner;
+    stack.previousOwner = playerIndex;  // Track who rebuilt it
+  }
   
   if (stack.stackId && stack.stackId.startsWith('temp')) {
     stack.stackId = stack.stackId.replace('temp', 'build');

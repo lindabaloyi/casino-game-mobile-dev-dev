@@ -24,10 +24,10 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
-  const acceptTemp = useCallback((stackId: string, buildValue: number) => {
+  const acceptTemp = useCallback((stackId: string, buildValue: number, originalOwner?: number) => {
     sendAction({ 
       type: 'acceptTemp', 
-      payload: { stackId, buildValue } as unknown as Record<string, unknown> 
+      payload: { stackId, buildValue, originalOwner } as unknown as Record<string, unknown> 
     });
   }, [sendAction]);
 
