@@ -14,7 +14,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { getTeamFromIndex, areTeammates, getPlayerPositionLabel } from '../../shared/game/team';
-import { getTeamColors, TEAM_A_COLORS, TEAM_B_COLORS, type TeamColors } from '../../constants/teamColors';
+import { getTeamColors, getPlayerColors, TEAM_A_COLORS, TEAM_B_COLORS, type TeamColors } from '../../constants/teamColors';
 
 // Team ID type
 type TeamId = 'A' | 'B';
@@ -51,7 +51,15 @@ export function TurnIndicator({
   const { text, colors, isCurrentPlayer } = useMemo(() => {
     const isMyTurn = currentPlayerIndex === playerIndex;
     const currentTeam = getTeamFromIndex(currentPlayerIndex) as TeamId;
-    const teamColors = currentTeam === 'A' ? TEAM_A_COLORS : TEAM_B_COLORS;
+    
+    // Get colors based on mode: party mode uses team colors, 2-player uses player colors
+    let teamColors: TeamColors;
+    if (isPartyMode) {
+      teamColors = currentTeam === 'A' ? TEAM_A_COLORS : TEAM_B_COLORS;
+    } else {
+      // 2-player mode: use player-specific colors (P1=blue, P2=green)
+      teamColors = getPlayerColors(currentPlayerIndex);
+    }
     
     let turnText: string;
     

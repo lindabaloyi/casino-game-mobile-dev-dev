@@ -28,7 +28,7 @@ import {
   getTeamColors as getTeamColorsFromConstants, 
   TEAM_A_COLORS,
   TEAM_B_COLORS,
-  NEUTRAL_COLORS,
+  getPlayerColors,
   type TeamId,
   type TeamColors 
 } from '../../constants/teamColors';
@@ -191,11 +191,11 @@ export function BuildStackView({
     let teamColors: TeamColors;
     
     if (isPartyMode) {
-      // Use team-specific colors
+      // Party mode (4-player): use team-specific colors
       teamColors = team === 'A' ? TEAM_A_COLORS : TEAM_B_COLORS;
     } else {
-      // Default neutral colors for non-party mode
-      teamColors = NEUTRAL_COLORS;
+      // 2-player mode: use player-specific colors (P1 = blue, P2 = green)
+      teamColors = getPlayerColors(stack.owner);
     }
     
     return { 
@@ -238,8 +238,8 @@ export function BuildStackView({
     : (stack.value?.toString() ?? '-');
   const badgeColor = getBadgeColor();
 
-  // Owner label color based on team
-  const ownerTextColor = isPartyMode ? colors.text : NEUTRAL_COLORS.text;
+  // Owner label color based on team/player
+  const ownerTextColor = isPartyMode ? colors.text : colors.text;
 
   // ── Position registration ─────────────────────────────────────────────────
   const onLayout = useCallback(() => {

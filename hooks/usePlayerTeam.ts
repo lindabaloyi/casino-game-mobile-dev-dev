@@ -6,7 +6,7 @@
 
 import { useMemo } from 'react';
 import { getTeamFromIndex, areTeammates } from '../shared/game/team';
-import { TEAM_A_COLORS, TEAM_B_COLORS, type TeamColors } from '../constants/teamColors';
+import { TEAM_A_COLORS, TEAM_B_COLORS, getPlayerColors, type TeamColors } from '../constants/teamColors';
 
 export function usePlayerTeam(playerNumber: number, playerCount: number) {
   const isPartyMode = playerCount === 4;
@@ -30,6 +30,11 @@ export function usePlayerTeam(playerNumber: number, playerCount: number) {
   };
 
   const getPlayerTeamColors = (idx: number): TeamColors => {
+    if (!isPartyMode) {
+      // 2-player mode: use player-specific colors (P1=blue, P2=green)
+      return getPlayerColors(idx);
+    }
+    // Party mode: use team colors
     const team = getTeamFromIndex(idx);
     return team === 'A' ? TEAM_A_COLORS : TEAM_B_COLORS;
   };

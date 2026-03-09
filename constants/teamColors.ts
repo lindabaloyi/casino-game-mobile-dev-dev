@@ -51,6 +51,42 @@ export function getTeamColors(teamId: 'A' | 'B'): TeamColors {
 }
 
 /**
+ * Player 1 colors - Orange theme for 2-player mode
+ * Distinct color to differentiate from Player 2 (matches Team A)
+ */
+export const PLAYER_1_COLORS: TeamColors = {
+  primary: '#FF9800',   // Orange
+  secondary: '#FFF3E0',
+  accent: '#E65100',
+  background: '#FFF3E0',
+  text: '#E65100',
+  border: '#FFB74D',
+};
+
+/**
+ * Player 2 colors - Purple theme for 2-player mode
+ * Distinct color to differentiate from Player 1 (matches Team B)
+ */
+export const PLAYER_2_COLORS: TeamColors = {
+  primary: '#9C27B0',   // Purple
+  secondary: '#F3E5F5',
+  accent: '#7B1FA2',
+  background: '#F3E5F5',
+  text: '#4A148C',
+  border: '#BA68C8',
+};
+
+/**
+ * Get player-specific colors for 2-player mode
+ * @param playerIndex - Player index (0 for P1, 1 for P2)
+ * @returns TeamColors object for the specified player
+ */
+export function getPlayerColors(playerIndex: number): TeamColors {
+  // For 2-player mode: player 0 = Player 1 (blue), player 1 = Player 2 (green)
+  return playerIndex === 0 ? PLAYER_1_COLORS : PLAYER_2_COLORS;
+}
+
+/**
  * Get the opposite team's colors
  * @param teamId - 'A' or 'B'
  * @returns TeamColors for the opposite team
