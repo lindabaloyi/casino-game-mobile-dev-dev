@@ -12,16 +12,6 @@ interface TableGridProps {
 export function TableGrid({ items, renderItem }: TableGridProps) {
   const { rowDistribution, ROW_GAP, CARD_GAP, CARD_HEIGHT, maxCardsPerRow, CARD_WIDTH } = useTableLayout(items.length);
   
-  // Debug: Log layout calculations
-  console.log('[TableGrid] Layout:', {
-    itemCount: items.length,
-    rowDistribution,
-    maxCardsPerRow,
-    CARD_WIDTH: CARD_WIDTH?.toFixed(1),
-    CARD_GAP: CARD_GAP?.toFixed(1),
-    CARD_HEIGHT: CARD_HEIGHT?.toFixed(1)
-  });
-  
   // Build rows based on distribution
   const rows = useMemo(() => {
     const result: TableItem[][] = [];

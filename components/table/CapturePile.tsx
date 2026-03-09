@@ -86,7 +86,6 @@ export function CapturePile({
     if (pileRef.current && registerCapturePile && !hasRegisteredRef.current) {
       const timeout = setTimeout(() => {
         pileRef.current?.measureInWindow((x, y, width, height) => {
-          console.log('[CapturePile] Registering pile bounds:', { x, y, width, height, playerIndex });
           registerCapturePile({ x, y, width, height, playerIndex });
           hasRegisteredRef.current = true;
         });
@@ -106,7 +105,6 @@ export function CapturePile({
 
   // Internal drag handlers
   const handleDragStart = useCallback((card: Card, x: number, y: number) => {
-    console.log('[CapturePile] Drag started:', card, 'at', x, y);
     onDragStart?.(card, x, y);
   }, [onDragStart]);
 

@@ -60,17 +60,14 @@ export function TableItemRenderer(props: TableItemRendererProps) {
     : {};
   
   if (isLooseCard(item)) {
-    console.log(`[TableItemRenderer] Rendering LooseCard: ${item.rank}${item.suit}`);
     return <LooseCardItem card={item} isHidden={isHidden} tableVersion={tableVersion} {...rest} />;
   }
   
   if (isTempStack(item)) {
-    console.log(`[TableItemRenderer] Rendering TempStack: ${item.stackId}, owner: ${item.owner}, has onDropToCapture: ${!!onDropToCapture}`);
     return <TempStackItem stack={item} tableVersion={tableVersion} {...tempStackProps} {...rest} />;
   }
   
   if (isBuildStack(item)) {
-    console.log(`[TableItemRenderer] Rendering BuildStack: ${item.stackId}, owner: ${item.owner}, pendingExt: ${!!item.pendingExtension}`);
     return <BuildStackItem 
       stack={item} 
       tableVersion={tableVersion} 

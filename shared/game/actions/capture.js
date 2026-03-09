@@ -86,6 +86,47 @@ function capture(state, payload, playerIndex) {
         throw new Error(`capture: card value ${capturingCard.value} does not match build value ${buildStack.value}`);
       }
     }
+    
+    // Track captured teammate builds for cooperative rebuild in party mode
+    // Only track build_stack captures by opponents
+    const isPartyMode = state.playerCount === 4;
+    console.log(`[capture] Build capture tracking - isPartyMode: ${isPartyMode}, playerCount: ${state.playerCount}, stackType: ${buildStack?.type}, stackOwner: ${buildStack?.owner}, playerIndex: ${playerIndex}`);
+    
+    if (isPartyMode && buildStack && buildStack.type === 'build_stack') {
+      const stackOwner = buildStack.owner;
+      console.log(`[capture] Checking build stack - owner: ${stackOwner}, value: ${buildStack.value}`);
+      
+      if (stackOwner !== undefined && stackOwner !== null) {
+        const stackOwnerTeam = stackOwner < 2 ? 0 : 1;
+        const capturingPlayerTeam = playerIndex < 2 ? 0 : 1;
+        console.log(`[capture] Team check - stackOwnerTeam: ${stackOwnerTeam}, capturingPlayerTeam: ${capturingPlayerTeam}, different: ${stackOwnerTeam !== capturingPlayerTeam}`);
+        
+        // Only track if the capturing player is on a DIFFERENT team (opponent captured it)
+        if (stackOwnerTeam !== capturingPlayerTeam) {
+          // Ensure teamCapturedBuilds exists
+          if (!newState.teamCapturedBuilds) {
+            newState.teamCapturedBuilds = { 0: [], 1: [] };
+            console.log(`[capture] Created teamCapturedBuilds in newState`);
+          }
+          
+          // Add entry to the stack owner's team array
+          newState.teamCapturedBuilds[stackOwnerTeam].push({
+            value: buildStack.value,
+            originalOwner: stackOwner
+          });
+          
+          console.log(`[capture] ✅ Tracked captured build: value=${buildStack.value}, originalOwner=${stackOwner}, team=${stackOwnerTeam}`);
+          console.log(`[capture] Current teamCapturedBuilds:`, JSON.stringify(newState.teamCapturedBuilds));
+        } else {
+          console.log(`[capture] ⏭️ Skipped tracking - same team (playerIndex: ${playerIndex}, stackOwner: ${stackOwner})`);
+        }
+      } else {
+        console.log(`[capture] ⏭️ Skipped tracking - no stack owner`);
+      }
+    } else {
+      console.log(`[capture] ⏭️ Skipped tracking - not party mode or not build_stack`);
+    }
+    
     newState.tableCards.splice(stackIdx, 1);
     capturedCards.push(...buildStack.cards);
   } else {

@@ -129,7 +129,7 @@ export default function PartyGameScreen() {
   // Show game over - just continue showing the game board
   // The round end modal will handle displaying final scores
   if (gameState.gameOver) {
-    console.log('[PartyGame] Game over - showing final state');
+    // Game over - showing final state
   }
 
   // Handle null playerNumber for rendering
@@ -154,7 +154,6 @@ export default function PartyGameScreen() {
         sendAction={sendAction}
         startNextRound={startNextRound}
         onRestart={() => {
-          console.log('[PartyGame] Restart');
           requestSync();
         }}
         onBackToMenu={() => router.replace('/' as any)}

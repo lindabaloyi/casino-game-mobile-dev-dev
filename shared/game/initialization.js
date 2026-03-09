@@ -51,6 +51,8 @@ function initializeGame(playerCount = 2) {
     roundPlayers,
     // Track last capture for end-of-game cleanup
     lastCapturePlayer: null,
+    // Track captured teammate builds for cooperative rebuild in party mode
+    teamCapturedBuilds: { 0: [], 1: [] },
   };
 
   // Validate card distribution
@@ -144,6 +146,8 @@ function initializeTestGame(playerCount = 2) {
     roundPlayers,
     // Track last capture for end-of-game cleanup
     lastCapturePlayer: null,
+    // Track captured teammate builds for cooperative rebuild in party mode
+    teamCapturedBuilds: { 0: [], 1: [] },
   };
 }
 

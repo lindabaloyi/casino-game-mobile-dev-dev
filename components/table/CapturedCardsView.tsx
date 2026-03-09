@@ -126,7 +126,6 @@ export function CapturedCardsView({
     if (idx === playerNumber) return false; // Can't drag own cards
     if (finalIsPartyMode && idx === teammateIndex) return false; // Can't drag teammate's cards in party mode
     // All other players (opponents) are draggable
-    console.log('[CapturedCardsView] isPileDraggable:', { idx, playerNumber, teammateIndex, finalIsPartyMode, result: true });
     return true;
   };
 
@@ -139,16 +138,6 @@ export function CapturedCardsView({
   const rightSideIndices: number[] = finalIsPartyMode
     ? [playerNumber, opponentIndices[1]] // player + other opponent on right (2 slots)
     : [playerNumber]; // player on right in 2-player
-
-  console.log('[CapturedCardsView] Layout setup:', {
-    playerNumber,
-    playerCount,
-    finalIsPartyMode,
-    teammateIndex,
-    opponentIndices,
-    leftSideIndices,
-    rightSideIndices
-  });
 
   // Render a single pile
   const renderPile = (idx: number) => {

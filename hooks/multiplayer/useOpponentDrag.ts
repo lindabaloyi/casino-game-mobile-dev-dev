@@ -62,7 +62,6 @@ export function useOpponentDrag(socket: Socket | null): UseOpponentDragResult {
       source: 'hand' | 'table' | 'captured';
       position: { x: number; y: number };
     }) => {
-      console.log('[useOpponentDrag] opponent-drag-start received:', data);
       setOpponentDrag({
         playerIndex: data.playerIndex,
         card: data.card,
@@ -114,8 +113,6 @@ export function useOpponentDrag(socket: Socket | null): UseOpponentDragResult {
       targetType?: string;
       targetId?: string;
     }) => {
-      console.log('[useOpponentDrag] opponent-drag-end received:', data);
-      
       // Update state with target info for accurate final position
       setOpponentDrag(prev => prev ? {
         ...prev,
