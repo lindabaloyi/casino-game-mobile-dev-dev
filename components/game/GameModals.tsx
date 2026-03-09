@@ -17,6 +17,8 @@ interface GameModalsProps {
   showPlayModal: boolean;
   selectedTempStack: TempStack | null;
   playerHand: Card[];
+  teamCapturedBuilds?: { 0: { value: number; originalOwner: number; capturedBy: number }[]; 1: { value: number; originalOwner: number; capturedBy: number }[] };
+  playerNumber: number;
   onConfirmPlay: (buildValue: number) => void;
   onCancelPlay: () => void;
   
@@ -24,7 +26,6 @@ interface GameModalsProps {
   showStealModal: boolean;
   stealTargetCard: Card | null;
   stealTargetStack: BuildStack | null;
-  playerNumber: number;
   onConfirmSteal: () => void;
   onCancelSteal: () => void;
   onStealCompleted?: () => void;
@@ -40,13 +41,14 @@ export function GameModals({
   showPlayModal,
   selectedTempStack,
   playerHand,
+  teamCapturedBuilds,
+  playerNumber,
   onConfirmPlay,
   onCancelPlay,
   
   showStealModal,
   stealTargetCard,
   stealTargetStack,
-  playerNumber,
   onConfirmSteal,
   onCancelSteal,
   onStealCompleted,
@@ -71,6 +73,8 @@ export function GameModals({
           visible={showPlayModal}
           cards={selectedTempStack.cards}
           playerHand={playerHand}
+          teamCapturedBuilds={teamCapturedBuilds}
+          playerNumber={playerNumber}
           onConfirm={onConfirmPlay}
           onCancel={onCancelPlay}
         />

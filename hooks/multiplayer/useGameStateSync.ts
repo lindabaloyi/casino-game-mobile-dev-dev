@@ -34,7 +34,19 @@ export interface GameState {
     captures: Card[];
     score: number;
     team?: 'A' | 'B';
+    buildStacks?: Array<{
+      owner: number;
+      value: number;
+      cards: Card[];
+      cardsMap: Record<string, Card>;
+      name: string;
+      buildType: 'solo' | 'extendable';
+      stackType: 'build';
+      stackId?: string;
+      shiyaActive?: boolean;
+    }>;
   }[];
+  table: Card[];
   tableCards: Card[];
   currentPlayer: number;
   round: number;
@@ -52,6 +64,10 @@ export interface GameState {
     actionTriggered: boolean;
     actionCompleted: boolean;
   }>;
+  // Party mode (2v2): Track builds captured from teammates
+  // teamCapturedBuilds[0] = builds captured from Team A, teamCapturedBuilds[1] = builds captured from Team B
+  // Each entry contains { value: number, originalOwner: number, capturedBy: number }
+  teamCapturedBuilds?: { 0: { value: number; originalOwner: number; capturedBy: number }[]; 1: { value: number; originalOwner: number; capturedBy: number }[] };
 }
 
 export interface GameOverData {

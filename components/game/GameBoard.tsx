@@ -424,12 +424,13 @@ export function GameBoard({
         showPlayModal={modals.showPlayModal}
         selectedTempStack={modals.selectedTempStack}
         playerHand={computed.myHand as TableCard[]}
+        teamCapturedBuilds={gameState.teamCapturedBuilds}
+        playerNumber={playerNumber}
         onConfirmPlay={actionHandlers.handleConfirmPlay}
         onCancelPlay={modals.closePlayModal}
         showStealModal={modals.showStealModal}
         stealTargetCard={modals.stealTargetCard}
         stealTargetStack={modals.stealTargetStack}
-        playerNumber={playerNumber}
         onConfirmSteal={actionHandlers.handleConfirmSteal}
         onCancelSteal={modals.closeStealModal}
         onStealCompleted={modals.onStealCompleted}

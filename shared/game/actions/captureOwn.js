@@ -107,13 +107,14 @@ function captureOwn(state, payload, playerIndex) {
             console.log(`[captureOwn] Created teamCapturedBuilds in newState`);
           }
           
-          // Add entry to the stack owner's team array
-          newState.teamCapturedBuilds[stackOwnerTeam].push({
+          // Add entry to the CAPTURING player's team array (so teammates can rebuild it)
+          newState.teamCapturedBuilds[capturingPlayerTeam].push({
             value: buildStack.value,
-            originalOwner: stackOwner
+            originalOwner: stackOwner,
+            capturedBy: playerIndex  // Track who captured it
           });
           
-          console.log(`[captureOwn] ✅ Tracked captured build: value=${buildStack.value}, originalOwner=${stackOwner}, team=${stackOwnerTeam}`);
+          console.log(`[captureOwn] ✅ Tracked captured build: value=${buildStack.value}, originalOwner=${stackOwner}, capturedBy=${playerIndex}, team=${capturingPlayerTeam}`);
           console.log(`[captureOwn] Current teamCapturedBuilds:`, JSON.stringify(newState.teamCapturedBuilds));
         } else {
           console.log(`[captureOwn] ⏭️ Skipped tracking - same team (playerIndex: ${playerIndex}, stackOwner: ${stackOwner})`);

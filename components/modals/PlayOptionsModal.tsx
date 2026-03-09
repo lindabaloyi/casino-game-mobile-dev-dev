@@ -16,6 +16,8 @@ interface PlayOptionsModalProps {
   visible: boolean;
   cards: Card[];
   playerHand: Card[];
+  teamCapturedBuilds?: { 0: { value: number; originalOwner: number; capturedBy: number }[]; 1: { value: number; originalOwner: number; capturedBy: number }[] };
+  playerNumber: number;
   onConfirm: (buildValue: number) => void;
   onCancel: () => void;
 }
@@ -24,6 +26,8 @@ export function PlayOptionsModal({
   visible,
   cards,
   playerHand,
+  teamCapturedBuilds,
+  playerNumber,
   onConfirm,
   onCancel,
 }: PlayOptionsModalProps) {
@@ -106,6 +110,33 @@ export function PlayOptionsModal({
       (playerHand ?? []).some(card => card.value === val)
     );
   }, [possibleBuildValues, playerHand]);
+  
+  // Get team captured builds (for party mode 2v2 cooperative rebuild)
+  const teamBuildOptions = useMemo(() => {
+    console.log(`[PlayOptionsModal] FULL DEBUG - teamCapturedBuilds:`, JSON.stringify(teamCapturedBuilds));
+    
+    if (!teamCapturedBuilds || playerNumber === undefined) {
+      console.log(`[PlayOptionsModal] No teamCapturedBuilds or playerNumber:`, { teamCapturedBuilds, playerNumber });
+      return [];
+    }
+    
+    // Calculate player's team (0 or 1)
+    const playerTeam = Math.floor(playerNumber / 2);
+    const teamBuilds = teamCapturedBuilds[playerTeam as 0 | 1] ?? [];
+    
+    console.log(`[PlayOptionsModal] Team build check: playerNumber=${playerNumber}, playerTeam=${playerTeam}, teamBuilds=`, teamBuilds);
+    console.log(`[PlayOptionsModal] possibleBuildValues:`, possibleBuildValues);
+    
+    // Filter to builds that match the possible build values (no hand check needed)
+    // This allows team to rebuild captured builds even without matching card in hand
+    const matchingTeamBuilds = teamBuilds.filter(build => 
+      possibleBuildValues.includes(build.value)
+    );
+    
+    console.log(`[PlayOptionsModal] matchingTeamBuilds:`, matchingTeamBuilds);
+    
+    return matchingTeamBuilds;
+  }, [teamCapturedBuilds, playerNumber, possibleBuildValues]);
   
   // Determine build type for display
   const buildType = totalSum <= 10 ? 'sum' : 'diff';
@@ -196,7 +227,18 @@ export function PlayOptionsModal({
               </TouchableOpacity>
             )}
             
-            {!hasTotalMatch && !hasDiffMatch && !hasSingleMatch && (
+            {/* Team Build Options - for party mode cooperative rebuild */}
+            {teamBuildOptions.map((build, index) => (
+              <TouchableOpacity 
+                key={`team-${index}`}
+                style={[styles.optionButton, styles.teamOption]} 
+                onPress={() => onConfirm(build.value)}
+              >
+                <Text style={styles.optionText}>Build {build.value} (Team Build)</Text>
+              </TouchableOpacity>
+            ))}
+            
+            {!hasTotalMatch && !hasDiffMatch && !hasSingleMatch && teamBuildOptions.length === 0 && (
               <View style={styles.noOptions}>
                 <Text style={styles.noOptionsText}>No matching cards</Text>
               </View>
@@ -296,6 +338,10 @@ const styles = StyleSheet.create({
   diffOption: {
     backgroundColor: '#7c3aed',
     borderColor: '#a78bfa',
+  },
+  teamOption: {
+    backgroundColor: '#0891b2',
+    borderColor: '#22d3ee',
   },
   optionText: {
     fontSize: 20,

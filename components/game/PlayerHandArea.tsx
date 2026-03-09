@@ -42,7 +42,7 @@ interface Player {
   hand: Card[];
   captures: Card[];
   score: number;
-  buildStacks: BuildStack[];
+  buildStacks?: BuildStack[];
 }
 
 interface GameState {

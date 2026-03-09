@@ -62,14 +62,16 @@ function captureOpponent(state, payload, playerIndex) {
           console.log(`[captureOpponent] Created teamCapturedBuilds in newState`);
         }
         
-        // Add entry to the stack owner's team array
+        // Add entry to the VICTIM's team array (so they can rebuild their captured build)
+        // This allows the victim to rebuild the build that was taken from them
         newState.teamCapturedBuilds[stackOwnerTeam].push({
           value: buildStack.value,
-          originalOwner: stackOwner
+          originalOwner: stackOwner,
+          capturedBy: playerIndex  // Track who captured it (for filtering)
         });
         
-        console.log(`[captureOpponent] ✅ Tracked captured build: value=${buildStack.value}, originalOwner=${stackOwner}, team=${stackOwnerTeam}`);
-        console.log(`[captureOpponent] Current teamCapturedBuilds:`, JSON.stringify(newState.teamCapturedBuilds));
+        console.log(`[captureOpponent] ✅ Tracked captured build: value=${buildStack.value}, originalOwner=${stackOwner}, capturedBy=${playerIndex}, forVictimTeam=${stackOwnerTeam}`);
+        console.log(`[captureOpponent] Final teamCapturedBuilds:`, JSON.stringify(newState.teamCapturedBuilds));
       } else {
         console.log(`[captureOpponent] ⏭️ Skipped tracking - same team (playerIndex: ${playerIndex}, stackOwner: ${stackOwner})`);
       }
