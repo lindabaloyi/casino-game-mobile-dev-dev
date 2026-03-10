@@ -47,7 +47,9 @@ io.on('connection', socket => {
 
   // ── Matchmaking: add player to queue; start game if two are waiting ──
   const gameResult = matchmaking.addToQueue(socket);
+  console.log(`[Server] Game result for ${socket.id}:`, gameResult ? 'game found' : 'no game');
   if (gameResult) {
+    console.log(`[Server] Calling broadcastGameStart for game ${gameResult.gameId}`);
     broadcaster.broadcastGameStart(gameResult);
   }
 

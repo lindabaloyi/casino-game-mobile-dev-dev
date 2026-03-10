@@ -164,18 +164,31 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
 
   // Handle game-start event
   useEffect(() => {
-    if (!socket) return;
+    console.log('[useGameStateSync] useEffect running, socket:', !!socket);
+    if (!socket) {
+      console.log('[useGameStateSync] No socket, not listening for game-start');
+      return;
+    }
 
-    const handleGameStart = (data: { gameState: GameState; playerNumber: number }) => {
-      console.log('[useGameStateSync] game-start received:', data);
+    const handleGameStart = (data: any) => {
+      const now = Date.now();
+      console.log('[useGameStateSync] game-start RECEIVED at', now);
+      console.log('[useGameStateSync] gameState keys:', Object.keys(data.gameState || {}));
+      console.log('[useGameStateSync] playerNumber:', data.playerNumber);
+      console.trace('[useGameStateSync] Event call stack');
+      
+      // Update all state at once to avoid batching issues
       setGameState(data.gameState);
       setPlayerNumber(data.playerNumber);
       setOpponentDisconnected(false);
       setError(null);
       setGameOverData(null);
+      
+      console.log('[useGameStateSync] State updated at', Date.now(), ', gameState:', !!data.gameState);
     };
 
     socket.on('game-start', handleGameStart);
+    console.log('[useGameStateSync] Registered game-start listener');
 
     return () => {
       socket.off('game-start', handleGameStart);

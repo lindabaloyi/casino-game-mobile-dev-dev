@@ -98,26 +98,26 @@ export default function HomeScreen() {
     router.push(route as any);
   };
 
-  // Dynamic styles based on screen size
+  // Dynamic styles based on screen size - simplified
   const menuStyles = {
     menuDrawer: {
       width: menuDrawerWidth,
       backgroundColor: '#1a5c1a',
-      paddingTop: isSmallScreen ? 35 : 45,
-      paddingHorizontal: isSmallScreen ? 12 : 16,
+      paddingTop: 45,
+      paddingHorizontal: 16,
     } as const,
     menuTitle: {
-      fontSize: isSmallScreen ? 18 : 20,
+      fontSize: 20,
       fontWeight: 'bold' as const,
       color: '#FFD700',
     } as const,
     menuProfile: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      padding: isSmallScreen ? 8 : 10,
+      padding: 10,
       backgroundColor: 'rgba(0, 0, 0, 0.3)',
-      borderRadius: isSmallScreen ? 8 : 10,
-      marginBottom: isSmallScreen ? 10 : 12,
+      borderRadius: 10,
+      marginBottom: 12,
     } as const,
     menuAvatar: {
       backgroundColor: 'rgba(255, 215, 0, 0.2)',
@@ -133,31 +133,31 @@ export default function HomeScreen() {
     } as const,
     menuProfileName: {
       color: 'white',
-      fontSize: isSmallScreen ? 13 : 14,
+      fontSize: 14,
       fontWeight: 'bold' as const,
     } as const,
     menuProfileStats: {
       color: 'rgba(255, 255, 255, 0.6)',
-      fontSize: isSmallScreen ? 10 : 11,
+      fontSize: 11,
     } as const,
     menuDivider: {
       height: 1,
       backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      marginBottom: isSmallScreen ? 10 : 14,
+      marginBottom: 14,
     } as const,
     menuItem: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      paddingVertical: isSmallScreen ? 6 : 8,
-      paddingHorizontal: isSmallScreen ? 8 : 10,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
       borderRadius: 8,
       marginBottom: 3,
-      minHeight: 36,
+      minHeight: 40,
     } as const,
     menuItemText: {
       color: 'white',
-      fontSize: isSmallScreen ? 12 : menuTextSize,
-      marginLeft: 8,
+      fontSize: 14,
+      marginLeft: 10,
     } as const,
   };
 

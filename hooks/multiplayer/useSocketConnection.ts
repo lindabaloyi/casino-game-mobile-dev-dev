@@ -45,6 +45,7 @@ export function useSocketConnection(
   const isPartyMode = mode === 'party';
   
   const socketRef = useRef<Socket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -74,6 +75,7 @@ export function useSocketConnection(
         
         socket.on('connect', () => {
           console.log('[useSocketConnection] Connected');
+          setSocket(socket); // Set socket as state to trigger re-render
           setIsConnected(true);
           setError(null);
           
@@ -104,6 +106,7 @@ export function useSocketConnection(
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
+      setSocket(null); // Clear state too
       setIsConnected(false);
     }
   }, []);
@@ -115,6 +118,7 @@ export function useSocketConnection(
 
   useEffect(() => {
     isMounted.current = true;
+    console.log('[useSocketConnection] useEffect running, calling connect()');
     connect();
     
     return () => {
@@ -122,12 +126,13 @@ export function useSocketConnection(
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
+        setSocket(null); // Clear state on unmount
       }
     };
   }, [connect]);
 
   return {
-    socket: socketRef.current,
+    socket, // Now returns state, not ref - this triggers re-render when socket connects!
     isConnected,
     error,
     reconnect,
