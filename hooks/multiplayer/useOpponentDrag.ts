@@ -1,4 +1,4 @@
-bo/**
+/**
  * useOpponentDrag
  * 
  * Handles real-time opponent drag state for ghost card rendering.

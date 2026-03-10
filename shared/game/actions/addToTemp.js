@@ -106,9 +106,22 @@ function addToTemp(state, payload, playerIndex) {
     return state;
   }
 
-  // LIMIT: Max 2 cards per temp stack per player
-  if (stack.cards.length >= 2) {
-    throw new Error('Cannot add more than 2 cards to temp stack');
+  // LIMIT: Max 2 cards from player's hand per temp stack per turn
+  // Cards from table or captures don't count toward this limit
+  console.log(`[addToTemp] Card source: ${source}, stackId: ${stackId}`);
+  console.log(`[addToTemp] Total cards in stack before add: ${stack.cards.length}`);
+  console.log(`[addToTemp] Stack cards breakdown:`, stack.cards.map(c => `${c.rank}${c.suit}(${c.source})`).join(', '));
+  
+  if (source === 'hand') {
+    const handCardsCount = stack.cards.filter(c => c.source === 'hand').length;
+    console.log(`[addToTemp] Hand cards count: ${handCardsCount}, limit: 1`);
+    if (handCardsCount >= 1) {
+      console.log(`[addToTemp] REJECTED: Cannot add more than 2 cards from hand to temp stack`);
+      throw new Error('Cannot add more than 2 cards from hand to temp stack');
+    }
+    console.log(`[addToTemp] ALLOWED: Adding card from hand`);
+  } else {
+    console.log(`[addToTemp] ALLOWED: Source is ${source} - no hand card limit applies`);
   }
 
   stack.cards.push({ ...card, source });
