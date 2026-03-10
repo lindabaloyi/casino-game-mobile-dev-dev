@@ -106,6 +106,11 @@ function addToTemp(state, payload, playerIndex) {
     return state;
   }
 
+  // LIMIT: Max 2 cards per temp stack per player
+  if (stack.cards.length >= 2) {
+    throw new Error('Cannot add more than 2 cards to temp stack');
+  }
+
   stack.cards.push({ ...card, source });
 
   // Use the shared build calculator to compute value for multi-card builds

@@ -119,6 +119,11 @@ function addToPendingExtension(state, payload, playerIndex) {
     throw new Error(`addToPendingExtension: unknown cardSource "${cardSource}"`);
   }
 
+  // LIMIT: Max 2 cards per pending extension
+  if (buildStack.pendingExtension.cards.length >= 2) {
+    throw new Error('Cannot add more than 2 cards to pending extension');
+  }
+
   // Add to pending extension array
   // Cards are already in array format from startBuildExtension
   buildStack.pendingExtension.cards.push({ card: usedCard, source: cardSource });
