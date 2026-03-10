@@ -1,0 +1,383 @@
+/**
+ * RoomService
+ * Manages private room creation and joining via room codes.
+ * Supports both 2-player duel and 4-player party modes.
+ */
+
+const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const CODE_LENGTH = 6;
+const ROOM_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
+class RoomService {
+  constructor(gameManager, matchmaking, partyMatchmaking, broadcaster, io = null) {
+    this.gameManager = gameManager;
+    this.matchmaking = matchmaking;
+    this.partyMatchmaking = partyMatchmaking;
+    this.broadcaster = broadcaster;
+    this.io = io;
+
+    /** roomCode → Room object */
+    this.rooms = new Map();
+
+    /** socketId → roomCode */
+    this.socketRoomMap = new Map();
+  }
+
+  // ── Room Code Generation ─────────────────────────────────────────────────────
+
+  _generateRoomCode() {
+    let code;
+    let attempts = 0;
+    do {
+      code = '';
+      for (let i = 0; i < CODE_LENGTH; i++) {
+        code += CHARS[Math.floor(Math.random() * CHARS.length)];
+      }
+      attempts++;
+    } while (this.rooms.has(code) && attempts < 100);
+
+    if (this.rooms.has(code)) {
+      throw new Error('Failed to generate unique room code');
+    }
+    return code;
+  }
+
+  // ── Room Creation ───────────────────────────────────────────────────────────
+
+  /**
+   * Create a new private room
+   * @param {object} hostSocket - The socket of the room host
+   * @param {string} gameMode - 'duel' or 'party'
+   * @param {number} maxPlayers - 2 or 4
+   * @returns {object} { roomCode, room }
+   */
+  createRoom(hostSocket, gameMode, maxPlayers) {
+    const roomCode = this._generateRoomCode();
+    
+    const room = {
+      code: roomCode,
+      hostSocketId: hostSocket.id,
+      gameMode,
+      maxPlayers,
+      status: 'waiting', // 'waiting' | 'ready' | 'started' | 'closed'
+      players: [
+        { socketId: hostSocket.id, isHost: true, joinedAt: Date.now() }
+      ],
+      createdAt: Date.now(),
+      lastActivity: Date.now(),
+      gameId: null,
+    };
+
+    this.rooms.set(roomCode, room);
+    this.socketRoomMap.set(hostSocket.id, roomCode);
+
+    console.log(`[RoomService] Room ${roomCode} created by ${hostSocket.id} (${gameMode}, ${maxPlayers} players)`);
+
+    return { roomCode, room };
+  }
+
+  // ── Room Joining ─────────────────────────────────────────────────────────────
+
+  /**
+   * Join an existing room by code
+   * @param {object} socket - The socket joining
+   * @param {string} roomCode - The room code (case-insensitive)
+   * @returns {object} { success, room?, error? }
+   */
+  joinRoom(socket, roomCode) {
+    const code = roomCode.toUpperCase();
+    const room = this.rooms.get(code);
+
+    if (!room) {
+      return { success: false, error: 'Room not found' };
+    }
+
+    if (room.status !== 'waiting') {
+      return { success: false, error: 'Room is no longer accepting players' };
+    }
+
+    if (room.players.length >= room.maxPlayers) {
+      return { success: false, error: 'Room is full' };
+    }
+
+    // Check if player already in room (reconnection)
+    const existingPlayer = room.players.find(p => p.socketId === socket.id);
+    if (!existingPlayer) {
+      room.players.push({ socketId: socket.id, isHost: false, joinedAt: Date.now() });
+    }
+
+    this.socketRoomMap.set(socket.id, code);
+    room.lastActivity = Date.now();
+
+    console.log(`[RoomService] Socket ${socket.id} joined room ${code} (${room.players.length}/${room.maxPlayers})`);
+
+    // Check if room is now ready
+    if (room.players.length === room.maxPlayers) {
+      room.status = 'ready';
+    }
+
+    return { 
+      success: true, 
+      room: this._serializeRoom(room) 
+    };
+  }
+
+  // ── Room Leaving ───────────────────────────────────────────────────────────
+
+  /**
+   * Leave a room
+   * @param {object} socket - The socket leaving
+   * @returns {object} { success, roomClosed, remainingPlayers? }
+   */
+  leaveRoom(socket) {
+    const roomCode = this.socketRoomMap.get(socket.id);
+    if (!roomCode) {
+      return { success: false, error: 'Not in a room' };
+    }
+
+    const room = this.rooms.get(roomCode);
+    if (!room) {
+      this.socketRoomMap.delete(socket.id);
+      return { success: false, error: 'Room not found' };
+    }
+
+    // Remove player from room
+    room.players = room.players.filter(p => p.socketId !== socket.id);
+    this.socketRoomMap.delete(socket.id);
+    room.lastActivity = Date.now();
+
+    // If host left, transfer to next player or close room
+    if (room.hostSocketId === socket.id) {
+      if (room.players.length > 0) {
+        room.hostSocketId = room.players[0].socketId;
+        room.players[0].isHost = true;
+        console.log(`[RoomService] Host transferred to ${room.hostSocketId} in room ${roomCode}`);
+      }
+    }
+
+    console.log(`[RoomService] Socket ${socket.id} left room ${roomCode} (${room.players.length} remaining)`);
+
+    // Close room if empty or game already started
+    if (room.players.length === 0 || room.status === 'started') {
+      room.status = 'closed';
+      this.rooms.delete(roomCode);
+      console.log(`[RoomService] Room ${roomCode} closed`);
+      return { success: true, roomClosed: true };
+    }
+
+    // Update status if room no longer full
+    if (room.status === 'ready' && room.players.length < room.maxPlayers) {
+      room.status = 'waiting';
+    }
+
+    return { 
+      success: true, 
+      roomClosed: false, 
+      remainingPlayers: room.players.length,
+      room: this._serializeRoom(room)
+    };
+  }
+
+  // ── Room Status ───────────────────────────────────────────────────────────
+
+  /**
+   * Get room status
+   * @param {string} roomCode 
+   * @returns {object|null}
+   */
+  getRoomStatus(roomCode) {
+    const code = roomCode.toUpperCase();
+    const room = this.rooms.get(code);
+    if (!room) return null;
+    return this._serializeRoom(room);
+  }
+
+  /**
+   * Get room by socket ID
+   * @param {string} socketId 
+   * @returns {object|null}
+   */
+  getRoomBySocket(socketId) {
+    const roomCode = this.socketRoomMap.get(socketId);
+    if (!roomCode) return null;
+    return this._serializeRoom(this.rooms.get(roomCode));
+  }
+
+  // ── Game Start ─────────────────────────────────────────────────────────────
+
+  /**
+   * Start a room game (called by host)
+   * @param {string} roomCode 
+   * @param {object} io - Socket.IO instance for broadcasting
+   * @returns {object} { success, gameId?, error? }
+   */
+  startRoomGame(roomCode, io) {
+    const code = roomCode.toUpperCase();
+    const room = this.rooms.get(code);
+
+    if (!room) {
+      return { success: false, error: 'Room not found' };
+    }
+
+    if (room.status === 'started') {
+      return { success: false, error: 'Game already started' };
+    }
+
+    // Need at least 2 players to start
+    if (room.players.length < 2) {
+      return { success: false, error: 'Need at least 2 players to start' };
+    }
+
+    // Determine which game manager method to use
+    const isPartyGame = room.gameMode === 'party';
+    const requiredPlayers = isPartyGame ? 4 : 2;
+
+    if (room.players.length !== requiredPlayers) {
+      return { 
+        success: false, 
+        error: `Need exactly ${requiredPlayers} players to start ${room.gameMode} game` 
+      };
+    }
+
+    console.log(`[RoomService] Starting ${room.gameMode} game in room ${code}`);
+
+    // Start game via appropriate matchmaking service
+    let gameResult;
+    if (isPartyGame) {
+      // For party games, we need to manually create the game with these specific sockets
+      const sockets = room.players.map(p => io.sockets.sockets.get(p.socketId)).filter(Boolean);
+      if (sockets.length !== 4) {
+        return { success: false, error: 'Not all players connected' };
+      }
+      
+      // Create party game directly
+      const { gameId, gameState } = this.gameManager.startPartyGame();
+      room.gameId = gameId;
+
+      // Register players
+      for (let i = 0; i < 4; i++) {
+        this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
+        this.partyMatchmaking.socketGameMap.set(sockets[i].id, gameId);
+        this.partyMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
+      }
+
+      gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
+      room.status = 'started';
+      
+      // Emit game-start to all players
+      sockets.forEach(socket => {
+        socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
+      });
+    } else {
+      // For duel games
+      const sockets = room.players.map(p => io.sockets.sockets.get(p.socketId)).filter(Boolean);
+      if (sockets.length !== 2) {
+        return { success: false, error: 'Not all players connected' };
+      }
+
+      const { gameId, gameState } = this.gameManager.startGame();
+      room.gameId = gameId;
+
+      // Register players
+      for (let i = 0; i < 2; i++) {
+        this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
+        this.matchmaking.socketGameMap.set(sockets[i].id, gameId);
+        this.matchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
+      }
+
+      gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
+      room.status = 'started';
+
+      // Emit game-start to all players
+      sockets.forEach(socket => {
+        socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
+      });
+    }
+
+    // Remove from room tracking (game is now in matchmaking maps)
+    for (const player of room.players) {
+      this.socketRoomMap.delete(player.socketId);
+    }
+
+    return { success: true, gameId: room.gameId };
+  }
+
+  // ── Cleanup ────────────────────────────────────────────────────────────────
+
+  /**
+   * Clean up old/inactive rooms
+   */
+  cleanupExpiredRooms() {
+    const now = Date.now();
+    const expiredCodes = [];
+
+    for (const [code, room] of this.rooms) {
+      if (now - room.lastActivity > ROOM_TIMEOUT_MS) {
+        expiredCodes.push(code);
+      }
+    }
+
+    for (const code of expiredCodes) {
+      const room = this.rooms.get(code);
+      console.log(`[RoomService] Cleaning up expired room ${code}`);
+      
+      // Notify players the room is closing
+      for (const player of room.players) {
+        this.socketRoomMap.delete(player.socketId);
+      }
+      this.rooms.delete(code);
+    }
+
+    return expiredCodes.length;
+  }
+
+  /**
+   * Handle socket disconnection - clean up room membership
+   * @param {object} socket 
+   * @returns {object|null} Room info if player was in a room
+   */
+  handleDisconnection(socket) {
+    const roomCode = this.socketRoomMap.get(socket.id);
+    if (!roomCode) return null;
+
+    const room = this.rooms.get(roomCode);
+    if (!room) {
+      this.socketRoomMap.delete(socket.id);
+      return null;
+    }
+
+    // Determine if game already started
+    const gameStarted = room.status === 'started';
+    const wasHost = room.hostSocketId === socket.id;
+
+    // Remove from room
+    const result = this.leaveRoom(socket);
+
+    return {
+      roomCode,
+      gameStarted,
+      wasHost,
+      remainingPlayers: result.remainingPlayers || 0,
+    };
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  _serializeRoom(room) {
+    if (!room) return null;
+    return {
+      code: room.code,
+      hostSocketId: room.hostSocketId,
+      gameMode: room.gameMode,
+      maxPlayers: room.maxPlayers,
+      status: room.status,
+      players: room.players.map(p => ({
+        socketId: p.socketId,
+        isHost: p.isHost,
+      })),
+      playerCount: room.players.length,
+    };
+  }
+}
+
+module.exports = RoomService;

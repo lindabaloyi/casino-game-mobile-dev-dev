@@ -9,9 +9,10 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const os = require('os');
 
-const MatchmakingService    = require('./services/MatchmakingService');
-const PartyMatchmakingService = require('./services/PartyMatchmakingService');
-const BroadcasterService    = require('./services/BroadcasterService');
+const MatchmakingService     = require('./services/MatchmakingService');
+const PartyMatchmakingService  = require('./services/PartyMatchmakingService');
+const RoomService              = require('./services/RoomService');
+const BroadcasterService      = require('./services/BroadcasterService');
 const GameCoordinatorService = require('./services/GameCoordinatorService');
 const GameManager  = require('./game/GameManager');
 const ActionRouter = require('./game/ActionRouter');
@@ -36,6 +37,7 @@ let actionRouter;
 let matchmaking;
 let partyMatchmaking;
 let broadcaster;
+let roomService;
 let coordinator;
 
 // ── Connection handling ───────────────────────────────────────────────────────
@@ -62,6 +64,105 @@ io.on('connection', socket => {
     } else {
       // Broadcast to ALL waiting players (not just the joining player)
       partyMatchmaking.broadcastPartyWaiting(io);
+    }
+  });
+
+  // ── Private Room: create room ─────────────────────────────────────────────────
+  socket.on('create-room', (data) => {
+    console.log(`[Server] ${socket.id} creating room:`, data);
+    
+    // Remove from matchmaking queues if present
+    matchmaking.removeFromQueue(socket.id);
+    
+    const { gameMode, maxPlayers } = data;
+    const result = roomService.createRoom(socket, gameMode, maxPlayers);
+    
+    if (result.roomCode) {
+      socket.emit('room-created', {
+        roomCode: result.roomCode,
+        room: result.room,
+      });
+    }
+  });
+
+  // ── Private Room: join room ───────────────────────────────────────────────────
+  socket.on('join-room', (data) => {
+    console.log(`[Server] ${socket.id} joining room:`, data.roomCode);
+    
+    // Remove from matchmaking queues if present
+    matchmaking.removeFromQueue(socket.id);
+    
+    const result = roomService.joinRoom(socket, data.roomCode);
+    
+    if (result.success) {
+      socket.emit('room-joined', { room: result.room });
+      
+      // Notify other players in the room
+      const room = roomService.getRoomStatus(data.roomCode);
+      if (room) {
+        room.players.forEach(player => {
+          const playerSocket = io.sockets.sockets.get(player.socketId);
+          if (playerSocket && playerSocket.id !== socket.id) {
+            playerSocket.emit('room-updated', { room });
+          }
+        });
+      }
+    } else {
+      socket.emit('room-error', { message: result.error });
+    }
+  });
+
+  // ── Private Room: leave room ──────────────────────────────────────────────────
+  socket.on('leave-room', () => {
+    console.log(`[Server] ${socket.id} leaving room`);
+    
+    const result = roomService.leaveRoom(socket);
+    
+    if (result.success) {
+      socket.emit('room-left', { success: true });
+      
+      if (!result.roomClosed && result.room) {
+        // Notify remaining players
+        result.room.players.forEach(player => {
+          const playerSocket = io.sockets.sockets.get(player.socketId);
+          if (playerSocket) {
+            playerSocket.emit('room-updated', { room: result.room });
+          }
+        });
+      }
+    }
+  });
+
+  // ── Private Room: get room status ─────────────────────────────────────────────
+  socket.on('room-status', (data) => {
+    const room = roomService.getRoomStatus(data.roomCode);
+    if (room) {
+      socket.emit('room-status', { room });
+    } else {
+      socket.emit('room-error', { message: 'Room not found' });
+    }
+  });
+
+  // ── Private Room: start game (host only) ──────────────────────────────────────
+  socket.on('start-room-game', (data) => {
+    const room = roomService.getRoomBySocket(socket.id);
+    
+    if (!room) {
+      socket.emit('room-error', { message: 'Not in a room' });
+      return;
+    }
+    
+    if (room.hostSocketId !== socket.id) {
+      socket.emit('room-error', { message: 'Only the host can start the game' });
+      return;
+    }
+    
+    console.log(`[Server] Host ${socket.id} starting room game: ${room.code}`);
+    
+    const result = roomService.startRoomGame(room.code, io);
+    
+    if (!result.success) {
+      socket.emit('room-error', { message: result.error });
     }
   });
 
@@ -99,6 +200,21 @@ io.on('connection', socket => {
   // ── Disconnect ───────────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
     console.log(`[Server] Disconnected: ${socket.id}`);
+    
+    // Handle room disconnect first (before game starts)
+    const roomResult = roomService.handleDisconnection(socket);
+    if (roomResult && !roomResult.gameStarted) {
+      // Notify remaining players in the waiting room
+      const room = roomService.getRoomStatus(roomResult.roomCode);
+      if (room && room.players.length > 0) {
+        room.players.forEach(player => {
+          const playerSocket = io.sockets.sockets.get(player.socketId);
+          if (playerSocket) {
+            playerSocket.emit('room-updated', { room });
+          }
+        });
+      }
+    }
     
     // Handle regular matchmaking disconnect
     const result = matchmaking.handleDisconnection(socket);
@@ -142,7 +258,8 @@ function startServer() {
   matchmaking  = new MatchmakingService(gameManager);
   partyMatchmaking = new PartyMatchmakingService(gameManager, io);
   broadcaster  = new BroadcasterService(matchmaking, gameManager, io, partyMatchmaking);
-  coordinator  = new GameCoordinatorService(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking);
+  roomService   = new RoomService(gameManager, matchmaking, partyMatchmaking, broadcaster, io);
+  coordinator   = new GameCoordinatorService(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking);
 
   server.listen(PORT, '0.0.0.0', () => {
     const lanIp = getLocalIPAddress();

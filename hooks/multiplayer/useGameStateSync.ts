@@ -17,6 +17,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 
+// Import player profile for win/loss tracking
+import { usePlayerProfile } from '../usePlayerProfile';
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface Card {
@@ -156,6 +159,9 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
   const [opponentDisconnected, setOpponentDisconnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Player profile for win/loss tracking
+  const { recordWin, recordLoss } = usePlayerProfile();
+
   // Handle game-start event
   useEffect(() => {
     if (!socket) return;
@@ -270,6 +276,18 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     const handleGameOver = (data: GameOverData) => {
       console.log('[useGameStateSync] game-over received:', data);
       setGameOverData(data);
+      
+      // Record win/loss for player
+      if (playerNumber !== null) {
+        const isWinner = data.winner === playerNumber;
+        if (isWinner) {
+          recordWin();
+          console.log('[useGameStateSync] Player won! Recording win.');
+        } else {
+          recordLoss();
+          console.log('[useGameStateSync] Player lost. Recording loss.');
+        }
+      }
     };
 
     socket.on('game-over', handleGameOver);
@@ -277,7 +295,7 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     return () => {
       socket.off('game-over', handleGameOver);
     };
-  }, [socket]);
+  }, [socket, playerNumber, recordWin, recordLoss]);
 
   // Handle player disconnection
   useEffect(() => {
