@@ -186,15 +186,8 @@ export default function PartyGameScreen() {
           <Text style={styles.notificationText}>{notification}</Text>
         </Animated.View>
         
-        {/* Header */}
+        {/* Compact Header - no back button to save space */}
         <View style={styles.lobbyHeader}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.replace('/' as any)}
-          >
-            <Ionicons name="arrow-back" size={22} color="white" />
-          </TouchableOpacity>
-          
           <View style={styles.headerInfo}>
             <Text style={styles.headerTitle}>🎉 Party Mode</Text>
             <Text style={styles.headerSubtitle}>2v2 Battle</Text>
@@ -415,14 +408,6 @@ export default function PartyGameScreen() {
   // Show game
   return (
     <View style={styles.container}>
-      {/* Back Button */}
-      <TouchableOpacity 
-        style={styles.backButton}
-        onPress={() => router.replace('/' as any)}
-      >
-        <Ionicons name="arrow-back" size={24} color="white" />
-      </TouchableOpacity>
-      
       <GameBoard
         gameState={gameState as any}
         playerNumber={safePlayerNumber}
@@ -466,13 +451,13 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)',
     marginTop: 8,
   },
-  // Header
+  // Header - compact to save space
   lobbyHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 15,
+    paddingTop: 20,
+    paddingBottom: 10,
   },
   backButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.4)',

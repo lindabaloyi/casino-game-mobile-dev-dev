@@ -118,7 +118,6 @@ export function useSocketConnection(
 
   useEffect(() => {
     isMounted.current = true;
-    console.log('[useSocketConnection] useEffect running, calling connect()');
     connect();
     
     return () => {
