@@ -122,7 +122,8 @@ export function useDragHandlers({
     if (findCapturePileAtPoint) {
       const capturePile = findCapturePileAtPoint(absX, absY);
       if (capturePile) {
-        handleDragEnd('capture', 'success');
+        // Pass targetId as the player index for capture pile
+        handleDragEnd('capture', 'success', String(capturePile.playerIndex));
         return;
       }
     }

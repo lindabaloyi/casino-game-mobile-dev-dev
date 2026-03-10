@@ -62,6 +62,8 @@ export function DraggableOpponentCard({
   const draggedCard = useSharedValue<Card | null>(null);
 
   const handleDragEndInternal = useCallback((card: Card, absX: number, absY: number) => {
+    console.log(`[DraggableOpponentCard] handleDragEndInternal - card: ${card?.rank}${card?.suit}, absX: ${absX}, absY: ${absY}`);
+    
     // If required callbacks are missing, reset locally but still try to signal parent
     if (!onDragEnd || !findCardAtPoint || !findTempStackAtPoint) {
       console.log('[DraggableOpponentCard] Missing callbacks in handleDragEndInternal, resetting locally');
@@ -83,8 +85,17 @@ export function DraggableOpponentCard({
     const targetCardResult = findCardAtPoint(absX, absY);
     if (targetCardResult) {
       console.log('[DraggableOpponentCard] Dropped on card:', targetCardResult.card);
-      onDragEnd(card, targetCardResult.card);
-      handled = true;
+      
+      // Validate targetCard is a proper card object (has rank and suit)
+      const targetCard = targetCardResult.card;
+      if (targetCard && typeof targetCard === 'object' && 'rank' in targetCard && 'suit' in targetCard) {
+        onDragEnd(card, targetCard);
+        handled = true;
+      } else {
+        console.error('[DraggableOpponentCard] Invalid targetCard from findCardAtPoint:', targetCard);
+        onDragEnd(card, undefined, undefined); // treat as miss
+        handled = true;
+      }
     } else {
       // Check if dropped on a temp stack or build stack
       const targetStack = findTempStackAtPoint(absX, absY);

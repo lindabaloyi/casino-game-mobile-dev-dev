@@ -34,26 +34,36 @@ function findCardAnywhere(state, card, playerIndex) {
     return { found: true, source: 'table', card: state.tableCards[tableIdx], index: tableIdx, playerIndex: null };
   }
   
-  // Debug: Log what's in player's hand
+  // Check player's hand
   console.log('[findCardAnywhere] Checking player hand:', state.players[playerIndex]?.hand?.map(c => c.rank + c.suit));
   
-  // Check player's hand
   const hand = state.players[playerIndex].hand;
   const handIdx = hand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
   if (handIdx !== -1) {
+    console.log('[findCardAnywhere] Card found in player hand at index:', handIdx);
     return { found: true, source: 'hand', card: hand[handIdx], index: handIdx, playerIndex };
   }
+  
+  console.log('[findCardAnywhere] Card not in hand, checking own captures...');
+  console.log('[findCardAnywhere] Own captures:', state.players[playerIndex]?.captures?.map(c => c.rank + c.suit));
+  
+  // Check own captures
   
   // Check own captures
   const ownCaptureIdx = state.players[playerIndex].captures.findIndex(
     c => c.rank === card.rank && c.suit === card.suit,
   );
   if (ownCaptureIdx !== -1) {
+    console.log('[findCardAnywhere] Card found in player captures at index:', ownCaptureIdx);
     return { found: true, source: 'captured', card: state.players[playerIndex].captures[ownCaptureIdx], index: ownCaptureIdx, playerIndex };
   }
   
+  // Use playerCount to determine party mode (not isPartyMode which doesn't exist)
+  console.log('[findCardAnywhere] Not in own captures, isPartyMode:', state.playerCount === 4, 'playerCount:', state.playerCount);
+  console.log('[findCardAnywhere] Checking teammate/opponents for playerIndex:', playerIndex);
+  
   // Check teammate's captures (party mode)
-  if (state.isPartyMode) {
+  if (state.playerCount === 4) {
     const teammateIndex = playerIndex < 2 ? (playerIndex === 0 ? 1 : 0) : (playerIndex === 2 ? 3 : 2);
     const teammateCaptureIdx = state.players[teammateIndex].captures.findIndex(
       c => c.rank === card.rank && c.suit === card.suit,
@@ -190,7 +200,7 @@ function createTemp(state, payload, playerIndex) {
         [firstCard] = newState.players[playerIndex].captures.splice(ownCaptureIdx, 1);
         firstSource = 'captured';
         console.log('[createTemp] Removed card from own captures');
-      } else if (state.isPartyMode) {
+      } else if (state.playerCount === 4) {
         // Check teammate's captures
         const teammateIndex = playerIndex < 2 ? (playerIndex === 0 ? 1 : 0) : (playerIndex === 2 ? 3 : 2);
         let teammateCaptureIdx = newState.players[teammateIndex].captures.findIndex(
@@ -201,8 +211,10 @@ function createTemp(state, payload, playerIndex) {
           firstSource = 'captured';
           console.log('[createTemp] Removed card from teammate captures');
         } else {
-          // Check ALL opponents' captures
-          const opponentIndices = playerIndex < 2 ? [2, 3] : [0, 1];
+    // Check ALL opponents' captures
+    console.log(`[findCardAnywhere] Checking ALL opponents' captures for player ${playerIndex}, isPartyMode: ${state.playerCount === 4}`);
+    const opponentIndices = playerIndex < 2 ? [2, 3] : [0, 1];
+    console.log(`[findCardAnywhere] Opponent indices:`, opponentIndices);
           for (const oIdx of opponentIndices) {
             const oppCaptureIdx = newState.players[oIdx].captures.findIndex(
               c => c.rank === card.rank && c.suit === card.suit,

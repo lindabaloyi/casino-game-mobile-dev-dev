@@ -33,7 +33,7 @@ interface CapturePileProps {
   /** Drag callbacks */
   onDragStart?: (card: Card, x: number, y: number) => void;
   onDragMove?: (x: number, y: number) => void;
-  onDragEnd?: (card: Card, x: number, y: number) => void;
+  onDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string) => void;
   /** Find card at point callback */
   findCardAtPoint?: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   /** Find temp stack at point callback */
@@ -44,7 +44,7 @@ interface CapturePileProps {
   opponentDrag?: OpponentDragState | null;
   /** Registration callbacks */
   registerCapturePile?: (bounds: CapturePileBounds) => void;
-  unregisterCapturePile?: () => void;
+  unregisterCapturePile?: (playerIndex: number) => void;
   /** Team utilities */
   getPlayerLabel: (idx: number) => string;
   getPlayerTeamColors: (idx: number) => TeamColors;
@@ -98,10 +98,10 @@ export function CapturePile({
   useEffect(() => {
     return () => {
       if (unregisterCapturePile) {
-        unregisterCapturePile();
+        unregisterCapturePile(playerIndex);
       }
     };
-  }, [unregisterCapturePile]);
+  }, [unregisterCapturePile, playerIndex]);
 
   // Internal drag handlers
   const handleDragStart = useCallback((card: Card, x: number, y: number) => {
@@ -112,8 +112,9 @@ export function CapturePile({
     onDragMove?.(x, y);
   }, [onDragMove]);
 
-  const handleDragEnd = useCallback((card: Card, x: number, y: number) => {
-    onDragEnd?.(card, x, y);
+  const handleDragEnd = useCallback((card: Card, targetCard?: Card, targetStackId?: string) => {
+    console.log(`[CapturePile] handleDragEnd - card: ${card?.rank}${card?.suit}, targetCard: ${JSON.stringify(targetCard)}, targetStackId: ${targetStackId}`);
+    onDragEnd?.(card, targetCard, targetStackId);
   }, [onDragEnd]);
 
   // Render the card (draggable or non-draggable)

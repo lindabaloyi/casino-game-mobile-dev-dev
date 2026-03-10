@@ -329,9 +329,31 @@ export function GameBoard({
         onCapturedCardDragStart={dragHandlers.handleCapturedDragStart}
         onCapturedCardDragMove={dragOverlay.moveDrag}
         onCapturedCardDragEnd={(card, targetCard, targetStackId) => {
-          console.log(`[GameBoard] onCapturedCardDragEnd - card: ${card?.rank}${card?.suit}`);
+          console.log(`[GameBoard] onCapturedCardDragEnd - card: ${card?.rank}${card?.suit}, targetCard type: ${typeof targetCard}, targetCard value:`, targetCard, `targetStackId: ${targetStackId}`);
+          
+          // Emit drag-end to server so opponents can clean up ghost cards
+          if (emitDragEnd) {
+            // Get current position from drag overlay
+            const absX = dragOverlay.overlayX.value + 28; // CARD_WIDTH/2
+            const absY = dragOverlay.overlayY.value + 42; // CARD_HEIGHT/2
+            const tableBounds = drag.dropBounds.current;
+            const normX = Math.max(0, Math.min(1, absX / (tableBounds.width || 400)));
+            const normY = Math.max(0, Math.min(1, absY / (tableBounds.height || 300)));
+            
+            if (targetCard) {
+              // Use rank+suit as unique identifier for card
+              const cardId = `${targetCard.rank}${targetCard.suit}`;
+              emitDragEnd(card, { x: normX, y: normY }, 'success', 'card', cardId);
+            } else if (targetStackId) {
+              emitDragEnd(card, { x: normX, y: normY }, 'success', 'temp_stack', targetStackId);
+            } else {
+              emitDragEnd(card, { x: normX, y: normY }, 'miss');
+            }
+          }
+          
           if (targetCard) {
-            actions.createTemp(card, targetCard);
+            console.log(`[GameBoard] Calling createTemp with card: ${card?.rank}${card?.suit}, target: ${JSON.stringify(targetCard)}, source: captured`);
+            actions.createTemp(card, targetCard, 'captured');
           } else if (targetStackId) {
             actions.addToTemp(card, targetStackId);
           }

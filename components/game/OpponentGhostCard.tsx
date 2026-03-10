@@ -9,7 +9,7 @@
  * - Fades out after reaching final position
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
@@ -39,6 +39,10 @@ interface OpponentGhostCardProps {
 const CARD_WIDTH = 56;
 const CARD_HEIGHT = 84;
 
+// Spring config constants - defined outside component to avoid recreation
+const SPRING_FINAL_CONFIG = { damping: 15, stiffness: 150 };
+const SPRING_DRAG_CONFIG = { damping: 20, stiffness: 200 };
+
 export function OpponentGhostCard({ 
   card, 
   position, 
@@ -49,12 +53,17 @@ export function OpponentGhostCard({
   stackPositions,
   capturePositions,
 }: OpponentGhostCardProps) {
-  // Get initial position for shared values
-  const initialBounds = {
+  // Memoize initial bounds to avoid recalculation on every render
+  const initialBounds = useMemo(() => ({
     width: tableBounds.width > 0 ? tableBounds.width : 400,
     height: tableBounds.height > 0 ? tableBounds.height : 300,
-  };
-  const initialAbsPos = denormalizePosition(position.x, position.y, initialBounds);
+  }), [tableBounds.width, tableBounds.height]);
+
+  // Memoize initial absolute position
+  const initialAbsPos = useMemo(
+    () => denormalizePosition(position.x, position.y, initialBounds),
+    [position.x, position.y, initialBounds]
+  );
   
   // Use shared values for animation - initialize to current position to avoid flash at (0,0)
   const translateX = useSharedValue(initialAbsPos.x - CARD_WIDTH / 2);
@@ -119,27 +128,18 @@ export function OpponentGhostCard({
       // Final position: snap smoothly then fade out using spring callback
       translateX.value = withSpring(
         absPos.x - CARD_WIDTH / 2,
-        { damping: 15, stiffness: 150 },
+        SPRING_FINAL_CONFIG,
         (finished) => {
           if (finished) {
             opacity.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
           }
         }
       );
-      translateY.value = withSpring(absPos.y - CARD_HEIGHT / 2, {
-        damping: 15,
-        stiffness: 150,
-      });
+      translateY.value = withSpring(absPos.y - CARD_HEIGHT / 2, SPRING_FINAL_CONFIG);
     } else {
       // During drag: smooth follow with slight lag for natural feel
-      translateX.value = withSpring(absPos.x - CARD_WIDTH / 2, {
-        damping: 20,
-        stiffness: 200,
-      });
-      translateY.value = withSpring(absPos.y - CARD_HEIGHT / 2, {
-        damping: 20,
-        stiffness: 200,
-      });
+      translateX.value = withSpring(absPos.x - CARD_WIDTH / 2, SPRING_DRAG_CONFIG);
+      translateY.value = withSpring(absPos.y - CARD_HEIGHT / 2, SPRING_DRAG_CONFIG);
       opacity.value = 0.8; // Reset opacity if it was fading
     }
   }, [position.x, position.y, targetType, targetId, tableBounds.width, tableBounds.height, cardPositions, stackPositions, capturePositions]);

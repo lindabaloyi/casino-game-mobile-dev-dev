@@ -88,7 +88,7 @@ interface Props {
   // Capture pile drop target
   findCapturePileAtPoint?: (x: number, y: number) => CapturePileBounds | null;
   registerCapturePile?: (bounds: CapturePileBounds) => void;
-  unregisterCapturePile?: () => void;
+  unregisterCapturePile?: (playerIndex: number) => void;
   /** Callback for dropping a temp stack onto capture pile */
   onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
   /** Callback for dropping a build stack (with pending extension) onto capture pile */

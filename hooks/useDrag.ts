@@ -86,6 +86,7 @@ export function useDrag() {
   const cardPositions = useRef<Map<string, CardBounds>>(new Map());
 
   const registerCard = useCallback((id: string, bounds: CardBounds) => {
+    console.log(`[useDrag] registerCard called for ${id}:`, bounds);
     cardPositions.current.set(id, bounds);
   }, []);
 

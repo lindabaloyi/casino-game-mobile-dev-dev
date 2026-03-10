@@ -1,4 +1,4 @@
-/**
+bo/**
  * useOpponentDrag
  * 
  * Handles real-time opponent drag state for ghost card rendering.
@@ -120,10 +120,11 @@ export function useOpponentDrag(socket: Socket | null): UseOpponentDragResult {
         targetId: data.targetId,
       } : null);
       
-      // Clear opponent drag state after a short delay for animation
+      // Clear opponent drag state after animation completes
+      // Wait for fade animation (300ms) + spring animation to finish
       setTimeout(() => {
         setOpponentDrag(null);
-      }, 500);
+      }, 800);
     };
 
     socket.on('opponent-drag-end', handleDragEnd);

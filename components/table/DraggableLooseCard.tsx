@@ -86,6 +86,15 @@ export function DraggableLooseCard({
     });
   }, [card, cardId, registerCard]);
 
+  // Register immediately on mount
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      viewRef.current?.measureInWindow((x, y, width, height) => {
+        registerCard(cardId, { x, y, width, height, card });
+      });
+    });
+  }, [cardId, card, registerCard]); // Run on mount with card dependencies
+
   // Re-measure whenever the table layout changes (cards added/removed → flex reflow).
   // onLayout only fires when THIS card's own box changes; layoutVersion catches sibling shifts.
   useEffect(() => {
