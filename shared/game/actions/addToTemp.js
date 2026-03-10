@@ -114,10 +114,10 @@ function addToTemp(state, payload, playerIndex) {
   
   if (source === 'hand') {
     const handCardsCount = stack.cards.filter(c => c.source === 'hand').length;
-    console.log(`[addToTemp] Hand cards count: ${handCardsCount}, limit: 1`);
+    console.log(`[addToTemp] Hand cards count: ${handCardsCount}, limit: 1 (can add max 1 more from hand after initial)`);
     if (handCardsCount >= 1) {
-      console.log(`[addToTemp] REJECTED: Cannot add more than 2 cards from hand to temp stack`);
-      throw new Error('Cannot add more than 2 cards from hand to temp stack');
+      console.log(`[addToTemp] REJECTED: Cannot add more than 1 card from hand (limit is 1)`);
+      throw new Error('Cannot add more than 1 card from hand to temp stack (limit is 1)');
     }
     console.log(`[addToTemp] ALLOWED: Adding card from hand`);
   } else {
@@ -134,6 +134,16 @@ function addToTemp(state, payload, playerIndex) {
   stack.base = buildInfo.value;
   stack.need = buildInfo.need;
   stack.buildType = buildInfo.buildType;
+
+  // Debug: Log the full stack state after update
+  console.log('[addToTemp] Updated stack:', {
+    stackId: stack.stackId,
+    cards: stack.cards.map(c => `${c.rank}${c.suit}(${c.source})`),
+    value: stack.value,
+    base: stack.base,
+    need: stack.need,
+    buildType: stack.buildType
+  });
 
   return newState;
 }

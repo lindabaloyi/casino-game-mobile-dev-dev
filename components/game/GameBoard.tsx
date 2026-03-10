@@ -121,6 +121,16 @@ export function GameBoard({
     },
   });
 
+  // Debug: Log overlay state changes
+  useEffect(() => {
+    console.log('[GameBoard] Overlay state:', {
+      overlayStackId: computed.overlayStackId,
+      extendingBuildId: computed.extendingBuildId,
+      isMyTurn: computed.isMyTurn,
+      tableLength: computed.table.length
+    });
+  }, [computed.overlayStackId, computed.extendingBuildId, computed.isMyTurn, computed.table]);
+
   // KISS Round Transition Logic
   // When round ends:
   // - Round 1 → automatically start Round 2 (deal 10 cards each)

@@ -250,8 +250,8 @@ export function TableArea({
         renderItem={renderItem}
       />
 
-      {/* StackOverlay for temp stacks - only show when no extending build */}
-      {!disableOverlays && extendingBuildId === null && (
+      {/* StackOverlay for temp stacks - show when there's a temp stack, regardless of extending build */}
+      {!disableOverlays && overlayStackId && (
         <StackOverlay
           overlayStackId={overlayStackId}
           tempStacks={tempStacks}

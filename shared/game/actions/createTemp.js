@@ -319,8 +319,8 @@ function createTemp(state, payload, playerIndex) {
   const values = cards.map(c => c.value);
   const buildInfo = calculateBuildValue(values);
   console.log('[createTemp] Build info:', buildInfo);
-  
-  newState.tableCards.splice(insertIdx, 0, {
+
+  const newTempStack = {
     type: 'temp_stack',
     stackId: generateStackId(newState, 'temp', playerIndex),
     cards: [bottom, top],
@@ -329,7 +329,17 @@ function createTemp(state, payload, playerIndex) {
     base: buildInfo.value,
     need: buildInfo.need,
     buildType: buildInfo.buildType,
+  };
+  
+  console.log('[createTemp] Created temp stack:', {
+    stackId: newTempStack.stackId,
+    owner: newTempStack.owner,
+    cards: newTempStack.cards.map(c => `${c.rank}${c.suit}(${c.source})`),
+    value: newTempStack.value,
+    need: newTempStack.need
   });
+  
+  newState.tableCards.splice(insertIdx, 0, newTempStack);
 
   // Mark turn as started and action triggered (but NOT ended - player can continue)
   startPlayerTurn(newState, playerIndex);
