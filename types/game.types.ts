@@ -106,8 +106,11 @@ export interface GameState {
   
   // Party mode (2v2): Track builds captured from teammates
   // teamCapturedBuilds[0] = builds captured from Team A, teamCapturedBuilds[1] = builds captured from Team B
-  // Each entry contains { value: number, originalOwner: number, capturedBy: number }
-  teamCapturedBuilds?: { 0: { value: number; originalOwner: number; capturedBy: number }[]; 1: { value: number; originalOwner: number; capturedBy: number }[] };
+  // Each entry contains { value, originalOwner, capturedBy, stackId, cards, shiyaPlayer }
+  teamCapturedBuilds?: { 
+    0: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: Card[]; shiyaPlayer?: number }[]; 
+    1: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: Card[]; shiyaPlayer?: number }[] 
+  };
 }
 
 // ── Team helpers ─────────────────────────────────────────────────────────────

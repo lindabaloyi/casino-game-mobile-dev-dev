@@ -40,8 +40,7 @@ function captureOpponent(state, payload, playerIndex) {
     throw new Error(`captureOpponent: card value ${capturingCard.value} doesn't match build value ${buildStack.value}`);
   }
   
-  // Track captured teammate builds for cooperative rebuild in party mode
-  // This action is specifically for capturing opponent's builds
+  // Track captured builds for cooperative rebuild/recall in party mode
   const isPartyMode = state.playerCount === 4;
   
   if (isPartyMode && buildStack && buildStack.type === 'build_stack') {
@@ -51,19 +50,24 @@ function captureOpponent(state, payload, playerIndex) {
       const stackOwnerTeam = stackOwner < 2 ? 0 : 1;
       const capturingPlayerTeam = playerIndex < 2 ? 0 : 1;
       
-      // Only track if the capturing player is on a DIFFERENT team (opponent captured it)
+      // Always track opponent captures (different teams)
       if (stackOwnerTeam !== capturingPlayerTeam) {
         // Ensure teamCapturedBuilds exists
         if (!newState.teamCapturedBuilds) {
           newState.teamCapturedBuilds = { 0: [], 1: [] };
         }
         
-        // Add entry to the VICTIM's team array (so they can rebuild their captured build)
-        // This allows the victim to rebuild the build that was taken from them
-        newState.teamCapturedBuilds[stackOwnerTeam].push({
+        // Track shiyaPlayer if the captured build had Shiya active
+        // This allows the Shiya activator to recall their own build
+        const shiyaPlayer = buildStack.shiyaActive ? buildStack.shiyaPlayer : null;
+        
+        newState.teamCapturedBuilds[capturingPlayerTeam].push({
           value: buildStack.value,
           originalOwner: stackOwner,
-          capturedBy: playerIndex  // Track who captured it (for filtering)
+          capturedBy: playerIndex,
+          cards: buildStack.cards,
+          stackId: buildStack.stackId,
+          shiyaPlayer
         });
       }
     }

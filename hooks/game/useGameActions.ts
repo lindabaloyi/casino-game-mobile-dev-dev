@@ -157,6 +157,14 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
+  // Recall build - party mode only, retrieve teammate's captured build
+  const recallBuild = useCallback((buildId: string) => {
+    sendAction({ 
+      type: 'recallBuild', 
+      payload: { buildId } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
   return {
     createTemp,
     addToTemp,
@@ -174,6 +182,7 @@ export function useGameActions(sendAction: SendAction) {
     endTurn,
     stackDrop,
     shiya,
+    recallBuild,
   };
 }
 

@@ -176,17 +176,7 @@ class StackDropRouter {
 
     // 4. If card is from hand, check if it can capture this build
     // Note: In party mode, friendly builds (teammates) should NOT be capturable - card should stack instead
-    // Also: If build has Shiya from teammate, owner CANNOT capture - must extend instead
     if (source === 'hand') {
-      // Check if Shiya is active from a teammate - if so, owner cannot capture
-      if (stack.shiyaActive && stack.shiyaPlayer !== undefined) {
-        const isShiyaByTeammate = areTeammates(stack.owner, stack.shiyaPlayer) && stack.shiyaPlayer !== stack.owner;
-        if (isShiyaByTeammate) {
-          const cardSource = this.getCardSource(state, playerIndex, card);
-          return this.extendRouter.route({ stackId, card, cardSource }, state, playerIndex);
-        }
-      }
-      
       const buildCards = stack.cards || [];
       let canCapture = false;
 

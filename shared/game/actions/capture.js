@@ -105,11 +105,13 @@ function capture(state, payload, playerIndex) {
             newState.teamCapturedBuilds = { 0: [], 1: [] };
           }
           
-          // Add entry to the VICTIM's team array (so they can rebuild their captured build)
-          newState.teamCapturedBuilds[stackOwnerTeam].push({
+          // Add entry to the CAPTURING player's team array (so teammates can recall it)
+          newState.teamCapturedBuilds[capturingPlayerTeam].push({
             value: buildStack.value,
             originalOwner: stackOwner,
-            capturedBy: playerIndex  // Track who captured it
+            capturedBy: playerIndex,  // Track who captured it
+            cards: buildStack.cards,   // Store cards for recall functionality
+            stackId: buildStack.stackId  // Store original stack ID
           });
         }
       }

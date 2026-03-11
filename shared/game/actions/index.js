@@ -44,6 +44,7 @@ const actionHandlers = {
 
   // ── Shiya (Party Mode) ───────────────────────────────────────────────────────
   shiya:               require('./shiya'),
+  recallBuild:         require('./recallBuild'),
 
   // ── Utility ───────────────────────────────────────────────────────────────────
   noop:                require('./noop'),

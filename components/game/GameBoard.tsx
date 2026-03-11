@@ -10,7 +10,7 @@
  *   PlayerHandArea  — scrollable draggable hand
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GameState, OpponentDragState } from '../../hooks/useGameState';
 import { useDrag } from '../../hooks/useDrag';
@@ -33,6 +33,7 @@ import { OpponentGhostCard } from './OpponentGhostCard';
 import { ErrorBanner } from '../shared/ErrorBanner';
 import { Card as TableCard } from '../../types';
 import { GameOverModal } from '../modals/GameOverModal';
+import { ShiyaRecallModal } from '../modals/ShiyaRecallModal';
 import { areTeammates } from '../../shared/game/team';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -85,6 +86,12 @@ export function GameBoard({
   const [errorVersion, setErrorVersion] = useState(0);
   const [dragVersion, setDragVersion] = useState(0);
   const [selectedBuildForShiya, setSelectedBuildForShiya] = useState<any>(null);
+  const [selectedBuildForRecall, setSelectedBuildForRecall] = useState<any>(null);
+  
+  // Shiya recall modal state
+  const [shiyaRecallCandidate, setShiyaRecallCandidate] = useState<any>(null);
+  const recallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevShiyaBuildsRef = useRef<any[]>([]);
   
   // Track round transitions to prevent double triggers
   const lastProcessedRound = useRef<number>(0);
@@ -106,6 +113,14 @@ export function GameBoard({
   const computed = useGameComputed(gameState, playerNumber);
   const { getTableBounds } = useTableBounds(drag.dropBounds);
   const roundInfo = useGameRound(gameState);
+  
+  // Get available recalls for party mode
+  const availableRecalls = useMemo(() => {
+    if (gameState.playerCount !== 4) return [];
+    const playerTeam = playerNumber < 2 ? 0 : 1;
+    const teamBuilds = gameState.teamCapturedBuilds?.[playerTeam] || [];
+    return teamBuilds;
+  }, [gameState.teamCapturedBuilds, gameState.playerCount, playerNumber]);
   
   // Turn timer - 20 second countdown
   const turnTimer = useTurnTimer({
@@ -146,6 +161,41 @@ export function GameBoard({
       // Round 2 ending is handled by gameState.gameOver (no action needed)
     }
   }, [roundInfo.isOver, roundInfo.roundNumber, startNextRound]);
+
+  // Shiya Recall Detection
+  // Detect when a teammate captures a build where YOU activated Shiya
+  useEffect(() => {
+    if (gameState.playerCount !== 4) return;
+    
+    const myTeam = playerNumber < 2 ? 0 : 1;
+    const currentBuilds = gameState.teamCapturedBuilds?.[myTeam] || [];
+    const prevBuilds = prevShiyaBuildsRef.current;
+
+    // Find newly added builds where shiyaPlayer is me
+    const newShiyaCaptures = currentBuilds.filter(
+      build => build.shiyaPlayer === playerNumber && 
+               !prevBuilds.some(p => p.stackId === build.stackId)
+    );
+
+    if (newShiyaCaptures.length > 0) {
+      // Clear any existing timer
+      if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
+      setShiyaRecallCandidate(newShiyaCaptures[0]);
+
+      // Auto-dismiss after 4 seconds
+      recallTimerRef.current = setTimeout(() => {
+        setShiyaRecallCandidate(null);
+        recallTimerRef.current = null;
+      }, 4000);
+    }
+
+    prevShiyaBuildsRef.current = currentBuilds;
+
+    // Cleanup timer on unmount
+    return () => {
+      if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
+    };
+  }, [gameState.teamCapturedBuilds, playerNumber, gameState.playerCount]);
 
   // Drag end wrapper
   const handleDragEndWrapper = () => {
@@ -406,6 +456,11 @@ export function GameBoard({
         onShiya={(stackId) => {
           actions.shiya(stackId);
         }}
+        // Recall props - party mode build recall
+        availableRecalls={availableRecalls}
+        onRecall={(buildId) => {
+          actions.recallBuild(buildId);
+        }}
       />
 
       <DragGhost 
@@ -440,6 +495,24 @@ export function GameBoard({
         onConfirmSteal={actionHandlers.handleConfirmSteal}
         onCancelSteal={modals.closeStealModal}
         onStealCompleted={modals.onStealCompleted}
+      />
+
+      {/* Shiya Recall Modal - appears when teammate captures your Shiya build */}
+      <ShiyaRecallModal
+        visible={!!shiyaRecallCandidate}
+        build={shiyaRecallCandidate}
+        onRecall={() => {
+          if (shiyaRecallCandidate) {
+            actions.recallBuild(shiyaRecallCandidate.stackId);
+            setShiyaRecallCandidate(null);
+            if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
+          }
+        }}
+        onClose={() => {
+          setShiyaRecallCandidate(null);
+          if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
+        }}
+        autoCloseMs={4000}
       />
 
       {/* No Round End Modal - transitions are automatic */}

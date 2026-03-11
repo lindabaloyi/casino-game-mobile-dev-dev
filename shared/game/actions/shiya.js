@@ -64,18 +64,12 @@ function shiya(state, payload, playerIndex) {
   );
   
   if (buildIndex !== -1) {
-    // Transfer ownership to the Shiya-activating player
-    // This simplifies routing - now the Shiya player can capture their own build
-    const previousOwner = newState.tableCards[buildIndex].owner;
-    newState.tableCards[buildIndex].owner = playerIndex;
+    // Mark Shiya as active - this is the core activation logic
     newState.tableCards[buildIndex].shiyaActive = true;
     newState.tableCards[buildIndex].shiyaPlayer = playerIndex;
-    newState.tableCards[buildIndex].previousOwner = previousOwner; // Keep track for scoring
     
-    console.log(`[shiya] Player ${playerIndex} took ownership from P${previousOwner}, now owns build ${stackId}`);
+    console.log(`[shiya] Player ${playerIndex} activated Shiya on build ${stackId}`);
   }
-  
-  console.log(`[shiya] Player ${playerIndex} activated Shiya on build ${stackId}`);
   
   return newState;
 }

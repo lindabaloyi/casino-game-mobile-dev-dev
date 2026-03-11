@@ -96,6 +96,10 @@ interface Props {
   selectedBuild?: any | null;
   /** Shiya callback - for party mode capture of teammate's build */
   onShiya?: (stackId: string) => void;
+  /** Available recalls for party mode - builds captured by team that can be recalled */
+  availableRecalls?: Array<{ stackId: string; value: number; originalOwner: number; cards?: any[] }>;
+  /** Recall callback - for party mode to recall teammate's captured build */
+  onRecall?: (buildId: string) => void;
 }
 
 // Default card dimensions - matching table card size (56x84)
@@ -132,6 +136,8 @@ export function PlayerHandArea({
   currentPlayer,
   selectedBuild,
   onShiya,
+  availableRecalls,
+  onRecall,
 }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   
@@ -280,7 +286,7 @@ export function PlayerHandArea({
       </ScrollView>
       
       {/* Action strip for pending stack OR Shiya - positioned on the right side */}
-      {((activeStackId && activeStackType && onAcceptStack && onCancelStack) || canShiya) ? (
+      {((activeStackId && activeStackType && onAcceptStack && onCancelStack) || canShiya || (availableRecalls && availableRecalls.length > 0)) ? (
         <View style={styles.actionStripContainer}>
           <View style={styles.actionButtons}>
             {activeStackId && activeStackType && onAcceptStack && onCancelStack && (
@@ -315,6 +321,20 @@ export function PlayerHandArea({
                 accessibilityLabel="Shiya"
               >
                 <Text style={styles.actionButtonText}>Shiya</Text>
+              </TouchableOpacity>
+            )}
+            {availableRecalls && availableRecalls.length > 0 && onRecall && (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.recallButton]}
+                onPress={() => {
+                  // Recall the first available build
+                  if (availableRecalls.length > 0) {
+                    onRecall(availableRecalls[0].stackId);
+                  }
+                }}
+                accessibilityLabel="Recall"
+              >
+                <Text style={styles.actionButtonText}>Recall ({availableRecalls.length})</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -392,6 +412,10 @@ const styles = StyleSheet.create({
   shiyaButton: {
     backgroundColor: '#FF9800',
     borderColor: '#F57C00',
+  },
+  recallButton: {
+    backgroundColor: '#9C27B0',
+    borderColor: '#7B1FA2',
   },
   actionButtonText: {
     color: '#fff',

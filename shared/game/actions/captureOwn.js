@@ -85,45 +85,44 @@ function captureOwn(state, payload, playerIndex) {
       }
     }
     
-    // Track captured teammate builds for cooperative rebuild in party mode
-    // Only track build_stack captures by opponents (won't trigger here since player owns the build)
+    // Track captured builds for cooperative rebuild/recall in party mode
     const isPartyMode = state.playerCount === 4;
-    console.log(`[captureOwn] Build capture tracking - isPartyMode: ${isPartyMode}, playerCount: ${state.playerCount}, stackType: ${buildStack?.type}, stackOwner: ${buildStack?.owner}, playerIndex: ${playerIndex}`);
     
     if (isPartyMode && buildStack && buildStack.type === 'build_stack') {
       const stackOwner = buildStack.owner;
-      console.log(`[captureOwn] Checking build stack - owner: ${stackOwner}, value: ${buildStack.value}`);
       
       if (stackOwner !== undefined && stackOwner !== null) {
         const stackOwnerTeam = stackOwner < 2 ? 0 : 1;
         const capturingPlayerTeam = playerIndex < 2 ? 0 : 1;
-        console.log(`[captureOwn] Team check - stackOwnerTeam: ${stackOwnerTeam}, capturingPlayerTeam: ${capturingPlayerTeam}, different: ${stackOwnerTeam !== capturingPlayerTeam}`);
         
-        // Only track if the capturing player is on a DIFFERENT team (opponent captured it)
+        let shouldTrack = false;
+        let shiyaPlayer = null;
+
+        // Case 1: Opponent capture (different teams)
         if (stackOwnerTeam !== capturingPlayerTeam) {
-          // Ensure teamCapturedBuilds exists
+          shouldTrack = true;
+        }
+        // Case 2: Same-team capture of a Shiya-activated build
+        else if (stackOwnerTeam === capturingPlayerTeam && buildStack.shiyaActive) {
+          shouldTrack = true;
+          shiyaPlayer = buildStack.shiyaPlayer;
+        }
+
+        if (shouldTrack) {
           if (!newState.teamCapturedBuilds) {
             newState.teamCapturedBuilds = { 0: [], 1: [] };
-            console.log(`[captureOwn] Created teamCapturedBuilds in newState`);
           }
           
-          // Add entry to the CAPTURING player's team array (so teammates can rebuild it)
           newState.teamCapturedBuilds[capturingPlayerTeam].push({
             value: buildStack.value,
             originalOwner: stackOwner,
-            capturedBy: playerIndex  // Track who captured it
+            capturedBy: playerIndex,
+            cards: buildStack.cards,
+            stackId: buildStack.stackId,
+            shiyaPlayer
           });
-          
-          console.log(`[captureOwn] ✅ Tracked captured build: value=${buildStack.value}, originalOwner=${stackOwner}, capturedBy=${playerIndex}, team=${capturingPlayerTeam}`);
-          console.log(`[captureOwn] Current teamCapturedBuilds:`, JSON.stringify(newState.teamCapturedBuilds));
-        } else {
-          console.log(`[captureOwn] ⏭️ Skipped tracking - same team (playerIndex: ${playerIndex}, stackOwner: ${stackOwner})`);
         }
-      } else {
-        console.log(`[captureOwn] ⏭️ Skipped tracking - no stack owner`);
       }
-    } else {
-      console.log(`[captureOwn] ⏭️ Skipped tracking - not party mode or not build_stack`);
     }
     
     newState.tableCards.splice(stackIdx, 1);
