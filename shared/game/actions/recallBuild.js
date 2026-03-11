@@ -31,6 +31,21 @@ function recallBuild(state, payload, playerIndex) {
     throw new Error(`recallBuild: build ${buildId} not found in teamCapturedBuilds`);
   }
 
+  // Identify the Shiya player who can recall this build
+  // This is the player who originally activated Shiya on this build
+  const shiyaPlayer = capturedBuild.shiyaPlayer;
+  
+  // Verify the shiyaPlayer exists and is on the same team
+  if (shiyaPlayer === null || shiyaPlayer === undefined) {
+    throw new Error('recallBuild: no shiyaPlayer found for this build');
+  }
+  
+  // Verify the requesting player is the Shiya player (or their teammate in party mode)
+  const shiyaPlayerTeam = shiyaPlayer < 2 ? 0 : 1;
+  if (shiyaPlayerTeam !== playerTeam) {
+    throw new Error('recallBuild: shiyaPlayer is not on the same team as requesting player');
+  }
+  
   // Identify teammate index - use capturedBy (who captured the build), not originalOwner
   // The cards are in the capturing player's captures
   const teammateIndex = capturedBuild.capturedBy;
@@ -75,18 +90,22 @@ function recallBuild(state, payload, playerIndex) {
   console.log(`[recallBuild] After removal - teammate captures: ${JSON.stringify(teammateCapturesNew.map(c => `${c.rank}${c.suit}`))}`);
 
   // Recreate the build stack on table
+  // The build ownership goes to the Shiya player who is recalling it
   const values = buildCards.map(c => c.value);
   const buildInfo = calculateBuildValue(values);
 
   const newBuild = {
     type: 'build_stack',
-    stackId: generateStackId(newState, 'build', capturedBuild.capturedBy), // new ID, owner is the capturer
+    stackId: generateStackId(newState, 'build', shiyaPlayer), // Owner is the Shiya player who recalled it
     cards: buildCards,
-    owner: capturedBuild.capturedBy, // Owner is the player who captured it
+    owner: shiyaPlayer, // Owner is the Shiya player who recalled the build
     value: buildInfo.value,
     base: buildInfo.value,
     need: buildInfo.need,
     buildType: buildInfo.buildType,
+    // Preserve Shiya state - if it was a Shiya build, it remains Shiya active for the new owner
+    shiyaActive: true,
+    shiyaPlayer: shiyaPlayer,
   };
 
   newState.tableCards.push(newBuild);

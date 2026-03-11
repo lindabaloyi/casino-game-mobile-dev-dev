@@ -32,37 +32,31 @@ function acceptTemp(state, payload, playerIndex) {
 
   const finalValue = buildValue || stack.value;
   
-  // --- VALIDATION: Check if opponent already has a build with the same value ---
-  // In party mode: check ALL opponents; in duel mode: check single opponent
-  let opponentHasSameValue = false;
+  // --- VALIDATION: Check for duplicate build on table ---
+  // Compare full build composition (cards) to prevent identical builds
+  const newBuildCards = stack.cards.map(c => `${c.rank}${c.suit}`).sort().join(',');
   
-  if (state.isPartyMode) {
-    // Party mode: check both opponents
-    const opponentIndices = playerIndex < 2 ? [2, 3] : [0, 1];
-    for (const oIdx of opponentIndices) {
-      const opponentBuilds = newState.tableCards.filter(
-        tc => tc.type === 'build_stack' && tc.owner === oIdx
+  const existingBuilds = newState.tableCards.filter(
+    tc => tc.type === 'build_stack' && tc.stackId !== stackId
+  );
+  
+  for (const existingBuild of existingBuilds) {
+    // Check for identical card composition
+    const existingCards = existingBuild.cards.map(c => `${c.rank}${c.suit}`).sort().join(',');
+    if (existingCards === newBuildCards) {
+      throw new Error(
+        `acceptTemp: Duplicate build already exists on table with identical cards`
       );
-      if (opponentBuilds.some(build => build.value === finalValue)) {
-        opponentHasSameValue = true;
-        break;
-      }
     }
-  } else {
-    // Duel mode: check single opponent
-    const opponentIndex = playerIndex === 0 ? 1 : 0;
-    const opponentBuilds = newState.tableCards.filter(
-      tc => tc.type === 'build_stack' && tc.owner === opponentIndex
-    );
-    opponentHasSameValue = opponentBuilds.some(build => build.value === finalValue);
+    
+    // Check for same value (e.g., two builds of 9, regardless of card composition)
+    if (existingBuild.value === finalValue) {
+      throw new Error(
+        `acceptTemp: Cannot accept build with value ${finalValue} - a build with this value already exists on table`
+      );
+    }
   }
   
-  if (opponentHasSameValue) {
-    throw new Error(
-      `acceptTemp: Cannot accept build with value ${finalValue} - opponent already has a build with this value`
-    );
-  }
-
   stack.value = finalValue;
   stack.type = 'build_stack';
   

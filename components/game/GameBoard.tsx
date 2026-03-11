@@ -86,12 +86,12 @@ export function GameBoard({
   const [errorVersion, setErrorVersion] = useState(0);
   const [dragVersion, setDragVersion] = useState(0);
   const [selectedBuildForShiya, setSelectedBuildForShiya] = useState<any>(null);
-  const [selectedBuildForRecall, setSelectedBuildForRecall] = useState<any>(null);
   
   // Shiya recall modal state
   const [shiyaRecallCandidate, setShiyaRecallCandidate] = useState<any>(null);
   const recallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevShiyaBuildsRef = useRef<any[]>([]);
+  const shiyaButtonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Track round transitions to prevent double triggers
   const lastProcessedRound = useRef<number>(0);
@@ -194,6 +194,7 @@ export function GameBoard({
     // Cleanup timer on unmount
     return () => {
       if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
+      if (shiyaButtonTimerRef.current) clearTimeout(shiyaButtonTimerRef.current);
     };
   }, [gameState.teamCapturedBuilds, playerNumber, gameState.playerCount]);
 
@@ -235,6 +236,13 @@ export function GameBoard({
     
     if (hasMatch) {
       setSelectedBuildForShiya(build);
+      
+      // Auto-hide Shiya button after 5 seconds if not clicked
+      if (shiyaButtonTimerRef.current) clearTimeout(shiyaButtonTimerRef.current);
+      shiyaButtonTimerRef.current = setTimeout(() => {
+        setSelectedBuildForShiya(null);
+        shiyaButtonTimerRef.current = null;
+      }, 5000);
     } else {
       setSelectedBuildForShiya(null);
     }
@@ -454,12 +462,13 @@ export function GameBoard({
         currentPlayer={gameState.currentPlayer}
         selectedBuild={selectedBuildForShiya}
         onShiya={(stackId) => {
+          // Clear the Shiya button immediately when clicked
+          if (shiyaButtonTimerRef.current) {
+            clearTimeout(shiyaButtonTimerRef.current);
+            shiyaButtonTimerRef.current = null;
+          }
+          setSelectedBuildForShiya(null);
           actions.shiya(stackId);
-        }}
-        // Recall props - party mode build recall
-        availableRecalls={availableRecalls}
-        onRecall={(buildId) => {
-          actions.recallBuild(buildId);
         }}
       />
 
