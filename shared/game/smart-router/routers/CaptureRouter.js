@@ -51,7 +51,6 @@ class CaptureRouter {
       const isShiyaByTeammate = areTeammates(stack.owner, stack.shiyaPlayer) && stack.shiyaPlayer !== stack.owner;
       
       if (isShiyaByTeammate) {
-        console.log(`[CaptureRouter] Build has Shiya from teammate → extending build instead of capturing`);
         return { 
           type: 'startBuildExtension', 
           payload: { card, stackId: payload.targetStackId, cardSource: 'hand' } 
@@ -70,28 +69,22 @@ class CaptureRouter {
       const hand = state.players[playerIndex].hand;
       const sameRankCount = hand.filter(c => c.rank === buildRank).length;
 
-      console.log(`[CaptureRouter] Same-rank build (${buildRank}): player has ${sameRankCount} in hand`);
-
       // If there is a spare (more than one), the player must extend the build
       if (sameRankCount > 1) {
-        console.log(`[CaptureRouter] Has spare → extending build with startBuildExtension`);
         return { 
           type: 'startBuildExtension', 
           payload: { card, stackId: payload.targetStackId, cardSource: 'hand' } 
         };
       } else {
         // No spare → capture the build
-        console.log(`[CaptureRouter] No spare → capturing own build`);
         return { type: 'captureOwn', payload };
       }
     } else {
       // Sum build (mixed ranks) – use value comparison
       if (card.value === stack.value) {
-        console.log(`[CaptureRouter] Sum build: value matches (${card.value}) → capturing`);
         return { type: 'captureOwn', payload };
       } else {
         // Value doesn't match – maybe they're trying to add to the sum build?
-        console.log(`[CaptureRouter] Sum build: value doesn't match → trying addToTemp`);
         return { 
           type: 'addToTemp', 
           payload: { card, stackId: payload.targetStackId } 

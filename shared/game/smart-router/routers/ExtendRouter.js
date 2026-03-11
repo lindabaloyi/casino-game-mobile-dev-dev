@@ -23,7 +23,6 @@ class ExtendRouter {
     // Check if THIS player has Shiya'd this build
     // If so, route to capture instead of extend
     if (stack.shiyaActive && stack.shiyaPlayer === playerIndex) {
-      console.log(`[ExtendRouter] Player ${playerIndex} has Shiya on this build → routing to capture`);
       return { 
         type: 'capture', 
         payload: { 

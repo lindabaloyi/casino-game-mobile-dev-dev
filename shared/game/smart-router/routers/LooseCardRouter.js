@@ -56,10 +56,8 @@ class LooseCardRouter {
       // If player has a spare card of this rank → create temp stack
       // Otherwise → capture
       if (hasSpare) {
-        console.log(`[LooseCardRouter] High rank ${card.rank}: has spare, creating temp stack`);
         return { type: 'createTemp', payload: { card, targetCard, source } };
       } else {
-        console.log(`[LooseCardRouter] High rank ${card.rank}: no spare, capturing`);
         return {
           type: 'captureOwn',
           payload: {
@@ -78,15 +76,12 @@ class LooseCardRouter {
       
       if (hasDouble) {
         // Has the double card → create sum build temp stack
-        console.log(`[LooseCardRouter] Low rank ${card.rank}: has double (${doubleValue}), creating sum build`);
         return { type: 'createTemp', payload: { card, targetCard, source } };
       } else if (hasSpare) {
         // No double, but has spare → create same-rank build
-        console.log(`[LooseCardRouter] Low rank ${card.rank}: no double, has spare, creating same-rank build`);
         return { type: 'createTemp', payload: { card, targetCard, source } };
       } else {
         // No double, no spare → capture
-        console.log(`[LooseCardRouter] Low rank ${card.rank}: no double, no spare, capturing`);
         return {
           type: 'captureOwn',
           payload: {

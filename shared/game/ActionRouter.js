@@ -67,8 +67,14 @@ function createActionRouter(config) {
 
       console.log(`[ActionRouter] SmartRouter routed "${actionType}" → "${finalType}"`);
 
-      // 4. Execute handler — pure function returns new state
+      // 4. Check if handler exists
       const handler = handlers[finalType];
+      if (!handler) {
+        console.log(`[ActionRouter] No handler for "${finalType}" - returning state unchanged`);
+        return state;
+      }
+
+      // 5. Execute handler — pure function returns new state
       const newState = handler(state, finalPayload || {}, playerIndex);
 
       return newState;

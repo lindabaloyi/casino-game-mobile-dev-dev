@@ -131,7 +131,7 @@ export function useDragHandlers({
     const targetStack = findTempStackAtPoint?.(absX, absY);
     if (targetStack && targetStack.stackType === 'temp_stack' && dragOverlay.draggingCard) {
       if (targetStack.owner === playerNumber) {
-        actions.addToTemp(dragOverlay.draggingCard, targetStack.stackId);
+        actions.addToTemp(dragOverlay.draggingCard, targetStack.stackId, dragOverlay.dragSource || 'hand');
       }
       handleDragEnd('temp_stack', 'success', targetStack.stackId);
       return;

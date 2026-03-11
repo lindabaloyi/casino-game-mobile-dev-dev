@@ -44,6 +44,9 @@ const actionHandlers = {
 
   // ── Shiya (Party Mode) ───────────────────────────────────────────────────────
   shiya:               require('./shiya'),
+
+  // ── Utility ───────────────────────────────────────────────────────────────────
+  noop:                require('./noop'),
 };
 
 module.exports = actionHandlers;

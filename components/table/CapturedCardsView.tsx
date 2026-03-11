@@ -131,8 +131,6 @@ export function CapturedCardsView({
 
   // Build left and right side player lists
   // Party mode: LEFT = one opponent + teammate (2 slots), RIGHT = player + other opponent (2 slots)
-  console.log(`[CapturedCardsView] Party mode: ${finalIsPartyMode}, playerNumber: ${playerNumber}, opponentIndices: ${JSON.stringify(opponentIndices)}, teammateIndex: ${teammateIndex}`);
-  
   const leftSideIndices: number[] = finalIsPartyMode
     ? [opponentIndices[0], teammateIndex] // one opponent + teammate on left (2 slots)
     : [opponentIndices[0]]; // opponent on left in 2-player

@@ -78,8 +78,6 @@ export function useGameActions(sendAction: SendAction) {
       payload = { stackId: stackOrPayload.stackId, source };
     }
     
-    console.log(`[useGameActions] dropToCapture payload:`, payload);
-    
     sendAction({ 
       type: 'dropToCapture', 
       payload: payload as unknown as Record<string, unknown> 

@@ -24,13 +24,13 @@ class StackDropRouter {
    * Main entry point for stack drop routing
    */
   route(payload, state, playerIndex) {
-    const { stackType, stackId, card, targetCard } = payload;
+    const { stackType, stackId, card, targetCard, cardSource } = payload;
     
     // Temp stack drops
     if (stackType === 'temp_stack') {
       return { 
         type: 'addToTemp', 
-        payload: { card, stackId } 
+        payload: { card, stackId, source: cardSource } 
       };
     }
     
@@ -54,12 +54,9 @@ class StackDropRouter {
     if (!stack) {
       throw new Error(`Build stack "${stackId}" not found`);
     }
-    
-    console.log(`[StackDropRouter] routeBuildStackDrop - stackId: ${stackId}, owner: ${stack.owner}, player: ${playerIndex}, playerCount: ${state.playerCount}`);
 
     // Determine if the build is friendly (owner or teammate in party mode)
     const isFriendly = this.isFriendlyBuild(stack, playerIndex, state);
-    console.log(`[StackDropRouter] isFriendlyBuild result: ${isFriendly}, ownerTeam: ${stack.owner < 2 ? 'A' : 'B'}, playerTeam: ${playerIndex < 2 ? 'A' : 'B'}`);
     
     if (isFriendly) {
       return this.routeOwnBuildDrop(payload, stack, state, playerIndex);
@@ -75,22 +72,18 @@ class StackDropRouter {
   isFriendlyBuild(stack, playerIndex, state) {
     // Same owner → always friendly
     if (stack.owner === playerIndex) {
-      console.log(`[StackDropRouter] isFriendlyBuild: same owner (${stack.owner} === ${playerIndex}) → true`);
       return true;
     }
 
     // Party mode (4 players) → check teammates
-    console.log(`[StackDropRouter] isFriendlyBuild: playerCount=${state.playerCount}, checking party mode`);
     if (state.playerCount === 4) {
       // Players 0,1 = Team A ; 2,3 = Team B
       const ownerTeam = stack.owner < 2 ? 'A' : 'B';
       const playerTeam = playerIndex < 2 ? 'A' : 'B';
-      console.log(`[StackDropRouter] isFriendlyBuild: ownerTeam=${ownerTeam}, playerTeam=${playerTeam}`);
       return ownerTeam === playerTeam;
     }
 
     // Duel mode → only owner is friendly
-    console.log(`[StackDropRouter] isFriendlyBuild: duel mode → false`);
     return false;
   }
 
@@ -175,7 +168,6 @@ class StackDropRouter {
     const extensionCheck = this.checkForExtension(hand, card.rank);
     
     if (extensionCheck.canExtend) {
-      console.log(`[StackDropRouter] Extending build: ${extensionCheck.reason}`);
       return { 
         type: 'startBuildExtension', 
         payload: { card, stackId, cardSource: source } 
@@ -190,7 +182,6 @@ class StackDropRouter {
       if (stack.shiyaActive && stack.shiyaPlayer !== undefined) {
         const isShiyaByTeammate = areTeammates(stack.owner, stack.shiyaPlayer) && stack.shiyaPlayer !== stack.owner;
         if (isShiyaByTeammate) {
-          console.log(`[StackDropRouter] Build has Shiya from teammate → owner cannot capture, routing to extend`);
           const cardSource = this.getCardSource(state, playerIndex, card);
           return this.extendRouter.route({ stackId, card, cardSource }, state, playerIndex);
         }

@@ -53,6 +53,16 @@ class SmartRouter {
         return this.extendRouter.route(payload, state, playerIndex);
       
       case 'createTemp':
+        // Check if player already has a temp stack - if so, don't allow creating another
+        const existingTempStack = state.tableCards?.find(
+          tc => tc.type === 'temp_stack' && tc.owner === playerIndex
+        );
+        if (existingTempStack) {
+          // Player already has a temp stack - return no-op (state unchanged)
+          // This prevents the error while allowing the game to continue
+          return { type: 'noop', payload: {} };
+        }
+        
         // If there's a targetCard, route through smart loose card logic
         if (payload?.targetCard) {
           return this.looseCardRouter.routeCreateTemp(payload, state, playerIndex);

@@ -104,15 +104,7 @@ function createTemp(state, payload, playerIndex) {
     throw new Error('createTemp: invalid targetCard payload - missing rank, suit, or value');
   }
 
-  // STEP 1: Check if player already has a temp stack - only ONE temp stack per player allowed
-  const existingTempStacks = state.tableCards.filter(
-    tc => tc.type === 'temp_stack' && tc.owner === playerIndex
-  );
-  if (existingTempStacks.length > 0) {
-    throw new Error(`Cannot create temp stack: player already has an active temp stack`);
-  }
-
-  // STEP 2: Validate the card exists at the claimed source
+  // STEP 1: Validate the card exists at the claimed source
   const cardInfo = findCardAtSource(state, card, cardSource, playerIndex);
   
   if (!cardInfo.found) {
@@ -128,13 +120,13 @@ function createTemp(state, payload, playerIndex) {
     throw new Error(`createTemp: card ${card.rank}${card.suit} not found at source ${cardSource}`);
   }
 
-  // STEP 3: Validate target card exists on table
+  // STEP 2: Validate target card exists on table
   const targetInfo = findCardOnTable(state, targetCard);
   if (!targetInfo.found) {
     throw new Error(`createTemp: target card ${targetCard.rank}${targetCard.suit} not found on table`);
   }
 
-  // STEP 4: Clone state and perform operations
+  // STEP 3: Clone state and perform operations
   const newState = cloneState(state);
 
   // Remove card from the source location in cloned state
