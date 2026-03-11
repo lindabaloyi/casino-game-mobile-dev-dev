@@ -101,7 +101,7 @@ interface Props {
 
   // Build extension handlers
   extendingBuildId?: string | null;
-  onExtendBuild?: (card: Card, buildStackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
+  onExtendBuild?: (card: Card, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}`) => void;
   onAcceptExtend?: (stackId: string) => void;
   onDeclineExtend?: (stackId: string) => void;
   

@@ -26,7 +26,7 @@ export interface DraggableOpponentCardProps {
   playerCount?: number;
   isPartyMode?: boolean;
   opponentDrag?: OpponentDragState | null;
-  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
+  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}`) => void;
 }
 
 export function DraggableOpponentCard({
@@ -107,7 +107,8 @@ export function DraggableOpponentCard({
         if (targetStack.stackType === 'build_stack' && isFriendlyBuild(targetStack.owner)) {
           if (onExtendBuild) {
             console.log('[DraggableOpponentCard] Extending build:', targetStack.stackId);
-            onExtendBuild(card, targetStack.stackId, 'captured');
+            // Use captured_<playerIndex> format so server knows which opponent's pile
+            onExtendBuild(card, targetStack.stackId, `captured_${opponentIndex}`);
             handled = true;
           }
         } else if (targetStack.owner === playerNumber) {

@@ -227,7 +227,8 @@ export function GameBoard({
     modals,
     computed.table,
     playerNumber,
-    dragHandlers.handleDragEnd
+    dragHandlers.handleDragEnd,
+    gameState.playerCount === 4
   );
 
   // ── Unified Drop Handler ─────────────────────────────────────────────────

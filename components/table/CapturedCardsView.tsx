@@ -49,7 +49,7 @@ interface CapturedCardsViewProps {
   /** Callback when drag ends - return action to send */
   onDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string, source?: string) => void;
   /** Extend build callback - for extending own build with captured card */
-  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
+  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}`) => void;
   /** Opponent's drag state - for hiding cards when opponent is dragging */
   opponentDrag?: OpponentDragState | null;
   /** Party mode flag - for team colors */

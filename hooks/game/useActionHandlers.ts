@@ -8,7 +8,8 @@ export function useActionHandlers(
   modals: ReturnType<typeof useModalManager>,
   table: any[],
   playerNumber: number,
-  onDragEndWrapper: (...args: any[]) => void
+  onDragEndWrapper: (...args: any[]) => void,
+  isPartyMode: boolean = false
 ) {
   const handleCapture = useCallback(
     (card: any, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => {
@@ -19,31 +20,42 @@ export function useActionHandlers(
 
   const handleTrail = useCallback(
     (card: any) => {
-      // Check if player has an active build (blocks trailing)
-      const hasActiveBuild = table.some(
-        (tc: any) => tc.type === 'build_stack' && tc.owner === playerNumber
-      );
+      // In DUEL mode (not party): prevent trailing if player has active build or temp stack
+      // In PARTY mode: allow trailing anytime (no restrictions)
+      const isDuelMode = !isPartyMode;
       
-      // Check if player has an unresolved temp stack (also blocks trailing)
-      const hasUnresolvedTemp = table.some(
-        (tc: any) => tc.type === 'temp_stack' && tc.owner === playerNumber
-      );
+      console.log(`[handleTrail] isPartyMode: ${isPartyMode}, isDuelMode: ${isDuelMode}, playerNumber: ${playerNumber}`);
       
-      if (hasActiveBuild) {
-        console.log(`[GameBoard] Cannot trail - player ${playerNumber} has an active build`);
-        onDragEndWrapper();
-        return;
+      if (isDuelMode) {
+        // Check if player has an active build (blocks trailing in duel mode only)
+        const hasActiveBuild = table.some(
+          (tc: any) => tc.type === 'build_stack' && tc.owner === playerNumber
+        );
+        
+        // Check if player has an unresolved temp stack (also blocks trailing in duel mode only)
+        const hasUnresolvedTemp = table.some(
+          (tc: any) => tc.type === 'temp_stack' && tc.owner === playerNumber
+        );
+        
+        if (hasActiveBuild) {
+          console.log(`[GameBoard] Cannot trail - player ${playerNumber} has an active build (duel mode)`);
+          onDragEndWrapper();
+          return;
+        }
+        
+        if (hasUnresolvedTemp) {
+          console.log(`[GameBoard] Cannot trail - player ${playerNumber} has an unresolved temp stack (duel mode)`);
+          onDragEndWrapper();
+          return;
+        }
+      } else {
+        console.log(`[handleTrail] PARTY MODE - allowing trail without restrictions`);
       }
-      
-      if (hasUnresolvedTemp) {
-        console.log(`[GameBoard] Cannot trail - player ${playerNumber} has an unresolved temp stack`);
-        onDragEndWrapper();
-        return;
-      }
+      // In party mode, always allow trailing - no restrictions
       
       actions.trail(card);
     },
-    [actions, table, playerNumber, onDragEndWrapper],
+    [actions, table, playerNumber, onDragEndWrapper, isPartyMode],
   );
 
   const handleAcceptClick = useCallback((stackId: string) => {
@@ -74,7 +86,7 @@ export function useActionHandlers(
     modals.closeStealModal();
   }, [modals, actions]);
 
-  const handleExtendBuild = useCallback((card: any, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' = 'table') => {
+  const handleExtendBuild = useCallback((card: any, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}` = 'table') => {
     console.log(`[GameBoard] extendBuild - card: ${card.rank}${card.suit}, stackId: ${buildStackId}, cardSource: ${cardSource}`);
     actions.extendBuild(card, buildStackId, cardSource);
     // End the drag to clear ghost overlay

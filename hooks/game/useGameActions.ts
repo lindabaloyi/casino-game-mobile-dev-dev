@@ -101,8 +101,11 @@ export function useGameActions(sendAction: SendAction) {
   }, [sendAction]);
 
   // Build extension actions
-  // cardSource: 'table' (loose card from table), 'hand' (card from player's hand), 'captured' (card from player's captured pile)
-  const startBuildExtension = useCallback((buildId: string, card: any, cardSource: 'table' | 'hand' | 'captured' = 'table') => {
+  // cardSource: 'table' (loose card from table), 'hand' (card from player's hand), 
+  // 'captured' (card from player's captured pile), 'captured_<playerIndex>' (specific player's captures)
+  type CardSource = 'table' | 'hand' | 'captured' | `captured_${number}`;
+  
+  const startBuildExtension = useCallback((buildId: string, card: any, cardSource: CardSource = 'table') => {
     sendAction({ 
       type: 'startBuildExtension', 
       payload: { stackId: buildId, card, cardSource } as unknown as Record<string, unknown> 
@@ -125,7 +128,7 @@ export function useGameActions(sendAction: SendAction) {
   }, [sendAction]);
 
   // Single action that router uses to decide start vs accept
-  const extendBuild = useCallback((card: any, buildId: string, cardSource: 'table' | 'hand' | 'captured' = 'table') => {
+  const extendBuild = useCallback((card: any, buildId: string, cardSource: CardSource = 'table') => {
     sendAction({ 
       type: 'extendBuild', 
       payload: { card, stackId: buildId, cardSource } as unknown as Record<string, unknown> 

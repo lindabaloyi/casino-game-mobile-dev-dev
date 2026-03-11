@@ -133,7 +133,18 @@ function createTemp(state, payload, playerIndex) {
     throw new Error('createTemp: invalid targetCard payload - missing rank, suit, or value');
   }
 
-  // STEP 1: Validate the card exists at the claimed source
+  // STEP 1: Check if player already has a temp stack - only ONE temp stack per player allowed
+  // This check happens FIRST to avoid any card manipulation if player already has a temp stack
+  const existingTempStacks = state.tableCards.filter(
+    tc => tc.type === 'temp_stack' && tc.owner === playerIndex
+  );
+  if (existingTempStacks.length > 0) {
+    console.error('[createTemp] ===== PLAYER ALREADY HAS TEMP STACK =====');
+    console.error(`[createTemp] Player ${playerIndex} already has ${existingTempStacks.length} temp stack(s)`);
+    throw new Error(`Cannot create temp stack: player already has an active temp stack`);
+  }
+
+  // STEP 2: Validate the card exists at the claimed source
   console.log('[createTemp] Validating card at source:', cardSource);
   const cardInfo = findCardAtSource(state, card, cardSource, playerIndex);
   
@@ -172,7 +183,7 @@ function createTemp(state, payload, playerIndex) {
   }
   console.log('[createTemp] Card validated at source:', cardSource, 'at index:', cardInfo.index);
 
-  // STEP 2: Validate target card exists on table
+  // STEP 3: Validate target card exists on table
   console.log('[createTemp] Validating target on table...');
   const targetInfo = findCardOnTable(state, targetCard);
   if (!targetInfo.found) {

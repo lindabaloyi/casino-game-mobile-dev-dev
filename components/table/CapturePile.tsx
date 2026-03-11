@@ -39,7 +39,7 @@ interface CapturePileProps {
   /** Find temp stack at point callback */
   findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   /** Extend build callback */
-  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
+  onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}`) => void;
   /** Opponent drag state */
   opponentDrag?: OpponentDragState | null;
   /** Registration callbacks */
