@@ -33,7 +33,7 @@ interface CapturePileProps {
   /** Drag callbacks */
   onDragStart?: (card: Card, x: number, y: number) => void;
   onDragMove?: (x: number, y: number) => void;
-  onDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string) => void;
+  onDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string, source?: string) => void;
   /** Find card at point callback */
   findCardAtPoint?: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   /** Find temp stack at point callback */
@@ -114,8 +114,10 @@ export function CapturePile({
 
   const handleDragEnd = useCallback((card: Card, targetCard?: Card, targetStackId?: string) => {
     console.log(`[CapturePile] handleDragEnd - card: ${card?.rank}${card?.suit}, targetCard: ${JSON.stringify(targetCard)}, targetStackId: ${targetStackId}`);
-    onDragEnd?.(card, targetCard, targetStackId);
-  }, [onDragEnd]);
+    // Pass source with owner player index so server knows which pile to check
+    const source = `captured_${playerIndex}`;
+    onDragEnd?.(card, targetCard, targetStackId, source);
+  }, [onDragEnd, playerIndex]);
 
   // Render the card (draggable or non-draggable)
   const renderCard = () => {

@@ -3,101 +3,16 @@
  * Creates a temporary stack from hand card + loose table card.
  * NOTE: This does NOT end the turn - player can continue with more actions.
  * 
- * FIX: Added validation-first approach to prevent card loss when target not found.
- * Previously, if the target card wasn't found after removing the first card,
- * the first card would be lost. Now we validate BOTH cards exist before removing either.
+ * OPTIMIZATION: Uses source from payload to directly access the card location
+ * instead of searching everywhere. This simplifies logic and reduces bugs.
  */
 
 const { cloneState, generateStackId, startPlayerTurn, triggerAction } = require('../');
 const { calculateBuildValue } = require('../buildCalculator');
 
 /**
- * Helper: Find card in hand, table, or captures
- * Returns { found: true, source, card, index, playerIndex } or null
- */
-function findCardAnywhere(state, card, playerIndex) {
-  // Debug: Log what we're looking for
-  console.log('[findCardAnywhere] Looking for:', `${card.rank}${card.suit}`);
-  console.log('[findCardAnywhere] Checking tableCards:', state.tableCards.map(tc => {
-    if (tc.type) {
-      return `{${tc.type}: ${tc.cards?.map(c => c.rank + c.suit).join(',')}}`;
-    }
-    return tc.rank + tc.suit;
-  }));
-  
-  // Check table first
-  const tableIdx = state.tableCards.findIndex(
-    tc => !tc.type && tc.rank === card.rank && tc.suit === card.suit,
-  );
-  console.log('[findCardAnywhere] Table search result:', tableIdx);
-  if (tableIdx !== -1) {
-    return { found: true, source: 'table', card: state.tableCards[tableIdx], index: tableIdx, playerIndex: null };
-  }
-  
-  // Check player's hand
-  console.log('[findCardAnywhere] Checking player hand:', state.players[playerIndex]?.hand?.map(c => c.rank + c.suit));
-  
-  const hand = state.players[playerIndex].hand;
-  const handIdx = hand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
-  if (handIdx !== -1) {
-    console.log('[findCardAnywhere] Card found in player hand at index:', handIdx);
-    return { found: true, source: 'hand', card: hand[handIdx], index: handIdx, playerIndex };
-  }
-  
-  console.log('[findCardAnywhere] Card not in hand, checking own captures...');
-  console.log('[findCardAnywhere] Own captures:', state.players[playerIndex]?.captures?.map(c => c.rank + c.suit));
-  
-  // Check own captures
-  
-  // Check own captures
-  const ownCaptureIdx = state.players[playerIndex].captures.findIndex(
-    c => c.rank === card.rank && c.suit === card.suit,
-  );
-  if (ownCaptureIdx !== -1) {
-    console.log('[findCardAnywhere] Card found in player captures at index:', ownCaptureIdx);
-    return { found: true, source: 'captured', card: state.players[playerIndex].captures[ownCaptureIdx], index: ownCaptureIdx, playerIndex };
-  }
-  
-  // Use playerCount to determine party mode (not isPartyMode which doesn't exist)
-  console.log('[findCardAnywhere] Not in own captures, isPartyMode:', state.playerCount === 4, 'playerCount:', state.playerCount);
-  console.log('[findCardAnywhere] Checking teammate/opponents for playerIndex:', playerIndex);
-  
-  // Check teammate's captures (party mode)
-  if (state.playerCount === 4) {
-    const teammateIndex = playerIndex < 2 ? (playerIndex === 0 ? 1 : 0) : (playerIndex === 2 ? 3 : 2);
-    const teammateCaptureIdx = state.players[teammateIndex].captures.findIndex(
-      c => c.rank === card.rank && c.suit === card.suit,
-    );
-    if (teammateCaptureIdx !== -1) {
-      return { found: true, source: 'captured', card: state.players[teammateIndex].captures[teammateCaptureIdx], index: teammateCaptureIdx, playerIndex: teammateIndex };
-    }
-    
-    // Check opponents' captures
-    const opponentIndices = playerIndex < 2 ? [2, 3] : [0, 1];
-    for (const oIdx of opponentIndices) {
-      const oppCaptureIdx = state.players[oIdx].captures.findIndex(
-        c => c.rank === card.rank && c.suit === card.suit,
-      );
-      if (oppCaptureIdx !== -1) {
-        return { found: true, source: 'captured', card: state.players[oIdx].captures[oppCaptureIdx], index: oppCaptureIdx, playerIndex: oIdx };
-      }
-    }
-  } else {
-    // Duel mode: check single opponent
-    const opponentIndex = playerIndex === 0 ? 1 : 0;
-    const captureIdx = state.players[opponentIndex].captures.findIndex(
-      c => c.rank === card.rank && c.suit === card.suit,
-    );
-    if (captureIdx !== -1) {
-      return { found: true, source: 'captured', card: state.players[opponentIndex].captures[captureIdx], index: captureIdx, playerIndex: opponentIndex };
-    }
-  }
-  
-  return { found: false };
-}
-
-/**
  * Helper: Find card specifically on table
+ * Used for target card validation
  */
 function findCardOnTable(state, targetCard) {
   console.log('[findCardOnTable] Looking for target:', `${targetCard.rank}${targetCard.suit}`);
@@ -118,21 +33,98 @@ function findCardOnTable(state, targetCard) {
   return { found: false };
 }
 
-function createTemp(state, payload, playerIndex) {
-  const { card, targetCard } = payload;
-
-  // Debug: Log all table cards to help diagnose issues
-  console.log('[createTemp] START:', {
-    card: `${card?.rank}${card?.suit}`,
-    target: `${targetCard?.rank}${targetCard?.suit}`,
-    tableCardsCount: state.tableCards.length,
-    tableCards: state.tableCards.map(tc => {
-      if (tc.type) {
-        return `{${tc.type}: ${tc.cards?.map(c => c.rank + c.suit).join(',')}}`;
+/**
+ * Find card at specific source location
+ * Returns { found: true, card, index } or { found: false }
+ * 
+ * Source format:
+ * - 'hand' - current player's hand
+ * - 'table' - table cards
+ * - 'captured' - current player's own captures (backward compat)
+ * - 'captured_<playerIndex>' - specific player's captures (e.g., 'captured_2')
+ */
+function findCardAtSource(state, card, source, playerIndex) {
+  const cardKey = `${card.rank}${card.suit}`;
+  console.log(`[findCardAtSource] Looking for ${cardKey} at source:`, source);
+  
+  switch (source) {
+    case 'table': {
+      const tableIdx = state.tableCards.findIndex(
+        tc => !tc.type && tc.rank === card.rank && tc.suit === card.suit,
+      );
+      console.log('[findCardAtSource] Table search result:', tableIdx);
+      if (tableIdx !== -1) {
+        return { found: true, card: state.tableCards[tableIdx], index: tableIdx };
       }
-      return tc.rank + tc.suit;
-    })
-  });
+      break;
+    }
+    
+    case 'hand': {
+      const hand = state.players[playerIndex].hand;
+      const handIdx = hand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
+      console.log('[findCardAtSource] Hand search result:', handIdx, 'hand:', hand.map(c => c.rank + c.suit));
+      if (handIdx !== -1) {
+        return { found: true, card: hand[handIdx], index: handIdx };
+      }
+      break;
+    }
+    
+    case 'captured':
+    default: {
+      // Handle both 'captured' (backward compat) and 'captured_<playerIndex>'
+      let ownerIndex = playerIndex;
+      
+      if (source && source.startsWith('captured_')) {
+        const parsed = parseInt(source.split('_')[1], 10);
+        if (!isNaN(parsed) && parsed >= 0 && parsed < state.players.length) {
+          ownerIndex = parsed;
+          console.log(`[findCardAtSource] Parsed owner index from source: ${source} -> ${ownerIndex}`);
+        }
+      }
+      
+      // Check the specified player's captures
+      const captures = state.players[ownerIndex].captures;
+      const captureIdx = captures.findIndex(c => c.rank === card.rank && c.suit === card.suit);
+      console.log(`[findCardAtSource] Captures search result for player ${ownerIndex}:`, captureIdx, 'captures:', captures.map(c => c.rank + c.suit));
+      
+      if (captureIdx !== -1) {
+        return { found: true, card: captures[captureIdx], index: captureIdx, ownerIndex };
+      }
+      
+      // For backward compatibility, also check own captures if source was just 'captured'
+      if (source === 'captured' && ownerIndex !== playerIndex) {
+        const ownCaptures = state.players[playerIndex].captures;
+        const ownCaptureIdx = ownCaptures.findIndex(c => c.rank === card.rank && c.suit === card.suit);
+        if (ownCaptureIdx !== -1) {
+          console.log('[findCardAtSource] Found in own captures (backward compat)');
+          return { found: true, card: ownCaptures[ownCaptureIdx], index: ownCaptureIdx, ownerIndex: playerIndex };
+        }
+      }
+      break;
+    }
+  }
+  
+  return { found: false };
+}
+
+function createTemp(state, payload, playerIndex) {
+  const { card, targetCard, source } = payload;
+
+  const cardSource = source || 'hand';
+
+  console.log('[createTemp] ===== SOURCE-BASED LOOKUP =====');
+  console.log('[createTemp] Card source (from client):', cardSource);
+  console.log('[createTemp] Card:', card ? `${card.rank}${card.suit}` : 'NONE');
+  console.log('[createTemp] Target:', targetCard ? `${targetCard.rank}${targetCard.suit}` : 'NONE');
+  console.log('[createTemp] Player index:', playerIndex);
+
+  // Debug: Log all table cards
+  console.log('[createTemp] Table cards:', state.tableCards.map(tc => {
+    if (tc.type) {
+      return `{${tc.type}: ${tc.cards?.map(c => c.rank + c.suit).join(',')}}`;
+    }
+    return tc.rank + tc.suit;
+  }));
 
   if (!card?.rank || !card?.suit || card?.value === undefined) {
     throw new Error('createTemp: invalid card payload - missing rank, suit, or value');
@@ -141,177 +133,98 @@ function createTemp(state, payload, playerIndex) {
     throw new Error('createTemp: invalid targetCard payload - missing rank, suit, or value');
   }
 
-  // FIX: Validate BOTH cards exist BEFORE modifying anything
-  // This prevents card loss if target is not found after first card is removed
+  // STEP 1: Validate the card exists at the claimed source
+  console.log('[createTemp] Validating card at source:', cardSource);
+  const cardInfo = findCardAtSource(state, card, cardSource, playerIndex);
   
-  console.log('[createTemp] Validating card existence...');
-  
-  // Validate the dragged card exists somewhere
-  const cardInfo = findCardAnywhere(state, card, playerIndex);
   if (!cardInfo.found) {
-    // LENIENT MODE: In multiplayer, the server may have already processed this action
-    // and sent us the updated state. If we can't find the card, it means the operation
-    // already succeeded on the server. Just return state as-is to sync with server.
-    console.warn('[createTemp] Card not found - likely already processed by server, returning current state');
-    return state;
+    // Card not at claimed source - this is a genuine error, not lenient mode
+    console.error('[createTemp] ===== CARD NOT AT CLAIMED SOURCE =====');
+    console.error('[createTemp] Client claimed card was from:', cardSource);
+    
+    // Log more details about what we searched
+    if (cardSource === 'captured' || (cardSource && cardSource.startsWith('captured_'))) {
+      let ownerIndex = playerIndex;
+      if (cardSource.startsWith('captured_')) {
+        ownerIndex = parseInt(cardSource.split('_')[1], 10);
+      }
+      console.error(`[createTemp] Searched capture pile of player ${ownerIndex} (playerIndex=${playerIndex})`);
+      console.error('[createTemp] Captures at that index:', state.players[ownerIndex]?.captures?.map(c => c.rank + c.suit) || 'EMPTY');
+      
+      // Also log all players' captures for debugging
+      console.error('[createTemp] All players captures:');
+      state.players.forEach((p, idx) => {
+        console.error(`  Player ${idx}:`, p.captures?.map(c => c.rank + c.suit) || []);
+      });
+    }
+    
+    console.error('[createTemp] This indicates a sync issue or client bug');
+    throw new Error(`createTemp: card ${card.rank}${card.suit} not found at source ${cardSource}`);
   }
-  console.log('[createTemp] Card found:', cardInfo.source);
-  
-  // Validate the target card exists on table
+  console.log('[createTemp] Card validated at source:', cardSource, 'at index:', cardInfo.index);
+
+  // STEP 2: Validate target card exists on table
+  console.log('[createTemp] Validating target on table...');
   const targetInfo = findCardOnTable(state, targetCard);
   if (!targetInfo.found) {
-    // LENIENT MODE: Same as above - if target not found, server already processed it
-    console.warn('[createTemp] Target card not found - likely already processed by server, returning current state');
-    return state;
+    console.error('[createTemp] Target card not on table:', `${targetCard.rank}${targetCard.suit}`);
+    throw new Error(`createTemp: target card ${targetCard.rank}${targetCard.suit} not found on table`);
   }
   console.log('[createTemp] Target found on table at index:', targetInfo.index);
 
-  // Only now proceed with modifications since both cards are confirmed to exist
+  // STEP 3: Clone state and perform operations
   const newState = cloneState(state);
 
+  // Remove card from the source location in cloned state
   let firstCard = null;
-  let firstSource = '';
   let firstCardFoundOnTable = false;
   
-  // Re-find the card in the cloned state (same logic as before but now safe)
-  const tableIdx = newState.tableCards.findIndex(
-    tc => !tc.type && tc.rank === card.rank && tc.suit === card.suit,
-  );
-  if (tableIdx !== -1) {
-    [firstCard] = newState.tableCards.splice(tableIdx, 1);
-    firstSource = 'table';
+  if (cardSource === 'table') {
+    [firstCard] = newState.tableCards.splice(cardInfo.index, 1);
     firstCardFoundOnTable = true;
     console.log('[createTemp] Removed card from table');
-  } else {
+  } else if (cardSource === 'hand') {
     const hand = newState.players[playerIndex].hand;
-    const handIdx = hand.findIndex(
-      c => c.rank === card.rank && c.suit === card.suit,
-    );
-    if (handIdx !== -1) {
-      [firstCard] = hand.splice(handIdx, 1);
-      firstSource = 'hand';
-      console.log('[createTemp] Removed card from hand');
-    } else {
-      // Check own captures first
-      let ownCaptureIdx = newState.players[playerIndex].captures.findIndex(
-        c => c.rank === card.rank && c.suit === card.suit,
-      );
-      if (ownCaptureIdx !== -1) {
-        [firstCard] = newState.players[playerIndex].captures.splice(ownCaptureIdx, 1);
-        firstSource = 'captured';
-        console.log('[createTemp] Removed card from own captures');
-      } else if (state.playerCount === 4) {
-        // Check teammate's captures
-        const teammateIndex = playerIndex < 2 ? (playerIndex === 0 ? 1 : 0) : (playerIndex === 2 ? 3 : 2);
-        let teammateCaptureIdx = newState.players[teammateIndex].captures.findIndex(
-          c => c.rank === card.rank && c.suit === card.suit,
-        );
-        if (teammateCaptureIdx !== -1) {
-          [firstCard] = newState.players[teammateIndex].captures.splice(teammateCaptureIdx, 1);
-          firstSource = 'captured';
-          console.log('[createTemp] Removed card from teammate captures');
-        } else {
-    // Check ALL opponents' captures
-    console.log(`[findCardAnywhere] Checking ALL opponents' captures for player ${playerIndex}, isPartyMode: ${state.playerCount === 4}`);
-    const opponentIndices = playerIndex < 2 ? [2, 3] : [0, 1];
-    console.log(`[findCardAnywhere] Opponent indices:`, opponentIndices);
-          for (const oIdx of opponentIndices) {
-            const oppCaptureIdx = newState.players[oIdx].captures.findIndex(
-              c => c.rank === card.rank && c.suit === card.suit,
-            );
-            if (oppCaptureIdx !== -1) {
-              [firstCard] = newState.players[oIdx].captures.splice(oppCaptureIdx, 1);
-              firstSource = 'captured';
-              console.log('[createTemp] Removed card from opponent captures');
-              break;
-            }
-          }
-        }
-      } else {
-        // Duel mode: check single opponent
-        const opponentIndex = playerIndex === 0 ? 1 : 0;
-        const opponentCaptures = newState.players[opponentIndex].captures;
-        const captureIdx = opponentCaptures.findIndex(
-          c => c.rank === card.rank && c.suit === card.suit,
-        );
-        if (captureIdx !== -1) {
-          [firstCard] = opponentCaptures.splice(captureIdx, 1);
-          firstSource = 'captured';
-          console.log('[createTemp] Removed card from opponent captures (duel)');
-        }
-      }
-    }
-  }
-  
-  // This should never happen now since we validated upfront
-  if (!firstCard) {
-    // Lenient mode: If card not found after clone, likely already processed by server
-    console.warn('[createTemp] Card disappeared during removal - likely already processed, returning current state');
-    return state;
+    [firstCard] = hand.splice(cardInfo.index, 1);
+    console.log('[createTemp] Removed card from hand');
+  } else if (cardSource === 'captured' || (cardSource && cardSource.startsWith('captured_'))) {
+    // Use the ownerIndex from cardInfo if available, otherwise fall back to playerIndex
+    const ownerIndex = cardInfo.ownerIndex !== undefined ? cardInfo.ownerIndex : playerIndex;
+    [firstCard] = newState.players[ownerIndex].captures.splice(cardInfo.index, 1);
+    console.log('[createTemp] Removed card from captures (owner:', ownerIndex, ')');
   }
 
-  const originalFirstCardIdx = firstCardFoundOnTable ? tableIdx : newState.tableCards.length;
-  
-  // FIX: After removing first card, validate target STILL exists before removing it
-  // This handles the case where another action might have removed the target
-  let targetIdx = newState.tableCards.findIndex(
+  if (!firstCard) {
+    throw new Error('createTemp: failed to remove card after validation');
+  }
+
+  const originalFirstCardIdx = firstCardFoundOnTable ? cardInfo.index : newState.tableCards.length;
+
+  // STEP 4: Remove target from table in cloned state
+  // Find the target again in the cloned state
+  const targetIdx = newState.tableCards.findIndex(
     tc => !tc.type && tc.rank === targetCard.rank && tc.suit === targetCard.suit,
   );
+  
   if (targetIdx === -1) {
-    // Lenient mode: Target not found - likely already processed by server
-    console.warn('[createTemp] Target card was removed - likely already processed, returning current state');
-    // Rollback: Put the first card back where it came from
-    if (firstSource === 'table') {
-      // Find where to put it back on table
-      const insertBackIdx = Math.min(originalFirstCardIdx, newState.tableCards.length);
-      newState.tableCards.splice(insertBackIdx, 0, firstCard);
-    } else if (firstSource === 'hand') {
-      newState.players[playerIndex].hand.push(firstCard);
-    } else if (firstSource === 'captured') {
-      newState.players[playerIndex].captures.push(firstCard);
-    }
-    return state;
+    // Target disappeared - this shouldn't happen if validation passed
+    // but we handle it gracefully
+    console.error('[createTemp] Target card disappeared after validation');
+    throw new Error('createTemp: target card disappeared during operation');
   }
-  console.log('[createTemp] Target still at index:', targetIdx);
-
+  
   let insertIdx = Math.min(originalFirstCardIdx, targetIdx);
   if (!firstCardFoundOnTable) {
     insertIdx = targetIdx;
   }
-  
-  // BUG FIX: Don't remove again! We already removed firstCard from tableCards at line 171
-  // The previous code was mistakenly removing a card again here, causing cards to disappear
-  // if (firstCardFoundOnTable) {
-  //   newState.tableCards.splice(tableIdx, 1);
-  //   if (tableIdx < insertIdx) {
-  //     insertIdx = insertIdx - 1;
-  //   }
-  // }
-  
-  const newTargetIdx = newState.tableCards.findIndex(
-    tc => !tc.type && tc.rank === targetCard.rank && tc.suit === targetCard.suit,
-  );
-  
-  if (newTargetIdx === -1) {
-    // Lenient mode: Target not found - likely already processed by server
-    console.warn('[createTemp] Target card moved - likely already processed, returning current state');
-    // Rollback: Put the first card back
-    if (firstSource === 'table') {
-      newState.tableCards.splice(insertIdx, 0, firstCard);
-    } else if (firstSource === 'hand') {
-      newState.players[playerIndex].hand.push(firstCard);
-    } else if (firstSource === 'captured') {
-      newState.players[playerIndex].captures.push(firstCard);
-    }
-    return state;
-  }
-  
-  const [tableCard] = newState.tableCards.splice(newTargetIdx, 1);
+
+  const [tableCard] = newState.tableCards.splice(targetIdx, 1);
   console.log('[createTemp] Removed target card from table');
 
+  // STEP 5: Create temp stack
   const [bottom, top] = firstCard.value >= tableCard.value
-    ? [{ ...firstCard, source: firstSource }, { ...tableCard, source: 'table' }]
-    : [{ ...tableCard, source: 'table' }, { ...firstCard, source: firstSource }];
+    ? [{ ...firstCard, source: cardSource }, { ...tableCard, source: 'table' }]
+    : [{ ...tableCard, source: 'table' }, { ...firstCard, source: cardSource }];
 
   const cards = [bottom, top];
   

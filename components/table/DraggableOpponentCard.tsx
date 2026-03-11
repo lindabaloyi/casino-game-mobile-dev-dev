@@ -19,7 +19,7 @@ export interface DraggableOpponentCardProps {
   isMyTurn: boolean;
   onDragStart?: (card: Card, absoluteX: number, absoluteY: number) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
-  onDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string) => void;
+  onDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string, source?: string) => void;
   findCardAtPoint?: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   playerNumber: number;
@@ -31,6 +31,7 @@ export interface DraggableOpponentCardProps {
 
 export function DraggableOpponentCard({
   card,
+  opponentIndex,
   isMyTurn,
   onDragStart,
   onDragMove,
@@ -89,7 +90,9 @@ export function DraggableOpponentCard({
       // Validate targetCard is a proper card object (has rank and suit)
       const targetCard = targetCardResult.card;
       if (targetCard && typeof targetCard === 'object' && 'rank' in targetCard && 'suit' in targetCard) {
-        onDragEnd(card, targetCard);
+        // Pass source with opponent index
+        const source = `captured_${opponentIndex}`;
+        onDragEnd(card, targetCard, undefined, source);
         handled = true;
       } else {
         console.error('[DraggableOpponentCard] Invalid targetCard from findCardAtPoint:', targetCard);
@@ -110,7 +113,7 @@ export function DraggableOpponentCard({
         } else if (targetStack.owner === playerNumber) {
           // Can only add to own temp stack
           console.log('[DraggableOpponentCard] Dropped on own stack:', targetStack.stackId);
-          onDragEnd(card, undefined, targetStack.stackId);
+          onDragEnd(card, undefined, targetStack.stackId, `captured_${opponentIndex}`);
           handled = true;
         }
       }
@@ -127,7 +130,7 @@ export function DraggableOpponentCard({
     translateY.value = 0;
     isDragging.value = false;
     draggedCard.value = null;
-  }, [onDragEnd, findCardAtPoint, findTempStackAtPoint, onExtendBuild, playerNumber, isFriendlyBuild, translateX, translateY, isDragging, draggedCard]);
+  }, [onDragEnd, findCardAtPoint, findTempStackAtPoint, onExtendBuild, playerNumber, isFriendlyBuild, translateX, translateY, isDragging, draggedCard, opponentIndex]);
 
   const panGesture = Gesture.Pan()
     .enabled(isMyTurn)

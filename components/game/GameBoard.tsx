@@ -338,8 +338,8 @@ export function GameBoard({
         unregisterCapturedCard={drag.unregisterCapturedCard}
         onCapturedCardDragStart={dragHandlers.handleCapturedDragStart}
         onCapturedCardDragMove={dragOverlay.moveDrag}
-        onCapturedCardDragEnd={(card, targetCard, targetStackId) => {
-          console.log(`[GameBoard] onCapturedCardDragEnd - card: ${card?.rank}${card?.suit}, targetCard type: ${typeof targetCard}, targetCard value:`, targetCard, `targetStackId: ${targetStackId}`);
+        onCapturedCardDragEnd={(card, targetCard, targetStackId, source) => {
+          console.log(`[GameBoard] onCapturedCardDragEnd - card: ${card?.rank}${card?.suit}, targetCard type: ${typeof targetCard}, targetCard value:`, targetCard, `targetStackId: ${targetStackId}, source: ${source}`);
           
           // Emit drag-end to server so opponents can clean up ghost cards
           if (emitDragEnd) {
@@ -362,8 +362,8 @@ export function GameBoard({
           }
           
           if (targetCard) {
-            console.log(`[GameBoard] Calling createTemp with card: ${card?.rank}${card?.suit}, target: ${JSON.stringify(targetCard)}, source: captured`);
-            actions.createTemp(card, targetCard, 'captured');
+            console.log(`[GameBoard] Calling createTemp with card: ${card?.rank}${card?.suit}, target: ${JSON.stringify(targetCard)}, source: ${source || 'captured'}`);
+            actions.createTemp(card, targetCard, source || 'captured');
           } else if (targetStackId) {
             actions.addToTemp(card, targetStackId);
           }

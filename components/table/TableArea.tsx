@@ -83,7 +83,7 @@ interface Props {
   unregisterCapturedCard?: () => void;
   onCapturedCardDragStart?: (card: Card, absoluteX: number, absoluteY: number) => void;
   onCapturedCardDragMove?: (absoluteX: number, absoluteY: number) => void;
-  onCapturedCardDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string) => void;
+  onCapturedCardDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string, source?: string) => void;
 
   // Capture pile drop target
   findCapturePileAtPoint?: (x: number, y: number) => CapturePileBounds | null;

@@ -10,7 +10,7 @@ interface SendAction {
 }
 
 export function useGameActions(sendAction: SendAction) {
-  const createTemp = useCallback((card: any, targetCard: any, source: 'hand' | 'table' | 'captured' = 'hand') => {
+  const createTemp = useCallback((card: any, targetCard: any, source: string = 'hand') => {
     sendAction({ 
       type: 'createTemp', 
       payload: { card, targetCard, source } as unknown as Record<string, unknown> 
