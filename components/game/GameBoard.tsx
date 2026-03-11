@@ -321,7 +321,10 @@ export function GameBoard({
         unregisterTempStack={drag.unregisterTempStack}
         findCardAtPoint={drag.findCardAtPoint}
         findTempStackAtPoint={drag.findTempStackAtPoint}
-        onTableCardDropOnCard={actions.createTemp}
+        onTableCardDropOnCard={(card, targetCard) => {
+          console.log(`[GameBoard] Table card drop on card: ${card.rank}${card.suit} → ${targetCard.rank}${targetCard.suit}, source: table`);
+          actions.createTemp(card, targetCard, 'table');
+        }}
         onStackDrop={(card, stackId, owner, stackType) => handleDropOnStack(card, stackId, owner, stackType, 'table')}
         onTableDragStart={dragHandlers.handleTableDragStart}
         onTableDragMove={dragHandlers.handleDragMove}
@@ -402,9 +405,9 @@ export function GameBoard({
         tableCards={computed.table}
         onDropOnStack={(card, stackId, stackOwner, stackType) => handleDropOnStack(card, stackId, stackOwner, stackType, 'hand')}
         onDropOnCard={(card, targetCard) => {
-          console.log(`[GameBoard] onDropOnCard - card: ${card.rank}${card.suit}`);
+          console.log(`[GameBoard] Hand card drop on card: ${card.rank}${card.suit} → ${targetCard.rank}${targetCard.suit}, source: hand`);
           modals.hideEndTurnButton();
-          actions.createTemp(card, targetCard);
+          actions.createTemp(card, targetCard, 'hand');
         }}
         onDropOnTable={(card) => {
           console.log(`[GameBoard] onDropOnTable - card: ${card.rank}${card.suit}`);

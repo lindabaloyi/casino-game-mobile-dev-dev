@@ -138,6 +138,15 @@ function createTemp(state, payload, playerIndex) {
   const cardInfo = findCardAtSource(state, card, cardSource, playerIndex);
   
   if (!cardInfo.found) {
+    // Check if card already exists in a temp stack (action was already processed)
+    const existingTempStack = state.tableCards.find(
+      tc => tc.type === 'temp_stack' && tc.cards?.some(c => c.rank === card.rank && c.suit === card.suit)
+    );
+    if (existingTempStack) {
+      console.log('[createTemp] Card already in temp stack - action was already processed, returning current state');
+      return state;
+    }
+    
     // Card not at claimed source - this is a genuine error, not lenient mode
     console.error('[createTemp] ===== CARD NOT AT CLAIMED SOURCE =====');
     console.error('[createTemp] Client claimed card was from:', cardSource);
