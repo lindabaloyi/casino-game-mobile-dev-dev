@@ -17,10 +17,10 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
-  const addToTemp = useCallback((card: any, stackId: string) => {
+  const addToTemp = useCallback((card: any, stackId: string, source: string = 'hand') => {
     sendAction({ 
       type: 'addToTemp', 
-      payload: { tableCard: card, stackId } as unknown as Record<string, unknown> 
+      payload: { card, stackId, source } as unknown as Record<string, unknown> 
     });
   }, [sendAction]);
 

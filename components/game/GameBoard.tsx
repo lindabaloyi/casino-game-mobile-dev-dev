@@ -365,7 +365,8 @@ export function GameBoard({
             console.log(`[GameBoard] Calling createTemp with card: ${card?.rank}${card?.suit}, target: ${JSON.stringify(targetCard)}, source: ${source || 'captured'}`);
             actions.createTemp(card, targetCard, source || 'captured');
           } else if (targetStackId) {
-            actions.addToTemp(card, targetStackId);
+            console.log(`[GameBoard] Calling addToTemp with card: ${card?.rank}${card?.suit}, stackId: ${targetStackId}, source: ${source || 'captured'}`);
+            actions.addToTemp(card, targetStackId, source || 'captured');
           }
           dragOverlay.endDrag();
         }}
