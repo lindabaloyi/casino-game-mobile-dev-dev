@@ -24,7 +24,6 @@ class MatchmakingService {
    * @returns {object|null} game result object if a game was created, else null
    */
   addToQueue(socket) {
-    console.log(`[Matchmaking] ${socket.id} joined queue (${this.waitingPlayers.length + 1} waiting)`);
     this.waitingPlayers.push(socket);
     this.socketGameMap.set(socket.id, null);
     return this._tryCreateGame();
@@ -45,8 +44,6 @@ class MatchmakingService {
     // Register players in GameManager
     this.gameManager.addPlayerToGame(gameId, p1.id, 0);
     this.gameManager.addPlayerToGame(gameId, p2.id, 1);
-
-    console.log(`[Matchmaking] Game ${gameId} started — P0:${p1.id}  P1:${p2.id}`);
 
     return {
       gameId,
@@ -76,7 +73,6 @@ class MatchmakingService {
     const sockets = (this.gameSocketsMap.get(gameId) || []).filter(id => id !== socket.id);
     this.gameSocketsMap.set(gameId, sockets);
 
-    console.log(`[Matchmaking] ${socket.id} left game ${gameId} (${sockets.length} remaining)`);
     return { gameId, remainingSockets: sockets };
   }
 
@@ -106,9 +102,6 @@ class MatchmakingService {
     const wasInQueue = this.waitingPlayers.some(s => s.id === socketId);
     this.waitingPlayers = this.waitingPlayers.filter(s => s.id !== socketId);
     this.socketGameMap.delete(socketId);
-    if (wasInQueue) {
-      console.log(`[Matchmaking] ${socketId} removed from queue (joined party queue)`);
-    }
     return wasInQueue;
   }
 

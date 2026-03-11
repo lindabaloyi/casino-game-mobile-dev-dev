@@ -24,8 +24,6 @@ export function useActionHandlers(
       // In PARTY mode: allow trailing anytime (no restrictions)
       const isDuelMode = !isPartyMode;
       
-      console.log(`[handleTrail] isPartyMode: ${isPartyMode}, isDuelMode: ${isDuelMode}, playerNumber: ${playerNumber}`);
-      
       if (isDuelMode) {
         // Check if player has an active build (blocks trailing in duel mode only)
         const hasActiveBuild = table.some(
@@ -38,20 +36,15 @@ export function useActionHandlers(
         );
         
         if (hasActiveBuild) {
-          console.log(`[GameBoard] Cannot trail - player ${playerNumber} has an active build (duel mode)`);
           onDragEndWrapper();
           return;
         }
         
         if (hasUnresolvedTemp) {
-          console.log(`[GameBoard] Cannot trail - player ${playerNumber} has an unresolved temp stack (duel mode)`);
           onDragEndWrapper();
           return;
         }
-      } else {
-        console.log(`[handleTrail] PARTY MODE - allowing trail without restrictions`);
       }
-      // In party mode, always allow trailing - no restrictions
       
       actions.trail(card);
     },
@@ -74,20 +67,12 @@ export function useActionHandlers(
 
   const handleConfirmSteal = useCallback(() => {
     if (modals.stealTargetCard && modals.stealTargetStack) {
-      const targetStack = modals.stealTargetStack as any;
-      console.log(`[useActionHandlers] handleConfirmSteal called:`);
-      console.log(`  - handCard: ${modals.stealTargetCard.rank}${modals.stealTargetCard.suit}`);
-      console.log(`  - targetStack: ${modals.stealTargetStack.stackId}`);
-      console.log(`  - targetStack.hasBase: ${modals.stealTargetStack.hasBase}`);
-      console.log(`  - targetStack.buildType: ${targetStack.buildType}`);
-      
       actions.stealBuild(modals.stealTargetCard, modals.stealTargetStack.stackId);
     }
     modals.closeStealModal();
   }, [modals, actions]);
 
   const handleExtendBuild = useCallback((card: any, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}` = 'table') => {
-    console.log(`[GameBoard] extendBuild - card: ${card.rank}${card.suit}, stackId: ${buildStackId}, cardSource: ${cardSource}`);
     actions.extendBuild(card, buildStackId, cardSource);
     // End the drag to clear ghost overlay
     onDragEndWrapper();
@@ -96,8 +81,7 @@ export function useActionHandlers(
   const handleExtendAcceptClick = useCallback((stackId: string) => {
     const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
     if (stack?.pendingExtension?.looseCard || stack?.pendingExtension?.cards) {
-      console.log(`[GameBoard] Extend Accept clicked for ${stackId}`);
-      // Just pass stackId - server already has the pending cards
+      // Pass stackId - server already has the pending cards
       actions.acceptBuildExtension(stackId);
     }
   }, [table, actions]);

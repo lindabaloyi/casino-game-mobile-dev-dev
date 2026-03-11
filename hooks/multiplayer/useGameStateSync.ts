@@ -169,8 +169,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     }
 
     const handleGameStart = (data: any) => {
-      console.log('[useGameStateSync] game-start RECEIVED');
-      
       setGameState(data.gameState);
       setPlayerNumber(data.playerNumber);
       setOpponentDisconnected(false);
@@ -195,15 +193,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     const { total, breakdown } = countAllCards(gameState);
     const expected = getExpectedCardTotal(gameState.playerCount);
     
-    // Log card count on state change
-    console.log('[useGameStateSync] Card count:', {
-      expected,
-      actual: total,
-      breakdown,
-      round: gameState.round,
-      moveCount: gameState.moveCount
-    });
-    
     // Check for unexpected changes
     if (prevCardCount.current !== 0 && prevCardCount.current !== total) {
       const diff = total - prevCardCount.current;
@@ -226,8 +215,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
         diff: expected - total,
         breakdown
       });
-      // Note: We don't auto-request sync here as it could cause loops
-      // The server will validate and reject invalid actions
     }
     
     prevCardCount.current = total;
@@ -238,7 +225,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     if (!socket) return;
 
     const handleGameUpdate = (state: GameState) => {
-      console.log('[useGameStateSync] game-update received, round:', state.round);
       setGameState(state);
     };
 
@@ -257,7 +243,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       round: number;
       reason: 'cards_depleted' | 'max_moves';
     }) => {
-      console.log('[useGameStateSync] round-end received:', data);
       setGameState(prev => prev ? {
         ...prev,
         round: data.round,
@@ -277,7 +262,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     if (!socket) return;
 
     const handleGameOver = (data: GameOverData) => {
-      console.log('[useGameStateSync] game-over received:', data);
       setGameOverData(data);
       
       // Record win/loss for player
@@ -285,10 +269,8 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
         const isWinner = data.winner === playerNumber;
         if (isWinner) {
           recordWin();
-          console.log('[useGameStateSync] Player won! Recording win.');
         } else {
           recordLoss();
-          console.log('[useGameStateSync] Player lost. Recording loss.');
         }
       }
     };
@@ -305,7 +287,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     if (!socket) return;
 
     const handlePlayerDisconnected = () => {
-      console.log('[useGameStateSync] player-disconnected received');
       setOpponentDisconnected(true);
     };
 
@@ -321,7 +302,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     if (!socket) return;
 
     const handleError = (data: { message: string }) => {
-      console.log('[useGameStateSync] error received:', data.message);
       setError(data.message);
       
       // Request sync after error

@@ -28,11 +28,9 @@ class PartyMatchmakingService {
   addToQueue(socket) {
     // Don't add if already in a game or queue
     if (this.socketGameMap.has(socket.id)) {
-      console.log(`[PartyMatchmaking] ${socket.id} is already in a game/queue`);
       return null;
     }
 
-    console.log(`[PartyMatchmaking] ${socket.id} joined party queue (${this.waitingPlayers.length + 1} waiting)`);
     this.waitingPlayers.push(socket);
     this.socketGameMap.set(socket.id, null);
     
@@ -45,7 +43,6 @@ class PartyMatchmakingService {
    */
   broadcastPartyWaiting(io) {
     const count = this.waitingPlayers.length;
-    console.log(`[PartyMatchmaking] Broadcasting party-waiting to ${count} players`);
     
     this.waitingPlayers.forEach(playerSocket => {
       playerSocket.emit('party-waiting', { playersJoined: count });
@@ -67,10 +64,7 @@ class PartyMatchmakingService {
   }
 
   _tryCreatePartyGame() {
-    console.log(`[PartyMatchmaking] _tryCreatePartyGame called, waitingPlayers=${this.waitingPlayers.length}`);
-    
     if (this.waitingPlayers.length < 4) {
-      console.log(`[PartyMatchmaking] Not enough players (${this.waitingPlayers.length}/4), returning null`);
       return null;
     }
 
@@ -89,8 +83,6 @@ class PartyMatchmakingService {
         return null;
       }
     }
-
-    console.log(`[PartyMatchmaking] ✅ All 4 players ready, starting party game...`);
 
     // Start a 4-player game
     const { gameId, gameState } = this.gameManager.startPartyGame();
@@ -114,8 +106,6 @@ class PartyMatchmakingService {
       }
     }
 
-    console.log(`[PartyMatchmaking] ✅ Game state validated - 4 players with 10 cards each`);
-
     // Map sockets → gameId
     for (const p of players) {
       this.socketGameMap.set(p.id, gameId);
@@ -126,8 +116,6 @@ class PartyMatchmakingService {
     for (let i = 0; i < 4; i++) {
       this.gameManager.addPlayerToGame(gameId, players[i].id, i);
     }
-
-    console.log(`[PartyMatchmaking] Party Game ${gameId} started — P0:${players[0].id} P1:${players[1].id} P2:${players[2].id} P3:${players[3].id}`);
 
     return {
       gameId,
@@ -165,10 +153,8 @@ class PartyMatchmakingService {
       // No more players in this game, clean up
       this.gameSocketsMap.delete(gameId);
       this.gameManager.endGame(gameId);
-      console.log(`[PartyMatchmaking] Party game ${gameId} ended (all players disconnected)`);
     } else {
       this.gameSocketsMap.set(gameId, sockets);
-      console.log(`[PartyMatchmaking] ${socket.id} left party game ${gameId} (${sockets.length} remaining)`);
     }
 
     return { gameId, remainingSockets: sockets };

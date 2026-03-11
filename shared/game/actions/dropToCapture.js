@@ -8,8 +8,6 @@ const { cloneState, nextTurn, finalizeGame } = require('../');
 function dropToCapture(state, payload, playerIndex) {
   const { stackId, stackType, source } = payload;
 
-  console.log(`[dropToCapture] playerIndex: ${playerIndex}, stackId: ${stackId}, stackType: ${stackType}, source: ${source}`);
-
   if (!stackId) {
     throw new Error('dropToCapture: missing stackId');
   }

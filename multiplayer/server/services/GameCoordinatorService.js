@@ -69,45 +69,14 @@ class GameCoordinatorService {
 
     const { gameId, playerIndex, isPartyGame } = ctx;
 
-    // Debug: log socket to player index mapping
-    const socketMap = this.gameManager.socketPlayerMap.get(gameId);
-    if (socketMap) {
-      console.log(`[Coordinator] Socket mapping for game ${gameId}:`);
-      for (const [sid, pIdx] of socketMap) {
-        console.log(`  - ${sid.substr(0, 8)}... => Player ${pIdx} ${sid === socket.id ? '(THIS SOCKET)' : ''}`);
-      }
-    }
-    console.log(`[Coordinator] Action from socket ${socket.id.substr(0, 8)}... resolved to playerIndex: ${playerIndex}`);
-
     try {
-      // Log the action
-      console.log(`[Coordinator] Action: P${playerIndex} ${data.type} on game ${gameId}${isPartyGame ? ' (party)' : ''}`);
-      
       const newState = this.actionRouter.executeAction(gameId, playerIndex, data);
-      
-      // Log state after action with turn counter
-      console.log(`[Coordinator] After action: turnCounter=${newState.turnCounter}, P1hand=${newState.players[0].hand.length}, P2hand=${newState.players[1].hand.length}`);
-      
-      // Log state after action
-      const tableCards = newState.tableCards?.length || 0;
-      const playerCount = newState.playerCount || 2;
-      console.log(`[Coordinator] After action: Table has ${tableCards} cards, ${playerCount} players`);
-      
-      // Log scores for all players
-      const scores = newState.scores || [];
-      if (playerCount === 4 && newState.teamScores) {
-        console.log(`[Coordinator] Scores: P0=${scores[0]}, P1=${scores[1]}, P2=${scores[2]}, P3=${scores[3]} | TeamA=${newState.teamScores[0]}, TeamB=${newState.teamScores[1]}`);
-      } else {
-        console.log(`[Coordinator] Scores: P0=${scores[0]}, P1=${scores[1]}`);
-      }
       
       // Get the correct matchmaking service for broadcasting
       const mm = this._getMatchmakingForGame(isPartyGame);
       
       // Check if all players have ended their turn (trick complete)
       if (allPlayersTurnEnded(newState)) {
-        console.log(`[Coordinator] ⚡ TRICK COMPLETE - all players have ended their turn ⚡`);
-        
         // Check if round should end (all hands empty)
         const playerCount = newState.playerCount || 2;
         let allHandsEmpty = true;
@@ -120,16 +89,11 @@ class GameCoordinatorService {
         
         if (!allHandsEmpty) {
           // Round continues - reset turn flags for next trick
-          console.log(`[Coordinator] Trick complete, resetting turn flags for next trick`);
           resetTurnFlags(newState);
           
           // Start the next player's turn (the current player after the trick)
-          // The currentPlayer should already be set correctly by nextTurn
           const nextPlayer = newState.currentPlayer;
           startPlayerTurn(newState, nextPlayer);
-          console.log(`[Coordinator] Starting next trick: player ${nextPlayer}`);
-        } else {
-          console.log(`[Coordinator] Trick complete, round will end (hands empty)`);
         }
       }
       
@@ -143,22 +107,17 @@ class GameCoordinatorService {
         for (let i = 0; i < playerCount; i++) {
           if (newState.players[i]?.hand?.length === 0 && 
               newState.roundPlayers?.[i]?.turnEnded === false) {
-            console.log(`[Coordinator] Auto-ending turn for player ${i} (empty hand)`);
             forceEndTurn(newState, i);
             autoEndedAny = true;
           }
         }
         // Re-check round end after auto-ending turns
         if (autoEndedAny) {
-          console.log(`[Coordinator] Re-checking round end after auto-ending empty-hand turns`);
           roundCheck = RoundValidator.shouldEndRound(newState);
         }
       }
       
       if (roundCheck.ended) {
-        console.log(`[Coordinator] ⚠️ Round ${newState.round} ENDED: ${roundCheck.reason} ⚠️`);
-        console.log(`[Coordinator] Final scores: P1=${newState.scores?.[0]}, P2=${newState.scores?.[1]}`);
-        
         // Broadcast round end to all players
         const summary = RoundValidator.getRoundSummary(newState);
         this.broadcaster.broadcastToGame(gameId, 'round-end', {
@@ -170,15 +129,11 @@ class GameCoordinatorService {
         // Check if game is over
         const gameOverCheck = RoundValidator.checkGameOver(newState);
         if (gameOverCheck.gameOver) {
-          console.log(`[Coordinator] 🏆 GAME OVER: Winner=P${gameOverCheck.winner}, Final scores: ${gameOverCheck.finalScores}`);
-          
           // Finalize game - this calculates scores from captured cards
-          console.log(`[Coordinator] Calling finalizeGame to calculate scores...`);
           const finalizedState = finalizeGame(newState);
           
           // Use calculated scores from finalized state
           const finalScores = finalizedState.scores || [0, 0];
-          console.log(`[Coordinator] Finalized scores: P0=${finalScores[0]}, P1=${finalScores[1]}`);
           
           // Calculate detailed game-over stats from finalized state
           const playerCount = finalizedState.playerCount || 2;
@@ -189,11 +144,6 @@ class GameCoordinatorService {
           for (let i = 0; i < playerCount; i++) {
             capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
           }
-          
-          console.log(`[Coordinator] 🏆 Game Over Stats:`);
-          console.log(`[Coordinator]   Captured: P0=${capturedCards[0]}, P1=${capturedCards[1]}`);
-          console.log(`[Coordinator]   Table: ${tableCardsRemaining} cards`);
-          console.log(`[Coordinator]   Deck: ${deckRemaining} cards`);
           
           finalizedState.gameOver = true;
           this.gameManager.saveGameState(gameId, finalizedState);
@@ -208,23 +158,15 @@ class GameCoordinatorService {
           // Auto-transition to next round for multiplayer
           const nextState = RoundValidator.prepareNextRound(newState);
           if (nextState) {
-            console.log(`[Coordinator] Auto-transitioning to Round ${nextState.round}`);
-            console.log(`[Coordinator] 📡 Broadcasting game-update to clients for Round ${nextState.round}`);
-            console.log(`[Coordinator] 📡 NextState round=${nextState.round}, hands:`, nextState.players.map(p => p.hand.length));
-            console.log(`[Coordinator] 📡 NextState deck remaining:`, nextState.deck.length);
             this.gameManager.saveGameState(gameId, nextState);
             this.broadcaster.broadcastGameUpdate(gameId, nextState, mm);
           } else {
-            // No more rounds
-            console.log(`[Coordinator] No more rounds, ending game`);
-            
+            // No more rounds - end the game
             // Finalize game - this calculates scores from captured cards
-            console.log(`[Coordinator] Calling finalizeGame to calculate scores...`);
             const finalizedState = finalizeGame(newState);
             
             // Use calculated scores from finalized state
             const finalScores = finalizedState.scores || [0, 0];
-            console.log(`[Coordinator] Finalized scores: P0=${finalScores[0]}, P1=${finalScores[1]}`);
             
             // Calculate detailed game-over stats from finalized state
             const playerCount = finalizedState.playerCount || 2;
@@ -268,8 +210,6 @@ class GameCoordinatorService {
     const { gameId, playerIndex, isPartyGame } = ctx;
     const mm = this._getMatchmakingForGame(isPartyGame);
     
-    console.log(`[Coordinator] drag-start from P${playerIndex}:`, data);
-    
     // Broadcast to other player (not self)
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-start', {
       playerIndex,
@@ -312,7 +252,6 @@ class GameCoordinatorService {
     const { gameId, playerIndex, isPartyGame } = ctx;
     const mm = this._getMatchmakingForGame(isPartyGame);
 
-    console.log(`[Coordinator] drag-end from P${playerIndex}:`, data);
     // Broadcast end to opponent first
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-end', {
       playerIndex,
@@ -343,20 +282,16 @@ class GameCoordinatorService {
         return;
       }
 
-      // Prepare next round using RoundValidator (which now uses shared GameState function)
+      // Prepare next round using RoundValidator
       const newState = RoundValidator.prepareNextRound(state);
       
       if (newState === null) {
         // No more rounds allowed - end the game
-        console.log(`[Coordinator] start-next-round: No more rounds allowed, ending game`);
-        
         // Finalize game - this calculates scores from captured cards
-        console.log(`[Coordinator] Calling finalizeGame to calculate scores...`);
         const finalizedState = finalizeGame(state);
         
         // Use calculated scores from finalized state
         const finalScores = finalizedState.scores || [0, 0];
-        console.log(`[Coordinator] Finalized scores: P0=${finalScores[0]}, P1=${finalScores[1]}`);
         
         // Calculate detailed game-over stats from finalized state
         const playerCount = finalizedState.playerCount || 2;
@@ -383,8 +318,6 @@ class GameCoordinatorService {
       }
       
       this.gameManager.saveGameState(gameId, newState);
-      
-      console.log(`[Coordinator] Started round ${newState.round}`);
       
       // Broadcast game update with new round
       this.broadcaster.broadcastGameUpdate(gameId, newState, mm);

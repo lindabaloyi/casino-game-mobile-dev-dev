@@ -43,20 +43,14 @@ let coordinator;
 // ── Connection handling ───────────────────────────────────────────────────────
 
 io.on('connection', socket => {
-  console.log(`[Server] Connected: ${socket.id}`);
-
-  // ── Matchmaking: add player to queue; start game if two are waiting ──
+  // Add player to queue; start game if two are waiting
   const gameResult = matchmaking.addToQueue(socket);
-  console.log(`[Server] Game result for ${socket.id}:`, gameResult ? 'game found' : 'no game');
   if (gameResult) {
-    console.log(`[Server] Calling broadcastGameStart for game ${gameResult.gameId}`);
     broadcaster.broadcastGameStart(gameResult);
   }
 
-  // ── Party Matchmaking: add player to party queue; start 4-player game when ready ──
+  // Party Matchmaking: add player to party queue; start 4-player game when ready
   socket.on('join-party-queue', () => {
-    console.log(`[Server] ${socket.id} joining party queue`);
-    
     // Remove from regular matchmaking queue first (if present)
     matchmaking.removeFromQueue(socket.id);
     
@@ -69,10 +63,8 @@ io.on('connection', socket => {
     }
   });
 
-  // ── Private Room: create room ─────────────────────────────────────────────────
+  // Private Room: create room
   socket.on('create-room', (data) => {
-    console.log(`[Server] ${socket.id} creating room:`, data);
-    
     // Remove from matchmaking queues if present
     matchmaking.removeFromQueue(socket.id);
     
@@ -87,10 +79,8 @@ io.on('connection', socket => {
     }
   });
 
-  // ── Private Room: join room ───────────────────────────────────────────────────
+  // Private Room: join room
   socket.on('join-room', (data) => {
-    console.log(`[Server] ${socket.id} joining room:`, data.roomCode);
-    
     // Remove from matchmaking queues if present
     matchmaking.removeFromQueue(socket.id);
     
@@ -114,10 +104,8 @@ io.on('connection', socket => {
     }
   });
 
-  // ── Private Room: leave room ──────────────────────────────────────────────────
+  // Private Room: leave room
   socket.on('leave-room', () => {
-    console.log(`[Server] ${socket.id} leaving room`);
-    
     const result = roomService.leaveRoom(socket);
     
     if (result.success) {
@@ -145,7 +133,7 @@ io.on('connection', socket => {
     }
   });
 
-  // ── Private Room: start game (host only) ──────────────────────────────────────
+  // Private Room: start game (host only)
   socket.on('start-room-game', (data) => {
     const room = roomService.getRoomBySocket(socket.id);
     
@@ -158,8 +146,6 @@ io.on('connection', socket => {
       socket.emit('room-error', { message: 'Only the host can start the game' });
       return;
     }
-    
-    console.log(`[Server] Host ${socket.id} starting room game: ${room.code}`);
     
     const result = roomService.startRoomGame(room.code, io);
     
@@ -199,10 +185,8 @@ io.on('connection', socket => {
     socket.emit('party-waiting', { playersJoined: waitingCount });
   });
 
-  // ── Disconnect ───────────────────────────────────────────────────────────────
+  // Disconnect
   socket.on('disconnect', () => {
-    console.log(`[Server] Disconnected: ${socket.id}`);
-    
     // Handle room disconnect first (before game starts)
     const roomResult = roomService.handleDisconnection(socket);
     if (roomResult && !roomResult.gameStarted) {

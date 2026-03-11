@@ -36,13 +36,6 @@ class GameManager {
     this.activeGames.set(gameId, gameState);
     this.socketPlayerMap.set(gameId, new Map());
 
-    console.log(`[GameManager] Game ${gameId} started — deck: ${gameState.deck.length} remaining`);
-    
-    // Log player hands for debugging
-    console.log(`[GameManager] Player 0 hand:`, gameState.players[0].hand.map(c => `${c.rank}${c.suit}`).join(', '));
-    console.log(`[GameManager] Player 1 hand:`, gameState.players[1].hand.map(c => `${c.rank}${c.suit}`).join(', '));
-    console.log(`[GameManager] Table cards:`, gameState.tableCards.map(c => `${c.rank}${c.suit}`).join(', '));
-    
     return { gameId, gameState };
   }
 
@@ -59,17 +52,6 @@ class GameManager {
     this.activeGames.set(gameId, gameState);
     this.socketPlayerMap.set(gameId, new Map());
 
-    console.log(`[GameManager] Party Game ${gameId} started — deck: ${gameState.deck.length} remaining, players: ${gameState.playerCount}`);
-    
-    // Log player hands for debugging - show ALL cards
-    for (let i = 0; i < (gameState.players?.length || 4); i++) {
-      const hand = gameState.players[i]?.hand || [];
-      const cardIds = hand.map(c => `${c.rank}${c.suit}`).join(', ');
-      console.log(`[GameManager] Player ${i} (Team ${gameState.players[i]?.team || 'A'}) hand (${hand.length} cards):`, cardIds || 'EMPTY');
-    }
-    console.log(`[GameManager] Table cards:`, gameState.tableCards?.map(c => `${c.rank}${c.suit}`).join(', ') || 'empty');
-    console.log(`[GameManager] Total cards in game: deck(${gameState.deck.length}) + table(${gameState.tableCards.length}) + hands(${gameState.players.reduce((sum, p) => sum + (p.hand?.length || 0), 0)}) = ${gameState.deck.length + gameState.tableCards.length + gameState.players.reduce((sum, p) => sum + (p.hand?.length || 0), 0)}`);
-    
     return { gameId, gameState };
   }
 
@@ -93,7 +75,6 @@ class GameManager {
   endGame(gameId) {
     this.activeGames.delete(gameId);
     this.socketPlayerMap.delete(gameId);
-    console.log(`[GameManager] Game ${gameId} ended`);
   }
 
   // ── Player ↔ Socket mapping ─────────────────────────────────────────────────

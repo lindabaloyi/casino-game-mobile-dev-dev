@@ -113,10 +113,8 @@ export function PlayOptionsModal({
   
   // Get team captured builds (for party mode 2v2 cooperative rebuild)
   const teamBuildOptions = useMemo(() => {
-    console.log(`[PlayOptionsModal] FULL DEBUG - teamCapturedBuilds:`, JSON.stringify(teamCapturedBuilds));
     
     if (!teamCapturedBuilds || playerNumber === undefined) {
-      console.log(`[PlayOptionsModal] No teamCapturedBuilds or playerNumber:`, { teamCapturedBuilds, playerNumber });
       return [];
     }
     
@@ -124,8 +122,6 @@ export function PlayOptionsModal({
     const playerTeam = Math.floor(playerNumber / 2);
     const teamBuilds = teamCapturedBuilds[playerTeam as 0 | 1] ?? [];
     
-    console.log(`[PlayOptionsModal] Team build check: playerNumber=${playerNumber}, playerTeam=${playerTeam}, teamBuilds=`, teamBuilds);
-    console.log(`[PlayOptionsModal] possibleBuildValues:`, possibleBuildValues);
     
     // Filter to builds that match the possible build values (no hand check needed)
     // This allows team to rebuild captured builds even without matching card in hand

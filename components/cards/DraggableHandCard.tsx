@@ -100,24 +100,14 @@ export function DraggableHandCard({
   // ── JS-thread helpers ─────────────────────────────────────────────────────
 
   function handleDragStart(x: number, y: number) { 
-    console.log('[DraggableHandCard] ===== HANDLE DRAG START =====');
-    console.log('[DraggableHandCard] Card:', card.rank, card.suit);
-    console.log('[DraggableHandCard] Position from gesture:', { x, y });
-    
-    // Pass the actual position to parent - THIS IS CRITICAL
+    // Pass the actual position to parent
     if (onDragStart) {
-      console.log('[DraggableHandCard] Calling onDragStart with position:', { x, y });
       onDragStart(card, x, y);
-    } else {
-      console.warn('[DraggableHandCard] onDragStart is undefined!');
     }
     
     // Immediately send the first move event with the starting position
     if (onDragMove) {
-      console.log('[DraggableHandCard] Calling onDragMove with position:', { x, y });
       onDragMove(x, y);
-    } else {
-      console.warn('[DraggableHandCard] onDragMove is undefined!');
     }
   }
   
@@ -152,9 +142,6 @@ export function DraggableHandCard({
     // 1. Check for stack hit FIRST (priority)
     const stackHit = findTempStackAtPoint(absX, absY);
     if (stackHit) {
-      console.log(
-        `[DraggableHandCard] DROP ON STACK — ${card.rank}${card.suit} → stack ${stackHit.stackId} (${stackHit.stackType}) owned by P${stackHit.owner}`
-      );
       opacity.value = withSpring(0);  // Hide card while action processes
       if (onDragEnd) onDragEnd();
       onDropOnStack(card, stackHit.stackId, stackHit.owner, stackHit.stackType);
@@ -164,9 +151,6 @@ export function DraggableHandCard({
     // 2. Check for specific table card hit
     const targetCardResult = findCardAtPoint(absX, absY);
     if (targetCardResult) {
-      console.log(
-        `[DraggableHandCard] DROP ON CARD — ${card.rank}${card.suit} → ${targetCardResult.card.rank}${targetCardResult.card.suit}`
-      );
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
       onDropOnCard(card, targetCardResult.card);
@@ -175,15 +159,8 @@ export function DraggableHandCard({
     
     // 3. Check if in table zone (trail area)
     const inZone = inTableZone(absX, absY, bounds);
-    console.log(
-      `[DraggableHandCard] DROP — card: ${card.rank}${card.suit}`,
-      `| finger: (${absX.toFixed(1)}, ${absY.toFixed(1)})`,
-      `| bounds: x=${bounds.x.toFixed(1)} y=${bounds.y.toFixed(1)} w=${bounds.width.toFixed(1)} h=${bounds.height.toFixed(1)}`,
-      `| inZone: ${inZone}`,
-    );
 
     if (inZone) {
-      console.log(`[DraggableHandCard] DROP ON TABLE — ${card.rank}${card.suit}`);
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
       onDropOnTable(card);
@@ -192,27 +169,12 @@ export function DraggableHandCard({
     }
   }
 
-  function logDragStart(absX: number, absY: number) {
-    console.log(
-      `[DraggableHandCard] DRAG START — card: ${card.rank}${card.suit}`,
-      `| finger: (${absX.toFixed(1)}, ${absY.toFixed(1)})`,
-      `| isMyTurn: ${isMyTurn}`,
-    );
-  }
-
   // ── Gesture ─────────────────────────────────────────────────────────────────
 
   const gesture = Gesture.Pan()
     .enabled(isMyTurn)
     .onStart(e => {
       opacity.value = 0;
-      console.log('[DraggableHandCard] Gesture onStart - raw event:', {
-        absoluteX: e.absoluteX,
-        absoluteY: e.absoluteY,
-        x: e.x,
-        y: e.y
-      });
-      
       // Call handleDragStart which will store position AND send first move
       runOnJS(handleDragStart)(e.absoluteX, e.absoluteY);
     })
@@ -220,7 +182,7 @@ export function DraggableHandCard({
       runOnJS(handleDragMove)(e.absoluteX, e.absoluteY);
     })
     .onEnd(e => {
-      // Pass ONLY coordinates to JS thread — refs are read there (always fresh)
+      // Pass ONLY coordinates to JS thread
       runOnJS(handleDrop)(e.absoluteX, e.absoluteY);
     });
 

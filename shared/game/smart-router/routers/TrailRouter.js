@@ -16,11 +16,8 @@ class TrailRouter {
   route(payload, state, playerIndex) {
     const isPartyMode = state.playerCount === 4;
     
-    console.log(`[TrailRouter] isPartyMode: ${isPartyMode}, playerIndex: ${playerIndex}`);
-    
     // In PARTY mode: allow trailing without restrictions
     if (isPartyMode) {
-      console.log(`[TrailRouter] Party mode - allowing trail without restrictions`);
       return { type: 'trail', payload };
     }
     

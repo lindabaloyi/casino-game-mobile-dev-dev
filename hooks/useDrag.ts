@@ -86,7 +86,6 @@ export function useDrag() {
   const cardPositions = useRef<Map<string, CardBounds>>(new Map());
 
   const registerCard = useCallback((id: string, bounds: CardBounds) => {
-    console.log(`[useDrag] registerCard called for ${id}:`, bounds);
     cardPositions.current.set(id, bounds);
   }, []);
 
@@ -105,13 +104,11 @@ export function useDrag() {
    */
   const findCardAtPoint = useCallback(
     (x: number, y: number, excludeId?: string): { id: string; card: { rank: string; suit: string; value: number } } | null => {
-      console.log(`[useDrag] findCardAtPoint called with (${x}, ${y}), registered cards: ${cardPositions.current.size}`);
       for (const [id, bounds] of cardPositions.current) {
         if (excludeId && id === excludeId) continue;
         const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
         const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
         if (inX && inY) {
-          console.log(`[useDrag] Found card ${id} at bounds:`, bounds);
           return { id, card: bounds.card };
         }
       }
@@ -160,11 +157,9 @@ export function useDrag() {
   /** Returns the temp stack at (x, y), or null (direct hit). */
   const findTempStackAtPoint = useCallback(
     (x: number, y: number): { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null => {
-      console.log(`[useDrag] findTempStackAtPoint called with (${x}, ${y}), registered stacks: ${tempStackPositions.current.size}`);
       for (const [stackId, bounds] of tempStackPositions.current) {
         const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
         const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
-        console.log(`[useDrag] Checking stack ${stackId}: bounds=(${bounds.x}, ${bounds.y}, ${bounds.width}, ${bounds.height}), inX=${inX}, inY=${inY}`);
         if (inX && inY) {
           return { stackId: bounds.stackId, owner: bounds.owner, stackType: bounds.stackType };
         }
@@ -241,7 +236,6 @@ export function useDrag() {
   const findCapturePileAtPoint = useCallback(
     (x: number, y: number): CapturePileBounds | null => {
       if (capturePilePositions.current.size === 0) {
-        console.log('[useDrag] findCapturePileAtPoint - no capture piles registered');
         return null;
       }
 
@@ -249,8 +243,6 @@ export function useDrag() {
       for (const [playerIndex, bounds] of capturePilePositions.current) {
         const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
         const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
-        
-        console.log(`[useDrag] findCapturePileAtPoint - checking player ${playerIndex}: x: ${x}, y: ${y}, bounds:`, bounds, `inX: ${inX}, inY: ${inY}`);
         
         if (inX && inY) {
           return bounds;

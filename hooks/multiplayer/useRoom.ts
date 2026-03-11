@@ -74,7 +74,6 @@ export function useRoom(socket: Socket | null): UseRoomResult {
 
     // Handle room created
     const handleRoomCreated = (data: { roomCode: string; room: any }) => {
-      console.log('[useRoom] Room created:', data);
       setRoom({
         roomCode: data.roomCode,
         gameMode: data.room.gameMode,
@@ -90,7 +89,6 @@ export function useRoom(socket: Socket | null): UseRoomResult {
 
     // Handle room joined
     const handleRoomJoined = (data: { room: any }) => {
-      console.log('[useRoom] Room joined:', data);
       setRoom({
         roomCode: data.room.code,
         gameMode: data.room.gameMode,
@@ -106,7 +104,6 @@ export function useRoom(socket: Socket | null): UseRoomResult {
 
     // Handle room updated
     const handleRoomUpdated = (data: { room: any }) => {
-      console.log('[useRoom] Room updated:', data);
       setRoom(prev => ({
         ...prev,
         status: data.room.status,
@@ -117,7 +114,6 @@ export function useRoom(socket: Socket | null): UseRoomResult {
 
     // Handle room left
     const handleRoomLeft = () => {
-      console.log('[useRoom] Room left');
       setRoom({
         roomCode: null,
         gameMode: null,
@@ -133,14 +129,12 @@ export function useRoom(socket: Socket | null): UseRoomResult {
 
     // Handle room error
     const handleRoomError = (data: { message: string }) => {
-      console.log('[useRoom] Room error:', data.message);
       setError(data.message);
       setRoom(prev => ({ ...prev, status: 'error' }));
     };
 
     // Handle game start (from server)
     const handleGameStart = () => {
-      console.log('[useRoom] Game started');
       setRoom(prev => ({ ...prev, status: 'started' }));
     };
 
@@ -166,7 +160,6 @@ export function useRoom(socket: Socket | null): UseRoomResult {
       setError('Not connected to server');
       return;
     }
-    console.log('[useRoom] Creating room:', gameMode, maxPlayers);
     socket.emit('create-room', { gameMode, maxPlayers });
   }, [socket]);
 
@@ -175,13 +168,11 @@ export function useRoom(socket: Socket | null): UseRoomResult {
       setError('Not connected to server');
       return;
     }
-    console.log('[useRoom] Joining room:', roomCode);
     socket.emit('join-room', { roomCode: roomCode.toUpperCase() });
   }, [socket]);
 
   const leaveRoom = useCallback(() => {
     if (!socket?.connected) return;
-    console.log('[useRoom] Leaving room');
     socket.emit('leave-room');
   }, [socket]);
 
@@ -191,7 +182,6 @@ export function useRoom(socket: Socket | null): UseRoomResult {
       setError('Only the host can start the game');
       return;
     }
-    console.log('[useRoom] Starting game');
     socket.emit('start-room-game');
   }, [socket]);
 

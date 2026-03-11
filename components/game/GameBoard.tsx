@@ -121,15 +121,7 @@ export function GameBoard({
     },
   });
 
-  // Debug: Log overlay state changes
-  useEffect(() => {
-    console.log('[GameBoard] Overlay state:', {
-      overlayStackId: computed.overlayStackId,
-      extendingBuildId: computed.extendingBuildId,
-      isMyTurn: computed.isMyTurn,
-      tableLength: computed.table.length
-    });
-  }, [computed.overlayStackId, computed.extendingBuildId, computed.isMyTurn, computed.table]);
+  // Debug logging disabled for cleaner console
 
   // KISS Round Transition Logic
   // When round ends:
@@ -162,7 +154,6 @@ export function GameBoard({
 
   // Handle build tap for Shiya selection
   const handleBuildTap = useCallback((build: any) => {
-    console.log(`[GameBoard] handleBuildTap - build: ${build?.stackId}, owner: ${build?.owner}, value: ${build?.value}`);
     
     // Only set as selected if it's a teammate's build (NOT own build) and we have a matching card
     if (!build || gameState.playerCount !== 4) {
@@ -172,21 +163,18 @@ export function GameBoard({
     
     // Check if it's NOT own build (must be teammate's build, not own)
     if (build.owner === playerNumber) {
-      console.log(`[GameBoard] handleBuildTap - cannot Shiya own build`);
       setSelectedBuildForShiya(null);
       return;
     }
     
     // Check if it's a teammate's build
     if (!areTeammates(playerNumber, build.owner)) {
-      console.log(`[GameBoard] handleBuildTap - not a teammate's build`);
       setSelectedBuildForShiya(null);
       return;
     }
     
     // Check if Shiya is already active
     if (build.shiyaActive) {
-      console.log(`[GameBoard] handleBuildTap - Shiya already active`);
       setSelectedBuildForShiya(null);
       return;
     }
@@ -196,10 +184,8 @@ export function GameBoard({
     const hasMatch = myHand.some((card: any) => card.value === build.value);
     
     if (hasMatch) {
-      console.log(`[GameBoard] handleBuildTap - selected build for Shiya: ${build.stackId}`);
       setSelectedBuildForShiya(build);
     } else {
-      console.log(`[GameBoard] handleBuildTap - no matching card in hand`);
       setSelectedBuildForShiya(null);
     }
   }, [gameState, playerNumber]);
@@ -242,9 +228,7 @@ export function GameBoard({
     stackType: string,
     source: 'hand' | 'table' | 'captured'
   ) => {
-    console.log(`[GameBoard] handleDropOnStack - card: ${card.rank}${card.suit}, stack: ${stackId}, type: ${stackType}, source: ${source}`);
-    
-    // Common: Hide end turn button when player makes a new action
+    // Hide end turn button when player makes a new action
     modals.hideEndTurnButton();
 
     // Check if this is a friendly build (owner OR teammate in party mode)
@@ -262,19 +246,16 @@ export function GameBoard({
         
         // PRIORITY 1: If card value matches build value → CAPTURE (direct, no modal)
         if (card.value === fullStack.value) {
-          console.log(`[GameBoard] handleDropOnStack - CAPTURE: card value ${card.value} matches build value ${fullStack.value}`);
           actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
           return;
         }
         
         // PRIORITY 2: Check if steal is valid (not a base build)
         if (fullStack.hasBase === true) {
-          console.log(`[GameBoard] handleDropOnStack - BLOCKED: Cannot steal base build ${stackId} (hasBase: ${fullStack.hasBase}, buildType: ${fullStack.buildType})`);
-          // Fall through to action which will fail appropriately
+          // Cannot steal base build - fall through to action which will fail appropriately
         } else {
-          console.log(`[GameBoard] handleDropOnStack - STEAL: card value ${card.value} != build value ${fullStack.value}, opening steal modal`);
           modals.openStealModal(card, fullStack);
-          return; // Stop here - modal is open
+          return; // Modal is open
         }
       }
     }
@@ -323,7 +304,6 @@ export function GameBoard({
         findCardAtPoint={drag.findCardAtPoint}
         findTempStackAtPoint={drag.findTempStackAtPoint}
         onTableCardDropOnCard={(card, targetCard) => {
-          console.log(`[GameBoard] Table card drop on card: ${card.rank}${card.suit} → ${targetCard.rank}${targetCard.suit}, source: table`);
           actions.createTemp(card, targetCard, 'table');
         }}
         onStackDrop={(card, stackId, owner, stackType) => handleDropOnStack(card, stackId, owner, stackType, 'table')}
@@ -343,19 +323,15 @@ export function GameBoard({
         onCapturedCardDragStart={dragHandlers.handleCapturedDragStart}
         onCapturedCardDragMove={dragOverlay.moveDrag}
         onCapturedCardDragEnd={(card, targetCard, targetStackId, source) => {
-          console.log(`[GameBoard] onCapturedCardDragEnd - card: ${card?.rank}${card?.suit}, targetCard type: ${typeof targetCard}, targetCard value:`, targetCard, `targetStackId: ${targetStackId}, source: ${source}`);
-          
           // Emit drag-end to server so opponents can clean up ghost cards
           if (emitDragEnd) {
-            // Get current position from drag overlay
-            const absX = dragOverlay.overlayX.value + 28; // CARD_WIDTH/2
-            const absY = dragOverlay.overlayY.value + 42; // CARD_HEIGHT/2
+            const absX = dragOverlay.overlayX.value + 28;
+            const absY = dragOverlay.overlayY.value + 42;
             const tableBounds = drag.dropBounds.current;
             const normX = Math.max(0, Math.min(1, absX / (tableBounds.width || 400)));
             const normY = Math.max(0, Math.min(1, absY / (tableBounds.height || 300)));
             
             if (targetCard) {
-              // Use rank+suit as unique identifier for card
               const cardId = `${targetCard.rank}${targetCard.suit}`;
               emitDragEnd(card, { x: normX, y: normY }, 'success', 'card', cardId);
             } else if (targetStackId) {
@@ -366,10 +342,8 @@ export function GameBoard({
           }
           
           if (targetCard) {
-            console.log(`[GameBoard] Calling createTemp with card: ${card?.rank}${card?.suit}, target: ${JSON.stringify(targetCard)}, source: ${source || 'captured'}`);
             actions.createTemp(card, targetCard, source || 'captured');
           } else if (targetStackId) {
-            console.log(`[GameBoard] Calling addToTemp with card: ${card?.rank}${card?.suit}, stackId: ${targetStackId}, source: ${source || 'captured'}`);
             actions.addToTemp(card, targetStackId, source || 'captured');
           }
           dragOverlay.endDrag();
@@ -379,8 +353,6 @@ export function GameBoard({
         unregisterCapturePile={drag.unregisterCapturePile}
         onDropToCapture={actions.dropToCapture}
         onDropBuildToCapture={(stack) => {
-          console.log(`[GameBoard] onDropBuildToCapture - stack: ${stack.stackId}, owner: ${stack.owner}`);
-          // Call dropToCapture with stackType = 'build_stack'
           actions.dropToCapture({ stackId: stack.stackId, stackType: 'build_stack' });
         }}
         extendingBuildId={computed.extendingBuildId}
@@ -406,12 +378,10 @@ export function GameBoard({
         tableCards={computed.table}
         onDropOnStack={(card, stackId, stackOwner, stackType) => handleDropOnStack(card, stackId, stackOwner, stackType, 'hand')}
         onDropOnCard={(card, targetCard) => {
-          console.log(`[GameBoard] Hand card drop on card: ${card.rank}${card.suit} → ${targetCard.rank}${targetCard.suit}, source: hand`);
           modals.hideEndTurnButton();
           actions.createTemp(card, targetCard, 'hand');
         }}
         onDropOnTable={(card) => {
-          console.log(`[GameBoard] onDropOnTable - card: ${card.rank}${card.suit}`);
           modals.hideEndTurnButton();
           actionHandlers.handleTrail(card);
         }}
@@ -434,7 +404,6 @@ export function GameBoard({
         currentPlayer={gameState.currentPlayer}
         selectedBuild={selectedBuildForShiya}
         onShiya={(stackId) => {
-          console.log(`[GameBoard] Shiya action on stack: ${stackId}`);
           actions.shiya(stackId);
         }}
       />

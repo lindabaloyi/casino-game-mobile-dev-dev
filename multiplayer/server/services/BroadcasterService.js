@@ -19,7 +19,6 @@ class BroadcasterService {
     const { gameId, gameState, players } = gameResult;
 
     players.forEach(({ socket, playerNumber }) => {
-    console.log(`[Broadcaster] Starting game ${gameId} for Player ${playerNumber} (${socket.id})`);
       socket.emit("game-start", {
         gameId,
         gameState,
@@ -35,7 +34,6 @@ class BroadcasterService {
     const { gameId, gameState, players } = gameResult;
 
     players.forEach(({ socket, playerNumber }) => {
-      console.log(`[Broadcaster] Starting party game ${gameId} for Player ${playerNumber} (${socket.id})`);
       socket.emit("game-start", {
         gameId,
         gameState,
@@ -53,12 +51,7 @@ class BroadcasterService {
     const mm = matchmakingService || this.matchmaking;
     const gameSockets = mm.getGameSockets(gameId, this.io);
 
-    console.log(`[Broadcaster] game-update → game ${gameId} (${gameSockets.length} players)`);
-    console.log(`[Broadcaster] Using matchmaking:`, mm.constructor.name);
-    console.log(`[Broadcaster] Game sockets found:`, gameSockets.map(s => s.id));
-
     if (gameSockets.length === 0) {
-      console.log(`[Broadcaster] ⚠️ WARNING: No sockets found for game ${gameId}!`);
       return;
     }
 
@@ -81,7 +74,6 @@ class BroadcasterService {
     );
 
     if (remainingSockets.length > 0) {
-      console.log(`[Broadcaster] Notifying ${remainingSockets.length} player(s) of disconnection in game ${gameId}`);
       remainingSockets.forEach((otherSocket) => {
         otherSocket.emit("player-disconnected");
       });
@@ -102,7 +94,6 @@ class BroadcasterService {
     );
 
     if (remainingSockets.length > 0) {
-      console.log(`[Broadcaster] Notifying ${remainingSockets.length} player(s) of party disconnection in game ${gameId}`);
       remainingSockets.forEach((otherSocket) => {
         otherSocket.emit("player-disconnected");
       });
@@ -129,14 +120,6 @@ class BroadcasterService {
     );
 
     if (otherSockets.length > 0) {
-      // Extract player info from data for logging
-      let playerInfo = '';
-      if (data?.playerIndex !== undefined) {
-        const pIdx = data.playerIndex;
-        const team = pIdx < 2 ? 'TeamA' : 'TeamB';
-        playerInfo = `[P${pIdx} ${team}]`;
-      }
-      console.log(`[Broadcaster] ${event} → game ${gameId} (${otherSockets.length} other player(s)) ${playerInfo}`);
       otherSockets.forEach((otherSocket) => {
         otherSocket.emit(event, data);
       });
@@ -150,8 +133,6 @@ class BroadcasterService {
   broadcastToGame(gameId, event, data, matchmakingService = null) {
     const mm = matchmakingService || this.matchmaking;
     const gameSockets = mm.getGameSockets(gameId, this.io);
-
-    console.log(`[Broadcaster] ${event} → game ${gameId} (${gameSockets.length} players)`);
 
     gameSockets.forEach((gameSocket) => {
       gameSocket.emit(event, data);

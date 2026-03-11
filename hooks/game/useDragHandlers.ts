@@ -51,12 +51,10 @@ export function useDragHandlers({
   }, [dropBounds]);
 
   const handleHandDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
-    console.log('[GameBoard] ===== HANDLE HAND DRAG START =====');
     dragOverlay.startDrag(card, 'hand', absoluteX, absoluteY);
     
     if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
       if (!dropBounds.current || dropBounds.current.width === 0 || dropBounds.current.height === 0) {
-        console.warn('[GameBoard] Cannot emit dragStart - table bounds not ready');
         return;
       }
       const norm = getNormalizedPosition(absoluteX, absoluteY);
@@ -65,12 +63,10 @@ export function useDragHandlers({
   }, [dragOverlay, emitDragStart, getNormalizedPosition, dropBounds]);
 
   const handleTableDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
-    console.log('[GameBoard] ===== HANDLE TABLE DRAG START =====');
     dragOverlay.startDrag(card, 'table', absoluteX, absoluteY);
     
     if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
       if (!dropBounds.current || dropBounds.current.width === 0 || dropBounds.current.height === 0) {
-        console.warn('[GameBoard] Cannot emit dragStart - table bounds not ready');
         return;
       }
       const norm = getNormalizedPosition(absoluteX, absoluteY);
@@ -79,7 +75,6 @@ export function useDragHandlers({
   }, [dragOverlay, emitDragStart, getNormalizedPosition, dropBounds]);
 
   const handleCapturedDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
-    console.log('[GameBoard] ===== HANDLE CAPTURED DRAG START =====');
     dragOverlay.startDrag(card, 'captured', absoluteX, absoluteY);
     
     if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
@@ -89,17 +84,12 @@ export function useDragHandlers({
   }, [dragOverlay, emitDragStart, getNormalizedPosition]);
 
   const handleDragMove = useCallback((absoluteX: number, absoluteY: number) => {
-    const startTime = Date.now();
-    
     dragOverlay.moveDrag(absoluteX, absoluteY);
 
     if (emitDragMove && dragOverlay.draggingCard) {
       const norm = getNormalizedPosition(absoluteX, absoluteY);
       emitDragMove(dragOverlay.draggingCard, norm);
     }
-
-    const elapsed = Date.now() - startTime;
-    if (elapsed > 10) console.log(`[GameBoard] handleDragMove slow: ${elapsed}ms`);
   }, [dragOverlay, emitDragMove, getNormalizedPosition]);
 
   const handleDragEnd = useCallback((targetType?: string, outcome: 'success' | 'miss' | 'cancelled' = 'cancelled', targetId?: string) => {

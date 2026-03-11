@@ -24,8 +24,6 @@ class RoundValidator {
    * @returns {{ ended: boolean, reason?: 'all_cards_played' }}
    */
   static shouldEndRound(state) {
-    console.log(`[RoundValidator] ===== shouldEndRound START =====`);
-
     // Check 1: All players' hands empty
     const playerCount = state.playerCount || state.players?.length || 2;
     let allHandsEmpty = true;
@@ -45,20 +43,11 @@ class RoundValidator {
     const pendingExtensions = tableCards.filter(tc => tc.type === 'build_stack' && tc.pendingExtension);
     const hasUnresolved = tempStacks.length > 0 || pendingExtensions.length > 0;
     
-    console.log(`[RoundValidator] allHandsEmpty=${allHandsEmpty}, allTurnsEnded=${allTurnsEnded}, hasUnresolved=${hasUnresolved}`);
-    console.log(`[RoundValidator] Table: tempStacks=${tempStacks.length}, pendingExtensions=${pendingExtensions.length}`);
-
     // Round ends when BOTH conditions are true AND no unresolved stacks
     if (allHandsEmpty && allTurnsEnded && !hasUnresolved) {
-      console.log(`[RoundValidator] ✅ Round ending: all cards played, all turns ended, no unresolved stacks`);
       return { ended: true, reason: 'all_cards_played' };
     }
     
-    if (hasUnresolved) {
-      console.log(`[RoundValidator] Round continues: unresolved stacks on table (${tempStacks.length} temp, ${pendingExtensions.length} pending)`);
-    }
-
-    console.log(`[RoundValidator] Round continues: conditions not met`);
     return { ended: false };
   }
 
@@ -71,18 +60,14 @@ class RoundValidator {
   static validateRound1End(state) {
     // Only apply to round 1
     if (state.round !== 1) {
-      console.log(`[RoundValidator] validateRound1End: Not round 1 (current: ${state.round}), skipping`);
       return state;
     }
-    
-    console.log(`[RoundValidator] validateRound1End: Checking round 1...`);
     
     const players = state.roundPlayers || {};
     const playerIds = Object.keys(players);
     
     // If no roundPlayers yet, initialize them
     if (playerIds.length === 0) {
-      console.log(`[RoundValidator] validateRound1End: No roundPlayers found, initializing...`);
       return state;
     }
     
@@ -90,15 +75,12 @@ class RoundValidator {
     
     for (const playerId of playerIds) {
       const playerState = players[playerId];
-      console.log(`[RoundValidator] validateRound1End: player ${playerId}: turnStarted=${playerState.turnStarted}, turnEnded=${playerState.turnEnded}, actionTriggered=${playerState.actionTriggered}`);
       if (!playerState.turnEnded) {
         incompletePlayers.push(parseInt(playerId));
       }
     }
     
     if (incompletePlayers.length > 0) {
-      console.log(`[RoundValidator] ⚠️ Round 1 incomplete - forcing end turn for players: ${incompletePlayers.join(', ')}`);
-      
       // Force end turn for each incomplete player
       let newState = state;
       for (const playerId of incompletePlayers) {
@@ -108,7 +90,6 @@ class RoundValidator {
       return newState;
     }
     
-    console.log(`[RoundValidator] validateRound1End: All players have ended turn in round 1`);
     return state;
   }
 
@@ -202,17 +183,10 @@ class RoundValidator {
   static prepareNextRound(state) {
     const playerCount = state.playerCount || state.players?.length || 2;
     
-    console.log(`[RoundValidator] prepareNextRound: Starting, current round=${state.round}, playerCount=${playerCount}`);
-    console.log(`[RoundValidator] prepareNextRound: Current deck size: ${state.deck?.length || 0}`);
-    console.log(`[RoundValidator] prepareNextRound: Current hands:`, state.players.map(p => p.hand.length));
-    
     // Use the shared startNextRound function from GameState
     const newState = startNextRound(state, playerCount);
     
     if (newState) {
-      console.log(`[RoundValidator] prepareNextRound: ✅ Successfully started Round ${newState.round}`);
-      console.log(`[RoundValidator] prepareNextRound: New deck size: ${newState.deck?.length || 0}`);
-      console.log(`[RoundValidator] prepareNextRound: New hands:`, newState.players.map(p => p.hand.length));
       // Keep scores accumulated
       newState.scores = state.scores;
       newState.teamScores = state.teamScores;
@@ -220,8 +194,6 @@ class RoundValidator {
     }
     
     // If null returned, no more rounds allowed
-    console.log('[RoundValidator] prepareNextRound: ❌ Failed - returning null');
-    console.log(`[RoundValidator] prepareNextRound: Check conditions - round=${state.round}, playerCount=${playerCount}, deck=${state.deck?.length}`);
     return null;
   }
 
