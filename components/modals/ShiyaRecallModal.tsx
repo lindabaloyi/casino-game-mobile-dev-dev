@@ -3,14 +3,18 @@
  * Appears when a teammate captures a build on which the current player activated Shiya.
  * Offers Recall (calls recallBuild) or Leave options.
  * Auto-dismisses after specified duration.
+ * 
+ * Style: Green/orange casino theme (matches PlayOptionsModal)
  */
 
 import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { PlayingCard } from '../cards/PlayingCard';
+import { Card } from '../../types';
 
 interface ShiyaBuildEntry {
   value: number;
-  cards: Array<{ rank: string; suit: string; value: number }>;
+  cards: Card[];
   stackId: string;
   shiyaPlayer?: number;
 }
@@ -47,34 +51,50 @@ export function ShiyaRecallModal({
   if (!build) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <View style={styles.overlay}>
-        <View style={styles.modal}>
+        <TouchableOpacity 
+          style={styles.clickOutside} 
+          activeOpacity={1} 
+          onPress={onClose}
+        />
+        <View style={styles.modalContent}>
+          {/* Header */}
           <Text style={styles.title}>Recall Shiya Build?</Text>
+          
+          {/* Timer */}
           <Text style={styles.timer}>Auto-closes in {timeLeft}s</Text>
-
-          <View style={styles.buildInfo}>
-            <Text style={styles.label}>Build cards:</Text>
-            <View style={styles.cardRow}>
-              {build.cards?.map((card, idx) => (
-                <Text key={idx} style={styles.card}>
-                  {card.rank}
-                  <Text style={styles.suit}>{card.suit}</Text>
-                </Text>
+          
+          {/* Build cards preview */}
+          <View style={styles.cardsSection}>
+            <View style={styles.cardsRow}>
+              {build.cards?.map((card, index) => (
+                <View key={index} style={styles.cardWrapper}>
+                  <PlayingCard rank={card.rank} suit={card.suit} />
+                </View>
               ))}
             </View>
-            <Text style={styles.value}>Value: {build.value}</Text>
+            <Text style={styles.buildValue}>
+              Value: {build.value}
+            </Text>
           </View>
-
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[styles.button, styles.recallButton]}
+          
+          {/* Buttons */}
+          <View style={styles.buttonSection}>
+            <TouchableOpacity 
+              style={[styles.button, styles.recallButton]} 
               onPress={onRecall}
             >
               <Text style={styles.buttonText}>Recall</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.leaveButton]}
+            
+            <TouchableOpacity 
+              style={[styles.button, styles.leaveButton]} 
               onPress={onClose}
             >
               <Text style={styles.buttonText}>Leave</Text>
@@ -89,83 +109,88 @@ export function ShiyaRecallModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 3000,
+    zIndex: 2000,
   },
-  modal: {
-    backgroundColor: '#2C3E50',
+  clickOutside: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  modalContent: {
+    backgroundColor: '#1a472a',
     borderRadius: 12,
-    padding: 24,
-    width: '80%',
-    maxWidth: 400,
-    alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#F1C40F',
+    borderColor: '#28a745',
+    padding: 16,
+    width: '75%',
+    maxWidth: 260,
+    alignItems: 'center',
+    zIndex: 2001,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#ECF0F1',
-    marginBottom: 8,
-    textAlign: 'center',
+    color: '#f59e0b',
+    marginBottom: 4,
   },
   timer: {
-    fontSize: 14,
-    color: '#BDC3C7',
-    marginBottom: 16,
+    fontSize: 12,
+    color: '#9ca3af',
+    marginBottom: 12,
   },
-  buildInfo: {
-    marginBottom: 24,
+  cardsSection: {
     alignItems: 'center',
-  },
-  label: {
-    fontSize: 16,
-    color: '#BDC3C7',
-    marginBottom: 8,
-  },
-  cardRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  card: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#ECF0F1',
-    marginHorizontal: 4,
-  },
-  suit: {
-    fontSize: 18,
-  },
-  value: {
-    fontSize: 18,
-    color: '#F1C40F',
-    fontWeight: '600',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    marginBottom: 12,
     width: '100%',
   },
+  cardsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 2,
+  },
+  cardWrapper: {
+    marginHorizontal: -4,
+  },
+  buildValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fbbf24',
+    marginTop: 8,
+  },
+  buttonSection: {
+    width: '100%',
+    alignItems: 'center',
+  },
   button: {
+    backgroundColor: '#28a745',
+    borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 8,
-    minWidth: 120,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#34d058',
+    width: '100%',
     alignItems: 'center',
   },
   recallButton: {
     backgroundColor: '#27AE60',
+    borderColor: '#34d058',
   },
   leaveButton: {
     backgroundColor: '#E74C3C',
+    borderColor: '#E74C3C',
   },
   buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
   },
 });
 
