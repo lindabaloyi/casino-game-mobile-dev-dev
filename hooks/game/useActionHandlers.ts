@@ -9,7 +9,8 @@ export function useActionHandlers(
   table: any[],
   playerNumber: number,
   onDragEndWrapper: (...args: any[]) => void,
-  isPartyMode: boolean = false
+  isPartyMode: boolean = false,
+  roundNumber: number = 1
 ) {
   const handleCapture = useCallback(
     (card: any, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => {
@@ -20,17 +21,20 @@ export function useActionHandlers(
 
   const handleTrail = useCallback(
     (card: any) => {
-      // In DUEL mode (not party): prevent trailing if player has active build or temp stack
       // In PARTY mode: allow trailing anytime (no restrictions)
+      // In DUEL mode:
+      //   - Round 1: prevent trailing if player has active build or temp stack
+      //   - Round 2: allow trailing even with active build or temp stack
       const isDuelMode = !isPartyMode;
+      const isRound2 = roundNumber >= 2;
       
-      if (isDuelMode) {
-        // Check if player has an active build (blocks trailing in duel mode only)
+      if (isDuelMode && !isRound2) {
+        // Check if player has an active build (blocks trailing in duel mode only, round 1)
         const hasActiveBuild = table.some(
           (tc: any) => tc.type === 'build_stack' && tc.owner === playerNumber
         );
         
-        // Check if player has an unresolved temp stack (also blocks trailing in duel mode only)
+        // Check if player has an unresolved temp stack (also blocks trailing in duel mode only, round 1)
         const hasUnresolvedTemp = table.some(
           (tc: any) => tc.type === 'temp_stack' && tc.owner === playerNumber
         );
@@ -46,9 +50,10 @@ export function useActionHandlers(
         }
       }
       
+      // In round 2 or party mode, allow trailing without restrictions
       actions.trail(card);
     },
-    [actions, table, playerNumber, onDragEndWrapper, isPartyMode],
+    [actions, table, playerNumber, onDragEndWrapper, isPartyMode, roundNumber],
   );
 
   const handleAcceptClick = useCallback((stackId: string) => {

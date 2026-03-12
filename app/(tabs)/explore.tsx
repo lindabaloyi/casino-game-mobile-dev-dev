@@ -1,112 +1,318 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+/**
+ * Learn / Tutorial Hub
+ * 
+ * Interactive tutorials for learning game mechanics.
+ * Features animated demonstrations of gameplay actions.
+ */
 
+import React, { useState } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity,
+  Dimensions,
+} from 'react-native';
 import { ThemedText } from '@/components/themed/themed-text';
 import { ThemedView } from '@/components/themed/themed-view';
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/ui/external-link';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import ParallaxScrollView from '@/components/utils/parallax-scroll-view';
-import { Fonts } from '@/constants/theme';
+import { TutorialViewer } from '@/components/tutorials';
+import tutorials from '../../shared/game/tutorials';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Group tutorials by difficulty
+const TUTORIAL_GROUPS = {
+  beginner: ['trail', 'captureLoose', 'buildTemp'],
+  intermediate: ['captureBuild', 'stealBuild', 'mergeBuilds'],
+  advanced: ['dropToCapture', 'extendBuild', 'acceptTemp'],
+};
+
+const DIFFICULTY_CONFIG = {
+  beginner: { 
+    label: 'Beginner', 
+    color: '#4CAF50',
+    description: 'Start here! Learn the basics.',
+  },
+  intermediate: { 
+    label: 'Intermediate', 
+    color: '#FF9800',
+    description: 'Ready for more?',
+  },
+  advanced: { 
+    label: 'Advanced', 
+    color: '#F44336',
+    description: 'Master the game!',
+  },
+};
+
+interface Tutorial {
+  id: string;
+  title: string;
+  icon: string;
+  description: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  rules?: string[];
+  steps: any[];
+}
 
 export default function TabTwoScreen() {
+  const [selectedTutorial, setSelectedTutorial] = useState<Tutorial | null>(null);
+
+  const tutorialList = Object.values(tutorials) as Tutorial[];
+
+  const renderTutorialCard = (tutorial: Tutorial) => (
+    <TouchableOpacity
+      key={tutorial.id}
+      style={styles.tutorialCard}
+      onPress={() => setSelectedTutorial(tutorial)}
+      activeOpacity={0.7}
+    >
+      <View style={[
+        styles.iconContainer,
+        { backgroundColor: DIFFICULTY_CONFIG[tutorial.difficulty].color + '20' }
+      ]}>
+        <Text style={styles.iconText}>
+          {getIconForTutorial(tutorial.id)}
+        </Text>
+      </View>
+      <View style={styles.cardContent}>
+        <Text style={styles.cardTitle}>{tutorial.title}</Text>
+        <Text style={styles.cardDescription} numberOfLines={2}>
+          {tutorial.description}
+        </Text>
+        <View style={[
+          styles.difficultyBadge,
+          { backgroundColor: DIFFICULTY_CONFIG[tutorial.difficulty].color }
+        ]}>
+          <Text style={styles.difficultyText}>
+            {tutorial.difficulty}
+          </Text>
+        </View>
+      </View>
+      <Text style={styles.arrow}>›</Text>
+    </TouchableOpacity>
+  );
+
+  const renderTutorialGroup = (difficulty: keyof typeof TUTORIAL_GROUPS) => {
+    const config = DIFFICULTY_CONFIG[difficulty];
+    const groupTutorials = TUTORIAL_GROUPS[difficulty]
+      .map(id => tutorialList.find(t => t.id === id))
+      .filter(Boolean) as Tutorial[];
+
+    if (groupTutorials.length === 0) return null;
+
+    return (
+      <View key={difficulty} style={styles.group}>
+        <View style={styles.groupHeader}>
+          <View style={[styles.groupIndicator, { backgroundColor: config.color }]} />
+          <View>
+            <Text style={styles.groupTitle}>{config.label}</Text>
+            <Text style={styles.groupDescription}>{config.description}</Text>
+          </View>
+        </View>
+        <View style={styles.groupCards}>
+          {groupTutorials.map(renderTutorialCard)}
+        </View>
+      </View>
+    );
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerEmoji}>🎓</Text>
+        <ThemedText type="title" style={styles.headerTitle}>
+          Learn the Game
+        </ThemedText>
+        <ThemedText style={styles.headerSubtitle}>
+          Animated tutorials to help you master MadGames
+        </ThemedText>
+      </View>
+
+      {/* Tutorial Groups */}
+      {renderTutorialGroup('beginner')}
+      {renderTutorialGroup('intermediate')}
+      {renderTutorialGroup('advanced')}
+
+      {/* Tip */}
+      <View style={styles.tipContainer}>
+        <Text style={styles.tipIcon}>💡</Text>
+        <View style={styles.tipContent}>
+          <Text style={styles.tipTitle}>Pro Tip</Text>
+          <Text style={styles.tipText}>
+            Tap on any tutorial to watch an animated demonstration. 
+            Use the play/pause button to control the playback!
+          </Text>
+        </View>
+      </View>
+
+      {/* Tutorial Viewer Modal */}
+      {selectedTutorial && (
+        <TutorialViewer
+          tutorial={selectedTutorial}
+          visible={true}
+          onClose={() => setSelectedTutorial(null)}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+      )}
+    </ScrollView>
   );
 }
 
+function getIconForTutorial(id: string): string {
+  const icons: Record<string, string> = {
+    trail: '🃏',
+    captureLoose: '✋',
+    buildTemp: '📚',
+    captureBuild: '🏆',
+    stealBuild: '💝',
+    mergeBuilds: '🔀',
+    dropToCapture: '📥',
+    extendBuild: '➕',
+    acceptTemp: '✅',
+  };
+  return icons[id] || '🎮';
+}
+
+const CARD_WIDTH = SCREEN_WIDTH - 32;
+
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
   },
-  titleContainer: {
+  content: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingVertical: 20,
+  },
+  headerEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  group: {
+    marginBottom: 24,
+  },
+  groupHeader: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  groupIndicator: {
+    width: 4,
+    height: 40,
+    borderRadius: 2,
+  },
+  groupTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  groupDescription: {
+    fontSize: 13,
+    color: '#888',
+    marginTop: 2,
+  },
+  groupCards: {
+    gap: 12,
+  },
+  tutorialCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  iconText: {
+    fontSize: 24,
+  },
+  cardContent: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  cardDescription: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  difficultyBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  difficultyText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  arrow: {
+    fontSize: 24,
+    color: '#CCC',
+    marginLeft: 8,
+  },
+  tipContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF9C4',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFC107',
+  },
+  tipIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  tipContent: {
+    flex: 1,
+  },
+  tipTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  tipText: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 18,
   },
 });

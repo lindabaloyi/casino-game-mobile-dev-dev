@@ -44,8 +44,11 @@ const STACK_PAD    = 4;
 // Canonical purple from Team B colors
 export const CANONICAL_PURPLE = TEAM_B_COLORS.primary;
 
-// Gold color for Team A
-export const TEAM_A_GOLD = TEAM_A_COLORS.primary;
+// Gold color for Player 1 (2-player mode) - orange (#FF9800)
+export const PLAYER_1_GOLD = '#FF9800';
+
+// Purple for Player 2 (2-player mode) and Team B
+export const PLAYER_2_PURPLE = TEAM_B_COLORS.primary;
 
 // White color
 export const WHITE = '#FFFFFF';
@@ -194,8 +197,10 @@ export function BuildStackView({
       // Party mode (4-player): use team-specific colors
       teamColors = team === 'A' ? TEAM_A_COLORS : TEAM_B_COLORS;
     } else {
-      // 2-player mode: use player-specific colors (P1 = blue, P2 = green)
-      teamColors = getPlayerColors(stack.owner);
+      // 2-player mode: use gold for P1, purple for P2
+      teamColors = stack.owner === 0 
+        ? { ...TEAM_B_COLORS, primary: PLAYER_1_GOLD, accent: '#B8860B' }  // Gold for P1
+        : TEAM_B_COLORS;  // Purple for P2
     }
     
     return { 
@@ -224,12 +229,16 @@ export function BuildStackView({
         // Incomplete extension - use accent color for warning
         return colors.accent;
       } else {
-        // Complete - use team-specific color: purple for Team B, gold for Team A
-        return ownerTeam === 'B' ? CANONICAL_PURPLE : TEAM_A_GOLD;
+        // Complete - use gold for P1, purple for P2 (2-player) or team colors (party)
+        return isPartyMode 
+          ? (ownerTeam === 'B' ? CANONICAL_PURPLE : PLAYER_1_GOLD)
+          : (stack.owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE);
       }
     } else {
-      // Completed build - use team-specific color: purple for Team B, gold for Team A
-      return ownerTeam === 'B' ? CANONICAL_PURPLE : TEAM_A_GOLD;
+      // Completed build - use gold for P1, purple for P2 (2-player) or team colors (party)
+      return isPartyMode 
+        ? (ownerTeam === 'B' ? CANONICAL_PURPLE : PLAYER_1_GOLD)
+        : (stack.owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE);
     }
   };
   
@@ -238,8 +247,8 @@ export function BuildStackView({
     : (stack.value?.toString() ?? '-');
   const badgeColor = getBadgeColor();
 
-  // Owner label color based on team/player
-  const ownerTextColor = isPartyMode ? colors.text : colors.text;
+  // Owner label color - use WHITE for consistency with party mode
+  const ownerTextColor = isPartyMode ? colors.text : '#FFFFFF';
 
   // ── Position registration ─────────────────────────────────────────────────
   const onLayout = useCallback(() => {
@@ -313,8 +322,15 @@ export function BuildStackView({
         </View>
       ) : (
         <View style={styles.ownerBadgeContainer}>
-          <View style={[styles.ownerBadge, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.ownerText, { color: ownerTextColor }]}>P{stack.owner + 1}</Text>
+          <View style={[
+            styles.ownerBadge, 
+            { 
+              backgroundColor: stack.owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE,
+              borderColor: '#FFFFFF',
+              borderWidth: 2,
+            }
+          ]}>
+            <Text style={[styles.ownerText, { color: '#FFFFFF' }]}>P{stack.owner + 1}</Text>
           </View>
         </View>
       )}
@@ -388,6 +404,8 @@ const styles = StyleSheet.create({
   },
   ownerBadge: {
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   ownerText: {
     color: '#fff',

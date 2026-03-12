@@ -100,6 +100,28 @@ export interface GameOverData {
   capturedCards?: number[];
   tableCardsRemaining?: number;
   deckRemaining?: number;
+  scoreBreakdowns?: Array<{
+    totalCards: number;
+    spadeCount: number;
+    cardPoints: number;
+    spadeBonus: number;
+    cardCountBonus: number;
+    totalScore: number;
+    cards: Array<{
+      rank: string;
+      suit: string;
+      value: number;
+      display: string;
+      points: number;
+    }>;
+    // Detailed breakdown by card type
+    tenDiamondCount: number;
+    tenDiamondPoints: number;
+    twoSpadeCount: number;
+    twoSpadePoints: number;
+    aceCount: number;
+    acePoints: number;
+  }>;
 }
 
 export interface UseGameStateSyncResult {

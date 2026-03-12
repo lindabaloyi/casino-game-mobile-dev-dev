@@ -17,6 +17,10 @@ import { TempStack } from './types';
 import { TempStackBounds, CapturePileBounds } from '../../hooks/useDrag';
 import { getStackConfig } from '../../constants/stackActions';
 import { getBuildHint } from '../../utils/buildCalculator';
+import { 
+  PLAYER_1_GOLD, 
+  PLAYER_2_PURPLE 
+} from './BuildStackView';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -90,20 +94,31 @@ export function TempStackView({
   let displayValue: string;
   let badgeColor: string;
   
+  // Get badge color based on player (gold for P1, purple for P2) - 2-player mode
+  const getBadgeColor = (isComplete: boolean): string => {
+    if (!isComplete) {
+      // Incomplete - show red for need
+      return '#E53935';
+    }
+    // Complete - use gold for P1, purple for P2
+    return stack.owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE;
+  };
+  
   if (hint) {
     if (hint.need === 0) {
-      // Complete stack - show target value with purple badge
+      // Complete stack - show target value with gold/purple badge
       displayValue = hint.value.toString();
-      badgeColor = '#9C27B0'; // Purple for complete
+      badgeColor = getBadgeColor(true);
     } else {
       // Incomplete stack - show needed value with red badge
       displayValue = `-${hint.need}`;
-      badgeColor = '#E53935'; // Red for incomplete
+      badgeColor = getBadgeColor(false);
     }
   } else {
     // Fallback to server-provided values
+    const isComplete = stack.need === 0;
     displayValue = stack.need > 0 ? `-${stack.need}` : stack.value?.toString() ?? '-';
-    badgeColor = stack.need > 0 ? '#E53935' : '#9C27B0';
+    badgeColor = getBadgeColor(isComplete);
   }
 
   // ── Position registration ─────────────────────────────────────────────────
@@ -238,7 +253,7 @@ export function TempStackView({
           <PlayingCard rank={top.rank} suit={top.suit} />
         </View>
 
-        {/* Build value badge */}
+        {/* Build value badge - centered on card like BuildStackView */}
         <View style={[styles.valueBadge, { backgroundColor: badgeColor }]}>
           <Text style={styles.valueText}>{displayValue}</Text>
         </View>
@@ -279,11 +294,12 @@ const styles = StyleSheet.create({
   },
   valueBadge: {
     position: 'absolute',
-    top: -8,
-    right: -8,
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -18 }, { translateY: -18 }],
+    width: 36,
+    height: 36,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -297,7 +313,7 @@ const styles = StyleSheet.create({
   },
   valueText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
     paddingHorizontal: 4,

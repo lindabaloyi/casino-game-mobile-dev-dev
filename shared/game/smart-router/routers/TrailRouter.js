@@ -3,7 +3,9 @@
  * Handles trail validation.
  * 
  * In PARTY mode: allow trailing anytime - no restrictions
- * In DUEL mode: prevent trailing if player has active build (original rule)
+ * In DUEL mode: 
+ *   - Round 1: prevent trailing if player has active build
+ *   - Round 2: allow trailing even with active build
  * 
  * Also validates that:
  * - No loose card with same rank exists on table
@@ -58,7 +60,16 @@ class TrailRouter {
       return { type: 'trail', payload };
     }
     
-    // In DUEL mode: prevent trailing if player has active build (original rule)
+    // In DUEL mode: check round number for active build restriction
+    const currentRound = state.round || 1;
+    const isRound2 = currentRound >= 2;
+    
+    // Round 2: allow trailing regardless of active build
+    if (isRound2) {
+      return { type: 'trail', payload };
+    }
+    
+    // Round 1: prevent trailing if player has active build (original rule)
     if (StackHelper.playerHasActiveBuild(state, playerIndex)) {
       throw new Error(
         'You cannot trail - you have an active build. Extend or capture your build before trailing.'

@@ -9,6 +9,7 @@
 
 const RoundValidator = require('../game/utils/RoundValidator');
 const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn, forceEndTurn, finalizeGame } = require('../../../shared/game');
+const scoring = require('../game/scoring');
 
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking = null) {
@@ -138,11 +139,15 @@ class GameCoordinatorService {
           // Calculate detailed game-over stats from finalized state
           const playerCount = finalizedState.playerCount || 2;
           const capturedCards = [];
+          const scoreBreakdowns = [];
           const tableCardsRemaining = finalizedState.tableCards?.length || 0;
           const deckRemaining = finalizedState.deck?.length || 0;
           
           for (let i = 0; i < playerCount; i++) {
             capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
+            // Get detailed score breakdown for each player
+            const captures = finalizedState.players[i]?.captures || [];
+            scoreBreakdowns.push(scoring.getScoreBreakdown(captures));
           }
           
           finalizedState.gameOver = true;
@@ -153,6 +158,7 @@ class GameCoordinatorService {
             capturedCards,
             tableCardsRemaining,
             deckRemaining,
+            scoreBreakdowns,
           }, mm);
         } else {
           // Auto-transition to next round for multiplayer
@@ -171,11 +177,15 @@ class GameCoordinatorService {
             // Calculate detailed game-over stats from finalized state
             const playerCount = finalizedState.playerCount || 2;
             const capturedCards = [];
+            const scoreBreakdowns = [];
             const tableCardsRemaining = finalizedState.tableCards?.length || 0;
             const deckRemaining = finalizedState.deck?.length || 0;
             
             for (let i = 0; i < playerCount; i++) {
               capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
+              // Get detailed score breakdown for each player
+              const captures = finalizedState.players[i]?.captures || [];
+              scoreBreakdowns.push(scoring.getScoreBreakdown(captures));
             }
             
             finalizedState.gameOver = true;
@@ -187,6 +197,7 @@ class GameCoordinatorService {
               capturedCards,
               tableCardsRemaining,
               deckRemaining,
+              scoreBreakdowns,
             }, mm);
           }
         }
@@ -296,11 +307,15 @@ class GameCoordinatorService {
         // Calculate detailed game-over stats from finalized state
         const playerCount = finalizedState.playerCount || 2;
         const capturedCards = [];
+        const scoreBreakdowns = [];
         const tableCardsRemaining = finalizedState.tableCards?.length || 0;
         const deckRemaining = finalizedState.deck?.length || 0;
         
         for (let i = 0; i < playerCount; i++) {
           capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
+          // Get detailed score breakdown for each player
+          const captures = finalizedState.players[i]?.captures || [];
+          scoreBreakdowns.push(scoring.getScoreBreakdown(captures));
         }
         
         finalizedState.gameOver = true;
@@ -313,6 +328,7 @@ class GameCoordinatorService {
           capturedCards,
           tableCardsRemaining,
           deckRemaining,
+          scoreBreakdowns,
         }, mm);
         return;
       }

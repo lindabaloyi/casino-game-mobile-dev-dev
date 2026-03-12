@@ -117,7 +117,7 @@ export function GameBoard({
   const turnTimer = useTurnTimer({
     currentPlayer: gameState.currentPlayer,
     isMyTurn: computed.isMyTurn,
-    gameOver: gameState.gameOver,
+    gameOver: (gameState.gameOver || !!gameOverData) || false,
     modalVisible: modals.showPlayModal || modals.showStealModal,
     roundOver: roundInfo.isOver,
     onTimeout: () => {
@@ -271,7 +271,8 @@ export function GameBoard({
     computed.table,
     playerNumber,
     dragHandlers.handleDragEnd,
-    gameState.playerCount === 4
+    gameState.playerCount === 4,
+    roundInfo.roundNumber
   );
 
   // ── Unified Drop Handler ─────────────────────────────────────────────────
@@ -340,7 +341,7 @@ export function GameBoard({
         cardsRemaining={roundInfo.cardsRemaining as [number, number]}
         // Timer props
         timeRemaining={turnTimer.timeRemaining}
-        showTimer={computed.isMyTurn && !gameState.gameOver && !roundInfo.isOver}
+        showTimer={computed.isMyTurn && !(gameState.gameOver || !!gameOverData) && !roundInfo.isOver}
         isLowTime={turnTimer.isLowTime}
       />
 
@@ -527,12 +528,13 @@ export function GameBoard({
       {/* KISS: Round 1 → Round 2 → Game Over */}
 
       <GameOverModal
-        visible={gameState.gameOver || false}
+        visible={(gameState.gameOver || !!gameOverData) || false}
         scores={gameOverData?.finalScores || gameState.scores as number[]}
         playerCount={gameState.playerCount}
         capturedCards={gameOverData?.capturedCards || gameState.players?.map(p => p.captures?.length || 0) || []}
         tableCardsRemaining={gameOverData?.tableCardsRemaining ?? gameState.tableCards?.length ?? 0}
         deckRemaining={gameOverData?.deckRemaining ?? gameState.deck?.length ?? 0}
+        scoreBreakdowns={gameOverData?.scoreBreakdowns}
         onPlayAgain={onRestart ? () => {
           // Reset game - this effectively restarts the game
           if (gameState.playerCount === 2) {
