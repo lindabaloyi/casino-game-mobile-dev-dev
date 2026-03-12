@@ -17,7 +17,7 @@ interface GameModalsProps {
   showPlayModal: boolean;
   selectedTempStack: TempStack | null;
   playerHand: Card[];
-  teamCapturedBuilds?: { 0: { value: number; originalOwner: number; capturedBy: number }[]; 1: { value: number; originalOwner: number; capturedBy: number }[] };
+  teamCapturedBuilds?: { [playerIndex: number]: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: any[] }[] };
   playerNumber: number;
   onConfirmPlay: (buildValue: number) => void;
   onCancelPlay: () => void;

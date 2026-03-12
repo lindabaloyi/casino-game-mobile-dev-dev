@@ -52,7 +52,9 @@ function initializeGame(playerCount = 2) {
     // Track last capture for end-of-game cleanup
     lastCapturePlayer: null,
     // Track captured teammate builds for cooperative rebuild in party mode
-    teamCapturedBuilds: { 0: [], 1: [] },
+    // Key = player index who can rebuild (the OTHER teammate, not the original builder)
+    // Value = array of captured builds
+    teamCapturedBuilds: {},
     // Shiya recalls - ephemeral recall offers for each player
     shiyaRecalls: {},
   };
@@ -149,7 +151,9 @@ function initializeTestGame(playerCount = 2) {
     // Track last capture for end-of-game cleanup
     lastCapturePlayer: null,
     // Track captured teammate builds for cooperative rebuild in party mode
-    teamCapturedBuilds: { 0: [], 1: [] },
+    // Key = player index who can rebuild (the OTHER teammate, not the original builder)
+    // Value = array of captured builds
+    teamCapturedBuilds: {},
     // Shiya recalls - ephemeral recall offers for each player
     shiyaRecalls: {},
   };

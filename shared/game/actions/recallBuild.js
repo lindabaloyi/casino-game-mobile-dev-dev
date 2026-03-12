@@ -24,9 +24,13 @@ function recallBuild(state, payload, playerIndex) {
   const recall = state.shiyaRecalls?.[playerIndex];
   
   if (!recall) {
+    console.warn(`[recallBuild] ⚠️ No active recall found for player ${playerIndex}. Available recalls:`, Object.keys(state.shiyaRecalls || {}));
     throw new Error('recallBuild: no active recall for this player');
   }
 
+  console.log(`[recallBuild] ✅ Player ${playerIndex} is recalling build: stackId=${recall.stackId}, value=${recall.value}, cards=${recall.cards.length}`);
+  console.log(`[recallBuild] 📋 Recall details: capturedBy=${recall.capturedBy}, originalOwner=${recall.originalOwner}`);
+  
   // Identify teammate index - use capturedBy (who captured the build)
   const teammateIndex = recall.capturedBy;
 

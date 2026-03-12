@@ -114,13 +114,12 @@ export interface GameState {
   // Turn tracking per round
   roundPlayers: RoundPlayers;
   
-  // Party mode (2v2): Track builds captured from teammates
-  // teamCapturedBuilds[0] = builds captured from Team A, teamCapturedBuilds[1] = builds captured from Team B
-  // Each entry contains { value, originalOwner, capturedBy, stackId, cards }
-  // Note: Shiya recalls are handled separately via shiyaRecalls field
+  // Party mode (2v2): Track builds that can be rebuilt by each player
+  // teamCapturedBuilds[playerIndex] = builds that THIS PLAYER can rebuild
+  // Only the OTHER teammate (not the original builder) can rebuild
+  // Example: If Player 2 builds and opponent captures, Player 3 gets the entry
   teamCapturedBuilds?: { 
-    0: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: Card[] }[]; 
-    1: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: Card[] }[] 
+    [playerIndex: number]: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: Card[] }[]
   };
 
   // Shiya recalls - ephemeral recall offers for each player

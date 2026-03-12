@@ -88,7 +88,8 @@ function capture(state, payload, playerIndex) {
     }
     
     // Track captured teammate builds for cooperative rebuild in party mode
-    // Only track build_stack captures by opponents
+    // CRITICAL: Only the OTHER teammate (not the original builder) can rebuild
+    // When opponent captures your teammate's build, add to the OTHER teammate's list
     const isPartyMode = state.playerCount === 4;
     
     if (isPartyMode && buildStack && buildStack.type === 'build_stack') {
@@ -98,21 +99,44 @@ function capture(state, payload, playerIndex) {
         const stackOwnerTeam = stackOwner < 2 ? 0 : 1;
         const capturingPlayerTeam = playerIndex < 2 ? 0 : 1;
         
-        // Only track if the capturing player is on a DIFFERENT team (opponent captured it)
-        if (stackOwnerTeam !== capturingPlayerTeam) {
-          // Ensure teamCapturedBuilds exists
-          if (!newState.teamCapturedBuilds) {
-            newState.teamCapturedBuilds = { 0: [], 1: [] };
+        // Check if the ORIGINAL OWNER was on the SAME TEAM as the capturing player
+        // This means: "My teammate built this, opponent captured it"
+        const isOwnTeamBuild = stackOwnerTeam === capturingPlayerTeam;
+        
+        if (isOwnTeamBuild) {
+          // Find the other teammate (not the original builder)
+          const targetPlayer = stackOwner ^ 1; // XOR to get teammate
+          
+          // Validate build qualifies for team capture
+          if (!buildStack.value || !buildStack.cards || buildStack.cards.length === 0) {
+            console.warn(`[capture] ⚠️ Build ${buildStack.stackId} does NOT qualify for teamCapturedBuilds - missing value or cards`);
+          } else {
+            console.log(`[capture] ✅ Adding to teamCapturedBuilds: Player ${targetPlayer} can rebuild (originalOwner=Player ${stackOwner}, capturedBy=Player ${playerIndex}, value=${buildStack.value})`);
           }
           
-          // Add entry to the CAPTURING player's team array (so teammates can recall it)
-          newState.teamCapturedBuilds[capturingPlayerTeam].push({
+          // Ensure teamCapturedBuilds exists
+          if (!newState.teamCapturedBuilds) {
+            newState.teamCapturedBuilds = {};
+          }
+          
+          // Initialize player array if needed
+          if (!newState.teamCapturedBuilds[targetPlayer]) {
+            newState.teamCapturedBuilds[targetPlayer] = [];
+          }
+          
+          // Add to OTHER teammate's list (not the original builder)
+          newState.teamCapturedBuilds[targetPlayer].push({
             value: buildStack.value,
             originalOwner: stackOwner,
-            capturedBy: playerIndex,  // Track who captured it
-            cards: buildStack.cards,   // Store cards for recall functionality
-            stackId: buildStack.stackId  // Store original stack ID
+            capturedBy: playerIndex,
+            cards: buildStack.cards,
+            stackId: buildStack.stackId,
           });
+          
+          console.log(`[capture] 📊 teamCapturedBuilds for Player ${targetPlayer} now has ${newState.teamCapturedBuilds[targetPlayer].length} entries`);
+        } else {
+          // Opponent's build was captured - don't add to teamCapturedBuilds
+          console.log(`[capture] ℹ️ Not adding to teamCapturedBuilds: captured opponent's build (originalOwner=Player ${stackOwner}, originalTeam=${stackOwnerTeam}, myTeam=${capturingPlayerTeam})`);
         }
       }
     }

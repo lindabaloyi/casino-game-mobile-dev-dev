@@ -51,21 +51,43 @@ function captureOpponent(state, payload, playerIndex) {
       const stackOwnerTeam = stackOwner < 2 ? 0 : 1;
       const capturingPlayerTeam = playerIndex < 2 ? 0 : 1;
       
-      // Always track opponent captures (different teams) for cooperative rebuild
+      // Track opponent captures for cooperative rebuild
+      // CRITICAL: Only the OTHER teammate (not the original builder) can rebuild
+      // When opponent captures your teammate's build, add to the OTHER teammate's list
       if (stackOwnerTeam !== capturingPlayerTeam) {
-        // Ensure teamCapturedBuilds exists
-        if (!newState.teamCapturedBuilds) {
-          newState.teamCapturedBuilds = { 0: [], 1: [] };
+        // Find the other teammate on the original owner's team
+        // Team 0: players 0,1 | Team 1: players 2,3
+        // If originalOwner is 0 or 1, other is 1 or 0 (XOR with 1)
+        // If originalOwner is 2 or 3, other is 3 or 2 (XOR with 1)
+        const targetPlayer = stackOwner ^ 1;
+        
+        // Validate build qualifies for team capture
+        if (!buildStack.value || !buildStack.cards || buildStack.cards.length === 0) {
+          console.warn(`[captureOpponent] ⚠️ Build ${buildStack.stackId} does NOT qualify for teamCapturedBuilds - missing value or cards`);
+        } else {
+          console.log(`[captureOpponent] ✅ Adding to teamCapturedBuilds: Player ${targetPlayer} can rebuild (originalOwner=Player ${stackOwner}, capturedBy=Player ${playerIndex}, value=${buildStack.value})`);
         }
         
-        // Add to teamCapturedBuilds (no shiyaPlayer field)
-        newState.teamCapturedBuilds[capturingPlayerTeam].push({
+        // Ensure teamCapturedBuilds exists
+        if (!newState.teamCapturedBuilds) {
+          newState.teamCapturedBuilds = {};
+        }
+        
+        // Initialize player array if needed
+        if (!newState.teamCapturedBuilds[targetPlayer]) {
+          newState.teamCapturedBuilds[targetPlayer] = [];
+        }
+        
+        // Add to OTHER teammate's list (not the original builder)
+        newState.teamCapturedBuilds[targetPlayer].push({
           value: buildStack.value,
           originalOwner: stackOwner,
           capturedBy: playerIndex,
           cards: buildStack.cards,
           stackId: buildStack.stackId,
         });
+        
+        console.log(`[captureOpponent] 📊 teamCapturedBuilds for Player ${targetPlayer} now has ${newState.teamCapturedBuilds[targetPlayer].length} entries`);
         
         // If the captured build had Shiya active, create a recall offer for the activator
         if (buildStack.shiyaActive && buildStack.shiyaPlayer !== undefined) {

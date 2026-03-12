@@ -16,7 +16,7 @@ interface PlayOptionsModalProps {
   visible: boolean;
   cards: Card[];
   playerHand: Card[];
-  teamCapturedBuilds?: { 0: { value: number; originalOwner: number; capturedBy: number }[]; 1: { value: number; originalOwner: number; capturedBy: number }[] };
+  teamCapturedBuilds?: { [playerIndex: number]: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: any[] }[] };
   playerNumber: number;
   onConfirm: (buildValue: number, originalOwner?: number) => void;
   onCancel: () => void;
@@ -112,24 +112,23 @@ export function PlayOptionsModal({
   }, [possibleBuildValues, playerHand]);
   
   // Get team captured builds (for party mode 2v2 cooperative rebuild)
+  // Now uses player-specific builds: teamCapturedBuilds[playerNumber] = builds THIS PLAYER can rebuild
   const teamBuildOptions = useMemo(() => {
     
     if (!teamCapturedBuilds || playerNumber === undefined) {
       return [];
     }
     
-    // Calculate player's team (0 or 1)
-    const playerTeam = Math.floor(playerNumber / 2);
-    const teamBuilds = teamCapturedBuilds[playerTeam as 0 | 1] ?? [];
-    
+    // Get builds that THIS PLAYER can rebuild (player-specific, not team-shared)
+    const myTeamBuilds = teamCapturedBuilds[playerNumber] ?? [];
     
     // Filter to builds that match the possible build values (no hand check needed)
     // This allows team to rebuild captured builds even without matching card in hand
-    const matchingTeamBuilds = teamBuilds.filter(build => 
+    const matchingTeamBuilds = myTeamBuilds.filter(build => 
       possibleBuildValues.includes(build.value)
     );
     
-    console.log(`[PlayOptionsModal] matchingTeamBuilds:`, matchingTeamBuilds);
+    console.log(`[PlayOptionsModal] Player ${playerNumber} can rebuild:`, matchingTeamBuilds);
     
     return matchingTeamBuilds;
   }, [teamCapturedBuilds, playerNumber, possibleBuildValues]);
