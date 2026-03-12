@@ -89,6 +89,29 @@ function captureOwn(state, payload, playerIndex) {
     newState.tableCards.splice(stackIdx, 1);
     capturedCards.push(...buildStack.cards);
     
+    // --- Shiya Recall: If build has Shiya active, create recall offer for the activator ---
+    // This handles: P1 activates Shiya on P2's build → P2 captures their own build → P1 gets recall option
+    if (buildStack.shiyaActive && buildStack.shiyaPlayer !== undefined) {
+      const activator = buildStack.shiyaPlayer;
+      
+      // Ensure shiyaRecalls exists
+      if (!newState.shiyaRecalls) {
+        newState.shiyaRecalls = {};
+      }
+      
+      // Create recall offer for the activator (one per player)
+      newState.shiyaRecalls[activator] = {
+        stackId: buildStack.stackId,
+        value: buildStack.value,
+        capturedBy: playerIndex,
+        originalOwner: buildStack.owner,
+        cards: buildStack.cards,
+        expiresAt: Date.now() + 4000, // 4 second window
+      };
+      
+      console.log(`[captureOwn] Created shiyalRecall for player ${activator}: stackId=${buildStack.stackId}, value=${buildStack.value}`);
+    }
+    
     // --- DYNAMIC: Remove teamCapturedBuilds when original owner captures their own build ---
     // If the player who captured is the originalOwner of any build in teamCapturedBuilds,
     // remove those builds from all teammates' lists since they can no longer be rebuilt

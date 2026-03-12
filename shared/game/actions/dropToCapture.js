@@ -5,6 +5,34 @@
 
 const { cloneState, nextTurn, finalizeGame } = require('../');
 
+/**
+ * Checks if a set of cards forms a valid capture.
+ * Valid captures are either:
+ * - All cards have the same value (e.g., 4,4,4)
+ * - One card's value equals the sum of the others (e.g., 6,4,10 where 10 = 6+4)
+ * @param {Array} cards - Array of card objects with `value` property.
+ * @returns {boolean}
+ */
+function isValidCaptureSet(cards) {
+  if (!cards || cards.length === 0) return false;
+  const values = cards.map(c => c.value);
+  
+  // All same value?
+  const first = values[0];
+  if (values.every(v => v === first)) return true;
+  
+  // Check sum condition for each card as potential capture card
+  for (let i = 0; i < values.length; i++) {
+    const capture = values[i];
+    const others = values.filter((_, idx) => idx !== i);
+    const sum = others.reduce((a, b) => a + b, 0);
+    if (sum === capture) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function dropToCapture(state, payload, playerIndex) {
   const { stackId, stackType, source } = payload;
 
@@ -28,6 +56,11 @@ function dropToCapture(state, payload, playerIndex) {
 
     if (stack.owner !== playerIndex) {
       throw new Error(`dropToCapture: player ${playerIndex} does not own stack "${stackId}"`);
+    }
+
+    // Validate capture set
+    if (!isValidCaptureSet(stack.cards)) {
+      throw new Error(`dropToCapture: temp stack cards do not form a valid capture set`);
     }
 
     newState.tableCards.splice(stackIdx, 1);
@@ -83,6 +116,11 @@ function dropToCapture(state, payload, playerIndex) {
       buildCards.push(...stack.pendingExtension.cards.map(p => p.card));
     } else if (stack.pendingExtension.looseCard) {
       buildCards.push(stack.pendingExtension.looseCard);
+    }
+
+    // Validate the combined set
+    if (!isValidCaptureSet(buildCards)) {
+      throw new Error(`dropToCapture: build with pending extension does not form a valid capture set`);
     }
 
     // Remove the build from table

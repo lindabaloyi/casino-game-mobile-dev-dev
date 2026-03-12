@@ -88,28 +88,6 @@ function captureOpponent(state, payload, playerIndex) {
         });
         
         console.log(`[captureOpponent] 📊 teamCapturedBuilds for Player ${targetPlayer} now has ${newState.teamCapturedBuilds[targetPlayer].length} entries`);
-        
-        // If the captured build had Shiya active, create a recall offer for the activator
-        if (buildStack.shiyaActive && buildStack.shiyaPlayer !== undefined) {
-          const activator = buildStack.shiyaPlayer;
-          
-          // Ensure shiyaRecalls exists
-          if (!newState.shiyaRecalls) {
-            newState.shiyaRecalls = {};
-          }
-          
-          // Create recall offer for the activator (one per player)
-          newState.shiyaRecalls[activator] = {
-            stackId: buildStack.stackId,
-            value: buildStack.value,
-            capturedBy: playerIndex,
-            originalOwner: stackOwner,
-            cards: buildStack.cards,
-            expiresAt: Date.now() + 4000, // 4 second window
-          };
-          
-          console.log(`[captureOpponent] Created shiyal recall for player ${activator}:`, newState.shiyaRecalls[activator]);
-        }
       }
     }
   }
