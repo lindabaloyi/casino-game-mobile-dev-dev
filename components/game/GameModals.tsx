@@ -19,6 +19,8 @@ interface GameModalsProps {
   playerHand: Card[];
   teamCapturedBuilds?: { [playerIndex: number]: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: any[] }[] };
   playerNumber: number;
+  // Players array - needed for capture validation in team builds
+  players?: { captures: Card[] }[];
   onConfirmPlay: (buildValue: number) => void;
   onCancelPlay: () => void;
   
@@ -43,6 +45,7 @@ export function GameModals({
   playerHand,
   teamCapturedBuilds,
   playerNumber,
+  players,
   onConfirmPlay,
   onCancelPlay,
   
@@ -75,6 +78,7 @@ export function GameModals({
           playerHand={playerHand}
           teamCapturedBuilds={teamCapturedBuilds}
           playerNumber={playerNumber}
+          players={players}
           onConfirm={onConfirmPlay}
           onCancel={onCancelPlay}
         />

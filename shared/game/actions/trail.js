@@ -62,6 +62,35 @@ function trail(state, payload, playerIndex) {
 
   console.log(`[trail] Player ${playerIndex} played ${card.rank}${card.suit}, cards in hand: ${hand.length}`);
 
+  // --- DYNAMIC: Remove teamCapturedBuilds when original owner trails a matching card ---
+  // If the player who trailed is the originalOwner of any build in teamCapturedBuilds,
+  // remove those builds from all teammates' lists since they can no longer be rebuilt
+  if (newState.teamCapturedBuilds) {
+    const trailedCardValue = trailedCard.value;
+    
+    // Check all players' teamCapturedBuilds lists
+    for (const playerKey of Object.keys(newState.teamCapturedBuilds)) {
+      const playerNum = parseInt(playerKey, 10);
+      const buildsList = newState.teamCapturedBuilds[playerNum];
+      
+      if (buildsList && Array.isArray(buildsList)) {
+        const originalLength = buildsList.length;
+        
+        // Filter out builds where:
+        // 1. The originalOwner is the player who just trailed
+        // 2. The build value matches the trailed card value
+        const updatedBuilds = buildsList.filter(build => {
+          return !(build.originalOwner === playerIndex && build.value === trailedCardValue);
+        });
+        
+        if (updatedBuilds.length !== originalLength) {
+          newState.teamCapturedBuilds[playerNum] = updatedBuilds;
+          console.log(`[trail] Removed teamCapturedBuilds for Player ${playerNum}: ${originalLength} -> ${updatedBuilds.length} (originalOwner=${playerIndex} trailed ${trailedCardValue})`);
+        }
+      }
+    }
+  }
+
   // Mark turn as started and ended (trail auto-ends turn)
   startPlayerTurn(newState, playerIndex);
   triggerAction(newState, playerIndex);

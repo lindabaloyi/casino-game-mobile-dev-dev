@@ -495,6 +495,7 @@ export function GameBoard({
         playerHand={computed.myHand as TableCard[]}
         teamCapturedBuilds={gameState.teamCapturedBuilds}
         playerNumber={playerNumber}
+        players={gameState.players}
         onConfirmPlay={actionHandlers.handleConfirmPlay}
         onCancelPlay={modals.closePlayModal}
         showStealModal={modals.showStealModal}

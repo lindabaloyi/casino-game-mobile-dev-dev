@@ -32,6 +32,12 @@ function acceptTemp(state, payload, playerIndex) {
 
   const finalValue = buildValue || stack.value;
   
+  // --- VALIDATION: For team builds - trust the teamCapturedBuilds list ---
+  // No additional validation needed - list management handles validity
+  if (originalOwner !== undefined && originalOwner !== null) {
+    console.log(`[acceptTemp] Team build - trusting list for Player ${originalOwner}`);
+  }
+  
   // --- VALIDATION: Check for duplicate build on table ---
   // Compare full build composition (cards) to prevent identical builds
   const newBuildCards = stack.cards.map(c => `${c.rank}${c.suit}`).sort().join(',');
