@@ -6,55 +6,35 @@
  * Party mode only (4 players).
  * Out-of-turn allowed.
  * 
- * Payload: { buildId: string }
+ * Payload: {} (empty - server reads from shiyaRecalls[playerIndex])
+ * 
+ * Note: In the new architecture, recall data comes from shiyaRecalls in game state.
  */
 
 const { cloneState, generateStackId, triggerAction } = require('../');
 const { calculateBuildValue } = require('../buildCalculator');
 
 function recallBuild(state, payload, playerIndex) {
-  const { buildId } = payload;
-
   // Only in party mode
   if (state.playerCount !== 4) {
     throw new Error('recallBuild is only available in 4-player mode');
   }
 
-  // Find the player's team (0 or 1)
-  const playerTeam = playerIndex < 2 ? 0 : 1;
+  // Get the recall offer for this player from shiyaRecalls
+  const recall = state.shiyaRecalls?.[playerIndex];
   
-  // Find the captured build in the team's array
-  const teamBuilds = state.teamCapturedBuilds?.[playerTeam] || [];
-  const capturedBuild = teamBuilds.find(b => b.stackId === buildId);
-  
-  if (!capturedBuild) {
-    throw new Error(`recallBuild: build ${buildId} not found in teamCapturedBuilds`);
+  if (!recall) {
+    throw new Error('recallBuild: no active recall for this player');
   }
 
-  // Identify the Shiya player who can recall this build
-  // This is the player who originally activated Shiya on this build
-  const shiyaPlayer = capturedBuild.shiyaPlayer;
-  
-  // Verify the shiyaPlayer exists and is on the same team
-  if (shiyaPlayer === null || shiyaPlayer === undefined) {
-    throw new Error('recallBuild: no shiyaPlayer found for this build');
-  }
-  
-  // Verify the requesting player is the Shiya player (or their teammate in party mode)
-  const shiyaPlayerTeam = shiyaPlayer < 2 ? 0 : 1;
-  if (shiyaPlayerTeam !== playerTeam) {
-    throw new Error('recallBuild: shiyaPlayer is not on the same team as requesting player');
-  }
-  
-  // Identify teammate index - use capturedBy (who captured the build), not originalOwner
-  // The cards are in the capturing player's captures
-  const teammateIndex = capturedBuild.capturedBy;
+  // Identify teammate index - use capturedBy (who captured the build)
+  const teammateIndex = recall.capturedBy;
 
-  // Verify all cards of the build are still in teammate's captures
+  // Verify all cards of the build are in teammate's captures
   const teammateCaptures = state.players[teammateIndex]?.captures || [];
-  const buildCards = capturedBuild.cards || [];
+  const buildCards = recall.cards;
   
-  console.log(`[recallBuild] Checking recall - buildId: ${buildId}, teammateIndex: ${teammateIndex}, buildCards: ${JSON.stringify(buildCards)}`);
+  console.log(`[recallBuild] Checking recall - player: ${playerIndex}, teammateIndex: ${teammateIndex}, buildCards: ${JSON.stringify(buildCards)}`);
   console.log(`[recallBuild] Teammate captures: ${JSON.stringify(teammateCaptures.map(c => `${c.rank}${c.suit}`))}`);
   
   for (const card of buildCards) {
@@ -90,32 +70,33 @@ function recallBuild(state, payload, playerIndex) {
   console.log(`[recallBuild] After removal - teammate captures: ${JSON.stringify(teammateCapturesNew.map(c => `${c.rank}${c.suit}`))}`);
 
   // Recreate the build stack on table
-  // The build ownership goes to the Shiya player who is recalling it
+  // The build ownership goes to the player who is recalling it
   const values = buildCards.map(c => c.value);
   const buildInfo = calculateBuildValue(values);
 
   const newBuild = {
     type: 'build_stack',
-    stackId: generateStackId(newState, 'build', shiyaPlayer), // Owner is the Shiya player who recalled it
+    stackId: generateStackId(newState, 'build', playerIndex), // Owner is the recalling player
     cards: buildCards,
-    owner: shiyaPlayer, // Owner is the Shiya player who recalled the build
+    owner: playerIndex, // Owner is the recalling player
     value: buildInfo.value,
     base: buildInfo.value,
     need: buildInfo.need,
     buildType: buildInfo.buildType,
-    // Preserve Shiya state - if it was a Shiya build, it remains Shiya active for the new owner
-    shiyaActive: true,
-    shiyaPlayer: shiyaPlayer,
+    // Shiya state is cleared after recall (one-time use)
+    shiyaActive: false,
+    shiyaPlayer: undefined,
   };
 
   newState.tableCards.push(newBuild);
 
-  // Remove the build from teamCapturedBuilds
-  if (newState.teamCapturedBuilds && newState.teamCapturedBuilds[playerTeam]) {
-    newState.teamCapturedBuilds[playerTeam] = newState.teamCapturedBuilds[playerTeam].filter(
-      b => b.stackId !== buildId
-    );
+  // Clear the recall offer from shiyaRecalls
+  if (newState.shiyaRecalls) {
+    delete newState.shiyaRecalls[playerIndex];
   }
+
+  // Note: Do NOT remove anything from teamCapturedBuilds.
+  // The captured build remains in teamCapturedBuilds for cooperative rebuild.
 
   // Mark action as triggered (but don't end turn - player can continue)
   triggerAction(newState, playerIndex);

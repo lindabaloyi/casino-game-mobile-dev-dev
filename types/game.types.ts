@@ -92,6 +92,16 @@ export interface RoundPlayerState {
 // Map of player index to their round state
 export type RoundPlayers = Record<number, RoundPlayerState>;
 
+// Shiya recall - represents an active recall offer for a player
+export interface ShiyaRecall {
+  stackId: string;        // Original stack ID (for reference)
+  value: number;          // Build value
+  capturedBy: number;     // Teammate who captured the build
+  originalOwner: number;  // Player who activated shiya (the one who can recall)
+  cards: Card[];          // Cards in the captured build
+  expiresAt: number;      // Timestamp when offer expires (e.g., Date.now() + 4000)
+}
+
 export interface GameState {
   players: Player[];
   table: TableItem[];
@@ -106,10 +116,19 @@ export interface GameState {
   
   // Party mode (2v2): Track builds captured from teammates
   // teamCapturedBuilds[0] = builds captured from Team A, teamCapturedBuilds[1] = builds captured from Team B
-  // Each entry contains { value, originalOwner, capturedBy, stackId, cards, shiyaPlayer }
+  // Each entry contains { value, originalOwner, capturedBy, stackId, cards }
+  // Note: Shiya recalls are handled separately via shiyaRecalls field
   teamCapturedBuilds?: { 
-    0: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: Card[]; shiyaPlayer?: number }[]; 
-    1: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: Card[]; shiyaPlayer?: number }[] 
+    0: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: Card[] }[]; 
+    1: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: Card[] }[] 
+  };
+
+  // Shiya recalls - ephemeral recall offers for each player
+  // Key is player number (0-3), value is the active recall offer
+  // Set when a teammate captures a build where player activated Shiya
+  // Cleared when player accepts recall or when it expires
+  shiyaRecalls?: {
+    [playerNumber: number]: ShiyaRecall;
   };
 }
 

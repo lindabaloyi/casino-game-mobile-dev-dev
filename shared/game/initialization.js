@@ -53,6 +53,8 @@ function initializeGame(playerCount = 2) {
     lastCapturePlayer: null,
     // Track captured teammate builds for cooperative rebuild in party mode
     teamCapturedBuilds: { 0: [], 1: [] },
+    // Shiya recalls - ephemeral recall offers for each player
+    shiyaRecalls: {},
   };
 
   // Validate card distribution
@@ -148,6 +150,8 @@ function initializeTestGame(playerCount = 2) {
     lastCapturePlayer: null,
     // Track captured teammate builds for cooperative rebuild in party mode
     teamCapturedBuilds: { 0: [], 1: [] },
+    // Shiya recalls - ephemeral recall offers for each player
+    shiyaRecalls: {},
   };
 }
 

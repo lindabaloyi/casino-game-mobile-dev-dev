@@ -42,6 +42,22 @@ class ActionRouter {
     // Log the actual routed action type
     console.log(`[ActionRouter] Executed action: ${type}`);
 
+    // Clean up expired shiyal recalls (older than 4 seconds)
+    if (newState.shiyaRecalls) {
+      const now = Date.now();
+      let cleaned = false;
+      for (const playerIdx of Object.keys(newState.shiyaRecalls)) {
+        const recall = newState.shiyaRecalls[playerIdx];
+        if (recall && recall.expiresAt && now > recall.expiresAt) {
+          delete newState.shiyaRecalls[playerIdx];
+          cleaned = true;
+        }
+      }
+      if (cleaned) {
+        console.log(`[ActionRouter] Cleaned up expired shiyal recalls`);
+      }
+    }
+
     // Persist updated state
     this.gameManager.saveGameState(gameId, newState);
 

@@ -28,6 +28,18 @@ export interface Card {
   value: number;
 }
 
+// Shiya Recall interface
+// Transient recall offers created when a teammate captures a build where Shiya was activated
+// These are ephemeral - they expire after a short time (typically 4 seconds)
+export interface ShiyaRecall {
+  stackId: string;
+  value: number;
+  capturedBy: number;        // Player index who captured the build
+  originalOwner: number;     // Player index who originally owned the build
+  cards: any[];              // Cards in the captured build
+  expiresAt: number;         // Timestamp when recall expires
+}
+
 export interface GameState {
   deck: Card[];
   players: {
@@ -69,10 +81,16 @@ export interface GameState {
   }>;
   // Party mode (2v2): Track builds captured from teammates
   // teamCapturedBuilds[0] = builds captured from Team A, teamCapturedBuilds[1] = builds captured from Team B
-  // Each entry contains { value, originalOwner, capturedBy, stackId, cards, shiyaPlayer }
+  // Each entry contains { value, originalOwner, capturedBy, stackId, cards }
   teamCapturedBuilds?: { 
-    0: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: any[]; shiyaPlayer?: number }[]; 
-    1: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: any[]; shiyaPlayer?: number }[] 
+    0: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: any[] }[]; 
+    1: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: any[] }[] 
+  };
+  // Shiya Recall offers - one per player when a teammate captures a Shiya-marked build
+  // Key = player index who can accept the recall, Value = recall offer details
+  // This is separate from teamCapturedBuilds because it represents transient notifications, not persistent team assets
+  shiyaRecalls?: {
+    [playerIndex: number]: ShiyaRecall;
   };
 }
 

@@ -85,7 +85,8 @@ function captureOwn(state, payload, playerIndex) {
       }
     }
     
-    // Track captured builds for cooperative rebuild/recall in party mode
+    // Track captured builds for cooperative rebuild in party mode
+    // Also handle shiyal recalls when applicable
     const isPartyMode = state.playerCount === 4;
     
     if (isPartyMode && buildStack && buildStack.type === 'build_stack') {
@@ -96,16 +97,14 @@ function captureOwn(state, payload, playerIndex) {
         const capturingPlayerTeam = playerIndex < 2 ? 0 : 1;
         
         let shouldTrack = false;
-        let shiyaPlayer = null;
 
         // Case 1: Opponent capture (different teams)
         if (stackOwnerTeam !== capturingPlayerTeam) {
           shouldTrack = true;
         }
-        // Case 2: Same-team capture of a Shiya-activated build
-        else if (stackOwnerTeam === capturingPlayerTeam && buildStack.shiyaActive) {
+        // Case 2: Same-team capture (for cooperative rebuild)
+        else if (stackOwnerTeam === capturingPlayerTeam) {
           shouldTrack = true;
-          shiyaPlayer = buildStack.shiyaPlayer;
         }
 
         if (shouldTrack) {
@@ -113,14 +112,36 @@ function captureOwn(state, payload, playerIndex) {
             newState.teamCapturedBuilds = { 0: [], 1: [] };
           }
           
+          // Add to teamCapturedBuilds (no shiyaPlayer field)
           newState.teamCapturedBuilds[capturingPlayerTeam].push({
             value: buildStack.value,
             originalOwner: stackOwner,
             capturedBy: playerIndex,
             cards: buildStack.cards,
             stackId: buildStack.stackId,
-            shiyaPlayer
           });
+          
+          // If the captured build had Shiya active, create a recall offer for the activator
+          if (buildStack.shiyaActive && buildStack.shiyaPlayer !== undefined) {
+            const activator = buildStack.shiyaPlayer;
+            
+            // Ensure shiyaRecalls exists
+            if (!newState.shiyaRecalls) {
+              newState.shiyaRecalls = {};
+            }
+            
+            // Create recall offer for the activator (one per player)
+            newState.shiyaRecalls[activator] = {
+              stackId: buildStack.stackId,
+              value: buildStack.value,
+              capturedBy: playerIndex,
+              originalOwner: stackOwner,
+              cards: buildStack.cards,
+              expiresAt: Date.now() + 4000, // 4 second window
+            };
+            
+            console.log(`[captureOwn] Created shiyal recall for player ${activator}:`, newState.shiyaRecalls[activator]);
+          }
         }
       }
     }

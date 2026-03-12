@@ -90,7 +90,6 @@ export function GameBoard({
   // Shiya recall modal state
   const [shiyaRecallCandidate, setShiyaRecallCandidate] = useState<any>(null);
   const recallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevShiyaBuildsRef = useRef<any[]>([]);
   const shiyaButtonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Track round transitions to prevent double triggers
@@ -113,14 +112,6 @@ export function GameBoard({
   const computed = useGameComputed(gameState, playerNumber);
   const { getTableBounds } = useTableBounds(drag.dropBounds);
   const roundInfo = useGameRound(gameState);
-  
-  // Get available recalls for party mode
-  const availableRecalls = useMemo(() => {
-    if (gameState.playerCount !== 4) return [];
-    const playerTeam = playerNumber < 2 ? 0 : 1;
-    const teamBuilds = gameState.teamCapturedBuilds?.[playerTeam] || [];
-    return teamBuilds;
-  }, [gameState.teamCapturedBuilds, gameState.playerCount, playerNumber]);
   
   // Turn timer - 20 second countdown
   const turnTimer = useTurnTimer({
@@ -163,40 +154,48 @@ export function GameBoard({
   }, [roundInfo.isOver, roundInfo.roundNumber, startNextRound]);
 
   // Shiya Recall Detection
-  // Detect when a teammate captures a build where YOU activated Shiya
+  // Watch shiyaRecalls in game state - when a recall offer appears for this player,
+  // show the recall modal. This is the proper separation: shiyaRecalls is ephemeral notification
+  // state, separate from persistent teamCapturedBuilds.
   useEffect(() => {
     if (gameState.playerCount !== 4) return;
     
-    const myTeam = playerNumber < 2 ? 0 : 1;
-    const currentBuilds = gameState.teamCapturedBuilds?.[myTeam] || [];
-    const prevBuilds = prevShiyaBuildsRef.current;
-
-    // Find newly added builds where shiyaPlayer is me
-    const newShiyaCaptures = currentBuilds.filter(
-      build => build.shiyaPlayer === playerNumber && 
-               !prevBuilds.some(p => p.stackId === build.stackId)
-    );
-
-    if (newShiyaCaptures.length > 0) {
+    // Check if there's a recall offer for this player
+    const myRecall = gameState.shiyaRecalls?.[playerNumber];
+    
+    if (myRecall) {
       // Clear any existing timer
       if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
-      setShiyaRecallCandidate(newShiyaCaptures[0]);
+      
+      // Set the recall candidate - pass the full recall object
+      setShiyaRecallCandidate(myRecall);
 
-      // Auto-dismiss after 4 seconds
+      // Auto-dismiss after 4 seconds (matching expiresAt timestamp)
+      const timeUntilExpiry = myRecall.expiresAt - Date.now();
+      const autoCloseMs = Math.max(1000, Math.min(4000, timeUntilExpiry));
+      
       recallTimerRef.current = setTimeout(() => {
         setShiyaRecallCandidate(null);
         recallTimerRef.current = null;
-      }, 4000);
+      }, autoCloseMs);
+    } else {
+      // No recall for this player - clear if there's a stale candidate
+      // (only clear if the candidate's stackId doesn't match any active recall)
+      if (shiyaRecallCandidate && !gameState.shiyaRecalls?.[playerNumber]) {
+        setShiyaRecallCandidate(null);
+        if (recallTimerRef.current) {
+          clearTimeout(recallTimerRef.current);
+          recallTimerRef.current = null;
+        }
+      }
     }
-
-    prevShiyaBuildsRef.current = currentBuilds;
 
     // Cleanup timer on unmount
     return () => {
       if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
       if (shiyaButtonTimerRef.current) clearTimeout(shiyaButtonTimerRef.current);
     };
-  }, [gameState.teamCapturedBuilds, playerNumber, gameState.playerCount]);
+  }, [gameState.shiyaRecalls, gameState.playerCount, playerNumber]);
 
   // Drag end wrapper
   const handleDragEndWrapper = () => {
@@ -511,11 +510,10 @@ export function GameBoard({
         visible={!!shiyaRecallCandidate}
         build={shiyaRecallCandidate}
         onRecall={() => {
-          if (shiyaRecallCandidate) {
-            actions.recallBuild(shiyaRecallCandidate.stackId);
-            setShiyaRecallCandidate(null);
-            if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
-          }
+          // Clear timer and call recallBuild (no arguments needed - server reads from shiyaRecalls)
+          if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
+          setShiyaRecallCandidate(null);
+          actions.recallBuild();
         }}
         onClose={() => {
           setShiyaRecallCandidate(null);
