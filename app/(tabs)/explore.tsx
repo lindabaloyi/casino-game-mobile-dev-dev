@@ -12,14 +12,11 @@ import {
   StyleSheet, 
   ScrollView, 
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { ThemedText } from '@/components/themed/themed-text';
-import { ThemedView } from '@/components/themed/themed-view';
 import { TutorialViewer } from '@/components/tutorials';
 import tutorials from '../../shared/game/tutorials';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Group tutorials by difficulty
 const TUTORIAL_GROUPS = {
@@ -174,8 +171,6 @@ function getIconForTutorial(id: string): string {
   };
   return icons[id] || '🎮';
 }
-
-const CARD_WIDTH = SCREEN_WIDTH - 32;
 
 const styles = StyleSheet.create({
   container: {

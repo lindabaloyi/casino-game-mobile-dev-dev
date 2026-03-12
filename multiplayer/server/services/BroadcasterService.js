@@ -132,9 +132,22 @@ class BroadcasterService {
    */
   broadcastToGame(gameId, event, data, matchmakingService = null) {
     const mm = matchmakingService || this.matchmaking;
-    const gameSockets = mm.getGameSockets(gameId, this.io);
+    console.log(`[Broadcaster] broadcastToGame: gameId=${gameId}, event=${event}, mm=${mm?.constructor?.name || 'default'}`);
+    
+    // Try matchmaking service first
+    let gameSockets = mm.getGameSockets(gameId, this.io);
+    console.log(`[Broadcaster] Sockets from matchmaking: ${gameSockets.length}`);
+    
+    // Fallback: Use io.to directly for party games
+    if (gameSockets.length === 0) {
+      console.log(`[Broadcaster] Trying direct io.to(${gameId}) fallback`);
+      this.io.to(gameId).emit(event, data);
+      console.log(`[Broadcaster] Direct emit sent to room: ${gameId}`);
+      return;
+    }
 
     gameSockets.forEach((gameSocket) => {
+      console.log(`[Broadcaster] Emitting ${event} to socket:`, gameSocket.id);
       gameSocket.emit(event, data);
     });
   }

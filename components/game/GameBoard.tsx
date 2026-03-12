@@ -47,6 +47,8 @@ interface GameBoardProps {
     capturedCards?: number[];
     tableCardsRemaining?: number;
     deckRemaining?: number;
+    scoreBreakdowns?: any[];
+    teamScoreBreakdowns?: any;
   } | null;
   playerNumber: number;
   sendAction: (action: { type: string; payload?: Record<string, unknown> }) => void;
@@ -527,6 +529,19 @@ export function GameBoard({
       {/* No Round End Modal - transitions are automatic */}
       {/* KISS: Round 1 → Round 2 → Game Over */}
 
+      {/* Debug: Log when game over modal should show */}
+      {(() => {
+        const isVisible = gameState.gameOver || !!gameOverData;
+        console.log('[GameBoard] GameOverModal visible check:', { 
+          gameState_gameOver: gameState.gameOver, 
+          gameOverData_exists: !!gameOverData,
+          gameOverData: gameOverData ? 'present' : 'null',
+          playerCount: gameState.playerCount,
+          final: isVisible
+        });
+        return null;
+      })()}
+      
       <GameOverModal
         visible={(gameState.gameOver || !!gameOverData) || false}
         scores={gameOverData?.finalScores || gameState.scores as number[]}
@@ -535,8 +550,9 @@ export function GameBoard({
         tableCardsRemaining={gameOverData?.tableCardsRemaining ?? gameState.tableCards?.length ?? 0}
         deckRemaining={gameOverData?.deckRemaining ?? gameState.deck?.length ?? 0}
         scoreBreakdowns={gameOverData?.scoreBreakdowns}
+        teamScoreBreakdowns={gameOverData?.teamScoreBreakdowns}
         onPlayAgain={onRestart ? () => {
-          // Reset game - this effectively restarts the game
+          console.log('[GameBoard] Play Again clicked');
           if (gameState.playerCount === 2) {
             onRestart();
           }

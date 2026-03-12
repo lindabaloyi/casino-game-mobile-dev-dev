@@ -370,6 +370,132 @@ function getScoreBreakdown(capturedCards) {
   };
 }
 
+/**
+ * Get detailed team score breakdown aggregating players on each team
+ * @param {Array} players - Array of player objects with captures
+ * @returns {Object} Team score breakdowns for Team A and Team B
+ */
+function getTeamScoreBreakdown(players) {
+  if (!players || !Array.isArray(players)) {
+    return {
+      teamA: getEmptyTeamBreakdown(),
+      teamB: getEmptyTeamBreakdown(),
+    };
+  }
+
+  // Get all cards for each team
+  const teamACards = [];
+  const teamBCards = [];
+  const playerBreakdowns = [];
+
+  for (let i = 0; i < players.length; i++) {
+    const player = players[i];
+    const captures = player?.captures || [];
+    const playerBreakdown = getScoreBreakdown(captures);
+    playerBreakdowns.push(playerBreakdown);
+
+    // Determine team
+    const team = player?.team || (i < 2 ? 'A' : 'B');
+    
+    if (team === 'A') {
+      teamACards.push(...captures);
+    } else {
+      teamBCards.push(...captures);
+    }
+  }
+
+  // Calculate team totals
+  const teamABreakdown = calculateTeamTotalBreakdown(teamACards);
+  const teamBBreakdown = calculateTeamTotalBreakdown(teamBCards);
+
+  return {
+    teamA: {
+      ...teamABreakdown,
+      players: [
+        { playerIndex: 0, ...playerBreakdowns[0] },
+        { playerIndex: 1, ...playerBreakdowns[1] },
+      ],
+    },
+    teamB: {
+      ...teamBBreakdown,
+      players: [
+        { playerIndex: 2, ...playerBreakdowns[2] },
+        { playerIndex: 3, ...playerBreakdowns[3] },
+      ],
+    },
+  };
+}
+
+function getEmptyTeamBreakdown() {
+  return {
+    totalCards: 0,
+    spadeCount: 0,
+    cardPoints: 0,
+    spadeBonus: 0,
+    cardCountBonus: 0,
+    totalScore: 0,
+    tenDiamondCount: 0,
+    tenDiamondPoints: 0,
+    twoSpadeCount: 0,
+    twoSpadePoints: 0,
+    aceCount: 0,
+    acePoints: 0,
+    players: [],
+  };
+}
+
+function calculateTeamTotalBreakdown(cards) {
+  // Count specific cards
+  const tenDiamondCount = cards.filter(
+    (c) => c && c.rank === "10" && c.suit === "♦"
+  ).length;
+  const twoSpadeCount = cards.filter(
+    (c) => c && c.rank === "2" && c.suit === "♠"
+  ).length;
+  const aceCount = cards.filter((c) => c && c.rank === "A").length;
+
+  // Calculate points
+  const tenDiamondPoints = tenDiamondCount * 2;
+  const twoSpadePoints = twoSpadeCount * 1;
+  const acePoints = aceCount * 1;
+  const cardPoints = tenDiamondPoints + twoSpadePoints + acePoints;
+
+  // Count spades
+  const spadeCount = cards.filter((c) => c && c.suit === "♠").length;
+  const totalCards = cards.length;
+
+  // Calculate bonuses (team-based)
+  let spadeBonus = 0;
+  let cardCountBonus = 0;
+
+  // In team mode: 6+ spades = +2 for the team
+  if (spadeCount >= 6) {
+    spadeBonus = 2;
+  }
+
+  // Team card bonus: 20+ cards = +2, exactly 20 = +1
+  if (totalCards >= 21) {
+    cardCountBonus = 2;
+  } else if (totalCards === 20) {
+    cardCountBonus = 1;
+  }
+
+  return {
+    totalCards,
+    spadeCount,
+    cardPoints,
+    spadeBonus,
+    cardCountBonus,
+    totalScore: cardPoints + spadeBonus + cardCountBonus,
+    tenDiamondCount,
+    tenDiamondPoints,
+    twoSpadeCount,
+    twoSpadePoints,
+    aceCount,
+    acePoints,
+  };
+}
+
 module.exports = {
   calculateCardPoints,
   calculatePlayerScore,
@@ -378,4 +504,5 @@ module.exports = {
   determineWinner,
   updateScores,
   getScoreBreakdown,
+  getTeamScoreBreakdown,
 };

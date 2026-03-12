@@ -143,6 +143,11 @@ class GameCoordinatorService {
           const tableCardsRemaining = finalizedState.tableCards?.length || 0;
           const deckRemaining = finalizedState.deck?.length || 0;
           
+          // Get team score breakdowns for 4-player mode
+          const teamScoreBreakdowns = playerCount === 4 
+            ? scoring.getTeamScoreBreakdown(finalizedState.players)
+            : null;
+          
           for (let i = 0; i < playerCount; i++) {
             capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
             // Get detailed score breakdown for each player
@@ -152,6 +157,9 @@ class GameCoordinatorService {
           
           finalizedState.gameOver = true;
           this.gameManager.saveGameState(gameId, finalizedState);
+          console.log(`[Coordinator] Broadcasting game-over for ${playerCount}-player mode, winner: ${gameOverCheck.winner}`);
+          console.log(`[Coordinator] Using matchmaking service:`, mm?.constructor?.name || 'default', 'isPartyGame:', isPartyGame);
+          console.log(`[Coordinator] About to call broadcaster.broadcastToGame...`);
           this.broadcaster.broadcastToGame(gameId, 'game-over', {
             winner: gameOverCheck.winner,
             finalScores,
@@ -159,7 +167,9 @@ class GameCoordinatorService {
             tableCardsRemaining,
             deckRemaining,
             scoreBreakdowns,
+            teamScoreBreakdowns,
           }, mm);
+          console.log(`[Coordinator] broadcastToGame called!`);
         } else {
           // Auto-transition to next round for multiplayer
           const nextState = RoundValidator.prepareNextRound(newState);
@@ -181,6 +191,11 @@ class GameCoordinatorService {
             const tableCardsRemaining = finalizedState.tableCards?.length || 0;
             const deckRemaining = finalizedState.deck?.length || 0;
             
+            // Get team score breakdowns for 4-player mode
+            const teamScoreBreakdowns = playerCount === 4 
+              ? scoring.getTeamScoreBreakdown(finalizedState.players)
+              : null;
+            
             for (let i = 0; i < playerCount; i++) {
               capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
               // Get detailed score breakdown for each player
@@ -190,6 +205,7 @@ class GameCoordinatorService {
             
             finalizedState.gameOver = true;
             this.gameManager.saveGameState(gameId, finalizedState);
+            console.log(`[Coordinator] Broadcasting game-over (no next round) for ${playerCount}-player mode, winner: ${winner}`);
             const winner = RoundValidator.determineRoundWinner(finalizedState);
             this.broadcaster.broadcastToGame(gameId, 'game-over', {
               winner,
@@ -198,6 +214,7 @@ class GameCoordinatorService {
               tableCardsRemaining,
               deckRemaining,
               scoreBreakdowns,
+              teamScoreBreakdowns,
             }, mm);
           }
         }
@@ -311,6 +328,11 @@ class GameCoordinatorService {
         const tableCardsRemaining = finalizedState.tableCards?.length || 0;
         const deckRemaining = finalizedState.deck?.length || 0;
         
+        // Get team score breakdowns for 4-player mode
+        const teamScoreBreakdowns = playerCount === 4 
+          ? scoring.getTeamScoreBreakdown(finalizedState.players)
+          : null;
+        
         for (let i = 0; i < playerCount; i++) {
           capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
           // Get detailed score breakdown for each player
@@ -321,7 +343,9 @@ class GameCoordinatorService {
         finalizedState.gameOver = true;
         this.gameManager.saveGameState(gameId, finalizedState);
         
+        console.log(`[Coordinator] Broadcasting game-over (handleStartNextRound) for ${playerCount}-player mode`);
         const winner = RoundValidator.determineRoundWinner(finalizedState);
+        console.log(`[Coordinator] handleStartNextRound winner: ${winner}, finalScores: ${JSON.stringify(finalScores)}`);
         this.broadcaster.broadcastToGame(gameId, 'game-over', {
           winner,
           finalScores,
@@ -329,6 +353,7 @@ class GameCoordinatorService {
           tableCardsRemaining,
           deckRemaining,
           scoreBreakdowns,
+          teamScoreBreakdowns,
         }, mm);
         return;
       }

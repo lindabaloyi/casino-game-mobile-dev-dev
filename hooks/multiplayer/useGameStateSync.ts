@@ -122,6 +122,55 @@ export interface GameOverData {
     aceCount: number;
     acePoints: number;
   }>;
+  // Team score breakdowns for 4-player mode
+  teamScoreBreakdowns?: {
+    teamA: {
+      totalCards: number;
+      spadeCount: number;
+      cardPoints: number;
+      spadeBonus: number;
+      cardCountBonus: number;
+      totalScore: number;
+      tenDiamondCount: number;
+      tenDiamondPoints: number;
+      twoSpadeCount: number;
+      twoSpadePoints: number;
+      aceCount: number;
+      acePoints: number;
+      players: Array<{
+        playerIndex: number;
+        totalCards: number;
+        spadeCount: number;
+        cardPoints: number;
+        spadeBonus: number;
+        cardCountBonus: number;
+        totalScore: number;
+      }>;
+    };
+    teamB: {
+      totalCards: number;
+      spadeCount: number;
+      cardPoints: number;
+      spadeBonus: number;
+      cardCountBonus: number;
+      totalScore: number;
+      tenDiamondCount: number;
+      tenDiamondPoints: number;
+      twoSpadeCount: number;
+      twoSpadePoints: number;
+      aceCount: number;
+      acePoints: number;
+      players: Array<{
+        playerIndex: number;
+        totalCards: number;
+        spadeCount: number;
+        cardPoints: number;
+        spadeBonus: number;
+        cardCountBonus: number;
+        totalScore: number;
+      }>;
+    };
+  };
 }
 
 export interface UseGameStateSyncResult {
@@ -305,6 +354,7 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     if (!socket) return;
 
     const handleGameOver = (data: GameOverData) => {
+      console.log('[useGameStateSync] Received game-over event:', JSON.stringify(data, null, 2));
       setGameOverData(data);
       
       // Record win/loss for player

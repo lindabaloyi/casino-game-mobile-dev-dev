@@ -64,6 +64,7 @@ export default function PartyGameScreen() {
   
   const { 
     gameState, 
+    gameOverData,  // Add this!
     sendAction, 
     playerNumber,
     isConnected,
@@ -410,6 +411,7 @@ export default function PartyGameScreen() {
     <View style={styles.container}>
       <GameBoard
         gameState={gameState as any}
+        gameOverData={gameOverData}  // Add this!
         playerNumber={safePlayerNumber}
         sendAction={sendAction}
         startNextRound={startNextRound}
