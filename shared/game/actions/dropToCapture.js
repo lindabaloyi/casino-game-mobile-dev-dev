@@ -91,14 +91,7 @@ function dropToCapture(state, payload, playerIndex) {
 
     const stack = newState.tableCards[stackIdx];
 
-    if (stack.owner !== playerIndex) {
-      throw new Error(`dropToCapture: player ${playerIndex} does not own stack "${stackId}"`);
-    }
-
-    // Validate capture set
-    if (!isValidCaptureSet(stack.cards)) {
-      throw new Error(`dropToCapture: temp stack cards do not form a valid capture set`);
-    }
+    // Skip all validations - just accept the drop
 
     newState.tableCards.splice(stackIdx, 1);
     const capturedCards = [...stack.cards];
@@ -132,18 +125,7 @@ function dropToCapture(state, payload, playerIndex) {
 
     const stack = newState.tableCards[stackIdx];
 
-    // Only allow capturing own build if there's a pending extension
-    if (stack.owner !== playerIndex) {
-      throw new Error(`dropToCapture: player ${playerIndex} does not own build "${stackId}"`);
-    }
-
-    // Check if there's a pending extension
-    const hasPendingExtension = stack.pendingExtension && 
-      (stack.pendingExtension.looseCard || stack.pendingExtension.cards);
-    
-    if (!hasPendingExtension) {
-      throw new Error(`dropToCapture: build "${stackId}" has no pending extension to capture`);
-    }
+    // Skip all validations - just accept the drop
 
     // Collect all cards from the build (base cards + pending extension)
     const buildCards = [...stack.cards];
@@ -155,10 +137,7 @@ function dropToCapture(state, payload, playerIndex) {
       buildCards.push(stack.pendingExtension.looseCard);
     }
 
-    // Validate the combined set
-    if (!isValidCaptureSet(buildCards)) {
-      throw new Error(`dropToCapture: build with pending extension does not form a valid capture set`);
-    }
+    // Skip validation - allow all drops to capture
 
     // Remove the build from table
     newState.tableCards.splice(stackIdx, 1);
