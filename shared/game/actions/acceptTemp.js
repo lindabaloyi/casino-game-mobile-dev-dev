@@ -32,6 +32,24 @@ function acceptTemp(state, payload, playerIndex) {
 
   const finalValue = buildValue || stack.value;
   
+  console.log('[acceptTemp] Final value:', finalValue);
+  console.log('[acceptTemp] baseFixed:', stack.baseFixed);
+  console.log('[acceptTemp] pendingExtension:', stack.pendingExtension);
+  
+  // --- Merge pendingExtension cards for dual builds ---
+  if (stack.baseFixed && stack.pendingExtension && stack.pendingExtension.cards) {
+    console.log('[acceptTemp] Merging pendingExtension cards...');
+    const pendingCards = stack.pendingExtension.cards.map(p => p.card);
+    console.log('[acceptTemp] Pending cards to merge:', pendingCards.map(c => `${c.rank}${c.suit}`).join(', '));
+    
+    // Merge pending cards into main cards array
+    stack.cards = [...stack.cards, ...pendingCards];
+    console.log('[acceptTemp] Merged cards:', stack.cards.map(c => `${c.rank}${c.suit}`).join(', '));
+    
+    // Clear pending extension
+    stack.pendingExtension = null;
+  }
+  
   // --- VALIDATION: For team builds - trust the teamCapturedBuilds list ---
   // No additional validation needed - list management handles validity
   if (originalOwner !== undefined && originalOwner !== null) {

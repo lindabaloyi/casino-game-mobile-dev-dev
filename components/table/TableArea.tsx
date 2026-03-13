@@ -118,8 +118,8 @@ interface Props {
   isPartyMode?: boolean;
   currentPlayerIndex?: number;
   
-  /** Callback when a build is tapped - for Shiya selection */
-  onBuildTap?: (stack: BuildStack) => void;
+  /** Callback when a build is tapped - for Shiya selection or dual builds */
+  onBuildTap?: (stack: BuildStack | TempStack) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

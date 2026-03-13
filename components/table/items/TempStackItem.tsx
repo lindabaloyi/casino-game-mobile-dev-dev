@@ -15,6 +15,8 @@ interface TempStackItemProps {
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: (stack: TempStack) => void;
   onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
+  /** Called when stack is tapped (for dual builds) */
+  onBuildTap?: (stack: TempStack) => void;
 }
 
 export function TempStackItem({
@@ -29,6 +31,7 @@ export function TempStackItem({
   onDragMove,
   onDragEnd,
   onDropToCapture,
+  onBuildTap,
 }: TempStackItemProps) {
   return (
     <TempStackView
@@ -44,6 +47,7 @@ export function TempStackItem({
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
       onDropToCapture={onDropToCapture}
+      onBuildTap={onBuildTap}
     />
   );
 }

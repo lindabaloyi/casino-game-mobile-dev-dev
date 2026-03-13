@@ -17,6 +17,7 @@ const actionHandlers = {
   addToTemp:           require('./addToTemp'),
   acceptTemp:          require('./acceptTemp'),
   cancelTemp:          require('./cancelTemp'),
+  setTempBuildValue:   require('./setTempBuildValue'),
 
   // ── Stack drop (SmartRouter routes to addToTemp or extendBuild) ───────────
   stackDrop:           require('./stackDrop'),

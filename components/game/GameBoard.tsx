@@ -204,39 +204,47 @@ export function GameBoard({
     setDragVersion(v => v + 1);
   };
 
-  // Handle build tap for Shiya selection
-  const handleBuildTap = useCallback((build: any) => {
+  // Handle build tap for Shiya selection or dual builds
+  const handleBuildTap = useCallback((stack: any) => {
+    // Check if this is a temp stack (dual builds feature)
+    if (stack.type === 'temp_stack') {
+      // For temp stacks, set the base value to the current value (fix the build)
+      console.log('[GameBoard] Temp stack tapped, setting base value:', stack.value);
+      actions.setTempBuildValue(stack.stackId, stack.value);
+      return;
+    }
     
+    // Handle BuildStack for Shiya selection
     // Only set as selected if it's a teammate's build (NOT own build) and we have a matching card
-    if (!build || gameState.playerCount !== 4) {
+    if (!stack || gameState.playerCount !== 4) {
       setSelectedBuildForShiya(null);
       return;
     }
     
     // Check if it's NOT own build (must be teammate's build, not own)
-    if (build.owner === playerNumber) {
+    if (stack.owner === playerNumber) {
       setSelectedBuildForShiya(null);
       return;
     }
     
     // Check if it's a teammate's build
-    if (!areTeammates(playerNumber, build.owner)) {
+    if (!areTeammates(playerNumber, stack.owner)) {
       setSelectedBuildForShiya(null);
       return;
     }
     
     // Check if Shiya is already active
-    if (build.shiyaActive) {
+    if (stack.shiyaActive) {
       setSelectedBuildForShiya(null);
       return;
     }
     
     // Check if we have a matching card
     const myHand = gameState.players?.[playerNumber]?.hand ?? [];
-    const hasMatch = myHand.some((card: any) => card.value === build.value);
+    const hasMatch = myHand.some((card: any) => card.value === stack.value);
     
     if (hasMatch) {
-      setSelectedBuildForShiya(build);
+      setSelectedBuildForShiya(stack);
       
       // Auto-hide Shiya button after 5 seconds if not clicked
       if (shiyaButtonTimerRef.current) clearTimeout(shiyaButtonTimerRef.current);
@@ -247,7 +255,7 @@ export function GameBoard({
     } else {
       setSelectedBuildForShiya(null);
     }
-  }, [gameState, playerNumber]);
+  }, [gameState, playerNumber, actions]);
 
   // Drag handlers
   const dragHandlers = useDragHandlers({

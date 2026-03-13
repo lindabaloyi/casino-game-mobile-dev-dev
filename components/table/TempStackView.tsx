@@ -9,7 +9,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { PlayingCard } from '../cards/PlayingCard';
@@ -47,6 +47,8 @@ interface Props {
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: (stack: TempStack) => void;
   onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
+  /** Called when the stack is tapped (to set build value for dual builds) */
+  onBuildTap?: (stack: TempStack) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -63,6 +65,7 @@ export function TempStackView({
   onDragMove,
   onDragEnd,
   onDropToCapture,
+  onBuildTap,
 }: Props) {
   const viewRef = useRef<View>(null);
   const translateX = useSharedValue(0);
@@ -78,9 +81,20 @@ export function TempStackView({
   console.log(`[TempStackView] canDrag calculation: ${isMyTurn} && ${playerNumber !== undefined} && ${stack.owner} === ${playerNumber} = ${canDrag}`);
 
   // bottom = highest-value card (base)
-  // top    = most recently added card
+  // top    = most recently added card (or most recent pending if extending)
   const bottom = stack.cards[0];
-  const top    = stack.cards[stack.cards.length - 1];
+  
+  // Get pending cards (for dual builds)
+  const pendingExtension = stack.pendingExtension;
+  const isExtending = !!(pendingExtension?.cards?.length);
+  
+  // Pending cards for display
+  const pendingCards = pendingExtension?.cards?.map(p => p.card) ?? [];
+  
+  // Top card: show most recent pending card if extending, otherwise original top
+  const top = isExtending 
+    ? pendingCards[pendingCards.length - 1] 
+    : stack.cards[stack.cards.length - 1];
 
   // Compute build hint dynamically from card values
   const hint = useMemo(() => {
@@ -88,6 +102,11 @@ export function TempStackView({
     const values = stack.cards.map(c => c.value);
     return getBuildHint(values);
   }, [stack.cards]);
+
+  console.log('[TempStackView] baseFixed:', stack.baseFixed);
+  console.log('[TempStackView] pendingExtension:', pendingExtension ? 'exists' : 'none');
+  console.log('[TempStackView] isExtending:', isExtending);
+  console.log('[TempStackView] pendingCards:', pendingCards.map(c => `${c.rank}${c.suit}`).join(', '));
 
   // Determine display value and badge color
   // Priority: computed hint > server-provided values
@@ -104,7 +123,34 @@ export function TempStackView({
     return stack.owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE;
   };
   
-  if (hint) {
+  // Handle baseFixed (dual builds) - show deficit/excess
+  if (stack.baseFixed && isExtending) {
+    console.log('[TempStackView] Dual build mode - computing effective sum');
+    // Compute effective sum with reset on exact matches
+    let effectiveSum = 0;
+    for (const card of pendingCards) {
+      effectiveSum += card.value;
+      if (effectiveSum === stack.value) {
+        effectiveSum = 0; // reset after exact match
+      }
+    }
+    console.log('[TempStackView] effectiveSum:', effectiveSum, ', target:', stack.value);
+    
+    if (effectiveSum === 0) {
+      displayValue = stack.value?.toString() ?? '-';
+      badgeColor = getBadgeColor(true);
+    } else if (effectiveSum < stack.value) {
+      displayValue = `-${stack.value - effectiveSum}`;
+      badgeColor = getBadgeColor(false);
+    } else {
+      displayValue = `+${effectiveSum - stack.value}`;
+      badgeColor = getBadgeColor(false);
+    }
+  } else if (stack.baseFixed && !isExtending) {
+    // Fixed but no pending - show the fixed value
+    displayValue = stack.value?.toString() ?? '-';
+    badgeColor = getBadgeColor(true);
+  } else if (hint) {
     if (hint.need === 0) {
       // Complete stack - show target value with gold/purple badge
       displayValue = hint.value.toString();
@@ -243,6 +289,12 @@ export function TempStackView({
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View ref={viewRef} style={[styles.container, animatedStyle]} onLayout={onLayout}>
+        {/* Tap area - triggers onBuildTap when not dragging */}
+        <TouchableOpacity 
+          style={styles.tapArea} 
+          onPress={() => !isDragging.value && onBuildTap?.(stack)} 
+          activeOpacity={0.7}
+        />
         {/* Base card — highest value */}
         <View style={styles.cardBottom}>
           <PlayingCard rank={bottom.rank} suit={bottom.suit} />
@@ -276,6 +328,14 @@ const styles = StyleSheet.create({
     width:    CARD_W + STACK_OFFSET + STACK_PAD,
     height:   CARD_H + STACK_OFFSET + BADGE_H,
     position: 'relative',
+  },
+  tapArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 50,
   },
   cardBottom: {
     position: 'absolute',

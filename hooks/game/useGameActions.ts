@@ -166,6 +166,14 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
+  // Set temp build value - for dual builds feature
+  const setTempBuildValue = useCallback((stackId: string, value: number) => {
+    sendAction({ 
+      type: 'setTempBuildValue', 
+      payload: { stackId, value } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
   return {
     createTemp,
     addToTemp,
@@ -184,6 +192,7 @@ export function useGameActions(sendAction: SendAction) {
     stackDrop,
     shiya,
     recallBuild,
+    setTempBuildValue,
   };
 }
 

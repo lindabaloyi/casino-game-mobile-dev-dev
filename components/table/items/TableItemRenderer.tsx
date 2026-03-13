@@ -33,8 +33,8 @@ interface TableItemRendererProps {
   // Party mode props for team colors
   isPartyMode?: boolean;
   currentPlayerIndex?: number;
-  /** Callback when a build is tapped - for Shiya selection */
-  onBuildTap?: (stack: BuildStack) => void;
+  /** Callback when a build is tapped - for Shiya selection or dual builds */
+  onBuildTap?: (stack: BuildStack | TempStack) => void;
 }
 
 export function TableItemRenderer(props: TableItemRendererProps) {
@@ -46,6 +46,7 @@ export function TableItemRenderer(props: TableItemRendererProps) {
     currentPlayerIndex, 
     onDropBuildToCapture,
     onDropToCapture,
+    onBuildTap,
     ...rest 
   } = props;
   
@@ -64,7 +65,7 @@ export function TableItemRenderer(props: TableItemRendererProps) {
   }
   
   if (isTempStack(item)) {
-    return <TempStackItem stack={item} tableVersion={tableVersion} {...tempStackProps} {...rest} />;
+    return <TempStackItem stack={item} tableVersion={tableVersion} {...tempStackProps} onBuildTap={onBuildTap} {...rest} />;
   }
   
   if (isBuildStack(item)) {

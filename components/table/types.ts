@@ -27,6 +27,12 @@ export interface TempStack {
   base: number;
   need: number;
   buildType?: 'sum' | 'diff';
+  // Dual build support: fixed base value
+  baseFixed?: boolean;
+  // Pending extension cards (like build_stack)
+  pendingExtension?: {
+    cards: Array<{ card: Card; source: string }>;
+  };
 }
 
 export interface BuildStack {

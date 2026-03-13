@@ -162,6 +162,28 @@ function addToTemp(state, payload, playerIndex) {
     }
   }
 
+  // Handle baseFixed temp stacks (dual builds)
+  if (stack.baseFixed) {
+    console.log('[addToTemp] Dual build - baseFixed is true');
+    console.log('[addToTemp] Stack value:', stack.value, ', Card rank:', card.rank, '=', card.value);
+    
+    // Validate card rank <= stack value (like build extension)
+    if (card.value > stack.value) {
+      console.log('[addToTemp] VALIDATION FAILED: card value', card.value, '> stack value', stack.value);
+      throw new Error(`addToTemp: cannot extend fixed temp stack with card rank ${card.rank} (would over-extend)`);
+    }
+    
+    // Add to pendingExtension instead of main cards
+    if (!stack.pendingExtension) {
+      stack.pendingExtension = { cards: [] };
+    }
+    stack.pendingExtension.cards.push({ card: { ...firstCard, source: cardSource }, source: cardSource });
+    
+    console.log('[addToTemp] Added to pendingExtension:', stack.pendingExtension.cards.map(p => `${p.card.rank}${p.card.suit}`).join(', '));
+    
+    return newState;
+  }
+
   stack.cards.push({ ...firstCard, source: cardSource });
 
   // Use the shared build calculator to compute value for multi-card builds
