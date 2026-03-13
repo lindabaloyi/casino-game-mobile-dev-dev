@@ -77,48 +77,40 @@ function stealBuild(state, payload, playerIndex) {
   
   console.log(`[stealBuild] AFTER: buildStack.buildType: ${buildStack.buildType}, hasBase: ${buildStack.hasBase} (buildType !== 'sum' is ${buildStack.hasBase})`);
   
-  // --- VALIDATION: Party Mode - Check self + teammate for merge ---
-  // In party mode: check if we or our teammate has a build with same value
-  // If match found → will merge (no error). If no match → error (duplicate not allowed)
-  let hasMergeTarget = false;
+  // --- VALIDATION: Check opponent(s) don't have build with same value ---
+  // In party mode: check both opponents; in duel mode: check single opponent
+  let opponentHasSameValue = false;
   
   if (state.playerCount === 4) {
-    // Check 1: MY builds (already done in merge logic below, but track here)
-    const myBuilds = newState.tableCards.filter(
-      tc => tc.type === 'build_stack' && tc.owner === playerIndex && tc.stackId !== stackId
-    );
-    const myMatch = myBuilds.some(build => build.value === buildStack.value);
-    
-    if (myMatch) {
-      console.log(`[stealBuild] ✅ Will merge with MY build (value ${buildStack.value})`);
-      hasMergeTarget = true;
-    } else {
-      // Check 2: TEAMMATE'S builds
-      const teammateIndex = playerIndex ^ 1; // XOR to get teammate
-      const teammateBuilds = newState.tableCards.filter(
-        tc => tc.type === 'build_stack' && tc.owner === teammateIndex
+    // Party mode: check BOTH opponents (not teammates)
+    const opponentIndices = playerIndex < 2 ? [2, 3] : [0, 1];
+    for (const oIdx of opponentIndices) {
+      const opponentBuilds = newState.tableCards.filter(
+        tc => tc.type === 'build_stack' && tc.owner === oIdx && tc.stackId !== stackId
       );
-      const teammateMatch = teammateBuilds.some(build => build.value === buildStack.value);
-      
-      if (teammateMatch) {
-        console.log(`[stealBuild] ✅ Will merge with TEAMMATE (Player ${teammateIndex}) build (value ${buildStack.value})`);
-        hasMergeTarget = true;
+      if (opponentBuilds.some(build => build.value === buildStack.value)) {
+        opponentHasSameValue = true;
+        break;
       }
     }
     
-    // If no merge target found → error (cannot have duplicate builds)
-    if (!hasMergeTarget) {
+    if (opponentHasSameValue) {
       throw new Error(
-        `stealBuild: Cannot steal - no merge target. Must match MY or TEAMMATE'S build value (${buildStack.value})`
+        `stealBuild: Cannot have build with value ${buildStack.value} - opponent already has a build with this value`
       );
     }
+    
+    // Note: We DON'T require a merge target - player can steal to own!
+    // If they have no existing builds, they become the owner.
+    // If they have a build with same value, merge logic below handles it.
+    console.log(`[stealBuild] ✅ Steal allowed - player will become owner (hasExistingBuild: ${hasExistingBuild})`);
   } else {
     // Duel mode: check single opponent (original behavior)
     const opponentIndex = playerIndex === 0 ? 1 : 0;
     const opponentBuilds = newState.tableCards.filter(
       tc => tc.type === 'build_stack' && tc.owner === opponentIndex && tc.stackId !== stackId
     );
-    const opponentHasSameValue = opponentBuilds.some(build => build.value === buildStack.value);
+    opponentHasSameValue = opponentBuilds.some(build => build.value === buildStack.value);
     
     if (opponentHasSameValue) {
       throw new Error(
