@@ -135,13 +135,13 @@ function areTeammates(playerA, playerB) {
 }
 
 function addToPendingExtension(state, payload, playerIndex) {
+  console.log('[addToPendingExtension] ==================== FUNCTION ENTRY ====================');
   const { stackId, card, cardSource = 'table' } = payload;
 
-  console.log('[addToPendingExtension] ===== SOURCE-BASED LOOKUP =====');
-  console.log('[addToPendingExtension] Card source (from client):', cardSource);
-  console.log('[addToPendingExtension] Card:', card ? `${card.rank}${card.suit}` : 'NONE');
-  console.log('[addToPendingExtension] StackId:', stackId);
-  console.log('[addToPendingExtension] Player index:', playerIndex);
+  console.log('[addToPendingExtension] Input - stackId:', stackId);
+  console.log('[addToPendingExtension] Input - card:', card ? `${card.rank}${card.suit}` : 'NONE');
+  console.log('[addToPendingExtension] Input - cardSource:', cardSource);
+  console.log('[addToPendingExtension] Input - playerIndex:', playerIndex);
 
   if (!stackId) {
     throw new Error('addToPendingExtension: missing stackId');
@@ -164,6 +164,13 @@ function addToPendingExtension(state, payload, playerIndex) {
   }
 
   const buildStack = newState.tableCards[stackIdx];
+  console.log('[addToPendingExtension] Build stack found:', {
+    stackId: buildStack.stackId,
+    owner: buildStack.owner,
+    value: buildStack.value,
+    buildType: buildStack.buildType,
+    pendingExtension: buildStack.pendingExtension ? 'exists' : 'none'
+  });
 
   const isPartyMode = newState.playerCount === 4;
   const owner = buildStack.owner;
@@ -173,19 +180,24 @@ function addToPendingExtension(state, payload, playerIndex) {
   if (isPartyMode) {
     // Teammates can extend each other's builds
     allowed = areTeammates(owner, playerIndex);
+    console.log(`[addToPendingExtension] Party mode: player ${playerIndex} is ${allowed ? '' : 'NOT '} teammate of owner ${owner}`);
   } else {
     // Duel mode: only the owner can extend
     allowed = owner === playerIndex;
+    console.log(`[addToPendingExtension] Duel mode: player ${playerIndex} is ${allowed ? '' : 'NOT '} owner (owner=${owner})`);
   }
 
   if (!allowed) {
     throw new Error('addToPendingExtension: only owner can extend their build');
   }
+  console.log('[addToPendingExtension] Permission check: PASSED');
 
   // Check pending extension
   if (!buildStack.pendingExtension) {
     throw new Error('addToPendingExtension: no pending extension to add to');
   }
+  console.log('[addToPendingExtension] Pending extension exists');
+  console.log('[addToPendingExtension] Current pending cards:', buildStack.pendingExtension.cards.map(c => `${c.card.rank}${c.card.suit}(${c.source})`).join(', '));
 
   // Validate card exists at claimed source
   console.log('[addToPendingExtension] Validating card at source:', cardSource);
@@ -196,11 +208,13 @@ function addToPendingExtension(state, payload, playerIndex) {
     console.error('[addToPendingExtension] Client claimed card was from:', cardSource);
     throw new Error(`addToPendingExtension: card ${card.rank}${card.suit} not found at source ${cardSource}`);
   }
-  console.log('[addToPendingExtension] Card validated at source:', cardSource, 'at index:', cardInfo.index);
+  console.log('[addToPendingExtension] Card found at source:', cardSource, 'index:', cardInfo.index);
 
   // ---------- REMOVE CARD (tentatively) ----------
+  console.log('[addToPendingExtension] Attempting to remove card from source...');
   let usedCard;
   let removalInfo = { source: cardSource, index: cardInfo.index, ownerIndex: cardInfo.ownerIndex };
+  console.log('[addToPendingExtension] Removal info:', removalInfo);
 
   if (cardSource === 'table') {
     [usedCard] = newState.tableCards.splice(cardInfo.index, 1);
@@ -222,23 +236,29 @@ function addToPendingExtension(state, payload, playerIndex) {
   }
 
   // ---------- GUARDRAILS ----------
+  console.log('[addToPendingExtension] ===== RUNNING GUARDRAILS =====');
   try {
     // Guardrail 1: Hand card limit
+    console.log('[addToPendingExtension] --- Guardrail 1: Hand card limit ---');
     if (cardSource === 'hand') {
       const handCardsInExtension = buildStack.pendingExtension.cards.filter(c => c.source === 'hand').length;
+      console.log('[addToPendingExtension] Hand cards in extension:', handCardsInExtension);
       if (handCardsInExtension >= 1) {
         throw new Error('addToPendingExtension: cannot add more than one hand card to a pending extension');
       }
+      console.log('[addToPendingExtension] Hand card limit: PASSED');
+    } else {
+      console.log('[addToPendingExtension] Hand card limit: N/A (card from ' + cardSource + ')');
     }
 
     // Guardrail 2: Rank limit
+    console.log('[addToPendingExtension] --- Guardrail 2: Rank limit ---');
     // Safety check: build must have a value defined
     if (buildStack.value === undefined || buildStack.value === null) {
       throw new Error(`addToPendingExtension: build stack "${stackId}" has no value defined`);
     }
-
-    console.log('[addToPendingExtension] buildStack.value raw:', buildStack.value, 'type:', typeof buildStack.value);
-    console.log('[addToPendingExtension] card.rank raw:', card.rank, 'type:', typeof card.rank);
+    console.log('[addToPendingExtension] buildStack.value:', buildStack.value);
+    console.log('[addToPendingExtension] card.rank:', card.rank);
 
     function rankToNumber(r) {
       if (r === 'A') return 1;
@@ -246,22 +266,27 @@ function addToPendingExtension(state, payload, playerIndex) {
     }
     const cardRankNum = rankToNumber(card.rank);
     const buildValueNum = typeof buildStack.value === 'number' ? buildStack.value : rankToNumber(buildStack.value);
-    console.log(`[addToPendingExtension] cardRankNum: ${cardRankNum}, buildValueNum: ${buildValueNum}`);
+    console.log('[addToPendingExtension] cardRankNum:', cardRankNum, ', buildValueNum:', buildValueNum);
 
     if (cardRankNum > buildValueNum) {
+      console.log('[addToPendingExtension] Rank check: FAILED - card rank', cardRankNum, '> build value', buildValueNum);
       throw new Error(
         `addToPendingExtension: cannot extend build of value ${buildStack.value} with card of rank ${card.rank} (would over-extend)`
       );
     }
+    console.log('[addToPendingExtension] Rank limit: PASSED');
 
     // All validations passed – add card to extension
+    console.log('[addToPendingExtension] ===== ALL GUARDRAILS PASSED =====');
     buildStack.pendingExtension.cards.push({ card: usedCard, source: cardSource });
-    console.log('[addToPendingExtension] SUCCESS - added card to extension:', `${usedCard.rank}${usedCard.suit}`);
+    console.log('[addToPendingExtension] SUCCESS - Card added to extension:', `${usedCard.rank}${usedCard.suit}`);
+    console.log('[addToPendingExtension] Updated pending cards:', buildStack.pendingExtension.cards.map(c => `${c.card.rank}${c.card.suit}(${c.source})`).join(', '));
     return newState;
 
   } catch (error) {
     // ----- CLEANUP: Restore the card to its original location -----
-    console.log('[addToPendingExtension] Validation failed, restoring card to source:', removalInfo.source);
+    console.log('[addToPendingExtension] ===== VALIDATION FAILED =====');
+    console.log('[addToPendingExtension] Error:', error.message);
 
     if (removalInfo.source === 'table') {
       newState.tableCards.splice(removalInfo.index, 0, usedCard);

@@ -211,40 +211,53 @@ export function BuildStackView({
     };
   }, [stack.owner, isPartyMode]);
   
-  // Calculate total pending value (sum of all pending cards for multi-card extensions)
-  let totalPendingValue = 0;
-  if (pendingExtension?.cards) {
-    totalPendingValue = pendingExtension.cards.reduce((sum, p) => sum + p.card.value, 0);
-  } else if (pendingExtension?.looseCard) {
-    totalPendingValue = pendingExtension.looseCard.value;
+  // Get pending cards in order they were added
+  const pendingCards = pendingExtension?.cards?.map(p => p.card) ?? 
+                      (pendingExtension?.looseCard ? [pendingExtension.looseCard] : []);
+
+  // Compute effective sum with reset on exact matches
+  // This matches the server-side validation logic:
+  // - Iterate through cards in order
+  // - Reset sum to 0 whenever it equals build value
+  let effectiveSum = 0;
+  for (const card of pendingCards) {
+    effectiveSum += card.value;
+    if (effectiveSum === stack.value) {
+      effectiveSum = 0; // reset after exact match
+    }
   }
-  
-  // Calculate remaining need
-  const remainingNeed = stack.value - totalPendingValue;
-  
-  // Build value badge color - use team colors throughout
+
+  let displayValue: string;
+  if (effectiveSum === 0) {
+    // Currently at a completed state (or no pending cards)
+    displayValue = stack.value?.toString() ?? '-';
+  } else if (effectiveSum < stack.value) {
+    // Need more cards
+    displayValue = `-${stack.value - effectiveSum}`;
+  } else {
+    // Excess
+    displayValue = `+${effectiveSum - stack.value}`;
+  }
+
+  // Badge color: accent while incomplete (effectiveSum !== 0), team color when complete
   const getBadgeColor = (): string => {
     if (isExtending) {
-      if (remainingNeed > 0) {
-        // Incomplete extension - use accent color for warning
-        return colors.accent;
+      if (effectiveSum !== 0) {
+        return colors.accent; // incomplete
       } else {
-        // Complete - use gold for P1, purple for P2 (2-player) or team colors (party)
+        // complete – use team color
         return isPartyMode 
           ? (ownerTeam === 'B' ? CANONICAL_PURPLE : PLAYER_1_GOLD)
           : (stack.owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE);
       }
     } else {
-      // Completed build - use gold for P1, purple for P2 (2-player) or team colors (party)
+      // Not extending – normal team color
       return isPartyMode 
         ? (ownerTeam === 'B' ? CANONICAL_PURPLE : PLAYER_1_GOLD)
         : (stack.owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE);
     }
   };
-  
-  const displayValue = isExtending && remainingNeed > 0 
-    ? `-${remainingNeed}` 
-    : (stack.value?.toString() ?? '-');
+
   const badgeColor = getBadgeColor();
 
   // Owner label color - use WHITE for consistency with party mode
