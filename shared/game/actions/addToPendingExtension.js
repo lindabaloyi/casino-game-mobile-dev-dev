@@ -198,6 +198,14 @@ function addToPendingExtension(state, payload, playerIndex) {
   }
   console.log('[addToPendingExtension] Card validated at source:', cardSource, 'at index:', cardInfo.index);
 
+  // Enforce: at most one hand card per pending extension
+  if (cardSource === 'hand') {
+    const handCardsInExtension = buildStack.pendingExtension.cards.filter(c => c.source === 'hand').length;
+    if (handCardsInExtension >= 1) {
+      throw new Error('addToPendingExtension: cannot add more than one hand card to a pending extension');
+    }
+  }
+
   // Remove card from its source in cloned state
   let usedCard;
   

@@ -113,7 +113,6 @@ export function CapturePile({
   }, [onDragMove]);
 
   const handleDragEnd = useCallback((card: Card, targetCard?: Card, targetStackId?: string) => {
-    console.log(`[CapturePile] handleDragEnd - card: ${card?.rank}${card?.suit}, targetCard: ${JSON.stringify(targetCard)}, targetStackId: ${targetStackId}`);
     // Pass source with owner player index so server knows which pile to check
     const source = `captured_${playerIndex}`;
     onDragEnd?.(card, targetCard, targetStackId, source);

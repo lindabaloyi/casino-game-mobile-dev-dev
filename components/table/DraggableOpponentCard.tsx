@@ -63,11 +63,9 @@ export function DraggableOpponentCard({
   const draggedCard = useSharedValue<Card | null>(null);
 
   const handleDragEndInternal = useCallback((card: Card, absX: number, absY: number) => {
-    console.log(`[DraggableOpponentCard] handleDragEndInternal - card: ${card?.rank}${card?.suit}, absX: ${absX}, absY: ${absY}`);
     
     // If required callbacks are missing, reset locally but still try to signal parent
     if (!onDragEnd || !findCardAtPoint || !findTempStackAtPoint) {
-      console.log('[DraggableOpponentCard] Missing callbacks in handleDragEndInternal, resetting locally');
       // Still try to call onDragEnd to clean up ghost - pass undefined to indicate cancelled
       if (onDragEnd) {
         onDragEnd(card, undefined, undefined);
@@ -85,7 +83,6 @@ export function DraggableOpponentCard({
     // Check if dropped on a loose card
     const targetCardResult = findCardAtPoint(absX, absY);
     if (targetCardResult) {
-      console.log('[DraggableOpponentCard] Dropped on card:', targetCardResult.card);
       
       // Validate targetCard is a proper card object (has rank and suit)
       const targetCard = targetCardResult.card;
@@ -95,7 +92,6 @@ export function DraggableOpponentCard({
         onDragEnd(card, targetCard, undefined, source);
         handled = true;
       } else {
-        console.error('[DraggableOpponentCard] Invalid targetCard from findCardAtPoint:', targetCard);
         onDragEnd(card, undefined, undefined); // treat as miss
         handled = true;
       }
@@ -113,7 +109,6 @@ export function DraggableOpponentCard({
           }
         } else if (targetStack.owner === playerNumber) {
           // Can only add to own temp stack
-          console.log('[DraggableOpponentCard] Dropped on own stack:', targetStack.stackId);
           onDragEnd(card, undefined, targetStack.stackId, `captured_${opponentIndex}`);
           handled = true;
         }
@@ -122,7 +117,6 @@ export function DraggableOpponentCard({
 
     // If no valid target was found, signal a cancelled drop to ensure ghost is cleaned up
     if (!handled) {
-      console.log('[DraggableOpponentCard] Drag missed - calling onDragEnd with undefined to clean up ghost');
       onDragEnd(card, undefined, undefined);
     }
 

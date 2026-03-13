@@ -7,29 +7,66 @@ const { cloneState, nextTurn, finalizeGame } = require('../');
 
 /**
  * Checks if a set of cards forms a valid capture.
- * Valid captures are either:
- * - All cards have the same value (e.g., 4,4,4)
- * - One card's value equals the sum of the others (e.g., 6,4,10 where 10 = 6+4)
+ * Valid if ANY of these patterns match:
+ * 1. Cards can be grouped from left to right where each group sums to its start card
+ * 2. A card at position i has cards before it summing to its value
+ * 
+ * Examples:
+ * - 9,1,10: 10 (capture) has 9+1=10 before it ✓
+ * - 7,5,2,7: First 7 captures 5+2=7, remaining 7 ✓
+ * - 10,6,3,1,10,10: First 10 captures 6+3+1=10, remaining 10+10 ✓
+ * - 9,8,1: First 9 captures 8+1=9 ✓
+ * 
  * @param {Array} cards - Array of card objects with `value` property.
  * @returns {boolean}
  */
 function isValidCaptureSet(cards) {
-  if (!cards || cards.length === 0) return false;
-  const values = cards.map(c => c.value);
+  if (!cards || cards.length < 2) return false;
   
-  // All same value?
-  const first = values[0];
-  if (values.every(v => v === first)) return true;
+  const values = cards.map(c => c.value || c);
   
-  // Check sum condition for each card as potential capture card
-  for (let i = 0; i < values.length; i++) {
-    const capture = values[i];
-    const others = values.filter((_, idx) => idx !== i);
-    const sum = others.reduce((a, b) => a + b, 0);
-    if (sum === capture) {
+  // Check pattern 2: card at position i has cards BEFORE summing to it
+  // (capture card is at end or middle)
+  for (let i = 1; i < values.length; i++) {
+    const target = values[i];
+    const before = values.slice(0, i);
+    const sumBefore = before.reduce((a, b) => a + b, 0);
+    const after = values.slice(i + 1);
+    
+    if (sumBefore === target) {
+      // Cards after must all equal target (single card captures)
+      if (after.length === 0 || after.every(v => v === target)) {
+        return true;
+      }
+    }
+  }
+  
+  // Check pattern 1: process left to right, building groups
+  for (let startIdx = 0; startIdx < values.length; startIdx++) {
+    const target = values[startIdx];
+    let currentSum = 0;
+    let valid = true;
+    let hasCapture = false;
+    
+    for (let i = startIdx + 1; i < values.length; i++) {
+      currentSum += values[i];
+      
+      if (currentSum > target) {
+        valid = false;
+        break;
+      }
+      
+      if (currentSum === target) {
+        hasCapture = true;
+        currentSum = 0;
+      }
+    }
+    
+    if (valid && hasCapture && (currentSum === 0 || currentSum === target)) {
       return true;
     }
   }
+  
   return false;
 }
 
