@@ -198,17 +198,10 @@ function addToPendingExtension(state, payload, playerIndex) {
   }
   console.log('[addToPendingExtension] Card validated at source:', cardSource, 'at index:', cardInfo.index);
 
-  // Enforce: at most one hand card per pending extension
-  if (cardSource === 'hand') {
-    const handCardsInExtension = buildStack.pendingExtension.cards.filter(c => c.source === 'hand').length;
-    if (handCardsInExtension >= 1) {
-      throw new Error('addToPendingExtension: cannot add more than one hand card to a pending extension');
-    }
-  }
-
-  // Remove card from its source in cloned state
+  // ---------- REMOVE CARD (tentatively) ----------
   let usedCard;
-  
+  let removalInfo = { source: cardSource, index: cardInfo.index, ownerIndex: cardInfo.ownerIndex };
+
   if (cardSource === 'table') {
     [usedCard] = newState.tableCards.splice(cardInfo.index, 1);
     usedCard = { ...usedCard, source: 'table' };
@@ -219,22 +212,69 @@ function addToPendingExtension(state, payload, playerIndex) {
     usedCard = { ...usedCard, source: 'hand' };
     console.log('[addToPendingExtension] Removed card from hand');
   } else if (cardSource === 'captured' || (cardSource && cardSource.startsWith('captured_'))) {
-    // Use ownerIndex from cardInfo
-    const ownerIndex = cardInfo.ownerIndex !== undefined ? cardInfo.ownerIndex : playerIndex;
-    const captures = newState.players[ownerIndex].captures;
+    const ownerIdx = cardInfo.ownerIndex !== undefined ? cardInfo.ownerIndex : playerIndex;
+    const captures = newState.players[ownerIdx].captures;
     [usedCard] = captures.splice(cardInfo.index, 1);
-    usedCard = { ...usedCard, source: 'captured', originalOwner: ownerIndex };
-    console.log('[addToPendingExtension] Removed card from captures (owner:', ownerIndex, ')');
+    usedCard = { ...usedCard, source: 'captured', originalOwner: ownerIdx };
+    console.log('[addToPendingExtension] Removed card from captures (owner:', ownerIdx, ')');
   } else {
     throw new Error(`addToPendingExtension: unknown cardSource "${cardSource}"`);
   }
 
-  // Add to pending extension array
-  buildStack.pendingExtension.cards.push({ card: usedCard, source: cardSource });
+  // ---------- GUARDRAILS ----------
+  try {
+    // Guardrail 1: Hand card limit
+    if (cardSource === 'hand') {
+      const handCardsInExtension = buildStack.pendingExtension.cards.filter(c => c.source === 'hand').length;
+      if (handCardsInExtension >= 1) {
+        throw new Error('addToPendingExtension: cannot add more than one hand card to a pending extension');
+      }
+    }
 
-  console.log('[addToPendingExtension] SUCCESS - added card to extension:', `${usedCard.rank}${usedCard.suit}`);
+    // Guardrail 2: Rank limit
+    // Safety check: build must have a value defined
+    if (buildStack.value === undefined || buildStack.value === null) {
+      throw new Error(`addToPendingExtension: build stack "${stackId}" has no value defined`);
+    }
 
-  return newState;
+    console.log('[addToPendingExtension] buildStack.value raw:', buildStack.value, 'type:', typeof buildStack.value);
+    console.log('[addToPendingExtension] card.rank raw:', card.rank, 'type:', typeof card.rank);
+
+    function rankToNumber(r) {
+      if (r === 'A') return 1;
+      return parseInt(r, 10);
+    }
+    const cardRankNum = rankToNumber(card.rank);
+    const buildValueNum = typeof buildStack.value === 'number' ? buildStack.value : rankToNumber(buildStack.value);
+    console.log(`[addToPendingExtension] cardRankNum: ${cardRankNum}, buildValueNum: ${buildValueNum}`);
+
+    if (cardRankNum > buildValueNum) {
+      throw new Error(
+        `addToPendingExtension: cannot extend build of value ${buildStack.value} with card of rank ${card.rank} (would over-extend)`
+      );
+    }
+
+    // All validations passed – add card to extension
+    buildStack.pendingExtension.cards.push({ card: usedCard, source: cardSource });
+    console.log('[addToPendingExtension] SUCCESS - added card to extension:', `${usedCard.rank}${usedCard.suit}`);
+    return newState;
+
+  } catch (error) {
+    // ----- CLEANUP: Restore the card to its original location -----
+    console.log('[addToPendingExtension] Validation failed, restoring card to source:', removalInfo.source);
+
+    if (removalInfo.source === 'table') {
+      newState.tableCards.splice(removalInfo.index, 0, usedCard);
+    } else if (removalInfo.source === 'hand') {
+      newState.players[playerIndex].hand.splice(removalInfo.index, 0, usedCard);
+    } else if (removalInfo.source === 'captured' || removalInfo.source.startsWith('captured_')) {
+      const ownerIdx = removalInfo.ownerIndex !== undefined ? removalInfo.ownerIndex : playerIndex;
+      newState.players[ownerIdx].captures.splice(removalInfo.index, 0, usedCard);
+    }
+
+    // Re-throw the original error
+    throw error;
+  }
 }
 
 module.exports = addToPendingExtension;

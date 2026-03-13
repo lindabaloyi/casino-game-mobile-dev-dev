@@ -188,9 +188,10 @@ function startBuildExtension(state, payload, playerIndex) {
   }
   console.log('[startBuildExtension] Card validated at source:', cardSource, 'at index:', cardInfo.index);
 
-  // Remove card from its source in cloned state
+  // ---------- REMOVE CARD (tentatively) ----------
   let usedCard;
-  
+  let removalInfo = { source: cardSource, index: cardInfo.index, ownerIndex: cardInfo.ownerIndex };
+
   if (cardSource === 'table') {
     [usedCard] = newState.tableCards.splice(cardInfo.index, 1);
     usedCard = { ...usedCard, source: 'table' };
@@ -201,24 +202,63 @@ function startBuildExtension(state, payload, playerIndex) {
     usedCard = { ...usedCard, source: 'hand' };
     console.log('[startBuildExtension] Removed card from hand');
   } else if (cardSource === 'captured' || (cardSource && cardSource.startsWith('captured_'))) {
-    // Use ownerIndex from cardInfo
-    const ownerIndex = cardInfo.ownerIndex !== undefined ? cardInfo.ownerIndex : playerIndex;
-    const captures = newState.players[ownerIndex].captures;
+    const ownerIdx = cardInfo.ownerIndex !== undefined ? cardInfo.ownerIndex : playerIndex;
+    const captures = newState.players[ownerIdx].captures;
     [usedCard] = captures.splice(cardInfo.index, 1);
-    usedCard = { ...usedCard, source: 'captured', originalOwner: ownerIndex };
-    console.log('[startBuildExtension] Removed card from captures (owner:', ownerIndex, ')');
+    usedCard = { ...usedCard, source: 'captured', originalOwner: ownerIdx };
+    console.log('[startBuildExtension] Removed card from captures (owner:', ownerIdx, ')');
   } else {
     throw new Error(`startBuildExtension: unknown cardSource "${cardSource}"`);
   }
 
-  // Set pending extension
-  buildStack.pendingExtension = {
-    cards: [{ card: usedCard, source: cardSource }]
-  };
+  // ---------- GUARDRAIL: Rank limit ----------
+  try {
+    // Safety check: build must have a value defined
+    if (buildStack.value === undefined || buildStack.value === null) {
+      throw new Error(`startBuildExtension: build stack "${stackId}" has no value defined`);
+    }
 
-  console.log('[startBuildExtension] SUCCESS - started extension with card:', `${usedCard.rank}${usedCard.suit}`);
+    console.log('[startBuildExtension] buildStack.value raw:', buildStack.value, 'type:', typeof buildStack.value);
+    console.log('[startBuildExtension] card.rank raw:', card.rank, 'type:', typeof card.rank);
 
-  return newState;
+    function rankToNumber(r) {
+      if (r === 'A') return 1;
+      return parseInt(r, 10);
+    }
+    const cardRankNum = rankToNumber(card.rank);
+    const buildValueNum = typeof buildStack.value === 'number' ? buildStack.value : rankToNumber(buildStack.value);
+    console.log(`[startBuildExtension] cardRankNum: ${cardRankNum}, buildValueNum: ${buildValueNum}`);
+
+    if (cardRankNum > buildValueNum) {
+      throw new Error(
+        `startBuildExtension: cannot extend build of value ${buildStack.value} with card of rank ${card.rank} (would over-extend)`
+      );
+    }
+
+    // Validation passed – set pending extension
+    buildStack.pendingExtension = {
+      cards: [{ card: usedCard, source: cardSource }]
+    };
+
+    console.log('[startBuildExtension] SUCCESS - started extension with card:', `${usedCard.rank}${usedCard.suit}`);
+    return newState;
+
+  } catch (error) {
+    // ----- CLEANUP: Restore the card to its original location -----
+    console.log('[startBuildExtension] Validation failed, restoring card to source:', removalInfo.source);
+
+    if (removalInfo.source === 'table') {
+      newState.tableCards.splice(removalInfo.index, 0, usedCard);
+    } else if (removalInfo.source === 'hand') {
+      newState.players[playerIndex].hand.splice(removalInfo.index, 0, usedCard);
+    } else if (removalInfo.source === 'captured' || removalInfo.source.startsWith('captured_')) {
+      const ownerIdx = removalInfo.ownerIndex !== undefined ? removalInfo.ownerIndex : playerIndex;
+      newState.players[ownerIdx].captures.splice(removalInfo.index, 0, usedCard);
+    }
+
+    // Re-throw the original error
+    throw error;
+  }
 }
 
 module.exports = startBuildExtension;

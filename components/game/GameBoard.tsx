@@ -526,21 +526,7 @@ export function GameBoard({
         autoCloseMs={4000}
       />
 
-      {/* No Round End Modal - transitions are automatic */}
-      {/* KISS: Round 1 → Round 2 → Game Over */}
-
-      {/* Debug: Log when game over modal should show */}
-      {(() => {
-        const isVisible = gameState.gameOver || !!gameOverData;
-        console.log('[GameBoard] GameOverModal visible check:', { 
-          gameState_gameOver: gameState.gameOver, 
-          gameOverData_exists: !!gameOverData,
-          gameOverData: gameOverData ? 'present' : 'null',
-          playerCount: gameState.playerCount,
-          final: isVisible
-        });
-        return null;
-      })()}
+    
       
       <GameOverModal
         visible={(gameState.gameOver || !!gameOverData) || false}
