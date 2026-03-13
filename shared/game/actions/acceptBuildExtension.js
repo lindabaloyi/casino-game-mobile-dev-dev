@@ -13,24 +13,6 @@ function areTeammates(playerA, playerB) {
   return (playerA < 2 && playerB < 2) || (playerA >= 2 && playerB >= 2);
 }
 
-// Helper to sort cards in ascending order by value (smallest on top)
-function sortBuildCards(cards) {
-  return cards.sort((a, b) => a.value - b.value);
-}
-
-function calculateBuildValue(cards) {
-  const totalSum = cards.reduce((sum, c) => sum + c.value, 0);
-  
-  if (totalSum <= 10) {
-    return { value: totalSum, base: totalSum, need: 0, buildType: 'sum' };
-  } else {
-    const sorted = [...cards].sort((a, b) => b.value - a.value);
-    const base = sorted[0].value;
-    const otherSum = sorted.slice(1).reduce((sum, c) => sum + c.value, 0);
-    const need = base - otherSum;
-    return { value: base, base: base, need: need, buildType: need === 0 ? 'diff' : 'diff-incomplete' };
-  }
-}
 
 function acceptBuildExtension(state, payload, playerIndex) {
   const { stackId } = payload;
@@ -82,21 +64,30 @@ function acceptBuildExtension(state, payload, playerIndex) {
   const addedPendingValue = pendingCards.reduce((sum, c) => sum + c.value, 0);
   let buildResult;
 
-  if (addedPendingValue === originalValue) {
-    buildResult = { value: originalValue, base: originalValue, need: 0, buildType: 'extend-same' };
-  } else if (addedPendingValue < originalValue) {
+  // Keep original build value - only merge cards, don't recalculate
+  if (addedPendingValue <= originalValue) {
+    // Exact match or need - keep original value
     const need = originalValue - addedPendingValue;
-    buildResult = { value: originalValue, base: originalValue, need: need, buildType: 'extend-need' };
+    buildResult = { 
+      value: originalValue, 
+      base: originalValue, 
+      need: need, 
+      buildType: need === 0 ? 'extend-same' : 'extend-need' 
+    };
   } else {
-    const allCards = [...buildStack.cards, ...pendingCards];
-    buildResult = calculateBuildValue(allCards);
+    // Excess - keep original value, calculate need based on excess
+    const excess = addedPendingValue - originalValue;
+    // For excess, treat as need = 0 since we have more than needed
+    buildResult = { 
+      value: originalValue, 
+      base: originalValue, 
+      need: 0, 
+      buildType: 'extend-same' 
+    };
   }
 
-  // Merge cards
+  // Merge cards (preserving insertion order)
   buildStack.cards = [...buildStack.cards, ...pendingCards];
-
-  // --- AUTO-SORT: smallest on top, largest at bottom ---
-  sortBuildCards(buildStack.cards);
 
   buildStack.value = buildResult.value;
   buildStack.base = buildResult.base;

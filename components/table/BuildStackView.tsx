@@ -101,13 +101,21 @@ export function BuildStackView({
   const isDragging = useSharedValue(false);
 
   // bottom = highest-value card (base)
-  // top    = most recently added card
+  // top    = most recently added card (or most recent pending card if extending)
   const bottom = stack.cards[0];
-  const top    = stack.cards[stack.cards.length - 1];
   
   // Check if there's a pending extension (supports both old looseCard and new cards format)
   const pendingExtension = stack.pendingExtension;
   const isExtending = !!(pendingExtension?.looseCard || pendingExtension?.cards);
+
+  // Get pending cards in order they were added
+  const pendingCards = pendingExtension?.cards?.map(p => p.card) ?? 
+                      (pendingExtension?.looseCard ? [pendingExtension.looseCard] : []);
+
+  // The card shown on top: most recent pending card if any, otherwise the original top
+  const top = pendingCards.length > 0 
+    ? pendingCards[pendingCards.length - 1] 
+    : stack.cards[stack.cards.length - 1];
 
   // Build is draggable when:
   // - It's the player's turn
@@ -211,10 +219,6 @@ export function BuildStackView({
     };
   }, [stack.owner, isPartyMode]);
   
-  // Get pending cards in order they were added
-  const pendingCards = pendingExtension?.cards?.map(p => p.card) ?? 
-                      (pendingExtension?.looseCard ? [pendingExtension.looseCard] : []);
-
   // Compute effective sum with reset on exact matches
   // This matches the server-side validation logic:
   // - Iterate through cards in order
