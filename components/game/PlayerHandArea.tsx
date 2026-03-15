@@ -18,6 +18,7 @@ import { TableItem } from '../table/types';
 import { OpponentDragState } from '../../hooks/useGameState';
 import { StackActionStrip } from '../table/StackActionStrip';
 import { areTeammates } from '../../shared/game/team';
+import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 interface Card {
   rank: string;
@@ -98,14 +99,14 @@ interface Props {
   onShiya?: (stackId: string) => void;
 }
 
-// Default card dimensions - matching table card size (56x84)
-const DEFAULT_CARD_WIDTH = 56;
-const DEFAULT_CARD_HEIGHT = 84;
+// Default card dimensions - matching capture pile (56x84)
+const DEFAULT_CARD_WIDTH = CARD_WIDTH;  // 56
+const DEFAULT_CARD_HEIGHT = CARD_HEIGHT; // 84
 const CARD_OVERLAP_PERCENT = 0.3;
 
 // Compact card dimensions (when dragging)
-const COMPACT_CARD_WIDTH = 56;
-const COMPACT_CARD_HEIGHT = 84;
+const COMPACT_CARD_WIDTH = CARD_WIDTH;
+const COMPACT_CARD_HEIGHT = CARD_HEIGHT;
 
 export function PlayerHandArea({
   hand,
@@ -146,8 +147,8 @@ export function PlayerHandArea({
     const ch = DEFAULT_CARD_HEIGHT;
     
     // Calculate responsive versions that scale with screen width
-    const responsiveCw = Math.min(cw, screenWidth / 7);
-    const responsiveCh = Math.min(ch, responsiveCw * 1.5);
+    const responsiveCw = Math.min(cw, screenWidth / 5);
+    const responsiveCh = Math.min(ch, responsiveCw * (CARD_HEIGHT / CARD_WIDTH));
     // Half height for showing only top portion of card
     const halfHeight = responsiveCh * 0.5;
     

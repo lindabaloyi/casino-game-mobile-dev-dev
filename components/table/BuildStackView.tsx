@@ -19,6 +19,7 @@ import { PlayingCard } from '../cards/PlayingCard';
 import { BuildStack } from './types';
 import { TempStackBounds, CapturePileBounds } from '../../hooks/useDrag';
 import { PlayerIcon } from '../ui/PlayerIcon';
+import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 import { 
   getTeamFromIndex, 
   getPlayerPositionLabel, 
@@ -35,8 +36,8 @@ import {
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
-const CARD_W       = 56;
-const CARD_H       = 84;
+const CARD_W       = CARD_WIDTH;  // 56 - shared constant
+const CARD_H       = CARD_HEIGHT; // 84 - shared constant
 const STACK_OFFSET = 6;
 const BADGE_H      = 22;
 const STACK_PAD    = 4;

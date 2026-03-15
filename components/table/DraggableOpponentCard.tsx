@@ -12,6 +12,7 @@ import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
 import { OpponentDragState } from '../../hooks/useGameState';
 import { areTeammates } from '../../shared/game/team';
+import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 export interface DraggableOpponentCardProps {
   card: Card;
@@ -187,8 +188,8 @@ export function DraggableOpponentCard({
 
 const styles = StyleSheet.create({
   emptyCard: {
-    width: 56,
-    height: 84,
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 4,
     borderWidth: 1,

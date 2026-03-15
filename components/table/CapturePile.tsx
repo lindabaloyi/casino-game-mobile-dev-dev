@@ -12,6 +12,7 @@ import { Card } from './types';
 import { OpponentDragState } from '../../hooks/useGameState';
 import { CapturePileBounds } from '../../hooks/useDrag';
 import { type TeamColors } from '../../constants/teamColors';
+import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 interface CapturePileProps {
   /** Player index for this pile (0-3) */
@@ -202,8 +203,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   cardContainer: {
-    width: 56,
-    height: 84,
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 6,
@@ -214,8 +215,8 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   emptyCard: {
-    width: 56,
-    height: 84,
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 4,
     borderWidth: 1,

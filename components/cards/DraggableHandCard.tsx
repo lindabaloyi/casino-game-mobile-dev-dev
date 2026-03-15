@@ -29,10 +29,11 @@ import Animated, {
 import { PlayingCard } from './PlayingCard';
 import { DropBounds } from '../../hooks/useDrag';
 import { TableItem, BuildStack, isBuildStack, TempStack } from '../table/types';
+import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
-// Card dimensions (normal) - these are the default values
-const DEFAULT_CARD_WIDTH = 56;
-const DEFAULT_CARD_HEIGHT = 84;
+// Card dimensions - using shared constants for consistency
+const DEFAULT_CARD_WIDTH = CARD_WIDTH; // 56
+const DEFAULT_CARD_HEIGHT = CARD_HEIGHT; // 84
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

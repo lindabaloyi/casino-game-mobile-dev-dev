@@ -2,19 +2,15 @@
  * PlayingCard
  * Card component that renders images for ranks 1-10.
  * 
- * Renders cards at appropriate casino game size with proper
- * playing card aspect ratio (~1:1.4 for standard cards).
- * 
- * Visual features:
- * - Dynamic border color based on suit (red for hearts/diamonds, black for spades/clubs)
- * - Proper playing card aspect ratio maintained
- * - No gaps between border and card content
+ * Renders cards at standard casino game size (56x84)
+ * matching the capture pile dimensions for consistency.
  */
 
 import React, { useEffect } from 'react';
 import { View, Image, StyleSheet, useWindowDimensions } from 'react-native';
 import { getCardImage, preloadCardImages } from './cardImageMap';
 import { isRedSuit } from '../../types/card.types';
+import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,18 +20,11 @@ interface PlayingCardProps {
   /** Kept for API compatibility, but ignored (no back image available) */
   faceDown?: boolean;
   style?: any;
-  /** Card width - defaults to 70 (casino game appropriate size) */
+  /** Card width - defaults to 56 (matching capture pile) */
   width?: number;
-  /** Card height - defaults to 100 (maintains ~1:1.4 aspect ratio) */
+  /** Card height - defaults to 84 (matching capture pile) */
   height?: number;
 }
-
-// ── Constants ────────────────────────────────────────────────────────────────
-
-// Casino game appropriate card dimensions
-// Maintains standard playing card aspect ratio (~1:1.4)
-const DEFAULT_CARD_WIDTH = 70;
-const DEFAULT_CARD_HEIGHT = 100;
 
 // Border colors
 const RED_BORDER = '#C62828';
@@ -48,8 +37,8 @@ export function PlayingCard({
   suit,
   faceDown = false,
   style,
-  width = DEFAULT_CARD_WIDTH,
-  height = DEFAULT_CARD_HEIGHT,
+  width = CARD_WIDTH,
+  height = CARD_HEIGHT,
 }: PlayingCardProps) {
   const { width: screenWidth } = useWindowDimensions();
 
@@ -60,7 +49,7 @@ export function PlayingCard({
 
   // Calculate responsive dimensions that scale with screen but maintain aspect ratio
   const cardWidth = Math.min(width, screenWidth / 5); // Max 5 cards per row
-  const cardHeight = cardWidth * (DEFAULT_CARD_HEIGHT / DEFAULT_CARD_WIDTH); // Maintain 1:1.4 ratio
+  const cardHeight = cardWidth * (CARD_HEIGHT / CARD_WIDTH); // Maintain 1.5 ratio
 
   // Get image source for this card
   const imageSource = getCardImage(String(rank), suit);

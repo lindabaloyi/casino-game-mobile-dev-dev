@@ -20,6 +20,7 @@ import Animated, {
 import { useWindowDimensions } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
+import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -60,13 +61,13 @@ export function DraggableTableCard({
 }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   
-  // Calculate responsive card dimensions - matches table card size (56x84 base)
+  // Calculate responsive card dimensions - use shared constants for consistency
   const responsiveCardWidth = useMemo(() => {
-    return Math.min(56, screenWidth / 7);
+    return Math.min(CARD_WIDTH, screenWidth / 5);
   }, [screenWidth]);
   
   const responsiveCardHeight = useMemo(() => {
-    return responsiveCardWidth * 1.5;
+    return responsiveCardWidth * (CARD_HEIGHT / CARD_WIDTH); // Maintain aspect ratio
   }, [responsiveCardWidth]);
   
   const opacity = useSharedValue(1);

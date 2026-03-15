@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
+import { CARD_WIDTH, CARD_HEIGHT, CARD_ASPECT_RATIO } from '../../../constants/cardDimensions';
 
 // ── Constants ─────────────────────────────────────────────────────────────────────
 
-// Default card dimensions
-const DEFAULT_CARD_WIDTH = 56;
-const DEFAULT_CARD_HEIGHT = 84;
+// Default card dimensions - using shared constants
+const DEFAULT_CARD_WIDTH = CARD_WIDTH;  // 70
+const DEFAULT_CARD_HEIGHT = CARD_HEIGHT; // 105
+
 export const CARD_GAP = 40;
 export const ROW_GAP = 12;
 
@@ -82,11 +84,11 @@ export function useTableLayout(itemCount: number): TableLayoutResult {
   
   // Calculate responsive card dimensions based on screen width
   const responsiveCardWidth = useMemo(() => {
-    return Math.min(DEFAULT_CARD_WIDTH, screenWidth / 7);
+    return Math.min(DEFAULT_CARD_WIDTH, screenWidth / 5);
   }, [screenWidth]);
   
   const responsiveCardHeight = useMemo(() => {
-    return responsiveCardWidth * 1.5; // Maintain aspect ratio
+    return responsiveCardWidth * CARD_ASPECT_RATIO; // Maintain aspect ratio
   }, [responsiveCardWidth]);
   
   // Calculate responsive gap based on card width

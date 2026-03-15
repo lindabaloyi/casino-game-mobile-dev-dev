@@ -8,11 +8,12 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
+import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
-const CARD_W       = 56;   // matches PlayingCard width
-const CARD_H       = 84;   // matches PlayingCard height
+const CARD_W       = CARD_WIDTH;  // 56 - shared constant
+const CARD_H       = CARD_HEIGHT; // 84 - shared constant
 const STACK_OFFSET = 6;    // how much the top card is shifted right/down
 const BADGE_H      = 22;   // height reserved for the badge below the cards
 const STACK_PAD    = 4;    // extra breathing room on the right
