@@ -173,6 +173,56 @@ class PlayerProfile {
   }
 
   /**
+   * Get friends list with user info (username, avatar, stats)
+   * @param {string} userId - User ID
+   * @returns {Promise<Array>} Array of friends with full info
+   */
+  static async getFriendsWithInfo(userId) {
+    const profile = await this.findByUserId(userId);
+    if (!profile || !profile.friends.length) {
+      return [];
+    }
+    
+    const database = await db.getDb();
+    const User = require('./User');
+    const GameStats = require('./GameStats');
+    
+    // Get user data for all friends
+    const friendUsers = await database.collection('users')
+      .find({ _id: { $in: profile.friends } })
+      .project({ passwordHash: 0 })
+      .toArray();
+    
+    // Get stats for all friends
+    const friendStats = await Promise.all(
+      profile.friends.map(async (friendId) => {
+        const stats = await GameStats.findByUserId(friendId.toString());
+        const rank = await GameStats.getPlayerRank(friendId.toString());
+        return { userId: friendId.toString(), stats, rank };
+      })
+    );
+    
+    // Combine data
+    const friendsWithInfo = friendUsers.map(user => {
+      const statData = friendStats.find(s => s.userId === user._id.toString());
+      return {
+        _id: user._id,
+        username: user.username,
+        avatar: user.avatar,
+        createdAt: user.createdAt,
+        stats: {
+          totalGames: statData?.stats?.totalGames || 0,
+          wins: statData?.stats?.wins || 0,
+          losses: statData?.stats?.losses || 0,
+          rank: statData?.rank || null
+        }
+      };
+    });
+    
+    return friendsWithInfo;
+  }
+
+  /**
    * Delete profile
    * @param {string} userId - User ID
    * @returns {Promise<boolean>} Success status

@@ -202,6 +202,35 @@ class User {
     const count = await database.collection(COLLECTION_NAME).countDocuments({ username });
     return count > 0;
   }
+
+  /**
+   * Search users by username (partial match)
+   * @param {string} query - Search query
+   * @param {number} limit - Maximum results to return
+   * @param {string} excludeUserId - User ID to exclude from results
+   * @returns {Promise<Array>} Array of users (without password)
+   */
+  static async searchByUsername(query, limit = 10, excludeUserId = null) {
+    const database = await db.getDb();
+    const searchRegex = new RegExp(query, 'i'); // Case-insensitive partial match
+    
+    const filter = {
+      username: { $regex: searchRegex }
+    };
+    
+    // Exclude current user from results
+    if (excludeUserId) {
+      filter._id = { $ne: new ObjectId(excludeUserId) };
+    }
+    
+    const users = await database.collection(COLLECTION_NAME)
+      .find(filter)
+      .project({ passwordHash: 0 })
+      .limit(limit)
+      .toArray();
+    
+    return users;
+  }
 }
 
 module.exports = User;

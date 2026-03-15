@@ -6,9 +6,13 @@
 const authRoutes = require('./auth');
 const profileRoutes = require('./profile');
 const gameRoutes = require('./game');
+const friendsRoutes = require('./friends');
+const usersRoutes = require('./users');
 
 module.exports = {
   authRoutes,
   profileRoutes,
-  gameRoutes
+  gameRoutes,
+  friendsRoutes,
+  usersRoutes
 };

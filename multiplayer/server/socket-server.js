@@ -14,7 +14,7 @@ const os = require('os');
 const db = require('./db/connection');
 
 // Routes
-const { authRoutes, profileRoutes, gameRoutes } = require('./routes');
+const { authRoutes, profileRoutes, gameRoutes, friendsRoutes, usersRoutes } = require('./routes');
 
 const MatchmakingService     = require('./services/MatchmakingService');
 const PartyMatchmakingService  = require('./services/PartyMatchmakingService');
@@ -39,10 +39,18 @@ const io     = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
+// Middleware to pass io instance to routes
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/game', gameRoutes);
+app.use('/api/friends', friendsRoutes);
+app.use('/api/users', usersRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -64,6 +72,19 @@ let coordinator;
 // ── Connection handling ───────────────────────────────────────────────────────
 
 io.on('connection', socket => {
+  // User authentication: join user-specific room for notifications
+  socket.on('authenticate', (userId) => {
+    if (userId) {
+      socket.join(`user:${userId}`);
+      console.log(`[Socket] User ${userId} joined notification room`);
+    }
+  });
+
+  // Leave user room on disconnect
+  socket.on('disconnecting', () => {
+    // Socket automatically leaves rooms on disconnect
+  });
+
   // Add player to queue; start game if two are waiting
   const gameResult = matchmaking.addToQueue(socket);
   if (gameResult) {
