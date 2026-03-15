@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  Animated,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

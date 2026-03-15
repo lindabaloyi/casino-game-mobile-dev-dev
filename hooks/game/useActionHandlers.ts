@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
-import { TempStack, BuildStack } from '../../types';
+import { TempStack, BuildStack, Card } from '../../types';
 import { useGameActions } from './useGameActions';
 import { useModalManager } from './useModalManager';
+import { checkAutoCaptureEligibility } from './useAutoCaptureDetection';
 
 export function useActionHandlers(
   actions: ReturnType<typeof useGameActions>,
@@ -10,7 +11,9 @@ export function useActionHandlers(
   playerNumber: number,
   onDragEndWrapper: (...args: any[]) => void,
   isPartyMode: boolean = false,
-  roundNumber: number = 1
+  roundNumber: number = 1,
+  playerHand: Card[] = [],
+  buildStacks: BuildStack[] = []
 ) {
   const handleCapture = useCallback(
     (card: any, targetType: 'loose' | 'build', targetRank?: string, targetSuit?: string, targetStackId?: string) => {
@@ -59,9 +62,27 @@ export function useActionHandlers(
   const handleAcceptClick = useCallback((stackId: string) => {
     const stack = table.find((tc: any) => tc.stackId === stackId) as TempStack | undefined;
     if (stack) {
+      // Check for auto-capture eligibility
+      const autoCapture = checkAutoCaptureEligibility(
+        stack,
+        playerHand,
+        table.filter((tc: any) => !tc.type), // loose cards only
+        buildStacks,
+        playerNumber
+      );
+      
+      if (autoCapture.shouldAutoCapture && autoCapture.captureValue) {
+        // Auto-capture without showing modal!
+        console.log(`[AutoCapture] Capturing stack ${stackId} with value ${autoCapture.captureValue}`);
+        actions.acceptTemp(stackId, autoCapture.captureValue);
+        modals.clearAutoCapture();
+        return;
+      }
+      
+      // Show modal as normal
       modals.openPlayModal(stack);
     }
-  }, [table, modals]);
+  }, [table, modals, actions, playerHand, buildStacks, playerNumber]);
 
   const handleConfirmPlay = useCallback((buildValue: number, originalOwner?: number) => {
     if (modals.selectedTempStack) {

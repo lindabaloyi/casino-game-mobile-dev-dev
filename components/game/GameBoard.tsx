@@ -302,7 +302,9 @@ export function GameBoard({
     playerNumber,
     dragHandlers.handleDragEnd,
     gameState.playerCount === 4,
-    roundInfo.roundNumber
+    roundInfo.roundNumber,
+    computed.myHand as TableCard[],
+    computed.table.filter((tc: any) => tc.type === 'build_stack') as any[]
   );
 
   // ── Unified Drop Handler ─────────────────────────────────────────────────

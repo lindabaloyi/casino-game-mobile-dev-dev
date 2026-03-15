@@ -26,12 +26,13 @@ class StackDropRouter {
   route(payload, state, playerIndex) {
     const { stackType, stackId, card, targetCard, cardSource } = payload;
     
-    // Temp stack drops
+    console.log('[StackDropRouter.route] stackType:', stackType);
+    console.log('[StackDropRouter.route] stackId:', stackId);
+    console.log('[StackDropRouter.route] card:', card?.rank);
+    
+    // Temp stack drops - check for instant capture
     if (stackType === 'temp_stack') {
-      return { 
-        type: 'addToTemp', 
-        payload: { card, stackId, source: cardSource } 
-      };
+      return this.routeTempStackDrop(payload, state, playerIndex);
     }
     
     // Build stack drops
@@ -42,6 +43,128 @@ class StackDropRouter {
     // Loose card drops (no stack) - delegate to LooseCardRouter
     const source = this.getCardSource(state, playerIndex, card);
     return this.looseCardRouter.routeCreateTemp({ ...payload, source }, state, playerIndex);
+  }
+
+  /**
+   * Route drop on a temp stack - check for instant capture
+   */
+  routeTempStackDrop(payload, state, playerIndex) {
+    const { stackId, card, cardSource, stackOwner } = payload;
+    
+    console.log('[StackDropRouter.routeTempStackDrop] START');
+    console.log('[StackDropRouter.routeTempStackDrop] stackId:', stackId);
+    console.log('[StackDropRouter.routeTempStackDrop] stackOwner from payload:', stackOwner);
+    console.log('[StackDropRouter.routeTempStackDrop] playerIndex:', playerIndex);
+    console.log('[StackDropRouter.routeTempStackDrop] card:', card?.rank, card?.value);
+    console.log('[StackDropRouter.routeTempStackDrop] cardSource:', cardSource);
+    
+    // Find the temp stack
+    const stack = state.tableCards.find(
+      tc => tc.type === 'temp_stack' && tc.stackId === stackId
+    );
+    
+    console.log('[StackDropRouter.routeTempStackDrop] Found stack:', stack ? 'YES' : 'NO');
+    if (stack) {
+      console.log('[StackDropRouter.routeTempStackDrop] stack.owner:', stack.owner);
+      console.log('[StackDropRouter.routeTempStackDrop] stack.cards:', stack.cards?.map(c => c.rank));
+    }
+    
+    if (!stack) {
+      console.log('[StackDropRouter.routeTempStackDrop] Stack NOT found, returning addToTemp');
+      throw new Error(`Temp stack "${stackId}" not found`);
+    }
+    
+    // Only check capture for player's own temp stack
+    console.log('[StackDropRouter.routeTempStackDrop] Checking stack.owner vs playerIndex:', stack.owner, 'vs', playerIndex);
+    if (stack.owner !== playerIndex) {
+      console.log('[StackDropRouter.routeTempStackDrop] Owner mismatch - returning addToTemp');
+      // Not owner's stack - just add to temp (other player is adding to it)
+      return { 
+        type: 'addToTemp', 
+        payload: { card, stackId, source: cardSource } 
+      };
+    }
+    
+    console.log('[StackDropRouter.routeTempStackDrop] Owner matches - checking for instant capture');
+    
+    // Get player's hand to check how many matching cards they have
+    const playerHand = state.players[playerIndex].hand || [];
+    console.log('[StackDropRouter.routeTempStackDrop] Player hand:', playerHand.map(c => c.rank));
+    
+    // Check if the dropped card matches the build hint (need value)
+    // This enables instant capture without showing PlayOptionsModal
+    const stackValues = stack.cards.map(c => c.value);
+    const buildInfo = calculateBuildValue(stackValues);
+    
+    console.log('[StackDropRouter.routeTempStackDrop] stackValues:', stackValues);
+    console.log('[StackDropRouter.routeTempStackDrop] buildInfo:', buildInfo);
+    
+    // Check if dropped card can capture a COMPLETE temp stack (need: 0)
+    // This is like acceptTemp - the card value equals the build value
+    // ONLY auto-capture if player has exactly 1 matching card
+    if (buildInfo && buildInfo.need === 0 && buildInfo.value > 0) {
+      console.log('[StackDropRouter.routeTempStackDrop] Temp stack is complete, checking capture');
+      if (card.value === buildInfo.value) {
+        // Count how many cards in hand match this value
+        const matchingCards = playerHand.filter(c => c.value === buildInfo.value);
+        
+        // Only auto-capture if player has EXACTLY ONE matching card
+        if (matchingCards.length === 1) {
+          console.log(`[StackDropRouter.routeTempStackDrop] Card ${card.rank} matches build value ${buildInfo.value}, player has exactly 1 - capturing!`);
+          return {
+            type: 'captureTemp',
+            payload: { card, stackId, source: cardSource }
+          };
+        } else if (matchingCards.length > 1) {
+          console.log(`[StackDropRouter.routeTempStackDrop] Multiple matching cards (${matchingCards.length}), routing to addToTemp for player choice`);
+        }
+      }
+    }
+    
+    // Check if dropped card matches the build hint (need value) for incomplete builds
+    // ONLY auto-capture if player has exactly 1 matching card
+    if (buildInfo && buildInfo.need > 0) {
+      // There's a build hint - check if dropped card matches
+      if (card.value === buildInfo.need) {
+        // Count how many cards in hand match this value
+        const matchingCards = playerHand.filter(c => c.value === buildInfo.need);
+        
+        // Only auto-capture if player has EXACTLY ONE matching card
+        if (matchingCards.length === 1) {
+          console.log(`[StackDropRouter] Instant capture: card ${card.rank} matches need ${buildInfo.need}, player has exactly 1 matching card`);
+          return {
+            type: 'captureTemp',
+            payload: { card, stackId, source: cardSource }
+          };
+        } else if (matchingCards.length > 1) {
+          console.log(`[StackDropRouter] Multiple matching cards (${matchingCards.length}), showing modal for choice`);
+        }
+      }
+    }
+    
+    // Also check if it's a same-rank capture (all cards same rank)
+    const allSameRank = stack.cards.length > 0 && stack.cards.every(c => c.rank === stack.cards[0].rank);
+    if (allSameRank && card.rank === stack.cards[0].rank) {
+      // Count how many cards in hand match this rank
+      const matchingCards = playerHand.filter(c => c.rank === stack.cards[0].rank);
+      
+      // Only auto-capture if player has EXACTLY ONE matching card
+      if (matchingCards.length === 1) {
+        console.log(`[StackDropRouter] Instant capture: same rank ${card.rank}, player has exactly 1 matching card`);
+        return {
+          type: 'captureTemp',
+          payload: { card, stackId, source: cardSource }
+        };
+      } else if (matchingCards.length > 1) {
+        console.log(`[StackDropRouter] Multiple matching cards (${matchingCards.length}), showing modal for choice`);
+      }
+    }
+    
+    // No instant capture - add to temp as normal
+    return { 
+      type: 'addToTemp', 
+      payload: { card, stackId, source: cardSource } 
+    };
   }
 
   /**

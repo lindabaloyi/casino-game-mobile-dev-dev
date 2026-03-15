@@ -10,6 +10,12 @@ export function useModalManager() {
   // Play modal (for accepting temp stacks)
   const [showPlayModal, setShowPlayModal] = useState(false);
   const [selectedTempStack, setSelectedTempStack] = useState<TempStack | null>(null);
+  
+  // Auto-capture state - for automatic temp stack capture
+  const [pendingAutoCapture, setPendingAutoCapture] = useState<{
+    stackId: string;
+    captureValue: number;
+  } | null>(null);
 
   // Steal modal (for stealing opponent's builds)
   const [showStealModal, setShowStealModal] = useState(false);
@@ -65,12 +71,25 @@ export function useModalManager() {
     setShowEndTurnButton(false);
   }, []);
 
+  // Auto-capture helper
+  const setAutoCapture = useCallback((stackId: string, captureValue: number) => {
+    setPendingAutoCapture({ stackId, captureValue });
+  }, []);
+  
+  const clearAutoCapture = useCallback(() => {
+    setPendingAutoCapture(null);
+  }, []);
+  
   return {
     // Play modal
     showPlayModal,
     selectedTempStack,
     openPlayModal,
     closePlayModal,
+    // Auto-capture
+    pendingAutoCapture,
+    setAutoCapture,
+    clearAutoCapture,
     // Steal modal
     showStealModal,
     stealTargetCard,

@@ -18,7 +18,7 @@
  *   JS thread where refs are always fresh.
  */
 
-import React, { MutableRefObject, useMemo } from 'react';
+import React, { MutableRefObject } from 'react';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -28,7 +28,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { PlayingCard } from './PlayingCard';
 import { DropBounds } from '../../hooks/useDrag';
-import { TableItem, BuildStack, isBuildStack, TempStack } from '../table/types';
+import { TableItem } from '../table/types';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 // Card dimensions - using shared constants for consistency

@@ -42,6 +42,10 @@ class SmartRouter {
    * @returns {{ type: string, payload: object }} - The routed action
    */
   route(actionType, payload, state, playerIndex) {
+    console.log('[SmartRouter.route] actionType:', actionType);
+    console.log('[SmartRouter.route] payload:', JSON.stringify(payload));
+    console.log('[SmartRouter.route] playerIndex:', playerIndex);
+    
     switch (actionType) {
       case 'stackDrop':
         return this.stackDropRouter.route(payload, state, playerIndex);
