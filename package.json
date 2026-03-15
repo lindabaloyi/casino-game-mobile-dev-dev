@@ -30,6 +30,7 @@
     "@types/express": "^5.0.5",
     "@types/socket.io": "^3.0.2",
     "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
     "expo": "~54.0.31",
     "expo-constants": "~18.0.10",
     "expo-font": "~14.0.9",

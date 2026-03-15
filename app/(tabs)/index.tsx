@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayerProfile, AVATAR_OPTIONS } from '../../hooks/usePlayerProfile';
+import { useAuth } from '../../hooks/useAuth';
 
 export const options = {
   headerShown: false,
@@ -21,6 +22,7 @@ interface MenuItem {
   label: string;
   icon: string;
   route: string;
+  action?: string;
 }
 
 const menuItems: MenuItem[] = [
@@ -62,11 +64,20 @@ export default function HomeScreen() {
   
   const router = useRouter();
   const { profile, isLoading } = usePlayerProfile();
+  const { user, isAuthenticated, logout } = useAuth();
   
-  const currentAvatar = AVATAR_OPTIONS.find(a => a.id === profile.avatar) || AVATAR_OPTIONS[0];
+  // Use auth user if logged in, otherwise use local profile
+  const displayName = isAuthenticated && user ? user.username : profile.username;
+  const displayAvatarId = isAuthenticated && user ? user.avatar : profile.avatar;
+  const currentAvatar = AVATAR_OPTIONS.find(a => a.id === displayAvatarId) || AVATAR_OPTIONS[0];
   const winRate = profile.totalGames > 0 
     ? Math.round((profile.wins / profile.totalGames) * 100) 
     : 0;
+
+  // Auth menu item based on authentication status
+  const authMenuItem: MenuItem | null = isAuthenticated 
+    ? { label: 'Sign Out', icon: 'log-out', route: '', action: 'logout' }
+    : { label: 'Sign In', icon: 'log-in', route: '/auth/login', action: 'login' };
 
   const handleCpuGame = () => {
     setMenuVisible(false);
@@ -96,6 +107,11 @@ export default function HomeScreen() {
   const handleMenuItem = (route: string) => {
     setMenuVisible(false);
     router.push(route as any);
+  };
+
+  const handleLogout = async () => {
+    setMenuVisible(false);
+    await logout();
   };
 
   // Dynamic styles based on screen size - simplified
@@ -321,13 +337,24 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   key={index}
                   style={menuStyles.menuItem}
-                  onPress={() => handleMenuItem(item.route)}
+                  onPress={() => item.action === 'logout' ? handleLogout() : handleMenuItem(item.route)}
                   activeOpacity={0.7}
                 >
                   <Ionicons name={item.icon as any} size={menuIconSize} color="white" />
                   <Text style={menuStyles.menuItemText}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
+              {/* Auth Sign In/Out Item */}
+              {authMenuItem && (
+                <TouchableOpacity
+                  style={menuStyles.menuItem}
+                  onPress={() => authMenuItem.action === 'logout' ? handleLogout() : handleMenuItem(authMenuItem.route)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name={authMenuItem.icon as any} size={menuIconSize} color="white" />
+                  <Text style={menuStyles.menuItemText}>{authMenuItem.label}</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Bottom removed - Profile accessible via menu item */}

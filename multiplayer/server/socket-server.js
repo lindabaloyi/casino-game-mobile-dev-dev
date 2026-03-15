@@ -7,6 +7,7 @@
 const express    = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const cors = require('cors');
 const os = require('os');
 
 // Database
@@ -35,6 +36,7 @@ const io     = new Server(server, {
 });
 
 // Middleware for JSON
+app.use(cors());
 app.use(express.json());
 
 // API Routes
