@@ -6,9 +6,9 @@
  * consistent sizing across capture piles, table cards, and hands.
  */
 
-// Standard card dimensions - larger size while maintaining aspect ratio (~1.5:1)
-export const CARD_WIDTH = 70;
-export const CARD_HEIGHT = 105;
+// Standard card dimensions - middle ground between 56x84 and 70x105
+export const CARD_WIDTH = 60;
+export const CARD_HEIGHT = 90;
 
 // Card aspect ratio (standard playing card ~1.5:1)
 export const CARD_ASPECT_RATIO = CARD_HEIGHT / CARD_WIDTH; // 1.5

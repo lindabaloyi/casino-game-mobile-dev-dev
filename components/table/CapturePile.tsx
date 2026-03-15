@@ -178,7 +178,7 @@ export function CapturePile({
 const styles = StyleSheet.create({
   captureSection: {
     alignItems: 'center',
-    width: 70,
+    width: CARD_WIDTH + 8,
     padding: 4,
     borderRadius: 8,
     borderWidth: 2,
@@ -191,14 +191,14 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   teamLabelContainer: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginBottom: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 3,
   },
   teamLabelText: {
     color: '#fff',
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: 'bold',
     textAlign: 'center',
   },
