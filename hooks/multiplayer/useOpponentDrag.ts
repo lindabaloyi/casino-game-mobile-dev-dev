@@ -113,18 +113,10 @@ export function useOpponentDrag(socket: Socket | null): UseOpponentDragResult {
       targetType?: string;
       targetId?: string;
     }) => {
-      // Update state with target info for accurate final position
-      setOpponentDrag(prev => prev ? {
-        ...prev,
-        targetType: data.targetType as any,
-        targetId: data.targetId,
-      } : null);
-      
-      // Clear opponent drag state after animation completes
-      // Wait for fade animation (300ms) + spring animation to finish
-      setTimeout(() => {
-        setOpponentDrag(null);
-      }, 800);
+      // Clear opponent drag state IMMEDIATELY when drop is registered
+      // No delay - this prevents seeing duplicate cards (ghost + real card)
+      console.log('[useOpponentDrag] Opponent dropped card, clearing ghost immediately');
+      setOpponentDrag(null);
     };
 
     socket.on('opponent-drag-end', handleDragEnd);

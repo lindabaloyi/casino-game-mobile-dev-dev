@@ -96,9 +96,18 @@ export function useDragHandlers({
     const absX = dragOverlay.overlayX.value + CARD_WIDTH / 2;
     const absY = dragOverlay.overlayY.value + CARD_HEIGHT / 2;
     
-    if (emitDragEnd && dragOverlay.draggingCard) {
+    const card = dragOverlay.draggingCard;
+    const source = dragOverlay.dragSource;
+    
+    // OPTIMISTIC UI: Mark card as pending drop BEFORE sending to server
+    // This hides the card immediately without waiting for server response
+    if (card && source && outcome === 'success') {
+      dragOverlay.markPendingDrop(card, source);
+    }
+    
+    if (emitDragEnd && card) {
       const norm = getNormalizedPosition(absX, absY);
-      emitDragEnd(dragOverlay.draggingCard, norm, outcome, targetType, targetId);
+      emitDragEnd(card, norm, outcome, targetType, targetId);
     }
     dragOverlay.endDrag();
     onDragEndWrapper(targetType, outcome, targetId);

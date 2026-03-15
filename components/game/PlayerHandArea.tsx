@@ -97,6 +97,10 @@ interface Props {
   selectedBuild?: any | null;
   /** Shiya callback - for party mode capture of teammate's build */
   onShiya?: (stackId: string) => void;
+  /** Pending drop card - for optimistic UI to hide card immediately after drop */
+  pendingDropCard?: Card | null;
+  /** Pending drop source - 'hand' | 'captured' | 'table' | null */
+  pendingDropSource?: 'hand' | 'captured' | 'table' | null;
 }
 
 // Default card dimensions - matching capture pile (56x84)
@@ -133,6 +137,8 @@ export function PlayerHandArea({
   currentPlayer,
   selectedBuild,
   onShiya,
+  pendingDropCard,
+  pendingDropSource,
 }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   
@@ -239,9 +245,28 @@ export function PlayerHandArea({
       >
         {hand.map((card, index) => {
           const cardId = `${card.rank}${card.suit}`;
-          const isHidden = opponentDrag?.isDragging &&
-                         opponentDrag.source === 'hand' &&
-                         opponentDrag.cardId === cardId;
+          // Hide card if:
+          // 1. Opponent is actively dragging this card, OR
+          // 2. Card has been dropped (has targetId) - from opponent, OR
+          // 3. LOCAL: Card is pending drop - our own drop not yet confirmed (optimistic UI)
+          const isPendingDrop = pendingDropCard && 
+            pendingDropSource === 'hand' &&
+            pendingDropCard.rank === card.rank && 
+            pendingDropCard.suit === card.suit;
+          
+          if (isPendingDrop) {
+            console.log('[PlayerHandArea] OPTIMISTIC UI: Hiding card', card.rank, card.suit, '- pending drop confirmed');
+          }
+          
+          const isHidden = Boolean(
+            (opponentDrag?.isDragging &&
+              opponentDrag.source === 'hand' &&
+              opponentDrag.cardId === cardId) ||
+            (opponentDrag?.targetId &&
+              opponentDrag.source === 'hand' &&
+              opponentDrag.cardId === cardId) ||
+            isPendingDrop
+          );
           
           return (
             <View

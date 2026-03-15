@@ -21,6 +21,9 @@ export type DragSource = 'hand' | 'captured' | 'table' | null;
 export function useDragOverlay() {
   const [draggingCard, setDraggingCard] = useState<Card | null>(null);
   const [dragSource, setDragSource] = useState<DragSource>(null);
+  // Track pending drops for optimistic UI - card is dropped but server not confirmed
+  const [pendingDropCard, setPendingDropCard] = useState<Card | null>(null);
+  const [pendingDropSource, setPendingDropSource] = useState<DragSource>(null);
   const overlayX = useSharedValue(0);
   const overlayY = useSharedValue(0);
 
@@ -59,6 +62,28 @@ export function useDragOverlay() {
     setDragSource(null);
   };
 
+  // Mark a card as pending drop (optimistic UI - hide immediately after drop)
+  const markPendingDrop = (card: Card, source: DragSource) => {
+    console.log('[useDragOverlay] markPendingDrop: Card', card.rank, card.suit, 'from', source, '- HIDING card immediately (optimistic UI)');
+    setPendingDropCard(card);
+    setPendingDropSource(source);
+  };
+
+  // Clear pending drop (called when server confirms or action completes)
+  const clearPendingDrop = () => {
+    console.log('[useDragOverlay] clearPendingDrop: Card', pendingDropCard?.rank, pendingDropCard?.suit, 'cleared - server confirmed action');
+    setPendingDropCard(null);
+    setPendingDropSource(null);
+  };
+
+  // Check if a specific card is in pending drop state
+  const isPendingDrop = (card: Card, source: DragSource): boolean => {
+    if (!pendingDropCard || !pendingDropSource) return false;
+    return pendingDropCard.rank === card.rank && 
+           pendingDropCard.suit === card.suit && 
+           pendingDropSource === source;
+  };
+
   const ghostStyle = useAnimatedStyle(() => ({
     position: 'absolute' as const,
     left: overlayX.value,
@@ -69,11 +94,16 @@ export function useDragOverlay() {
   return {
     draggingCard,
     dragSource,
+    pendingDropCard,
+    pendingDropSource,
     overlayX,
     overlayY,
     startDrag,
     moveDrag,
     endDrag,
+    markPendingDrop,
+    clearPendingDrop,
+    isPendingDrop,
     ghostStyle,
   };
 }

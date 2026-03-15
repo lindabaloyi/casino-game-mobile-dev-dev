@@ -131,6 +131,26 @@ export function GameBoard({
 
   // Debug logging disabled for cleaner console
 
+  // Clear pending drop when hand changes (card was removed/added)
+  // This ensures optimistic UI state is reset after server confirms the action
+  useEffect(() => {
+    if (dragOverlay.pendingDropCard) {
+      // Check if the pending drop card is still in hand
+      const myHand = gameState.players?.[playerNumber]?.hand ?? [];
+      const stillInHand = myHand.some(
+        (c: any) => c.rank === dragOverlay.pendingDropCard?.rank && c.suit === dragOverlay.pendingDropCard?.suit
+      );
+      
+      if (!stillInHand) {
+        // Card was removed from hand - clear pending drop
+        console.log('[GameBoard] OPTIMISTIC UI: Hand changed, card', dragOverlay.pendingDropCard.rank, dragOverlay.pendingDropCard.suit, 'removed - clearing pending drop (server confirmed)');
+        dragOverlay.clearPendingDrop();
+      } else {
+        console.log('[GameBoard] OPTIMISTIC UI: Card', dragOverlay.pendingDropCard.rank, dragOverlay.pendingDropCard.suit, 'still in hand, keeping pending drop');
+      }
+    }
+  }, [gameState.players]);
+
   // KISS Round Transition Logic
   // When round ends:
   // - Round 1 → automatically start Round 2 (deal 10 cards each)
@@ -457,6 +477,9 @@ export function GameBoard({
         onDragMove={dragHandlers.handleDragMove}
         onDragEnd={dragHandlers.handleDragEnd}
         opponentDrag={opponentDrag}
+        // Optimistic UI: pass pending drop state to hide cards immediately after drop
+        pendingDropCard={dragOverlay.pendingDropCard}
+        pendingDropSource={dragOverlay.pendingDropSource}
         // Stack action props for action strip in hand area
         activeStackId={computed.overlayStackId || computed.extendingBuildId}
         activeStackType={computed.overlayStackId ? 'temp_stack' : (computed.extendingBuildId ? 'extend_build' : null)}

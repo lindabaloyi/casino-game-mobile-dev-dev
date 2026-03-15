@@ -161,11 +161,19 @@ export function DraggableOpponentCard({
     opacity: isDragging.value ? 0 : 1,
   }));
 
-  // Check if this card is being dragged by opponent
+  // Check if this card is being dragged by opponent or has been dropped
+  // Hide card if:
+  // 1. Opponent is actively dragging this card, OR
+  // 2. Card has been dropped (has targetId) - optimistic UI to prevent duplicate display
   const cardId = `${card.rank}${card.suit}`;
-  const isHidden = opponentDrag?.isDragging &&
-                   opponentDrag.source === 'captured' &&
-                   opponentDrag.cardId === cardId;
+  const isHidden = Boolean(
+    (opponentDrag?.isDragging &&
+      opponentDrag.source === 'captured' &&
+      opponentDrag.cardId === cardId) ||
+    (opponentDrag?.targetId &&
+      opponentDrag.source === 'captured' &&
+      opponentDrag.cardId === cardId)
+  );
 
   if (isHidden) {
     return (

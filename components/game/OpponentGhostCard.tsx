@@ -36,8 +36,7 @@ interface OpponentGhostCardProps {
   capturePositions?: Map<number, { x: number; y: number; width: number; height: number }>;
 }
 
-const CARD_WIDTH = 56;
-const CARD_HEIGHT = 84;
+import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 // Spring config constants - defined outside component to avoid recreation
 const SPRING_FINAL_CONFIG = { damping: 15, stiffness: 150 };
@@ -68,7 +67,7 @@ export function OpponentGhostCard({
   // Use shared values for animation - initialize to current position to avoid flash at (0,0)
   const translateX = useSharedValue(initialAbsPos.x - CARD_WIDTH / 2);
   const translateY = useSharedValue(initialAbsPos.y - CARD_HEIGHT / 2);
-  const opacity = useSharedValue(0.8);
+  const opacity = useSharedValue(1); // No opacity - fully visible
   
   // Track if this is the final position (for fade out)
   const isFinalPosition = useRef(false);
@@ -140,7 +139,7 @@ export function OpponentGhostCard({
       // During drag: smooth follow with slight lag for natural feel
       translateX.value = withSpring(absPos.x - CARD_WIDTH / 2, SPRING_DRAG_CONFIG);
       translateY.value = withSpring(absPos.y - CARD_HEIGHT / 2, SPRING_DRAG_CONFIG);
-      opacity.value = 0.8; // Reset opacity if it was fading
+      opacity.value = 1; // Reset opacity - fully visible
     }
   }, [position.x, position.y, targetType, targetId, tableBounds.width, tableBounds.height, cardPositions, stackPositions, capturePositions]);
 
@@ -177,7 +176,7 @@ const styles = StyleSheet.create({
     height: CARD_HEIGHT,
   },
   cardWrapper: {
-    opacity: 0.8,
+    opacity: 1, // No opacity - fully visible
     transform: [{ scale: 1.05 }],
   },
 });
