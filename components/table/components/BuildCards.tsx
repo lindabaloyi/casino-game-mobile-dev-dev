@@ -18,7 +18,7 @@ interface BuildCardsProps {
   stackOffset?: number;
 }
 
-export function BuildCards({ bottom, top, stackOffset = 6 }: BuildCardsProps) {
+export function BuildCards({ bottom, top, stackOffset = 0 }: BuildCardsProps) {
   return (
     <>
       {/* Base card — highest value (bottom of stack) */}
@@ -26,7 +26,7 @@ export function BuildCards({ bottom, top, stackOffset = 6 }: BuildCardsProps) {
         <PlayingCard rank={bottom.rank} suit={bottom.suit} />
       </View>
 
-      {/* Top card — most recently added, offset for fan effect */}
+      {/* Top card — directly on top, no offset */}
       <View style={styles.cardTop}>
         <PlayingCard rank={top.rank} suit={top.suit} />
       </View>
@@ -42,13 +42,8 @@ const styles = StyleSheet.create({
   },
   cardTop: {
     position:     'absolute',
-    top:          6,
-    left:         6,
-    shadowColor:  '#000',
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius:  3,
-    elevation:    4,
+    top:          0,
+    left:         0,
   },
 });
 

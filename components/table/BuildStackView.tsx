@@ -33,9 +33,8 @@ import { BuildValueBadge, OwnerIndicator, BuildCards } from './components';
 
 const CARD_W       = CARD_WIDTH;
 const CARD_H       = CARD_HEIGHT;
-const STACK_OFFSET = 6;
 const BADGE_H      = 22;
-const STACK_PAD    = 4;
+const STACK_PAD    = 0;
 
 // Re-export constants for backwards compatibility
 export { CANONICAL_PURPLE, PLAYER_1_GOLD, PLAYER_2_PURPLE } from './hooks/useBuildTeamInfo';
@@ -242,8 +241,8 @@ export function BuildStackView({
           activeOpacity={0.7}
         />
         
-        {/* Use extracted BuildCards component */}
-        <BuildCards bottom={bottom} top={top} stackOffset={STACK_OFFSET} />
+        {/* Use extracted BuildCards component - no offset, cards stack directly */}
+        <BuildCards bottom={bottom} top={top} stackOffset={0} />
 
         {/* Use extracted BuildValueBadge component */}
         <BuildValueBadge displayValue={displayValue} badgeColor={badgeColor} />
@@ -259,8 +258,8 @@ export function BuildStackView({
 
 const styles = StyleSheet.create({
   container: {
-    width:    CARD_W + STACK_OFFSET + STACK_PAD,
-    height:   CARD_H + STACK_OFFSET + BADGE_H,
+    width:    CARD_W + STACK_PAD,
+    height:   CARD_H + BADGE_H,
     position: 'relative',
   },
   tapArea: {
@@ -274,3 +273,4 @@ const styles = StyleSheet.create({
 });
 
 export default BuildStackView;
+
