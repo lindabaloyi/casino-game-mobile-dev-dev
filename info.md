@@ -1,0 +1,4 @@
+lindabaloyi10_db_user
+ZJYvwn0VQT86uROc
+
+mongodb+srv://lindabaloyi10_db_user:ZJYvwn0VQT86uROc@casinodotzadb.zsvno3e.mongodb.net/?appName=casinodotzaDB

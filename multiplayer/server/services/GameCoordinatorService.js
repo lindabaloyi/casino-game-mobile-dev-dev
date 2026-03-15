@@ -10,6 +10,8 @@
 const RoundValidator = require('../game/utils/RoundValidator');
 const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn, forceEndTurn, finalizeGame } = require('../../../shared/game');
 const scoring = require('../game/scoring');
+const GameState = require('../models/GameState');
+const GameStats = require('../models/GameStats');
 
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking = null) {
@@ -157,6 +159,10 @@ class GameCoordinatorService {
           
           finalizedState.gameOver = true;
           this.gameManager.saveGameState(gameId, finalizedState);
+          
+          // Save to MongoDB for persistence
+          this._saveGameToMongo(gameId, finalizedState, isPartyGame);
+          
           console.log(`[Coordinator] Broadcasting game-over for ${playerCount}-player mode, winner: ${gameOverCheck.winner}`);
           console.log(`[Coordinator] Using matchmaking service:`, mm?.constructor?.name || 'default', 'isPartyGame:', isPartyGame);
           console.log(`[Coordinator] About to call broadcaster.broadcastToGame...`);
@@ -343,6 +349,9 @@ class GameCoordinatorService {
         finalizedState.gameOver = true;
         this.gameManager.saveGameState(gameId, finalizedState);
         
+        // Save to MongoDB for persistence
+        this._saveGameToMongo(gameId, finalizedState, isPartyGame);
+        
         console.log(`[Coordinator] Broadcasting game-over (handleStartNextRound) for ${playerCount}-player mode`);
         const winner = RoundValidator.determineRoundWinner(finalizedState);
         console.log(`[Coordinator] handleStartNextRound winner: ${winner}, finalScores: ${JSON.stringify(finalScores)}`);
@@ -365,6 +374,86 @@ class GameCoordinatorService {
     } catch (err) {
       console.error(`[Coordinator] start-next-round failed: ${err.message}`);
       this.broadcaster.sendError(socket, err.message);
+    }
+  }
+
+  // ── MongoDB Persistence ───────────────────────────────────────────────────────
+
+  /**
+   * Save game state to MongoDB
+   */
+  async _saveGameToMongo(gameId, gameState, isPartyGame) {
+    try {
+      const playerCount = gameState.playerCount || 2;
+      const gameMode = isPartyGame ? 'party' : (playerCount === 4 ? 'fourPlayer' : 'twoPlayer');
+      
+      // Extract player info
+      const players = gameState.players.map((p, index) => ({
+        playerId: `player${index}`,
+        name: p.name || `Player ${index + 1}`,
+        userId: p.userId || null
+      }));
+      
+      await GameState.save({
+        roomId: gameId,
+        gameState: gameState,
+        players,
+        gameMode,
+        round: gameState.round || 1,
+        isActive: false,
+        actions: []
+      });
+      
+      console.log(`[Coordinator] ✅ Game saved to MongoDB: ${gameId}`);
+      
+      // Update player stats
+      this._updatePlayerStats(gameState, gameMode);
+    } catch (error) {
+      console.error(`[Coordinator] ❌ Failed to save game to MongoDB:`, error.message);
+    }
+  }
+
+  /**
+   * Update player stats after game ends
+   */
+  async _updatePlayerStats(gameState, gameMode) {
+    try {
+      const playerCount = gameState.playerCount || 2;
+      const scores = gameState.scores || [];
+      
+      if (scores.length < 2) return;
+      
+      const maxScore = Math.max(...scores);
+      const winners = scores.filter(s => s === maxScore).length;
+      const isDraw = winners > 1;
+      
+      for (let i = 0; i < playerCount; i++) {
+        const player = gameState.players[i];
+        if (!player?.userId) continue; // Skip CPU players
+        
+        const won = !isDraw && scores[i] === maxScore;
+        const lost = !isDraw && scores[i] < maxScore;
+        
+        // Calculate game-specific stats
+        const captures = player.captures || [];
+        
+        await GameStats.updateAfterGame(player.userId.toString(), {
+          won,
+          lost,
+          draw: isDraw,
+          score: scores[i] || 0,
+          cardsCaptured: captures.length,
+          buildsCreated: 0, // Would need to track this in game state
+          buildsStolen: 0,
+          trailsMade: 0,
+          perfectRound: false,
+          gameMode
+        });
+      }
+      
+      console.log(`[Coordinator] ✅ Player stats updated in MongoDB`);
+    } catch (error) {
+      console.error(`[Coordinator] ❌ Failed to update player stats:`, error.message);
     }
   }
 

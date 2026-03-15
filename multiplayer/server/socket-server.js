@@ -9,6 +9,12 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const os = require('os');
 
+// Database
+const db = require('./db/connection');
+
+// Routes
+const { authRoutes, profileRoutes, gameRoutes } = require('./routes');
+
 const MatchmakingService     = require('./services/MatchmakingService');
 const PartyMatchmakingService  = require('./services/PartyMatchmakingService');
 const RoomService              = require('./services/RoomService');
@@ -26,6 +32,19 @@ const io     = new Server(server, {
     origin: '*',
     methods: ['GET', 'POST'],
   },
+});
+
+// Middleware for JSON
+app.use(express.json());
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/game', gameRoutes);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 const PORT = process.env.PORT || 3001;
@@ -238,7 +257,16 @@ function getLocalIPAddress() {
   return null;
 }
 
-function startServer() {
+async function startServer() {
+  // Initialize MongoDB connection
+  try {
+    await db.connect();
+    console.log('[Server] ✅ MongoDB connected');
+  } catch (error) {
+    console.error('[Server] ❌ MongoDB connection error:', error.message);
+    console.log('[Server] ⚠️  Server starting without database - some features may be unavailable');
+  }
+
   gameManager  = new GameManager();
   actionRouter = new ActionRouter(gameManager);
   matchmaking  = new MatchmakingService(gameManager);

@@ -6,22 +6,24 @@
  * - Draggable by owner on their turn
  * - Shows type badge (TEMP)
  * - Shows build value with need indicator
+ * 
+ * Refactored to use separate hooks and components for better maintainability.
  */
 
-import React, { useCallback, useEffect, useRef, useMemo } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import React, { useCallback } from 'react';
+import { StyleSheet, View, TouchableOpacity } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { PlayingCard } from '../cards/PlayingCard';
 import { TempStack } from './types';
 import { TempStackBounds, CapturePileBounds } from '../../hooks/useDrag';
 import { getStackConfig } from '../../constants/stackActions';
-import { getBuildHint } from '../../utils/buildCalculator';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
-import { 
-  PLAYER_1_GOLD, 
-  PLAYER_2_PURPLE 
-} from './BuildStackView';
+import { useStackRegistration } from './hooks/useStackRegistration';
+import { useTempStackCards } from './hooks/useTempStackCards';
+import { useTempStackDisplay } from './hooks/useTempStackDisplay';
+import { BuildValueBadge } from './components/BuildValueBadge';
+import { TypeBadge } from './components/TypeBadge';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -68,7 +70,6 @@ export function TempStackView({
   onDropToCapture,
   onBuildTap,
 }: Props) {
-  const viewRef = useRef<View>(null);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const isDragging = useSharedValue(false);
@@ -76,135 +77,27 @@ export function TempStackView({
   // Only temp_stack can be dragged, and only by the owner on their turn
   const canDrag = isMyTurn && playerNumber !== undefined && stack.owner === playerNumber;
 
-  // Debug logging - check every render
-  console.log(`[TempStackView] === RENDER CHECK === stackId: ${stack.stackId}`);
-  console.log(`[TempStackView] stack.owner: ${stack.owner}, playerNumber: ${playerNumber}, isMyTurn: ${isMyTurn}`);
-  console.log(`[TempStackView] canDrag calculation: ${isMyTurn} && ${playerNumber !== undefined} && ${stack.owner} === ${playerNumber} = ${canDrag}`);
+  // ── 1. Registration hook ───────────────────────────────────────────────────
+  const viewRef = useStackRegistration({
+    stackId: stack.stackId,
+    owner: stack.owner,
+    stackType: stack.type,
+    layoutVersion,
+    register: registerTempStack,
+    unregister: unregisterTempStack,
+  });
 
-  // bottom = highest-value card (base)
-  // top    = most recently added card (or most recent pending if extending)
-  const bottom = stack.cards[0];
-  
-  // Get pending cards (for dual builds)
-  const pendingExtension = stack.pendingExtension;
-  const isExtending = !!(pendingExtension?.cards?.length);
-  
-  // Pending cards for display
-  const pendingCards = pendingExtension?.cards?.map(p => p.card) ?? [];
-  
-  // Top card: show most recent pending card if extending, otherwise original top
-  const top = isExtending 
-    ? pendingCards[pendingCards.length - 1] 
-    : stack.cards[stack.cards.length - 1];
+  // ── 2. Cards derivation hook ─────────────────────────────────────────────
+  const { bottom, top, pendingCards, isExtending } = useTempStackCards(stack);
 
-  // Compute build hint dynamically from card values
-  const hint = useMemo(() => {
-    if (!stack.cards || stack.cards.length < 2) return null;
-    const values = stack.cards.map(c => c.value);
-    return getBuildHint(values);
-  }, [stack.cards]);
+  // ── 3. Display value & badge color hook ─────────────────────────────────
+  const { displayValue, badgeColor } = useTempStackDisplay(stack, pendingCards, isExtending);
 
-  console.log('[TempStackView] baseFixed:', stack.baseFixed);
-  console.log('[TempStackView] pendingExtension:', pendingExtension ? 'exists' : 'none');
-  console.log('[TempStackView] isExtending:', isExtending);
-  console.log('[TempStackView] pendingCards:', pendingCards.map(c => `${c.rank}${c.suit}`).join(', '));
-
-  // Determine display value and badge color
-  // Priority: computed hint > server-provided values
-  let displayValue: string;
-  let badgeColor: string;
-  
-  // Get badge color based on player (gold for P1, purple for P2) - 2-player mode
-  const getBadgeColor = (isComplete: boolean): string => {
-    if (!isComplete) {
-      // Incomplete - show red for need
-      return '#E53935';
-    }
-    // Complete - use gold for P1, purple for P2
-    return stack.owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE;
-  };
-  
-  // Handle baseFixed (dual builds) - show deficit/excess
-  if (stack.baseFixed && isExtending) {
-    console.log('[TempStackView] Dual build mode - computing effective sum');
-    // Compute effective sum with reset on exact matches
-    let effectiveSum = 0;
-    for (const card of pendingCards) {
-      effectiveSum += card.value;
-      if (effectiveSum === stack.value) {
-        effectiveSum = 0; // reset after exact match
-      }
-    }
-    console.log('[TempStackView] effectiveSum:', effectiveSum, ', target:', stack.value);
-    
-    if (effectiveSum === 0) {
-      displayValue = stack.value?.toString() ?? '-';
-      badgeColor = getBadgeColor(true);
-    } else if (effectiveSum < stack.value) {
-      displayValue = `-${stack.value - effectiveSum}`;
-      badgeColor = getBadgeColor(false);
-    } else {
-      displayValue = `+${effectiveSum - stack.value}`;
-      badgeColor = getBadgeColor(false);
-    }
-  } else if (stack.baseFixed && !isExtending) {
-    // Fixed but no pending - show the fixed value
-    displayValue = stack.value?.toString() ?? '-';
-    badgeColor = getBadgeColor(true);
-  } else if (hint) {
-    if (hint.need === 0) {
-      // Complete stack - show target value with gold/purple badge
-      displayValue = hint.value.toString();
-      badgeColor = getBadgeColor(true);
-    } else {
-      // Incomplete stack - show needed value with red badge
-      displayValue = `-${hint.need}`;
-      badgeColor = getBadgeColor(false);
-    }
-  } else {
-    // Fallback to server-provided values
-    const isComplete = stack.need === 0;
-    displayValue = stack.need > 0 ? `-${stack.need}` : stack.value?.toString() ?? '-';
-    badgeColor = getBadgeColor(isComplete);
-  }
-
-  // ── Position registration ─────────────────────────────────────────────────
-  const onLayout = useCallback(() => {
-    requestAnimationFrame(() => {
-      viewRef.current?.measureInWindow((x, y, width, height) => {
-        registerTempStack(stack.stackId, {
-          x, y, width, height,
-          stackId: stack.stackId,
-          owner:   stack.owner,
-          stackType: stack.type,
-        });
-      });
-    });
-  }, [stack.stackId, stack.owner, stack.type, registerTempStack]);
-
-  // Re-measure on table reflow
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      viewRef.current?.measureInWindow((x, y, width, height) => {
-        registerTempStack(stack.stackId, {
-          x, y, width, height,
-          stackId: stack.stackId,
-          owner:   stack.owner,
-          stackType: stack.type,
-        });
-      });
-    });
-  }, [layoutVersion, stack.stackId, stack.owner, stack.type, registerTempStack]);
-
-  useEffect(() => {
-    return () => unregisterTempStack(stack.stackId);
-  }, [stack.stackId, unregisterTempStack]);
-
-  // ── Resolve badge config ─────────────────────────────────────────────────
+  // ── 4. Resolve badge config ─────────────────────────────────────────────
   const config = getStackConfig(stack.type);
   const badgeLabel = config?.label ?? 'TEMP';
 
-  // ── Drag handlers ────────────────────────────────────────────────────────
+  // ── 5. Drag handlers ─────────────────────────────────────────────────────
   const handleDragStartInternal = useCallback(() => {
     if (onDragStart) {
       onDragStart(stack);
@@ -222,33 +115,26 @@ export function TempStackView({
     translateY.value = 0;
     isDragging.value = false;
 
-    console.log(`[TempStackView] Drag end - absX: ${absX}, absY: ${absY}, playerNumber: ${playerNumber}, canDrag: ${canDrag}`);
-
     // Check if dropped on player's own capture pile
     if (findCapturePileAtPoint && playerNumber !== undefined) {
       const pile = findCapturePileAtPoint(absX, absY);
-      console.log(`[TempStackView] findCapturePileAtPoint result:`, pile);
       
       if (pile && pile.playerIndex === playerNumber) {
-        console.log('[TempStackView] Dropped on own capture pile:', pile);
         if (onDropToCapture) {
-          console.log('[TempStackView] Calling onDropToCapture with stack:', stack.stackId);
           onDropToCapture(stack, 'hand');
         }
         return;
       }
     }
     
-    console.log('[TempStackView] Not dropped on capture pile - calling onDragEnd');
     if (onDragEnd) {
       onDragEnd(stack);
     }
-  }, [findCapturePileAtPoint, onDropToCapture, onDragEnd, stack, playerNumber, translateX, translateY, isDragging, canDrag]);
+  }, [findCapturePileAtPoint, onDropToCapture, onDragEnd, stack, playerNumber, translateX, translateY, isDragging]);
 
   const panGesture = Gesture.Pan()
     .enabled(!!canDrag)
     .onStart(() => {
-      console.log('[TempStackView] ===== GESTURE START =====');
       isDragging.value = true;
       runOnJS(handleDragStartInternal)();
     })
@@ -260,7 +146,6 @@ export function TempStackView({
       }
     })
     .onEnd((event) => {
-      console.log('[TempStackView] ===== GESTURE END =====');
       runOnJS(handleDragEndInternal)(event.absoluteX, event.absoluteY);
     });
 
@@ -272,51 +157,36 @@ export function TempStackView({
     zIndex: isDragging.value ? 100 : 1,
   }));
 
-  // Handle the case where stack might have only 1 card (shouldn't normally happen but could during edge cases)
-  // Don't return null - render what's available
-  const hasBottom = bottom && stack.cards.length >= 1;
-  const hasTop = top && stack.cards.length >= 2;
-  
-  // If we don't have at least a bottom card, return null (shouldn't normally happen)
-  if (!hasBottom) {
-    console.log(`[TempStackView] No bottom card in stack ${stack.stackId}, cards length: ${stack.cards.length}`);
+  // If we don't have at least a bottom card, return null
+  if (!bottom) {
     return null;
   }
 
-  console.log(`[TempStackView] Rendering with canDrag=${canDrag}, hasBottom=${hasBottom}, hasTop=${hasTop}`);
-
-  console.log(`[TempStackView] Rendering with canDrag=${canDrag}, gesture enabled=${!!canDrag}`);
-
   return (
     <GestureDetector gesture={panGesture}>
-      <Animated.View ref={viewRef} style={[styles.container, animatedStyle]} onLayout={onLayout}>
+      <Animated.View ref={viewRef} style={[styles.container, animatedStyle]}>
         {/* Tap area - triggers onBuildTap when not dragging */}
         <TouchableOpacity 
           style={styles.tapArea} 
           onPress={() => !isDragging.value && onBuildTap?.(stack)} 
           activeOpacity={0.7}
         />
+        
         {/* Base card — highest value */}
         <View style={styles.cardBottom}>
           <PlayingCard rank={bottom.rank} suit={bottom.suit} />
         </View>
 
-        {/* Top card — most recently added */}
+        {/* Top card — offset for stacking effect */}
         <View style={styles.cardTop}>
-          <PlayingCard rank={top.rank} suit={top.suit} />
+          {top && <PlayingCard rank={top.rank} suit={top.suit} />}
         </View>
 
-        {/* Build value badge - centered on card like BuildStackView */}
-        <View style={[styles.valueBadge, { backgroundColor: badgeColor }]}>
-          <Text style={styles.valueText}>{displayValue}</Text>
-        </View>
+        {/* Build value badge */}
+        <BuildValueBadge displayValue={displayValue} badgeColor={badgeColor} />
 
         {/* Type badge */}
-        <View style={styles.badge}>
-          <Text style={[styles.badgeText, { backgroundColor: config?.badgeColor ?? '#17a2b8' }]}>
-            {badgeLabel}
-          </Text>
-        </View>
+        <TypeBadge label={badgeLabel} color={config?.badgeColor} />
       </Animated.View>
     </GestureDetector>
   );
@@ -352,49 +222,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius:  3,
     elevation:    4,
-  },
-  valueBadge: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -18 }, { translateY: -18 }],
-    width: 36,
-    height: 36,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    zIndex: 20,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 1, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-  },
-  valueText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    paddingHorizontal: 4,
-  },
-  badge: {
-    position: 'absolute',
-    bottom:   0,
-    left:     0,
-    right:    0,
-    alignItems: 'center',
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 8,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    overflow: 'hidden',
   },
 });
 
