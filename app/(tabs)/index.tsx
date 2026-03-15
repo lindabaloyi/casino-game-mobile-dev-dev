@@ -39,6 +39,10 @@ export default function HomeScreen() {
     menuVisible,
     setMenuVisible,
     
+    // Logout confirmation
+    showLogoutConfirm,
+    setShowLogoutConfirm,
+    
     // Data
     unreadCount,
     
@@ -59,6 +63,9 @@ export default function HomeScreen() {
     handleFriends,
     handleSearchPlayers,
     handleLogout,
+    handleLogoutConfirm,
+    handleLogoutCancel,
+    handleSignIn,
   } = useHomeScreen();
 
   // Responsive calculations
@@ -123,7 +130,11 @@ export default function HomeScreen() {
         currentAvatar={currentAvatar}
         isAuthenticated={isAuthenticated}
         onLogout={handleLogout}
+        onSignIn={handleSignIn}
         menuItems={menuItems}
+        showLogoutConfirm={showLogoutConfirm}
+        onLogoutConfirm={handleLogoutConfirm}
+        onLogoutCancel={handleLogoutCancel}
       />
 
       {/* Main Content */}

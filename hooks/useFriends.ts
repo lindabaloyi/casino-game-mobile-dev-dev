@@ -123,11 +123,9 @@ export function useFriends(): UseFriendsResult {
   const getAuthToken = async (): Promise<string | null> => {
     try {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      const stored = await AsyncStorage.getItem('casino_auth_user');
-      if (stored) {
-        const userData = JSON.parse(stored);
-        return userData._id; // Using user ID as simple auth for now
-      }
+      // Get the JWT token (not the user object)
+      const token = await AsyncStorage.getItem('casino_auth_token');
+      return token;
     } catch (err) {
       console.error('[useFriends] Error getting token:', err);
     }

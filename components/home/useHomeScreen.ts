@@ -18,6 +18,9 @@ export interface HomeScreenHandlers {
   handleFriends: () => void;
   handleSearchPlayers: () => void;
   handleLogout: () => Promise<void>;
+  handleLogoutConfirm: () => Promise<void>;
+  handleLogoutCancel: () => void;
+  handleSignIn: () => void;
   handleMenuItem: (route: string) => void;
 }
 
@@ -29,6 +32,10 @@ export interface HomeScreenState {
   setSearchModalVisible: (visible: boolean) => void;
   menuVisible: boolean;
   setMenuVisible: (visible: boolean) => void;
+  
+  // Logout confirmation
+  showLogoutConfirm: boolean;
+  setShowLogoutConfirm: (show: boolean) => void;
   
   // Data
   unreadCount: number;
@@ -59,6 +66,9 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
   
   // Menu state
   const [menuVisible, setMenuVisible] = useState(false);
+  
+  // Logout confirmation state
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   // Computed values
   const displayAvatarId = isAuthenticated && user ? user.avatar : profile.avatar;
@@ -107,9 +117,25 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     setSearchModalVisible(true);
   };
   
+  const handleLogoutConfirm = async () => {
+    // Show the logout confirmation modal
+    setShowLogoutConfirm(true);
+  };
+  
   const handleLogout = async () => {
+    // Close both the menu and confirmation modal
     setMenuVisible(false);
+    setShowLogoutConfirm(false);
     await logout();
+  };
+  
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
+  };
+  
+  const handleSignIn = () => {
+    setMenuVisible(false);
+    router.push('/auth/login' as any);
   };
   
   const handleMenuItem = (route: string) => {
@@ -125,6 +151,10 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     setSearchModalVisible,
     menuVisible,
     setMenuVisible,
+    
+    // Logout confirmation
+    showLogoutConfirm,
+    setShowLogoutConfirm,
     
     // Data
     unreadCount,
@@ -147,6 +177,9 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     handleFriends,
     handleSearchPlayers,
     handleLogout,
+    handleLogoutConfirm,
+    handleLogoutCancel,
+    handleSignIn,
     handleMenuItem,
   };
 }

@@ -30,36 +30,6 @@ function authenticate(req, res, next) {
 }
 
 /**
- * GET /api/users/search
- * Search users by username (public endpoint)
- * Query: ?q=username&limit=10
- */
-router.get('/users/search', async (req, res) => {
-  try {
-    const { q, limit = 10 } = req.query;
-    
-    if (!q || q.trim().length < 2) {
-      return res.json({ success: true, users: [] });
-    }
-
-    const users = await User.searchByUsername(q.trim(), parseInt(limit));
-    
-    // Return minimal user info for search results
-    const searchResults = users.map(user => ({
-      _id: user._id,
-      username: user.username,
-      avatar: user.avatar,
-      createdAt: user.createdAt
-    }));
-
-    res.json({ success: true, users: searchResults });
-  } catch (error) {
-    console.error('[Friends] Search error:', error);
-    res.status(500).json({ error: 'Search failed' });
-  }
-});
-
-/**
  * GET /api/friends
  * Get current user's friends list with full info
  */
@@ -243,6 +213,26 @@ router.post('/decline/:requestId', authenticate, async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
     res.status(500).json({ error: 'Failed to decline friend request' });
+  }
+});
+
+/**
+ * DELETE /api/friends/cancel/:requestId
+ * Cancel a sent friend request
+ */
+router.delete('/cancel/:requestId', authenticate, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    
+    await FriendRequest.cancelRequest(requestId, req.userId);
+
+    res.json({ success: true, message: 'Friend request cancelled' });
+  } catch (error) {
+    console.error('[Friends] Cancel request error:', error);
+    if (error.message === 'Request not found' || error.message === 'Not authorized to cancel this request') {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to cancel friend request' });
   }
 });
 

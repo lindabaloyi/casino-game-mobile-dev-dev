@@ -5,6 +5,7 @@
 
 const { ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const db = require('../db/connection');
 
 const COLLECTION_NAME = 'users';
@@ -74,13 +75,23 @@ class User {
   }
 
   /**
-   * Find user by username
+   * Find user by username (case-insensitive)
    * @param {string} username - Username
    * @returns {Promise<Object|null>} User object or null
    */
   static async findByUsername(username, includePassword = false) {
     const database = await db.getDb();
-    const user = await database.collection(COLLECTION_NAME).findOne({ username });
+    // First try exact match
+    let user = await database.collection(COLLECTION_NAME).findOne({ username: username });
+    
+    // If not found, try case-insensitive search
+    if (!user) {
+      user = await database.collection(COLLECTION_NAME).findOne({ 
+        username: { $regex: new RegExp('^' + username + '$', 'i') } 
+      });
+    }
+    
+    console.log('[User] findByUsername:', username, 'Found:', user ? user.username : 'no');
     if (user && !includePassword) {
       delete user.passwordHash;
     }
@@ -230,6 +241,30 @@ class User {
       .toArray();
     
     return users;
+  }
+
+  /**
+   * Generate JWT token for user
+   * @param {string} userId - User ID
+   * @returns {string} JWT token
+   */
+  static generateToken(userId) {
+    const JWT_SECRET = process.env.JWT_SECRET || 'casino-game-secret-key-change-in-production';
+    return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+  }
+
+  /**
+   * Verify JWT token
+   * @param {string} token - JWT token
+   * @returns {Object|null} Decoded token or null if invalid
+   */
+  static verifyToken(token) {
+    try {
+      const JWT_SECRET = process.env.JWT_SECRET || 'casino-game-secret-key-change-in-production';
+      return jwt.verify(token, JWT_SECRET);
+    } catch (error) {
+      return null;
+    }
   }
 }
 

@@ -12,7 +12,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +25,7 @@ export default function LoginScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -37,7 +37,11 @@ export default function LoginScreen() {
     const result = await login(username.trim(), password);
     
     if (result.success) {
-      router.replace('/(tabs)' as any);
+      setShowSuccess(true);
+      // Show success message briefly before navigating
+      setTimeout(() => {
+        router.replace('/(tabs)' as any);
+      }, 1500);
     } else {
       setError(result.error || 'Login failed');
     }
@@ -73,13 +77,13 @@ export default function LoginScreen() {
         {/* Form */}
         <View style={styles.formContainer}>
           <AuthInput
-            label="Username"
+            label="Email or Username"
             value={username}
             onChangeText={(text) => {
               setUsername(text);
               setError('');
             }}
-            placeholder="Enter your username"
+            placeholder="Enter your email or username"
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -95,13 +99,21 @@ export default function LoginScreen() {
             secureTextEntry
           />
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {showSuccess ? (
+            <View style={styles.successContainer}>
+              <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+              <Text style={styles.successText}>Sign in successful!</Text>
+            </View>
+          ) : error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : null}
 
           <AuthButton
             title="Sign In"
             onPress={handleLogin}
             loading={isLoading}
-            disabled={!username.trim() || !password.trim()}
+            loadingText="Signing in..."
+            disabled={!username.trim() || !password.trim() || showSuccess}
           />
 
           {/* Divider */}
@@ -118,7 +130,7 @@ export default function LoginScreen() {
             disabled={isLoading}
           >
             <Text style={styles.registerText}>
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Text style={styles.registerLink}>Register</Text>
             </Text>
           </TouchableOpacity>
@@ -171,6 +183,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 16,
+  },
+  successContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  successText: {
+    color: '#4CAF50',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
   divider: {
     flexDirection: 'row',

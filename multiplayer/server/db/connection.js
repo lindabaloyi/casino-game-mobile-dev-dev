@@ -72,6 +72,15 @@ async function createIndexes(database) {
       { unique: true }
     );
     
+    // FriendRequests collection indexes
+    await database.collection('friendRequests').createIndex(
+      { fromUserId: 1, toUserId: 1 },
+      { unique: true }
+    );
+    await database.collection('friendRequests').createIndex(
+      { toUserId: 1, status: 1 }
+    );
+    
     // GameStats collection indexes
     await database.collection('gameStats').createIndex(
       { userId: 1 }, 

@@ -88,20 +88,38 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    // Find user (include password for verification)
-    const user = await User.findByUsername(username, true);
+    // Find user by username OR email (include password for verification)
+    let user = await User.findByUsername(username, true);
+    
+    // If not found by username, try finding by email
+    if (!user) {
+      console.log('[Auth] Not found by username, trying email...');
+      user = await User.findByEmail(username);
+      // Need to fetch with password for verification
+      if (user) {
+        const database = require('../db/connection');
+        const db = await database.getDb();
+        user = await db.collection('users').findOne({ _id: user._id });
+      }
+    }
+    
+    console.log('[Auth] Login attempt for:', username, 'Found:', user ? 'yes' : 'no');
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // Check password using bcrypt directly
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+    console.log('[Auth] Password valid:', isValidPassword);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // Update last login
     await User.updateLastLogin(user._id.toString());
+    
+    // Generate JWT token
+    const token = User.generateToken(user._id.toString());
     
     // Return user without password
     delete user.passwordHash;
@@ -110,6 +128,7 @@ router.post('/login', async (req, res) => {
     const { password: _, ...userWithoutPassword } = user;
     res.json({ 
       success: true, 
+      token,
       user: userWithoutPassword 
     });
   } catch (error) {

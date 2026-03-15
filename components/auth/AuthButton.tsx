@@ -4,17 +4,18 @@
  */
 
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View, ViewStyle } from 'react-native';
 
 interface AuthButtonProps {
   title: string;
   onPress: () => void;
   loading?: boolean;
+  loadingText?: string;
   disabled?: boolean;
   style?: ViewStyle;
 }
 
-export function AuthButton({ title, onPress, loading, disabled, style }: AuthButtonProps) {
+export function AuthButton({ title, onPress, loading, loadingText, disabled, style }: AuthButtonProps) {
   return (
     <TouchableOpacity
       style={[
@@ -27,7 +28,12 @@ export function AuthButton({ title, onPress, loading, disabled, style }: AuthBut
       activeOpacity={0.7}
     >
       {loading ? (
-        <ActivityIndicator color="#0f4d0f" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color="#0f4d0f" size="small" />
+          <Text style={styles.loadingText}>
+            {loadingText || 'Loading...'}
+          </Text>
+        </View>
       ) : (
         <Text style={[styles.buttonText, disabled && styles.buttonTextDisabled]}>
           {title}
@@ -53,6 +59,17 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
     marginVertical: 8,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: '#0f4d0f',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
   buttonDisabled: {
     backgroundColor: 'rgba(255, 215, 0, 0.5)',

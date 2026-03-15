@@ -23,6 +23,7 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  token?: string | null;
 }
 
 interface AuthFunctions {
@@ -33,6 +34,7 @@ interface AuthFunctions {
 }
 
 const AUTH_STORAGE_KEY = 'casino_auth_user';
+const TOKEN_STORAGE_KEY = 'casino_auth_token';
 
 export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>({
@@ -49,6 +51,8 @@ export function useAuth() {
   const loadSession = async () => {
     try {
       const storedUser = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
+      const storedToken = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       if (storedUser) {
         const user = JSON.parse(storedUser);
         // Verify the session is still valid
@@ -56,6 +60,7 @@ export function useAuth() {
         if (isValid) {
           setAuthState({
             user,
+            token: storedToken,
             isLoading: false,
             isAuthenticated: true,
           });
@@ -68,6 +73,7 @@ export function useAuth() {
     
     setAuthState({
       user: null,
+      token: null,
       isLoading: false,
       isAuthenticated: false,
     });
@@ -96,8 +102,11 @@ export function useAuth() {
       const data = await response.json();
 
       if (data.success) {
-        // Store user in AsyncStorage
+        // Store user and token in AsyncStorage
         await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
+        if (data.token) {
+          await AsyncStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+        }
         
         setAuthState({
           user: data.user,
@@ -128,8 +137,11 @@ export function useAuth() {
       const data = await response.json();
 
       if (data.success) {
-        // Store user in AsyncStorage
+        // Store user and token in AsyncStorage
         await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data.user));
+        if (data.token) {
+          await AsyncStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+        }
         
         setAuthState({
           user: data.user,
@@ -150,6 +162,7 @@ export function useAuth() {
   const logout: AuthFunctions['logout'] = async () => {
     try {
       await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+      await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
     } catch (error) {
       console.error('[Auth] Logout error:', error);
     }
@@ -165,12 +178,15 @@ export function useAuth() {
     if (!authState.user) return false;
     
     try {
+      // Get token from storage
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(`${API_BASE}/api/auth/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({}),
       });
 
       const data = await response.json();
@@ -181,12 +197,23 @@ export function useAuth() {
     }
   };
 
+  // Get token from storage (for use in other hooks)
+  const getToken = async (): Promise<string | null> => {
+    try {
+      return await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+    } catch (error) {
+      console.error('[Auth] Get token error:', error);
+      return null;
+    }
+  };
+
   return {
     ...authState,
     login,
     register,
     logout,
     verifySession,
+    getToken,
   };
 }
 
