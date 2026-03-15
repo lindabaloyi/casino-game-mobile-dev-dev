@@ -26,9 +26,10 @@ interface PlayingCardProps {
   height?: number;
 }
 
-// Border colors
-const RED_BORDER = '#C62828';
-const BLACK_BORDER = '#1A1A1A';
+// Border colors - no longer used (borderless design)
+// Keeping for reference
+// const RED_BORDER = '#C62828';
+// const BLACK_BORDER = '#1A1A1A';
 
 // ── Component ─────────────────────────────────────────────────────────────
 
@@ -54,30 +55,27 @@ export function PlayingCard({
   // Get image source for this card
   const imageSource = getCardImage(String(rank), suit);
 
-  // Determine border color based on suit
-  const borderColor = isRedSuit(suit) ? RED_BORDER : BLACK_BORDER;
-
-  // If no image is available (invalid rank/suit or faceDown without back image)
+  // If no image is available (invalid rank/suit)
   if (!imageSource) {
     return (
       <View 
         style={[
           styles.cardContainer,
-          { width: cardWidth, height: cardHeight, borderColor: borderColor },
+          { width: cardWidth, height: cardHeight },
           style
         ]}
       >
-        {/* Error placeholder - red box to indicate missing image */}
+        {/* Empty placeholder for missing images */}
       </View>
     );
   }
 
-  // Render card with border container - no gaps between border and content
+  // Render card without border - just rounded corners
   return (
     <View 
       style={[
         styles.cardContainer,
-        { width: cardWidth, height: cardHeight, borderColor: borderColor },
+        { width: cardWidth, height: cardHeight },
         style
       ]}
     >
@@ -93,21 +91,22 @@ export function PlayingCard({
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  // Container with border - eliminates gaps between border and content
+  // Container - borderless with rounded corners
   cardContainer: {
-    borderWidth: 2,
-    overflow: 'hidden', // Ensures image stays within border
-    // No borderRadius - original rectangular shape
+    borderWidth: 0, // No border
+    overflow: 'hidden', // Ensures image stays within rounded corners
+    borderRadius: 8, // Rounded corners
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 3,
   },
-  // Image fills entire container - no gaps
+  // Image fills entire container
   cardImage: {
     width: '100%',
     height: '100%',
+    borderRadius: 8, // Rounded corners for image
   },
 });
 
