@@ -1,88 +1,102 @@
 /**
  * PlayingCard
- * Classic playing card with exaggerated corner labels and a large center suit.
- *
- * Layout:
- *   ┌──────────────┐
- *   │ A            │  ← big bold rank
- *   │ ♠            │  ← bold suit below rank
- *   │              │
- *   │      ♠       │  ← huge center suit
- *   │              │
- *   │            ♠ │  ← bottom-right corner (rotated 180°)
- *   │            A │
- *   └──────────────┘
+ * Card component that renders images for ranks 1-10.
+ * 
+ * Renders cards at appropriate casino game size with proper
+ * playing card aspect ratio (~1:1.4 for standard cards).
+ * 
+ * Visual features:
+ * - Dynamic border color based on suit (red for hearts/diamonds, black for spades/clubs)
+ * - Proper playing card aspect ratio maintained
+ * - No gaps between border and card content
  */
 
-import React from 'react';
-import { StyleSheet, Text, View, ViewStyle, useWindowDimensions } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Image, StyleSheet, useWindowDimensions } from 'react-native';
+import { getCardImage, preloadCardImages } from './cardImageMap';
+import { isRedSuit } from '../../types/card.types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface PlayingCardProps {
-  rank: string;
+  rank: string | number;
   suit: string;
+  /** Kept for API compatibility, but ignored (no back image available) */
   faceDown?: boolean;
-  style?: ViewStyle;
-  /** Card width - defaults to 56 */
+  style?: any;
+  /** Card width - defaults to 70 (casino game appropriate size) */
   width?: number;
-  /** Card height - defaults to 84 */
+  /** Card height - defaults to 100 (maintains ~1:1.4 aspect ratio) */
   height?: number;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Constants ────────────────────────────────────────────────────────────────
 
-function isRed(suit: string): boolean {
-  return suit === '♥' || suit === '♦';
-}
+// Casino game appropriate card dimensions
+// Maintains standard playing card aspect ratio (~1:1.4)
+const DEFAULT_CARD_WIDTH = 70;
+const DEFAULT_CARD_HEIGHT = 100;
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// Border colors
+const RED_BORDER = '#C62828';
+const BLACK_BORDER = '#1A1A1A';
 
-export function PlayingCard({ rank, suit, faceDown = false, style, width = 56, height = 84 }: PlayingCardProps) {
+// ── Component ─────────────────────────────────────────────────────────────
+
+export function PlayingCard({
+  rank,
+  suit,
+  faceDown = false,
+  style,
+  width = DEFAULT_CARD_WIDTH,
+  height = DEFAULT_CARD_HEIGHT,
+}: PlayingCardProps) {
   const { width: screenWidth } = useWindowDimensions();
 
-  // Calculate responsive card dimensions based on screen width
-  const responsiveWidth = Math.min(width, screenWidth / 7);
-  const responsiveHeight = Math.min(height, responsiveWidth * 1.5);
+  // Preload images on mount
+  useEffect(() => {
+    preloadCardImages();
+  }, []);
 
-  // Fixed size for center suit - smaller than default to reduce overlap
-  const centerSuitSize = 20;
-  // Corner elements scale proportionally but stay readable
-  const cornerRankSize = Math.max(13, Math.min(16, Math.floor(responsiveWidth / 2.8)));
-  const cornerSuitSize = Math.max(10, Math.min(13, Math.floor(responsiveWidth / 3.5)));
-  // Corner offset - position closer to the edge (reduced from previous calculation)
-  const cornerOffset = Math.max(1, Math.min(3, Math.floor(responsiveWidth / 20)));
+  // Calculate responsive dimensions that scale with screen but maintain aspect ratio
+  const cardWidth = Math.min(width, screenWidth / 5); // Max 5 cards per row
+  const cardHeight = cardWidth * (DEFAULT_CARD_HEIGHT / DEFAULT_CARD_WIDTH); // Maintain 1:1.4 ratio
 
-  if (faceDown) {
+  // Get image source for this card
+  const imageSource = getCardImage(String(rank), suit);
+
+  // Determine border color based on suit
+  const borderColor = isRedSuit(suit) ? RED_BORDER : BLACK_BORDER;
+
+  // If no image is available (invalid rank/suit or faceDown without back image)
+  if (!imageSource) {
     return (
-      <View style={[styles.card, { width: responsiveWidth, height: responsiveHeight }, styles.cardBack, style]}>
-        <View style={[styles.backInner, { width: responsiveWidth * 0.82, height: responsiveHeight * 0.86 }]}>
-          <Text style={[styles.backPattern, { fontSize: responsiveWidth * 0.64 }]}>🂠</Text>
-        </View>
+      <View 
+        style={[
+          styles.cardContainer,
+          { width: cardWidth, height: cardHeight, borderColor: borderColor },
+          style
+        ]}
+      >
+        {/* Error placeholder - red box to indicate missing image */}
       </View>
     );
   }
 
-  const color = isRed(suit) ? styles.red : styles.black;
-
+  // Render card with border container - no gaps between border and content
   return (
-    <View style={[styles.card, { width: responsiveWidth, height: responsiveHeight }, style]}>
-      {/* Top-left corner */}
-      <View style={[styles.cornerTL, { top: cornerOffset, left: cornerOffset }]}>
-        <Text style={[styles.cornerRank, color, { fontSize: cornerRankSize, lineHeight: cornerRankSize * 1.1 }]}>{rank}</Text>
-        <Text style={[styles.cornerSuit, color, { fontSize: cornerSuitSize, lineHeight: cornerSuitSize * 1.15 }]}>{suit}</Text>
-      </View>
-
-      {/* Centre large suit */}
-      <View style={styles.center}>
-        <Text style={[styles.centerSuit, color, { fontSize: centerSuitSize, lineHeight: centerSuitSize * 1.2 }]}>{suit}</Text>
-      </View>
-
-      {/* Bottom-right corner — rotated 180° */}
-      <View style={[styles.cornerBR, { bottom: cornerOffset, right: cornerOffset, transform: [{ rotate: '180deg' }] }]}>
-        <Text style={[styles.cornerRank, color, { fontSize: cornerRankSize, lineHeight: cornerRankSize * 1.1 }]}>{rank}</Text>
-        <Text style={[styles.cornerSuit, color, { fontSize: cornerSuitSize, lineHeight: cornerSuitSize * 1.15 }]}>{suit}</Text>
-      </View>
+    <View 
+      style={[
+        styles.cardContainer,
+        { width: cardWidth, height: cardHeight, borderColor: borderColor },
+        style
+      ]}
+    >
+      <Image
+        source={imageSource}
+        style={styles.cardImage}
+        resizeMode="stretch"
+      />
     </View>
   );
 }
@@ -90,77 +104,22 @@ export function PlayingCard({ rank, suit, faceDown = false, style, width = 56, h
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  card: {
-    width: 56,
-    height: 84,
-    backgroundColor: '#FAFAFA',
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: '#D0D0D0',
+  // Container with border - eliminates gaps between border and content
+  cardContainer: {
+    borderWidth: 2,
+    overflow: 'hidden', // Ensures image stays within border
+    // No borderRadius - original rectangular shape
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
-
-  // Face-down card
-  cardBack: {
-    backgroundColor: '#1565C0',
-    justifyContent: 'center',
-    alignItems: 'center',
+  // Image fills entire container - no gaps
+  cardImage: {
+    width: '100%',
+    height: '100%',
   },
-  backInner: {
-    width: 46,
-    height: 72,
-    borderRadius: 5,
-    backgroundColor: '#1976D2',
-    borderWidth: 3,
-    borderColor: '#0D47A1',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backPattern: {
-    fontSize: 36,
-    color: '#0D47A1',
-  },
-
-  // Corners
-  cornerTL: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
-  cornerBR: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
-  cornerRank: {
-    fontSize: 16,
-    fontWeight: '900',
-    lineHeight: 18,
-  },
-  cornerSuit: {
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 15,
-  },
-
-  // Centre
-  center: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  centerSuit: {
-    fontSize: 36,
-    lineHeight: 42,
-  },
-
-  // Colours
-  red:   { color: '#C62828' },
-  black: { color: '#1A1A1A' },
 });
 
 export default PlayingCard;
