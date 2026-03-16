@@ -78,6 +78,13 @@ function captureOpponent(state, payload, playerIndex) {
           newState.teamCapturedBuilds[targetPlayer] = [];
         }
         
+        // Deduplicate by value: remove any existing entry with the same value
+        // This ensures only the most recent capture for that value remains
+        newState.teamCapturedBuilds[targetPlayer] = 
+          newState.teamCapturedBuilds[targetPlayer].filter(
+            entry => entry.value !== buildStack.value
+          );
+        
         // Add to OTHER teammate's list (not the original builder)
         newState.teamCapturedBuilds[targetPlayer].push({
           value: buildStack.value,

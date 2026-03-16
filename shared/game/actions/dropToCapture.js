@@ -95,6 +95,42 @@ function dropToCapture(state, payload, playerIndex) {
 
     newState.tableCards.splice(stackIdx, 1);
     const capturedCards = [...stack.cards];
+    
+    // ==== SHIYA RECALL CHECK FOR TEMP_STACK ====
+    // When player drops their own temp stack (with Shiya activated by teammate) to capture,
+    // create a recall offer for the teammate who activated Shiya
+    if (stack.shiyaActive && stack.shiyaPlayer !== undefined) {
+      const activator = stack.shiyaPlayer;
+      
+      console.log(`[dropToCapture] ✅ Shiya active on temp stack! Creating recall for player ${activator}`);
+      
+      // Ensure shiyaRecalls exists
+      if (!newState.shiyaRecalls) {
+        newState.shiyaRecalls = {};
+      }
+      
+      // Support multiple recalls per player by using stackId as key
+      if (!newState.shiyaRecalls[activator]) {
+        newState.shiyaRecalls[activator] = {};
+      }
+      
+      // Store recall info
+      newState.shiyaRecalls[activator][stack.stackId] = {
+        stackId: stack.stackId,
+        value: stack.value,
+        base: stack.base,
+        need: stack.need,
+        buildType: stack.buildType,
+        capturedBy: playerIndex,  // The player who dropped the stack
+        originalOwner: stack.owner,  // The original owner of the stack
+        buildCards: capturedCards.map(c => ({ ...c })),  // Copy captured cards
+        captureCards: [],  // Empty for dropToCapture (no single capture card)
+        expiresAt: Date.now() + 4000, // 4 second window
+      };
+      
+      console.log(`[dropToCapture] ✅ Created Shiya recall:`, JSON.stringify(newState.shiyaRecalls[activator][stack.stackId]));
+    }
+    
     newState.players[playerIndex].captures.push(...capturedCards);
 
     // Track last capture for end-of-game cleanup
@@ -138,6 +174,41 @@ function dropToCapture(state, payload, playerIndex) {
     }
 
     // Skip validation - allow all drops to capture
+
+    // ==== SHIYA RECALL CHECK FOR BUILD_STACK ====
+    // When player drops their own build (with Shiya activated by teammate) to capture,
+    // create a recall offer for the teammate who activated Shiya
+    if (stack.shiyaActive && stack.shiyaPlayer !== undefined) {
+      const activator = stack.shiyaPlayer;
+      
+      console.log(`[dropToCapture] ✅ Shiya active on build stack! Creating recall for player ${activator}`);
+      
+      // Ensure shiyaRecalls exists
+      if (!newState.shiyaRecalls) {
+        newState.shiyaRecalls = {};
+      }
+      
+      // Support multiple recalls per player by using stackId as key
+      if (!newState.shiyaRecalls[activator]) {
+        newState.shiyaRecalls[activator] = {};
+      }
+      
+      // Store recall info
+      newState.shiyaRecalls[activator][stack.stackId] = {
+        stackId: stack.stackId,
+        value: stack.value,
+        base: stack.base,
+        need: stack.need,
+        buildType: stack.buildType,
+        capturedBy: playerIndex,  // The player who dropped the build
+        originalOwner: stack.owner,  // The original owner of the build
+        buildCards: buildCards.map(c => ({ ...c })),  // Copy build cards
+        captureCards: [],  // Empty for dropToCapture (no single capture card)
+        expiresAt: Date.now() + 4000, // 4 second window
+      };
+      
+      console.log(`[dropToCapture] ✅ Created Shiya recall:`, JSON.stringify(newState.shiyaRecalls[activator][stack.stackId]));
+    }
 
     // Remove the build from table
     newState.tableCards.splice(stackIdx, 1);
