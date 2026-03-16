@@ -96,9 +96,13 @@ export type RoundPlayers = Record<number, RoundPlayerState>;
 export interface ShiyaRecall {
   stackId: string;        // Original stack ID (for reference)
   value: number;          // Build value
+  base?: number;          // Base value (for recalculating)
+  need?: number;          // Need value (for recalculating)
+  buildType?: 'sum' | 'diff';  // Build type
   capturedBy: number;     // Teammate who captured the build
   originalOwner: number;  // Player who activated shiya (the one who can recall)
-  cards: Card[];          // Cards in the captured build
+  buildCards: Card[];    // Cards in the captured build
+  captureCards: Card[];  // Cards the capturer used to capture
   expiresAt: number;      // Timestamp when offer expires (e.g., Date.now() + 4000)
 }
 
@@ -123,11 +127,14 @@ export interface GameState {
   };
 
   // Shiya recalls - ephemeral recall offers for each player
-  // Key is player number (0-3), value is the active recall offer
+  // Key is player number (0-3), then stackId
   // Set when a teammate captures a build where player activated Shiya
   // Cleared when player accepts recall or when it expires
+  // New structure supports multiple recalls per player
   shiyaRecalls?: {
-    [playerNumber: number]: ShiyaRecall;
+    [playerNumber: number]: {
+      [stackId: string]: ShiyaRecall;
+    };
   };
 }
 

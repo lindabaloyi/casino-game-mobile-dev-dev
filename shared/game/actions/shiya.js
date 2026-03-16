@@ -23,18 +23,18 @@ function shiya(state, payload, playerIndex) {
     throw new Error('Shiya is only available in party mode (4 players)');
   }
   
-  // Find the build on the table
+  // Find the build on the table (supports both build_stack and temp_stack)
   const tableCard = state.tableCards.find(
-    tc => tc.stackId === stackId && tc.type === 'build_stack'
+    tc => tc.stackId === stackId && (tc.type === 'build_stack' || tc.type === 'temp_stack')
   );
   
   if (!tableCard) {
-    throw new Error(`Build not found: ${stackId}`);
+    throw new Error(`Stack not found: ${stackId}`);
   }
   
   // Validate build is owned by a teammate (not own build)
   if (tableCard.owner === playerIndex) {
-    throw new Error('You cannot use Shiya on your own build');
+    throw new Error('You cannot use Shiya on your own stack');
   }
   
   // Validate build is owned by a teammate
@@ -44,7 +44,7 @@ function shiya(state, payload, playerIndex) {
   
   // Validate build doesn't already have Shiya active
   if (tableCard.shiyaActive) {
-    throw new Error('Shiya is already active on this build');
+    throw new Error('Shiya is already active on this stack');
   }
   
   // Validate player has a matching card in hand
@@ -58,9 +58,9 @@ function shiya(state, payload, playerIndex) {
   // Create new state with Shiya activated
   const newState = JSON.parse(JSON.stringify(state));
   
-  // Find and update the build
+  // Find and update the build (supports both build_stack and temp_stack)
   const buildIndex = newState.tableCards.findIndex(
-    tc => tc.stackId === stackId && tc.type === 'build_stack'
+    tc => tc.stackId === stackId && (tc.type === 'build_stack' || tc.type === 'temp_stack')
   );
   
   if (buildIndex !== -1) {
@@ -68,7 +68,7 @@ function shiya(state, payload, playerIndex) {
     newState.tableCards[buildIndex].shiyaActive = true;
     newState.tableCards[buildIndex].shiyaPlayer = playerIndex;
     
-    console.log(`[shiya] Player ${playerIndex} activated Shiya on build ${stackId}`);
+    console.log(`[shiya] Player ${playerIndex} activated Shiya on ${tableCard.type} ${stackId}`);
   }
   
   return newState;

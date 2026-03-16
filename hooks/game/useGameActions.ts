@@ -158,11 +158,11 @@ export function useGameActions(sendAction: SendAction) {
   }, [sendAction]);
 
   // Recall build - party mode only, retrieve teammate's captured build
-  // In the new architecture, the server reads from shiyaRecalls based on playerIndex
-  const recallBuild = useCallback(() => {
+  // Now requires stackId to identify which recall to use (supports multiple per player)
+  const recallBuild = useCallback((stackId: string) => {
     sendAction({ 
       type: 'recallBuild', 
-      payload: {} as unknown as Record<string, unknown> 
+      payload: { stackId } as unknown as Record<string, unknown> 
     });
   }, [sendAction]);
 

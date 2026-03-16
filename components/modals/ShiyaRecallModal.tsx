@@ -14,7 +14,9 @@ import { Card } from '../../types';
 
 interface ShiyaBuildEntry {
   value: number;
-  cards: Card[];
+  cards?: Card[];           // Legacy format
+  buildCards?: Card[];      // New format - build cards
+  captureCards?: Card[];    // New format - capture cards
   stackId: string;
   shiyaPlayer?: number;
 }
@@ -70,10 +72,23 @@ export function ShiyaRecallModal({
           {/* Timer */}
           <Text style={styles.timer}>Auto-closes in {timeLeft}s</Text>
           
-          {/* Build cards preview */}
+          {/* Build cards preview - support both old (cards) and new (buildCards + captureCards) format */}
           <View style={styles.cardsSection}>
             <View style={styles.cardsRow}>
-              {build.cards?.map((card, index) => (
+              {/* Show build cards */}
+              {build.buildCards?.map((card, index) => (
+                <View key={`build-${index}`} style={styles.cardWrapper}>
+                  <PlayingCard rank={card.rank} suit={card.suit} />
+                </View>
+              ))}
+              {/* Show capture cards (on top) */}
+              {build.captureCards?.map((card, index) => (
+                <View key={`capture-${index}`} style={styles.cardWrapper}>
+                  <PlayingCard rank={card.rank} suit={card.suit} />
+                </View>
+              ))}
+              {/* Legacy format fallback */}
+              {!build.buildCards && build.cards?.map((card, index) => (
                 <View key={index} style={styles.cardWrapper}>
                   <PlayingCard rank={card.rank} suit={card.suit} />
                 </View>
@@ -81,6 +96,7 @@ export function ShiyaRecallModal({
             </View>
             <Text style={styles.buildValue}>
               Value: {build.value}
+              {(build.captureCards?.length ?? 0) > 0 && ` (+${build.captureCards?.length} capture)`}
             </Text>
           </View>
           

@@ -34,10 +34,14 @@ export interface Card {
 export interface ShiyaRecall {
   stackId: string;
   value: number;
+  base?: number;
+  need?: number;
+  buildType?: 'sum' | 'diff';
   capturedBy: number;        // Player index who captured the build
   originalOwner: number;     // Player index who originally owned the build
-  cards: any[];              // Cards in the captured build
-  expiresAt: number;         // Timestamp when recall expires
+  buildCards: Card[];       // Cards in the captured build
+  captureCards: Card[];     // Cards used to capture
+  expiresAt: number;        // Timestamp when recall expires
 }
 
 export interface GameState {
@@ -86,11 +90,13 @@ export interface GameState {
   teamCapturedBuilds?: { 
     [playerIndex: number]: { value: number; originalOwner: number; capturedBy: number; stackId: string; cards: any[] }[]
   };
-  // Shiya Recall offers - one per player when a teammate captures a Shiya-marked build
-  // Key = player index who can accept the recall, Value = recall offer details
+  // Shiya Recall offers - supports multiple recalls per player using stackId as key
+  // Key = player index who can accept the recall, then stackId
   // This is separate from teamCapturedBuilds because it represents transient notifications, not persistent team assets
   shiyaRecalls?: {
-    [playerIndex: number]: ShiyaRecall;
+    [playerIndex: number]: {
+      [stackId: string]: ShiyaRecall;
+    };
   };
 }
 

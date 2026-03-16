@@ -179,35 +179,47 @@ export function GameBoard({
   // Watch shiyaRecalls in game state - when a recall offer appears for this player,
   // show the recall modal. This is the proper separation: shiyaRecalls is ephemeral notification
   // state, separate from persistent teamCapturedBuilds.
+  // 
+  // New structure: shiyaRecalls[playerIndex][stackId] = { buildCards, captureCards, ... }
   useEffect(() => {
     if (gameState.playerCount !== 4) return;
     
-    // Check if there's a recall offer for this player
-    const myRecall = gameState.shiyaRecalls?.[playerNumber];
+    // Check if there's a recall offer for this player (new nested structure)
+    const myRecalls = gameState.shiyaRecalls?.[playerNumber] as Record<string, any> | undefined;
     
-    if (myRecall) {
-      // Clear any existing timer
-      if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
+    if (myRecalls && typeof myRecalls === 'object' && Object.keys(myRecalls).length > 0) {
+      // Get the first available recall (could be multiple)
+      const firstStackId = Object.keys(myRecalls)[0];
+      const myRecall = myRecalls[firstStackId];
       
-      // Set the recall candidate - pass the full recall object
-      setShiyaRecallCandidate(myRecall);
+      if (myRecall) {
+        // Clear any existing timer
+        if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
+        
+        // Set the recall candidate - pass the full recall object with stackId
+        setShiyaRecallCandidate({ ...myRecall, stackId: firstStackId });
 
-      // Auto-dismiss after 4 seconds (matching expiresAt timestamp)
-      const timeUntilExpiry = myRecall.expiresAt - Date.now();
-      const autoCloseMs = Math.max(1000, Math.min(4000, timeUntilExpiry));
-      
-      recallTimerRef.current = setTimeout(() => {
-        setShiyaRecallCandidate(null);
-        recallTimerRef.current = null;
-      }, autoCloseMs);
+        // Auto-dismiss after 4 seconds (matching expiresAt timestamp)
+        const timeUntilExpiry = myRecall.expiresAt - Date.now();
+        const autoCloseMs = Math.max(1000, Math.min(4000, timeUntilExpiry));
+        
+        recallTimerRef.current = setTimeout(() => {
+          setShiyaRecallCandidate(null);
+          recallTimerRef.current = null;
+        }, autoCloseMs);
+      }
     } else {
       // No recall for this player - clear if there's a stale candidate
       // (only clear if the candidate's stackId doesn't match any active recall)
-      if (shiyaRecallCandidate && !gameState.shiyaRecalls?.[playerNumber]) {
-        setShiyaRecallCandidate(null);
-        if (recallTimerRef.current) {
-          clearTimeout(recallTimerRef.current);
-          recallTimerRef.current = null;
+      if (shiyaRecallCandidate) {
+        const candidateStackId = shiyaRecallCandidate.stackId;
+        const hasActiveRecall = myRecalls?.[candidateStackId];
+        if (!hasActiveRecall) {
+          setShiyaRecallCandidate(null);
+          if (recallTimerRef.current) {
+            clearTimeout(recallTimerRef.current);
+            recallTimerRef.current = null;
+          }
         }
       }
     }
@@ -568,10 +580,13 @@ export function GameBoard({
         visible={!!shiyaRecallCandidate}
         build={shiyaRecallCandidate}
         onRecall={() => {
-          // Clear timer and call recallBuild (no arguments needed - server reads from shiyaRecalls)
+          // Clear timer and call recallBuild with stackId
           if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
+          const stackIdToRecall = shiyaRecallCandidate?.stackId;
           setShiyaRecallCandidate(null);
-          actions.recallBuild();
+          if (stackIdToRecall) {
+            actions.recallBuild(stackIdToRecall);
+          }
         }}
         onClose={() => {
           setShiyaRecallCandidate(null);
