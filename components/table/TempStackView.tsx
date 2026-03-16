@@ -10,7 +10,7 @@
  * Refactored to use separate hooks and components for better maintainability.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { StyleSheet, View, TouchableOpacity } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
@@ -24,6 +24,9 @@ import { useTempStackCards } from './hooks/useTempStackCards';
 import { useTempStackDisplay } from './hooks/useTempStackDisplay';
 import { BuildValueBadge } from './components/BuildValueBadge';
 import { TypeBadge } from './components/TypeBadge';
+
+// Double-click threshold in milliseconds
+const DOUBLE_CLICK_THRESHOLD = 300;
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -73,6 +76,9 @@ export function TempStackView({
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const isDragging = useSharedValue(false);
+  
+  // Track last tap time for double-click detection
+  const lastTapRef = useRef<number>(0);
 
   // Only temp_stack can be dragged, and only by the owner on their turn
   const canDrag = isMyTurn && playerNumber !== undefined && stack.owner === playerNumber;
@@ -157,6 +163,25 @@ export function TempStackView({
     zIndex: isDragging.value ? 100 : 1,
   }));
 
+  // Double-click detection handler
+  const handleTap = useCallback(() => {
+    if (!isDragging.value && onBuildTap) {
+      const now = Date.now();
+      const timeSinceLastTap = now - lastTapRef.current;
+      
+      if (timeSinceLastTap < DOUBLE_CLICK_THRESHOLD) {
+        // Double click detected - trigger the build tap
+        console.log('[TempStackView] Double-click detected, triggering onBuildTap');
+        onBuildTap(stack);
+        lastTapRef.current = 0; // Reset after double-click
+      } else {
+        // First tap - set timer
+        console.log('[TempStackView] Single tap detected, waiting for second tap');
+        lastTapRef.current = now;
+      }
+    }
+  }, [isDragging, onBuildTap, stack]);
+
   // If we don't have at least a bottom card, return null
   if (!bottom) {
     return null;
@@ -165,10 +190,10 @@ export function TempStackView({
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View ref={viewRef} style={[styles.container, animatedStyle]}>
-        {/* Tap area - triggers onBuildTap when not dragging */}
+        {/* Tap area - triggers onBuildTap on double-click */}
         <TouchableOpacity 
           style={styles.tapArea} 
-          onPress={() => !isDragging.value && onBuildTap?.(stack)} 
+          onPress={handleTap}
           activeOpacity={0.7}
         />
         

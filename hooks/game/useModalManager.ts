@@ -60,6 +60,22 @@ export function useModalManager() {
     setExtendTargetBuild(null);
   }, []);
 
+  // Confirm Temp Build Value Modal (for double-click on temp stacks)
+  const [showConfirmTempBuild, setShowConfirmTempBuild] = useState(false);
+  const [confirmTempBuildStack, setConfirmTempBuildStack] = useState<TempStack | null>(null);
+
+  const openConfirmTempBuildModal = useCallback((stack: TempStack) => {
+    console.log('[useModalManager] Opening confirm temp build modal for stack:', stack.stackId, 'value:', stack.value);
+    setConfirmTempBuildStack(stack);
+    setShowConfirmTempBuild(true);
+  }, []);
+
+  const closeConfirmTempBuildModal = useCallback(() => {
+    console.log('[useModalManager] Closing confirm temp build modal');
+    setShowConfirmTempBuild(false);
+    setConfirmTempBuildStack(null);
+  }, []);
+
   // Track when a steal happened - for showing end turn button
   const [showEndTurnButton, setShowEndTurnButton] = useState(false);
 
@@ -101,6 +117,11 @@ export function useModalManager() {
     extendTargetBuild,
     openExtendModal,
     closeExtendModal,
+    // Confirm temp build modal (double-click)
+    showConfirmTempBuild,
+    confirmTempBuildStack,
+    openConfirmTempBuildModal,
+    closeConfirmTempBuildModal,
     // End turn button (shown after steal)
     showEndTurnButton,
     onStealCompleted,

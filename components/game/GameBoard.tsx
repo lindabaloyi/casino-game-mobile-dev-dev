@@ -228,9 +228,9 @@ export function GameBoard({
   const handleBuildTap = useCallback((stack: any) => {
     // Check if this is a temp stack (dual builds feature)
     if (stack.type === 'temp_stack') {
-      // For temp stacks, set the base value to the current value (fix the build)
-      console.log('[GameBoard] Temp stack tapped, setting base value:', stack.value);
-      actions.setTempBuildValue(stack.stackId, stack.value);
+      // For temp stacks, show confirmation modal on double-click
+      console.log('[GameBoard] Temp stack double-tapped, showing confirm modal');
+      modals.openConfirmTempBuildModal(stack);
       return;
     }
     
@@ -275,7 +275,7 @@ export function GameBoard({
     } else {
       setSelectedBuildForShiya(null);
     }
-  }, [gameState, playerNumber, actions]);
+  }, [gameState, playerNumber, modals, actions]);
 
   // Drag handlers
   const dragHandlers = useDragHandlers({
@@ -540,6 +540,17 @@ export function GameBoard({
         onConfirmSteal={actionHandlers.handleConfirmSteal}
         onCancelSteal={modals.closeStealModal}
         onStealCompleted={modals.onStealCompleted}
+        // Confirm temp build modal (double-click)
+        showConfirmTempBuild={modals.showConfirmTempBuild}
+        confirmTempBuildStack={modals.confirmTempBuildStack}
+        onConfirmTempBuild={(value) => {
+          if (modals.confirmTempBuildStack) {
+            console.log('[GameBoard] Confirming temp build value:', value);
+            actions.setTempBuildValue(modals.confirmTempBuildStack.stackId, value);
+            modals.closeConfirmTempBuildModal();
+          }
+        }}
+        onCancelConfirmTempBuild={modals.closeConfirmTempBuildModal}
       />
 
       {/* Shiya Recall Modal - appears when teammate captures your Shiya build */}

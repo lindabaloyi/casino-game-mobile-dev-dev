@@ -11,6 +11,7 @@ import { TempStack, Card, BuildStack } from '../../types';
 import { PlayOptionsModal } from '../modals/PlayOptionsModal';
 import { StealBuildModal } from '../modals/StealBuildModal';
 import { ExtendBuildModal } from '../modals/ExtendBuildModal';
+import { ConfirmTempBuildModal } from '../modals/ConfirmTempBuildModal';
 
 interface GameModalsProps {
   // Play Options Modal (for accepting temp stacks)
@@ -37,6 +38,12 @@ interface GameModalsProps {
   extendTargetBuild?: BuildStack | null;
   onAcceptExtend?: (handCard: Card) => void;
   onDeclineExtend?: () => void;
+  
+  // Confirm Temp Build Value Modal (for double-click on temp stacks)
+  showConfirmTempBuild?: boolean;
+  confirmTempBuildStack?: TempStack | null;
+  onConfirmTempBuild?: (value: number) => void;
+  onCancelConfirmTempBuild?: () => void;
 }
 
 export function GameModals({
@@ -60,6 +67,11 @@ export function GameModals({
   extendTargetBuild,
   onAcceptExtend,
   onDeclineExtend,
+  
+  showConfirmTempBuild,
+  confirmTempBuildStack,
+  onConfirmTempBuild,
+  onCancelConfirmTempBuild,
 }: GameModalsProps) {
   // Wrapper to call onStealCompleted when steal is confirmed
   const handleConfirmSteal = () => {
@@ -106,6 +118,16 @@ export function GameModals({
           playerHand={playerHand}
           onAccept={onAcceptExtend ?? (() => {})}
           onCancel={onDeclineExtend ?? (() => {})}
+        />
+      )}
+
+      {/* Confirm Temp Build Value Modal - for double-click on temp stacks */}
+      {showConfirmTempBuild && confirmTempBuildStack && (
+        <ConfirmTempBuildModal
+          visible={showConfirmTempBuild ?? false}
+          stack={confirmTempBuildStack}
+          onConfirm={onConfirmTempBuild ?? (() => {})}
+          onCancel={onCancelConfirmTempBuild ?? (() => {})}
         />
       )}
     </>

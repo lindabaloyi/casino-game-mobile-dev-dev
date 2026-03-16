@@ -29,7 +29,9 @@ function setTempBuildValue(state, payload, playerIndex) {
   );
 
   if (stackIdx === -1) {
-    throw new Error(`setTempBuildValue: temp stack "${stackId}" not found`);
+    console.log(`[setTempBuildValue] Temp stack "${stackId}" not found - may have been captured or cancelled, ignoring`);
+    // Stack not found - might have been captured or cancelled, just return original state
+    return newState;
   }
 
   const stack = newState.tableCards[stackIdx];
@@ -45,7 +47,9 @@ function setTempBuildValue(state, payload, playerIndex) {
 
   // Validate player owns the stack
   if (stack.owner !== playerIndex) {
-    throw new Error(`setTempBuildValue: player ${playerIndex} does not own stack "${stackId}"`);
+    console.log(`[setTempBuildValue] Player ${playerIndex} does not own stack "${stackId}" (owner: ${stack.owner}) - ignoring`);
+    // Not the owner - might be a stale action, just return original state
+    return newState;
   }
 
   // Check if already fixed
