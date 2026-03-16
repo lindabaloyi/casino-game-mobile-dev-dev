@@ -55,6 +55,9 @@ export function TableItemRenderer(props: TableItemRendererProps) {
     ? { onDropToCapture: onDropBuildToCapture } 
     : {};
   
+  // Add onBuildTap to buildStackProps for Shiya selection
+  const buildStackAllProps = { ...buildStackProps, onBuildTap };
+  
   // For temp stacks, use onDropToCapture
   const tempStackProps = onDropToCapture 
     ? { onDropToCapture: onDropToCapture } 
@@ -74,7 +77,7 @@ export function TableItemRenderer(props: TableItemRendererProps) {
       tableVersion={tableVersion} 
       isPartyMode={isPartyMode} 
       currentPlayerIndex={currentPlayerIndex}
-      {...buildStackProps}
+      {...buildStackAllProps}
       {...rest}
     />;
   }

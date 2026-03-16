@@ -226,6 +226,8 @@ export function GameBoard({
 
   // Handle build tap for Shiya selection or dual builds
   const handleBuildTap = useCallback((stack: any) => {
+    console.log('[handleBuildTap] Tapped stack:', stack?.type, 'owner:', stack?.owner, 'value:', stack?.value);
+    
     // Check if this is a temp stack (dual builds feature)
     if (stack.type === 'temp_stack') {
       // For temp stacks, show confirmation modal on double-click
@@ -237,24 +239,30 @@ export function GameBoard({
     // Handle BuildStack for Shiya selection
     // Only set as selected if it's a teammate's build (NOT own build) and we have a matching card
     if (!stack || gameState.playerCount !== 4) {
+      console.log('[handleBuildTap] Not party mode or no stack');
       setSelectedBuildForShiya(null);
       return;
     }
     
     // Check if it's NOT own build (must be teammate's build, not own)
     if (stack.owner === playerNumber) {
+      console.log('[handleBuildTap] Own build - no Shiya');
       setSelectedBuildForShiya(null);
       return;
     }
     
     // Check if it's a teammate's build
-    if (!areTeammates(playerNumber, stack.owner)) {
+    const isTeammate = areTeammates(playerNumber, stack.owner);
+    console.log('[handleBuildTap] Player:', playerNumber, 'Stack owner:', stack.owner, 'Are teammates:', isTeammate);
+    if (!isTeammate) {
+      console.log('[handleBuildTap] Not a teammate build');
       setSelectedBuildForShiya(null);
       return;
     }
     
     // Check if Shiya is already active
     if (stack.shiyaActive) {
+      console.log('[handleBuildTap] Shiya already active');
       setSelectedBuildForShiya(null);
       return;
     }
@@ -262,8 +270,10 @@ export function GameBoard({
     // Check if we have a matching card
     const myHand = gameState.players?.[playerNumber]?.hand ?? [];
     const hasMatch = myHand.some((card: any) => card.value === stack.value);
+    console.log('[handleBuildTap] Stack value:', stack.value, 'Has matching card:', hasMatch, 'Hand:', myHand.map((c: any) => c.value));
     
     if (hasMatch) {
+      console.log('[handleBuildTap] Setting selected build for Shiya');
       setSelectedBuildForShiya(stack);
       
       // Auto-hide Shiya button after 5 seconds if not clicked

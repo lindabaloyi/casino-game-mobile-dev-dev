@@ -237,7 +237,12 @@ export function BuildStackView({
         {/* Tap handler for Shiya selection - only works when not dragging */}
         <TouchableOpacity 
           style={styles.tapArea} 
-          onPress={() => !isDragging.value && onBuildTap?.(stack)} 
+          onPress={() => {
+            console.log('[BuildStackView] Tap detected, isDragging:', isDragging.value, 'onBuildTap exists:', !!onBuildTap);
+            if (!isDragging.value && onBuildTap) {
+              onBuildTap(stack);
+            }
+          }} 
           activeOpacity={0.7}
         />
         
