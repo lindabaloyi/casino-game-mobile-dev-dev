@@ -50,6 +50,13 @@ function stealBuild(state, payload, playerIndex) {
   const [playedCard] = hand.splice(handIdx, 1);
   buildStack.cards.push({ ...playedCard, source: 'hand' });
 
+  // Sort cards: big cards at bottom (index 0), small cards at top (last index)
+  // Descending order by value
+  buildStack.cards.sort((a, b) => b.value - a.value);
+
+  // DEBUG: Log card order after sorting
+  console.log(`[stealBuild] DEBUG: Cards AFTER sort: ${buildStack.cards.map(c => c.value).join(', ')}`);
+
   const recalcBuild = (build) => {
     const totalSum = build.cards.reduce((sum, c) => sum + c.value, 0);
     if (totalSum <= 10) {
@@ -69,6 +76,8 @@ function stealBuild(state, payload, playerIndex) {
   };
 
   recalcBuild(buildStack);
+  // DEBUG: Log card order after recalcBuild (first call after adding stolen card)
+  console.log(`[stealBuild] DEBUG: Cards AFTER recalcBuild: ${buildStack.cards.map(c => c.value).join(', ')}`);
   // Debug: Log before and after hasBase assignment
   const beforeHasBase = buildStack.hasBase;
   console.log(`[stealBuild] BEFORE: buildStack.buildType: ${buildStack.buildType}, hasBase: ${beforeHasBase}`);
@@ -173,6 +182,8 @@ function stealBuild(state, payload, playerIndex) {
         finalDisplayValue = myBuild.value;
         buildStack.cards.push(...myBuild.cards);
         newState.tableCards.splice(myBuildIdx, 1);
+        // Sort after merge: big cards at bottom, small cards at top
+        buildStack.cards.sort((a, b) => b.value - a.value);
         recalcBuild(buildStack);
         const newRecalcValue = buildStack.value;
         currentValue = newRecalcValue;
@@ -196,6 +207,8 @@ function stealBuild(state, payload, playerIndex) {
           finalDisplayValue = teammateBuild.value;
           buildStack.cards.push(...teammateBuild.cards);
           newState.tableCards.splice(teammateBuildIdx, 1);
+          // Sort after merge: big cards at bottom, small cards at top
+          buildStack.cards.sort((a, b) => b.value - a.value);
           recalcBuild(buildStack);
           const newRecalcValue = buildStack.value;
           currentValue = newRecalcValue;
@@ -223,6 +236,8 @@ function stealBuild(state, payload, playerIndex) {
         finalDisplayValue = teammateBuild.value;
         buildStack.cards.push(...teammateBuild.cards);
         newState.tableCards.splice(teammateBuildIdx, 1);
+        // Sort after merge: big cards at bottom, small cards at top
+        buildStack.cards.sort((a, b) => b.value - a.value);
         recalcBuild(buildStack);
         const newRecalcValue = buildStack.value;
         currentValue = newRecalcValue;
@@ -250,6 +265,8 @@ function stealBuild(state, payload, playerIndex) {
         finalDisplayValue = otherBuild.value;
         buildStack.cards.push(...otherBuild.cards);
         newState.tableCards.splice(otherIdx, 1);
+        // Sort after merge: big cards at bottom, small cards at top
+        buildStack.cards.sort((a, b) => b.value - a.value);
         recalcBuild(buildStack);
         const newRecalcValue = buildStack.value;
         currentValue = newRecalcValue;
@@ -266,6 +283,9 @@ function stealBuild(state, payload, playerIndex) {
     }
   }
 
+  // DEBUG: Final card order before returning
+  console.log(`[stealBuild] DEBUG: Final card order: ${buildStack.cards.map(c => c.value).join(', ')}`);
+  
   return newState;
 }
 
