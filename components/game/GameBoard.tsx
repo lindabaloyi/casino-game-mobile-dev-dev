@@ -330,9 +330,8 @@ export function GameBoard({
   );
 
   // ── Unified Drop Handler ─────────────────────────────────────────────────
-  // Centralized logic for all stack drops (hand, table, captured cards)
-  // Ensures consistent validation and modal handling
-  // Priority: CAPTURE (direct) > STEAL (modal) > BLOCK
+  // For opponent builds: check if steal modal should be shown before executing
+  // For friendly builds and temp stacks: delegate directly to server
   const handleDropOnStack = useCallback((
     card: any,
     stackId: string,
@@ -343,38 +342,37 @@ export function GameBoard({
     // Hide end turn button when player makes a new action
     modals.hideEndTurnButton();
 
-    // Check if this is a friendly build (owner OR teammate in party mode)
-    const isPartyMode = gameState.playerCount === 4;
-    const isFriendlyBuild = stackOwner === playerNumber || (isPartyMode && areTeammates(playerNumber, stackOwner));
-    
-    // Check if this is an opponent's build - validate steal vs capture
-    if (stackType === 'build_stack' && !isFriendlyBuild) {
-      const buildStack = computed.table.find(
-        (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
-      );
+    // Only check for steal modal when dropping from HAND onto opponent's BUILD
+    if (source === 'hand' && stackType === 'build_stack') {
+      // Check if this is an opponent's build (not friendly)
+      const isPartyMode = gameState.playerCount === 4;
+      const isFriendlyBuild = stackOwner === playerNumber || 
+        (isPartyMode && areTeammates(playerNumber, stackOwner));
       
-      if (buildStack) {
-        const fullStack = buildStack as any;
+      if (!isFriendlyBuild) {
+        // Find the build stack
+        const buildStack = computed.table.find(
+          (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
+        );
         
-        // PRIORITY 1: If card value matches build value → CAPTURE (direct, no modal)
-        if (card.value === fullStack.value) {
-          actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
-          return;
-        }
-        
-        // PRIORITY 2: Check if steal is valid (not a base build)
-        if (fullStack.hasBase === true) {
-          // Cannot steal base build - fall through to action which will fail appropriately
-        } else {
-          modals.openStealModal(card, fullStack);
-          return; // Modal is open
+        if (buildStack) {
+          const fullStack = buildStack as any;
+          
+          // Check if this is a steal scenario (card value > build value)
+          // AND it's not a base build (base builds can't be stolen)
+          if (card.value > fullStack.value && fullStack.hasBase !== true) {
+            console.log('[GameBoard.handleDropOnStack] Steal scenario detected - showing modal');
+            modals.openStealModal(card, fullStack);
+            return; // Don't execute - wait for modal confirmation
+          }
         }
       }
     }
     
-    // Default: Forward to stackDrop action with source info
+    // Default: Forward to stackDrop - server's smart router decides the action
+    console.log('[GameBoard.handleDropOnStack] Forwarding to server - smart router will decide action');
     actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
-  }, [playerNumber, computed.table, modals, actions]);
+  }, [modals, actions, computed.table, gameState.playerCount, playerNumber]);
 
   // Render
   return (
@@ -559,7 +557,7 @@ export function GameBoard({
         showStealModal={modals.showStealModal}
         stealTargetCard={modals.stealTargetCard}
         stealTargetStack={modals.stealTargetStack}
-        onConfirmSteal={actionHandlers.handleConfirmSteal}
+        onConfirmSteal={() => actionHandlers.handleConfirmSteal(computed.myHand as TableCard[])}
         onCancelSteal={modals.closeStealModal}
         onStealCompleted={modals.onStealCompleted}
         // Confirm temp build modal (double-click)

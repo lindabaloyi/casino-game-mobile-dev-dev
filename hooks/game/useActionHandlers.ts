@@ -21,41 +21,17 @@ export function useActionHandlers(
     [actions],
   );
 
+  // Trail handler - all validation done server-side by TrailRouter
+  // The server validates:
+  // - Party mode: no restrictions
+  // - Duel mode Round 1: cannot trail if player has active build
+  // - Duel mode Round 2: allowed
   const handleTrail = useCallback(
     (card: any) => {
-      // In PARTY mode: allow trailing anytime (no restrictions)
-      // In DUEL mode:
-      //   - Round 1: prevent trailing if player has active build or temp stack
-      //   - Round 2: allow trailing even with active build or temp stack
-      const isDuelMode = !isPartyMode;
-      const isRound2 = roundNumber >= 2;
-      
-      if (isDuelMode && !isRound2) {
-        // Check if player has an active build (blocks trailing in duel mode only, round 1)
-        const hasActiveBuild = table.some(
-          (tc: any) => tc.type === 'build_stack' && tc.owner === playerNumber
-        );
-        
-        // Check if player has an unresolved temp stack (also blocks trailing in duel mode only, round 1)
-        const hasUnresolvedTemp = table.some(
-          (tc: any) => tc.type === 'temp_stack' && tc.owner === playerNumber
-        );
-        
-        if (hasActiveBuild) {
-          onDragEndWrapper();
-          return;
-        }
-        
-        if (hasUnresolvedTemp) {
-          onDragEndWrapper();
-          return;
-        }
-      }
-      
-      // In round 2 or party mode, allow trailing without restrictions
+      // Simply forward to server - all business logic is handled by TrailRouter
       actions.trail(card);
     },
-    [actions, table, playerNumber, onDragEndWrapper, isPartyMode, roundNumber],
+    [actions],
   );
 
   const handleAcceptClick = useCallback((stackId: string) => {
@@ -73,10 +49,28 @@ export function useActionHandlers(
     modals.closePlayModal();
   }, [modals, actions]);
 
-  const handleConfirmSteal = useCallback(() => {
-    if (modals.stealTargetCard && modals.stealTargetStack) {
-      actions.stealBuild(modals.stealTargetCard, modals.stealTargetStack.stackId);
+  const handleConfirmSteal = useCallback((playerHand: Card[]) => {
+    // Validate that the target card is in the player's hand (steal can only use hand cards)
+    if (!modals.stealTargetCard || !modals.stealTargetStack) {
+      console.log('[handleConfirmSteal] No steal target - closing modal');
+      modals.closeStealModal();
+      return;
     }
+    
+    // Verify card is in player's hand
+    const cardInHand = playerHand?.some(
+      (c: Card) => c.rank === modals.stealTargetCard?.rank && c.suit === modals.stealTargetCard?.suit
+    );
+    
+    if (!cardInHand) {
+      console.log('[handleConfirmSteal] Card not in hand - cannot steal');
+      // Card is not in hand - cannot proceed with steal
+      modals.closeStealModal();
+      return;
+    }
+    
+    console.log('[handleConfirmSteal] Confirming steal with card:', modals.stealTargetCard.rank, modals.stealTargetCard.suit);
+    actions.stealBuild(modals.stealTargetCard, modals.stealTargetStack.stackId);
     modals.closeStealModal();
   }, [modals, actions]);
 

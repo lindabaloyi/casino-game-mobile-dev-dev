@@ -20,20 +20,6 @@ class ExtendRouter {
       throw new Error(`Build "${stackId}" not found`);
     }
     
-    // Check if THIS player has Shiya'd this build
-    // If so, route to capture instead of extend
-    if (stack.shiyaActive && stack.shiyaPlayer === playerIndex) {
-      return { 
-        type: 'capture', 
-        payload: { 
-          card, 
-          targetType: 'build', 
-          targetStackId: stackId,
-          cardSource 
-        } 
-      };
-    }
-    
     if (stack.pendingExtension) {
       // Has pending = add to it
       return { 

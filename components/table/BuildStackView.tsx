@@ -19,7 +19,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useMemo } from 'react';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { BuildStack } from './types';
@@ -93,16 +93,27 @@ export function BuildStackView({
   const pendingExtension = stack.pendingExtension;
   const isExtending = !!(pendingExtension?.looseCard || pendingExtension?.cards);
 
-  // Get pending cards in order they were added
+  // Check if there's a pending capture (opponent building to capture)
+  const pendingCapture = stack.pendingCapture;
+  const isCapturing = !!(pendingCapture?.cards && pendingCapture.cards.length > 0);
+
+  // Get pending cards from extension in order they were added
   const pendingCards = useMemo(() => 
     pendingExtension?.cards?.map(p => p.card) ?? 
     (pendingExtension?.looseCard ? [pendingExtension.looseCard] : [])
   , [pendingExtension]);
 
-  // The card shown on top: most recent pending card if any, otherwise the original top
-  const top = pendingCards.length > 0 
-    ? pendingCards[pendingCards.length - 1] 
-    : stack.cards[stack.cards.length - 1];
+  // Get pending cards from capture in order they were added
+  const pendingCaptureCards = useMemo(() => 
+    pendingCapture?.cards?.map(p => p.card) ?? []
+  , [pendingCapture]);
+
+  // The card shown on top: pending capture card if any, otherwise pending extension, otherwise original top
+  const top = pendingCaptureCards.length > 0 
+    ? pendingCaptureCards[pendingCaptureCards.length - 1] 
+    : pendingCards.length > 0 
+      ? pendingCards[pendingCards.length - 1]
+      : stack.cards[stack.cards.length - 1];
 
   // Build is draggable when:
   // - It's the player's turn
@@ -115,17 +126,28 @@ export function BuildStackView({
 
   // ── Use extracted hooks ───────────────────────────────────────────────────
 
-  // Compute display value
-  const { effectiveSum, displayValue } = useBuildDisplayValue({
+  // Compute display value - prioritize capture over extension (capture shows opponent stealing)
+  const captureDisplayValue = useBuildDisplayValue({
+    value: stack.value,
+    pendingCards: pendingCaptureCards,
+  });
+
+  const extensionDisplayValue = useBuildDisplayValue({
     value: stack.value,
     pendingCards,
   });
+
+  // Use capture display if capturing, otherwise extension display
+  const { effectiveSum, displayValue } = isCapturing 
+    ? captureDisplayValue 
+    : extensionDisplayValue;
 
   // Get team info and badge color
   const { badgeColor } = useBuildTeamInfo({
     owner: stack.owner,
     isPartyMode,
     isExtending,
+    isCapturing,
     effectiveSum,
   });
 

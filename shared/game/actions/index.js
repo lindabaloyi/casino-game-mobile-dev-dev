@@ -48,6 +48,12 @@ const actionHandlers = {
   shiya:               require('./shiya'),
   recallBuild:         require('./recallBuild'),
 
+  // ── Multi-Card Capture (Opponent) ───────────────────────────────────────────
+  startBuildCapture:  require('./startBuildCapture'),
+  addToCapture:        require('./addToCapture'),
+  completeCapture:    require('./completeCapture'),
+  cancelCapture:       require('./cancelCapture'),
+
   // ── Utility ───────────────────────────────────────────────────────────────────
   noop:                require('./noop'),
 };

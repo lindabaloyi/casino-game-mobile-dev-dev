@@ -34,6 +34,10 @@ export interface BuildStack {
     // Legacy single-card format
     looseCard?: Card;
   };
+  // Pending capture - opponent assembling cards to capture this build
+  pendingCapture?: {
+    cards: Array<{ card: Card & { source: string; originalOwner?: number }; source: string }>;
+  };
   // Shiya (party mode) - indicates build was claimed by teammate
   shiyaActive?: boolean;
   shiyaPlayer?: number;

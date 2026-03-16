@@ -3,7 +3,7 @@
  * Main orchestrator for game action routing.
  * 
  * Delegates to specialized routers for each action type:
- * - StackDropRouter: handles stack drops (temp/build)
+ * - StackDropDispatcher: handles stack drops (temp/build) via focused handlers
  * - CaptureRouter: handles capture/steal logic
  * - LooseCardRouter: handles loose card capture vs createTemp
  * - ExtendRouter: handles build extension
@@ -16,7 +16,7 @@
  * - Easy to modify one area without affecting others
  */
 
-const StackDropRouter = require('./routers/StackDropRouter');
+const StackDropDispatcher = require('./dispatchers/StackDropDispatcher');
 const CaptureRouter = require('./routers/CaptureRouter');
 const LooseCardRouter = require('./routers/LooseCardRouter');
 const ExtendRouter = require('./routers/ExtendRouter');
@@ -25,7 +25,7 @@ const TrailRouter = require('./routers/TrailRouter');
 
 class SmartRouter {
   constructor() {
-    this.stackDropRouter = new StackDropRouter();
+    this.stackDropDispatcher = new StackDropDispatcher();
     this.captureRouter = new CaptureRouter();
     this.looseCardRouter = new LooseCardRouter();
     this.extendRouter = new ExtendRouter();
@@ -48,7 +48,7 @@ class SmartRouter {
     
     switch (actionType) {
       case 'stackDrop':
-        return this.stackDropRouter.route(payload, state, playerIndex);
+        return this.stackDropDispatcher.route(payload, state, playerIndex);
       
       case 'capture':
         return this.captureRouter.route(payload, state, playerIndex);

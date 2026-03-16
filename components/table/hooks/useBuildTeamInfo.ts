@@ -32,8 +32,10 @@ interface UseBuildTeamInfoProps {
   isPartyMode: boolean;
   /** Whether there's a pending extension */
   isExtending: boolean;
+  /** Whether there's a pending capture (opponent building to capture) */
+  isCapturing?: boolean;
   /** Current effective sum of pending cards */
-  effectiveSum: number;
+  effectiveSum?: number;
 }
 
 interface UseBuildTeamInfoResult {
@@ -55,7 +57,8 @@ export function useBuildTeamInfo({
   owner,
   isPartyMode,
   isExtending,
-  effectiveSum,
+  isCapturing = false,
+  effectiveSum = 0,
 }: UseBuildTeamInfoProps): UseBuildTeamInfoResult {
   const { ownerTeam, ownerTag, ownerPosition, colors } = useMemo(() => {
     const team = getTeamFromIndex(owner) as TeamId;
@@ -84,10 +87,11 @@ export function useBuildTeamInfo({
   }, [owner, isPartyMode]);
 
   // Badge color: accent while incomplete (effectiveSum !== 0), team color when complete
+  // Capture uses same colors as extension (team-based, not red)
   const badgeColor = useMemo(() => {
-    if (isExtending) {
+    if (isExtending || isCapturing) {
       if (effectiveSum !== 0) {
-        return colors.accent; // incomplete
+        return colors.accent; // incomplete - show accent
       } else {
         // complete – use team color
         return isPartyMode 
@@ -95,12 +99,12 @@ export function useBuildTeamInfo({
           : (owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE);
       }
     } else {
-      // Not extending – normal team color
+      // Not extending/capturing – normal team color
       return isPartyMode 
         ? (ownerTeam === 'B' ? CANONICAL_PURPLE : PLAYER_1_GOLD)
         : (owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE);
     }
-  }, [isExtending, effectiveSum, colors, isPartyMode, ownerTeam, owner]);
+  }, [isExtending, isCapturing, effectiveSum, colors, isPartyMode, ownerTeam, owner]);
 
   // Owner label color - use WHITE for consistency with party mode
   const ownerTextColor = isPartyMode ? colors.text : '#FFFFFF';

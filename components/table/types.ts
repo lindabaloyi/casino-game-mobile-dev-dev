@@ -48,6 +48,10 @@ export interface BuildStack {
     // Legacy single-card format
     looseCard?: Card;
   };
+  /** Pending capture - when opponent is building to capture this build */
+  pendingCapture?: {
+    cards: Array<{ card: Card; source: string; originalOwner?: number }>;
+  };
 }
 
 export type AnyStack = TempStack | BuildStack;
