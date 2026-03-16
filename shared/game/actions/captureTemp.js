@@ -8,8 +8,7 @@
  * 3. This provides instant capture without showing PlayOptionsModal
  */
 
-const { cloneState } = require('../clone');
-const { calculateBuildValue } = require('../buildCalculator');
+const { cloneState, nextTurn, startPlayerTurn, triggerAction } = require('../');
 
 function captureTemp(state, payload, playerIndex) {
   const { card, stackId, source } = payload;
@@ -88,7 +87,14 @@ function captureTemp(state, payload, playerIndex) {
   
   console.log(`[captureTemp] Player ${playerIndex} captured temp stack with ${capturedStackCards.length + 1} cards, score: ${capturedScore}`);
   
-  return newState;
+  // Mark turn as started and ended
+  startPlayerTurn(newState, playerIndex);
+  triggerAction(newState, playerIndex);
+  if (newState.roundPlayers && newState.roundPlayers[playerIndex]) {
+    newState.roundPlayers[playerIndex].turnEnded = true;
+  }
+  
+  return nextTurn(newState);
 }
 
 module.exports = captureTemp;
