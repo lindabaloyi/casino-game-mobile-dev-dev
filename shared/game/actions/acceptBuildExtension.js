@@ -32,7 +32,7 @@ function acceptBuildExtension(state, payload, playerIndex) {
 
   const buildStack = newState.tableCards[stackIdx];
 
-  const isPartyMode = newState.playerCount === 4;
+  const isPartyMode = newState.playerCount === 4 && newState.players.some(p => p.team);
   const owner = buildStack.owner;
 
   // Validate permission to accept extension

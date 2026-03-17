@@ -14,6 +14,9 @@ function stealBuild(state, payload, playerIndex) {
   }
 
   const newState = cloneState(state);
+  // Determine party mode: check if any player has a team property (indicates party mode)
+  // In party mode, players have team: 'A' or 'B'. In freeforall, they have no team.
+  const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
 
   const stackIdx = newState.tableCards.findIndex(
     tc => tc.type === 'build_stack' && tc.stackId === stackId,
@@ -87,11 +90,11 @@ function stealBuild(state, payload, playerIndex) {
   console.log(`[stealBuild] AFTER: buildStack.buildType: ${buildStack.buildType}, hasBase: ${buildStack.hasBase} (buildType !== 'sum' is ${buildStack.hasBase})`);
   
   // --- VALIDATION: Check opponent(s) don't have build with same value ---
-  // In party mode: check both opponents; in duel mode: check single opponent
+  // In party mode: check both opponents (not teammates); in freeforall: check all other players
   // In three-hands mode: check the other two players
   let opponentHasSameValue = false;
   
-  if (state.playerCount === 4) {
+  if (isPartyMode) {
     // Party mode: check BOTH opponents (not teammates)
     const opponentIndices = playerIndex < 2 ? [2, 3] : [0, 1];
     for (const oIdx of opponentIndices) {
@@ -114,6 +117,26 @@ function stealBuild(state, payload, playerIndex) {
     // If they have no existing builds, they become the owner.
     // If they have a build with same value, merge logic below handles it.
     console.log(`[stealBuild] ✅ Steal allowed - player will become owner (hasExistingBuild: ${hasExistingBuild})`);
+  } else if (state.playerCount === 4) {
+    // Free-for-all mode: check ALL other players (everyone is opponent)
+    const otherPlayerIndices = [0, 1, 2, 3].filter(i => i !== playerIndex);
+    for (const oIdx of otherPlayerIndices) {
+      const opponentBuilds = newState.tableCards.filter(
+        tc => tc.type === 'build_stack' && tc.owner === oIdx && tc.stackId !== stackId
+      );
+      if (opponentBuilds.some(build => build.value === buildStack.value)) {
+        opponentHasSameValue = true;
+        break;
+      }
+    }
+    
+    if (opponentHasSameValue) {
+      throw new Error(
+        `stealBuild: Cannot have build with value ${buildStack.value} - another player already has a build with this value`
+      );
+    }
+    
+    console.log(`[stealBuild] ✅ Free-for-all steal allowed - player will become owner (hasExistingBuild: ${hasExistingBuild})`);
   } else if (state.playerCount === 3) {
     // Three-hands mode: check BOTH other players (all solo)
     const otherPlayerIndices = [0, 1, 2].filter(i => i !== playerIndex);
@@ -160,7 +183,7 @@ function stealBuild(state, payload, playerIndex) {
   let newOwner = playerIndex;
   
   // Check if we're merging with teammate (party mode only)
-  if (state.playerCount === 4) {
+  if (isPartyMode) {
     const teammateIndex = playerIndex ^ 1;
     const myMatch = hasExistingBuild && newState.tableCards.some(
       tc => tc.type === 'build_stack' && tc.owner === playerIndex && tc.stackId !== stackId && tc.value === recalculatedValue
@@ -187,8 +210,9 @@ function stealBuild(state, payload, playerIndex) {
   let finalDisplayValue;
   
   // Party mode: Check for merge with MY build OR TEAMMATE'S build
+  // Free-for-all: merge with MY builds only (no teammates)
   // Three-hands mode: Only merge with MY builds (no teams)
-  if (state.playerCount === 4) {
+  if (isPartyMode) {
     const teammateIndex = playerIndex ^ 1;
     
     // First try to merge with MY builds

@@ -90,7 +90,7 @@ function capture(state, payload, playerIndex) {
     // Track captured teammate builds for cooperative rebuild in party mode
     // CRITICAL: Only the OTHER teammate (not the original builder) can rebuild
     // When opponent captures your teammate's build, add to the OTHER teammate's list
-    const isPartyMode = state.playerCount === 4;
+    const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
     
     if (isPartyMode && buildStack && buildStack.type === 'build_stack') {
       const stackOwner = buildStack.owner;

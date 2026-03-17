@@ -53,7 +53,7 @@ function findCardAtSource(state, card, source, playerIndex) {
     default: {
       // Handle both 'captured' (backward compat) and 'captured_<playerIndex>'
       let ownerIndex = playerIndex;
-      const isPartyMode = state.playerCount === 4;
+      const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
       
       if (source && source.startsWith('captured_')) {
         const parsed = parseInt(source.split('_')[1], 10);
@@ -145,7 +145,7 @@ function startBuildExtension(state, payload, playerIndex) {
   }
 
   const newState = cloneState(state);
-  const isPartyMode = newState.playerCount === 4;
+  const isPartyMode = newState.playerCount === 4 && newState.players.some(p => p.team);
 
   // Find the build stack
   const stackIdx = newState.tableCards.findIndex(

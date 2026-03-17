@@ -57,7 +57,9 @@ function startBuildCapture(state, payload, playerIndex) {
   }
 
   const newState = cloneState(state);
-  const isPartyMode = newState.playerCount === 4;
+  // Determine party mode: check if any player has a team property (indicates party mode)
+  // In party mode, players have team: 'A' or 'B'. In freeforall, they have no team.
+  const isPartyMode = newState.playerCount === 4 && newState.players.some(p => p.team);
 
   // Find the build stack
   const stackIdx = newState.tableCards.findIndex(

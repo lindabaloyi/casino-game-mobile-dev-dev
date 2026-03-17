@@ -42,7 +42,7 @@ function captureOpponent(state, payload, playerIndex) {
   
   // Track captured builds for cooperative rebuild in party mode
   // Also handle shiyal recalls when applicable
-  const isPartyMode = state.playerCount === 4;
+  const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
   
   if (isPartyMode && buildStack && buildStack.type === 'build_stack') {
     const stackOwner = buildStack.owner;

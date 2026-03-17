@@ -21,7 +21,9 @@ class TrailRouter {
    * Also validates no matching loose card or build on table
    */
   route(payload, state, playerIndex) {
-    const isPartyMode = state.playerCount === 4;
+    // Determine party mode: check if any player has a team property
+    // In party mode, players have team: 'A' or 'B'. In freeforall, they have no team.
+    const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
     const { card } = payload;
     
     // Validate card in payload
@@ -30,33 +32,37 @@ class TrailRouter {
     }
     
     // --- Check for loose cards with same rank on table ---
-    const looseCards = state.tableCards.filter(tc => !tc.type);
-    const existingLooseCardOfSameRank = looseCards.some(
-      looseCard => looseCard.rank === card.rank
-    );
-    
-    if (existingLooseCardOfSameRank) {
-      throw new Error(
-        `trail: Cannot play ${card.rank}${card.suit} - ` +
-        `there's already a ${card.rank} on the table as a loose card`
+    // NOTE: This rule does NOT apply in free-for-all mode
+    if (isPartyMode) {
+      const looseCards = state.tableCards.filter(tc => !tc.type);
+      const existingLooseCardOfSameRank = looseCards.some(
+        looseCard => looseCard.rank === card.rank
       );
-    }
-    
-    // --- Check for build stacks with same value on table ---
-    const buildStacks = state.tableCards.filter(tc => tc.type === 'build_stack');
-    const existingBuildOfSameValue = buildStacks.some(
-      build => build.value === card.value
-    );
-    
-    if (existingBuildOfSameValue) {
-      throw new Error(
-        `trail: Cannot play ${card.rank}${card.suit} - ` +
-        `there's already a build with value ${card.value} on the table`
+      
+      if (existingLooseCardOfSameRank) {
+        throw new Error(
+          `trail: Cannot play ${card.rank}${card.suit} - ` +
+          `there's already a ${card.rank} on the table as a loose card`
+        );
+      }
+      
+      // --- Check for build stacks with same value on table ---
+      const buildStacks = state.tableCards.filter(tc => tc.type === 'build_stack');
+      const existingBuildOfSameValue = buildStacks.some(
+        build => build.value === card.value
       );
+      
+      if (existingBuildOfSameValue) {
+        throw new Error(
+          `trail: Cannot play ${card.rank}${card.suit} - ` +
+          `there's already a build with value ${card.value} on the table`
+        );
+      }
     }
     
     // In PARTY mode: allow trailing without restrictions (after above validations)
-    if (isPartyMode) {
+    // In FREE-FOR-ALL mode: also allow trailing without restrictions (no team restrictions)
+    if (isPartyMode || state.playerCount === 4) {
       return { type: 'trail', payload };
     }
     

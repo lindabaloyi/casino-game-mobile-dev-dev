@@ -29,16 +29,20 @@ function trail(state, payload, playerIndex) {
 
   // Check if a card with the same rank already exists on the table as a LOOSE card only
   // (temp_stack and build_stack objects don't block trailing - they have cards inside)
-  const looseCards = state.tableCards.filter(tc => !tc.type);
-  const existingCardOfSameRank = looseCards.some(
-    looseCard => looseCard.rank === card.rank
-  );
-  
-  if (existingCardOfSameRank) {
-    throw new Error(
-      `trail: Cannot play ${card.rank}${card.suit} - ` +
-      `there's already a ${card.rank} on the table`
+  // NOTE: This rule does NOT apply in free-for-all mode - any card can be played
+  const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
+  if (isPartyMode) {
+    const looseCards = state.tableCards.filter(tc => !tc.type);
+    const existingCardOfSameRank = looseCards.some(
+      looseCard => looseCard.rank === card.rank
     );
+    
+    if (existingCardOfSameRank) {
+      throw new Error(
+        `trail: Cannot play ${card.rank}${card.suit} - ` +
+        `there's already a ${card.rank} on the table`
+      );
+    }
   }
 
   // Clone state for pure function
