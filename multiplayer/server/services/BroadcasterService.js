@@ -2,6 +2,7 @@
  * BroadcasterService
  * Handles message broadcasting and game state distribution
  * Extracted from socket-server.js for better separation of concerns
+ * Updated to work with UnifiedMatchmakingService
  */
 
 class BroadcasterService {
@@ -42,7 +43,7 @@ class BroadcasterService {
       });
     });
   }
-  
+
   /**
    * Broadcast three-hands game start to all 3 players in a new three-hands game
    */
@@ -116,21 +117,42 @@ class BroadcasterService {
 
   /**
    * Broadcast party disconnection to remaining players in party game
+   * Works with UnifiedMatchmakingService
    */
   broadcastPartyDisconnection(gameId, disconnectedSocketId) {
-    if (!this.partyMatchmaking) return;
-    
-    // Use party matchmaking's getGameSockets method
-    const gameSockets = this.partyMatchmaking.getPartyGameSockets(gameId, this.io);
+    // If we have a dedicated party matchmaking service, use it
+    if (this.partyMatchmaking) {
+      // Use party matchmaking's getGameSockets method
+      const gameSockets = this.partyMatchmaking.getPartyGameSockets(gameId, this.io);
 
-    const remainingSockets = gameSockets.filter(
-      (socket) => socket.id !== disconnectedSocketId,
-    );
+      const remainingSockets = gameSockets.filter(
+        (socket) => socket.id !== disconnectedSocketId,
+      );
 
-    if (remainingSockets.length > 0) {
-      remainingSockets.forEach((otherSocket) => {
-        otherSocket.emit("player-disconnected");
-      });
+      if (remainingSockets.length > 0) {
+        remainingSockets.forEach((otherSocket) => {
+          otherSocket.emit("player-disconnected");
+        });
+      }
+    } else {
+      // Fallback to unified matchmaking service
+      const gameSockets = this.matchmaking.getGameSockets(gameId, this.io);
+      
+      // Filter to only sockets that are in party games
+      const partySockets = gameSockets.filter(socketId => {
+        const socketInfo = this.matchmaking.socketGameMap.get(socketId);
+        return socketInfo && socketInfo.gameType === 'party';
+      }).map(socketId => this.io.sockets.sockets.get(socketId)).filter(Boolean);
+
+      const remainingSockets = partySockets.filter(
+        (socket) => socket.id !== disconnectedSocketId,
+      );
+
+      if (remainingSockets.length > 0) {
+        remainingSockets.forEach((otherSocket) => {
+          otherSocket.emit("player-disconnected");
+        });
+      }
     }
   }
 
@@ -172,7 +194,7 @@ class BroadcasterService {
     let gameSockets = mm.getGameSockets(gameId, this.io);
     console.log(`[Broadcaster] Sockets from matchmaking: ${gameSockets.length}`);
     
-    // Fallback: Use io.to directly for party games
+    // Fallback: Use io.to directly for room-based messaging
     if (gameSockets.length === 0) {
       console.log(`[Broadcaster] Trying direct io.to(${gameId}) fallback`);
       this.io.to(gameId).emit(event, data);

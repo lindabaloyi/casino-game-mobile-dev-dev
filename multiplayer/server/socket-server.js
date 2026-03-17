@@ -16,15 +16,14 @@ const db = require('./db/connection');
 // Routes
 const { authRoutes, profileRoutes, gameRoutes, friendsRoutes, usersRoutes } = require('./routes');
 
-const MatchmakingService     = require('./services/MatchmakingService');
-const PartyMatchmakingService  = require('./services/PartyMatchmakingService');
+const UnifiedMatchmakingService = require('./services/UnifiedMatchmakingService');
 const RoomService              = require('./services/RoomService');
 const BroadcasterService      = require('./services/BroadcasterService');
 const GameCoordinatorService = require('./services/GameCoordinatorService');
 const GameManager  = require('./game/GameManager');
 const ActionRouter = require('./game/ActionRouter');
 
-// ── HTTP + Socket.IO setup ────────────────────────────────────────────────────
+// ── HTTP + Socket.IO setup ──
 
 const app    = express();
 const server = createServer(app);
@@ -59,17 +58,16 @@ app.get('/health', (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 
-// ── Service instances (populated in startServer) ──────────────────────────────
+// ── Service instances (populated in startServer) ──
 
 let gameManager;
 let actionRouter;
-let matchmaking;
-let partyMatchmaking;
-let broadcaster;
+let unifiedMatchmaking;
 let roomService;
+let broadcaster;
 let coordinator;
 
-// ── Connection handling ───────────────────────────────────────────────────────
+// ── Connection handling ──
 
 io.on('connection', socket => {
   // User authentication: join user-specific room for notifications
@@ -85,8 +83,8 @@ io.on('connection', socket => {
     // Socket automatically leaves rooms on disconnect
   });
 
-  // Add player to queue; start game if two are waiting
-  const gameResult = matchmaking.addToQueue(socket);
+  // Add player to queue; start game if two are waiting (duel)
+  const gameResult = unifiedMatchmaking.addToQueue(socket, 'duel');
   if (gameResult) {
     broadcaster.broadcastGameStart(gameResult);
   }
@@ -94,51 +92,61 @@ io.on('connection', socket => {
   // Party Matchmaking: add player to party queue; start 4-player game when ready
   socket.on('join-party-queue', () => {
     // Remove from regular matchmaking queue first (if present)
-    matchmaking.removeFromQueue(socket.id);
+    unifiedMatchmaking.socketGameMap.delete(socket.id); // Remove from any queue
+    unifiedMatchmaking.waitingQueues.duel = unifiedMatchmaking.waitingQueues.duel.filter(s => s.id !== socket.id);
     
-    const partyResult = partyMatchmaking.addToPartyQueue(socket);
+    const partyResult = unifiedMatchmaking.addToQueue(socket, 'party');
     if (partyResult) {
       broadcaster.broadcastPartyGameStart(partyResult);
     } else {
       // Broadcast to ALL waiting players (not just the joining player)
-      partyMatchmaking.broadcastPartyWaiting(io);
+      broadcastPartyWaiting(io);
     }
   });
 
   // Three-Hands Matchmaking: add player to three-hands queue; start 3-player game when ready
   socket.on('join-three-hands-queue', () => {
     // Remove from regular matchmaking queue first (if present)
-    matchmaking.removeFromQueue(socket.id);
+    unifiedMatchmaking.socketGameMap.delete(socket.id); // Remove from any queue
+    unifiedMatchmaking.waitingQueues.duel = unifiedMatchmaking.waitingQueues.duel.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
     
-    // Use party matchmaking for 3-player games (reusing the logic)
-    const result = partyMatchmaking.addThreeHandsToQueue(socket);
+    // Use unified matchmaking for 3-player games
+    const result = unifiedMatchmaking.addToQueue(socket, 'threeHands');
     if (result) {
       broadcaster.broadcastThreeHandsGameStart(result);
     } else {
       // Broadcast to ALL waiting players
-      partyMatchmaking.broadcastThreeHandsWaiting(io);
+      broadcastThreeHandsWaiting(io);
     }
   });
 
   // Free-For-All Matchmaking: add player to freeforall queue; start 4-player game when ready
   socket.on('join-freeforall-queue', () => {
     // Remove from regular matchmaking queue first (if present)
-    matchmaking.removeFromQueue(socket.id);
+    unifiedMatchmaking.socketGameMap.delete(socket.id); // Remove from any queue
+    unifiedMatchmaking.waitingQueues.duel = unifiedMatchmaking.waitingQueues.duel.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.threeHands = unifiedMatchmaking.waitingQueues.threeHands.filter(s => s.id !== socket.id);
     
-    // Use party matchmaking for free-for-all games (reusing the logic)
-    const result = partyMatchmaking.addFreeForAllToQueue(socket);
+    // Use unified matchmaking for free-for-all games
+    const result = unifiedMatchmaking.addToQueue(socket, 'freeforall');
     if (result) {
       broadcaster.broadcastFreeForAllGameStart(result);
     } else {
       // Broadcast to ALL waiting players
-      partyMatchmaking.broadcastFreeForAllWaiting(io);
+      broadcastFreeForAllWaiting(io);
     }
   });
 
   // Private Room: create room
   socket.on('create-room', (data) => {
     // Remove from matchmaking queues if present
-    matchmaking.removeFromQueue(socket.id);
+    unifiedMatchmaking.socketGameMap.delete(socket.id);
+    unifiedMatchmaking.waitingQueues.duel = unifiedMatchmaking.waitingQueues.duel.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.threeHands = unifiedMatchmaking.waitingQueues.threeHands.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.freeforall = unifiedMatchmaking.waitingQueues.freeforall.filter(s => s.id !== socket.id);
     
     const { gameMode, maxPlayers } = data;
     const result = roomService.createRoom(socket, gameMode, maxPlayers);
@@ -154,7 +162,11 @@ io.on('connection', socket => {
   // Private Room: join room
   socket.on('join-room', (data) => {
     // Remove from matchmaking queues if present
-    matchmaking.removeFromQueue(socket.id);
+    unifiedMatchmaking.socketGameMap.delete(socket.id);
+    unifiedMatchmaking.waitingQueues.duel = unifiedMatchmaking.waitingQueues.duel.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.threeHands = unifiedMatchmaking.waitingQueues.threeHands.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.freeforall = unifiedMatchmaking.waitingQueues.freeforall.filter(s => s.id !== socket.id);
     
     const result = roomService.joinRoom(socket, data.roomCode);
     
@@ -185,17 +197,18 @@ io.on('connection', socket => {
       
       if (!result.roomClosed && result.room) {
         // Notify remaining players
-        result.room.players.forEach(player => {
+        const room = result.room;
+        room.players.forEach(player => {
           const playerSocket = io.sockets.sockets.get(player.socketId);
           if (playerSocket) {
-            playerSocket.emit('room-updated', { room: result.room });
+            playerSocket.emit('room-updated', { room });
           }
         });
       }
     }
   });
 
-  // ── Private Room: get room status ─────────────────────────────────────────────
+  // ── Private Room: get room status ───────────────────────────────────────
   socket.on('room-status', (data) => {
     const room = roomService.getRoomStatus(data.roomCode);
     if (room) {
@@ -237,29 +250,33 @@ io.on('connection', socket => {
 
   // ── State sync (client can request the current state at any time) ─────────
   socket.on('request-sync', () => {
-    // Check regular matchmaking first
-    let gameId = matchmaking.getGameId(socket.id);
-    let isPartyGame = false;
-    let isFreeForAllGame = false;
+    // Check unified matchmaking for any game type
+    const socketInfo = unifiedMatchmaking.socketGameMap.get(socket.id);
+    let gameId = null;
+    let gameType = null;
     
-    // If not in regular game, check party matchmaking
-    if (!gameId) {
-      gameId = partyMatchmaking.getPartyGameId(socket.id);
-      isPartyGame = true;
+    if (socketInfo) {
+      gameId = socketInfo.gameId;
+      gameType = socketInfo.gameType;
     }
     
-    // Also check free-for-all games via socketGameMap
+    // Also check if waiting in any queue
     if (!gameId) {
-      // Check if socket is in freeforall queue
-      const freeForAllWaiting = partyMatchmaking.freeForAllWaitingPlayers?.some(p => p.id === socket.id);
-      if (freeForAllWaiting) {
-        socket.emit('error', { message: 'Waiting for free-for-all game to start' });
+      if (unifiedMatchmaking.waitingQueues.duel.some(s => s.id === socket.id)) {
+        socket.emit('error', { message: 'Waiting for duel game to start' });
         return;
       }
-      // Check if socket is in an active freeforall game
-      gameId = partyMatchmaking.socketGameMap?.get(socket.id);
-      if (gameId) {
-        isFreeForAllGame = true;
+      if (unifiedMatchmaking.waitingQueues.party.some(s => s.id === socket.id)) {
+        socket.emit('error', { message: 'Waiting for party game to start' });
+        return;
+      }
+      if (unifiedMatchmaking.waitingQueues.threeHands.some(s => s.id === socket.id)) {
+        socket.emit('error', { message: 'Waiting for three-hands game to start' });
+        return;
+      }
+      if (unifiedMatchmaking.waitingQueues.freeforall.some(s => s.id === socket.id)) {
+        socket.emit('error', { message: 'Waiting for free-for-all game to start' });
+        return;
       }
     }
     
@@ -271,20 +288,26 @@ io.on('connection', socket => {
 
   // ── Lobby status request (for polling) ───────────────────────────────────────
   socket.on('request-lobby-status', () => {
-    // Check party matchmaking first
-    const partyWaitingCount = partyMatchmaking.getWaitingPartyPlayersCount();
+    // Check all queues
+    const partyWaitingCount = unifiedMatchmaking.getWaitingCount('party');
     socket.emit('party-waiting', { playersJoined: partyWaitingCount });
     
     // Also check three-hands matchmaking
-    const threeHandsWaitingCount = partyMatchmaking.getWaitingThreeHandsPlayersCount();
+    const threeHandsWaitingCount = unifiedMatchmaking.getWaitingCount('threeHands');
     if (threeHandsWaitingCount > 0) {
       socket.emit('three-hands-waiting', { playersJoined: threeHandsWaitingCount });
     }
     
     // Also check free-for-all matchmaking
-    const freeForAllWaitingCount = partyMatchmaking.getWaitingFreeForAllPlayersCount();
+    const freeForAllWaitingCount = unifiedMatchmaking.getWaitingCount('freeforall');
     if (freeForAllWaitingCount > 0) {
       socket.emit('freeforall-waiting', { playersJoined: freeForAllWaitingCount });
+    }
+    
+    // Also check duel matchmaking
+    const duelWaitingCount = unifiedMatchmaking.getWaitingCount('duel');
+    if (duelWaitingCount > 0) {
+      socket.emit('duel-waiting', { playersJoined: duelWaitingCount });
     }
   });
 
@@ -305,27 +328,45 @@ io.on('connection', socket => {
       }
     }
     
-    // Handle regular matchmaking disconnect
-    const result = matchmaking.handleDisconnection(socket);
+    // Handle unified matchmaking disconnect
+    const result = unifiedMatchmaking.handleDisconnection(socket);
     if (result) {
       broadcaster.broadcastDisconnection(result.gameId, socket.id);
       if (result.remainingSockets.length < 1) {
         gameManager.endGame(result.gameId);
       }
     }
-    
-    // Handle party matchmaking disconnect
-    const partyResult = partyMatchmaking.handlePartyDisconnection(socket);
-    if (partyResult) {
-      broadcaster.broadcastPartyDisconnection(partyResult.gameId, socket.id);
-      if (partyResult.remainingSockets.length < 1) {
-        gameManager.endGame(partyResult.gameId);
-      }
-    }
   });
 });
 
-// ── Server control ────────────────────────────────────────────────────────────
+// Helper functions for broadcasting waiting counts
+function broadcastPartyWaiting(io) {
+  const count = unifiedMatchmaking.getWaitingCount('party');
+  
+  unifiedMatchmaking.waitingQueues.party.forEach(playerSocket => {
+    playerSocket.emit('party-waiting', { playersJoined: count });
+  });
+}
+
+function broadcastThreeHandsWaiting(io) {
+  const count = unifiedMatchmaking.getWaitingCount('threeHands');
+  console.log(`[UnifiedMatchmaking] Broadcasting three-hands-waiting: ${count} players`);
+  
+  unifiedMatchmaking.waitingQueues.threeHands.forEach(playerSocket => {
+    playerSocket.emit('three-hands-waiting', { playersJoined: count });
+  });
+}
+
+function broadcastFreeForAllWaiting(io) {
+  const count = unifiedMatchmaking.getWaitingCount('freeforall');
+  console.log(`[UnifiedMatchmaking] Broadcasting free-for-all-waiting: ${count} players`);
+  
+  unifiedMatchmaking.waitingQueues.freeforall.forEach(playerSocket => {
+    playerSocket.emit('freeforall-waiting', { playersJoined: count });
+  });
+}
+
+// ── Server control ──
 
 function getLocalIPAddress() {
   const interfaces = os.networkInterfaces();
@@ -353,17 +394,16 @@ async function startServer() {
 
   gameManager  = new GameManager();
   actionRouter = new ActionRouter(gameManager);
-  matchmaking  = new MatchmakingService(gameManager);
-  partyMatchmaking = new PartyMatchmakingService(gameManager, io);
-  broadcaster  = new BroadcasterService(matchmaking, gameManager, io, partyMatchmaking);
-  roomService   = new RoomService(gameManager, matchmaking, partyMatchmaking, broadcaster, io);
-  coordinator   = new GameCoordinatorService(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking);
+  unifiedMatchmaking = new UnifiedMatchmakingService(gameManager, io);
+  roomService   = new RoomService(gameManager, unifiedMatchmaking, broadcaster, io);
+  broadcaster  = new BroadcasterService(unifiedMatchmaking, gameManager, io, null);
+  coordinator   = new GameCoordinatorService(gameManager, actionRouter, unifiedMatchmaking, broadcaster);
 
   server.listen(PORT, '0.0.0.0', () => {
     const lanIp = getLocalIPAddress();
-    console.log(`[Server] ════════════════════════════════════════`);
+    console.log(`[Server] ═══════════════════════════════════════`);
     console.log(`[Server] 🎮 Casino Game Server Started!`);
-    console.log(`[Server] ════════════════════════════════════════`);
+    console.log(`[Server] ═══════════════════════════════════════`);
     console.log(`[Server] Local:   http://localhost:${PORT}`);
     if (lanIp) {
       console.log(`[Server] LAN IP:  http://${lanIp}:${PORT}`);

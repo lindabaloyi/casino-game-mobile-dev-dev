@@ -14,26 +14,27 @@ const GameState = require('../models/GameState');
 const GameStats = require('../models/GameStats');
 
 class GameCoordinatorService {
-  constructor(gameManager, actionRouter, matchmaking, broadcaster, partyMatchmaking = null) {
+  constructor(gameManager, actionRouter, unifiedMatchmaking, broadcaster) {
     this.gameManager  = gameManager;
     this.actionRouter = actionRouter;
-    this.matchmaking  = matchmaking;
+    this.unifiedMatchmaking = unifiedMatchmaking;
     this.broadcaster  = broadcaster;
-    this.partyMatchmaking = partyMatchmaking;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   /** Resolve which game + player this socket belongs to, or send error. */
   _resolvePlayer(socket) {
-    // First check regular matchmaking
-    let gameId = this.matchmaking.getGameId(socket.id);
+    // Check unified matchmaking for any game type
+    const socketInfo = this.unifiedMatchmaking.socketGameMap.get(socket.id);
+    let gameId = null;
     let isPartyGame = false;
+    let gameType = null;
     
-    // If not in regular game, check party matchmaking
-    if (!gameId && this.partyMatchmaking) {
-      gameId = this.partyMatchmaking.getPartyGameId(socket.id);
-      isPartyGame = true;
+    if (socketInfo) {
+      gameId = socketInfo.gameId;
+      gameType = socketInfo.gameType;
+      isPartyGame = (gameType === 'party');
     }
     
     if (!gameId) {
@@ -45,14 +46,15 @@ class GameCoordinatorService {
       this.broadcaster.sendError(socket, 'Player not found in game');
       return null;
     }
-    return { gameId, playerIndex, isPartyGame };
+    return { gameId, playerIndex, isPartyGame, gameType };
   }
 
   /**
    * Get the appropriate matchmaking service based on whether it's a party game
+   * Now always returns unifiedMatchmaking since we have a single service
    */
   _getMatchmakingForGame(isPartyGame) {
-    return isPartyGame ? this.partyMatchmaking : this.matchmaking;
+    return this.unifiedMatchmaking;
   }
 
   // ── Event handlers ────────────────────────────────────────────────────────
@@ -70,13 +72,10 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex, isPartyGame } = ctx;
+    const { gameId, playerIndex, isPartyGame, gameType } = ctx;
 
     try {
       const newState = this.actionRouter.executeAction(gameId, playerIndex, data);
-      
-      // Get the correct matchmaking service for broadcasting
-      const mm = this._getMatchmakingForGame(isPartyGame);
       
       // Check if all players have ended their turn (trick complete)
       if (allPlayersTurnEnded(newState)) {
@@ -127,7 +126,7 @@ class GameCoordinatorService {
           round: newState.round,
           reason: roundCheck.reason,
           summary,
-        }, mm);
+        }, this.unifiedMatchmaking);
         
         // Check if game is over
         const gameOverCheck = RoundValidator.checkGameOver(newState);
@@ -165,7 +164,7 @@ class GameCoordinatorService {
           this._saveGameToMongo(gameId, finalizedState, isPartyGame);
           
           console.log(`[Coordinator] Broadcasting game-over for ${playerCount}-player mode, winner: ${gameOverCheck.winner}`);
-          console.log(`[Coordinator] Using matchmaking service:`, mm?.constructor?.name || 'default', 'isPartyGame:', isPartyGame);
+          console.log(`[Coordinator] Using unified matchmaking service`);
           console.log(`[Coordinator] About to call broadcaster.broadcastToGame...`);
           this.broadcaster.broadcastToGame(gameId, 'game-over', {
             winner: gameOverCheck.winner,
@@ -176,14 +175,14 @@ class GameCoordinatorService {
             scoreBreakdowns,
             teamScoreBreakdowns,
             isPartyMode,
-          }, mm);
+          }, this.unifiedMatchmaking);
           console.log(`[Coordinator] broadcastToGame called!`);
         } else {
           // Auto-transition to next round for multiplayer
           const nextState = RoundValidator.prepareNextRound(newState);
           if (nextState) {
             this.gameManager.saveGameState(gameId, nextState);
-            this.broadcaster.broadcastGameUpdate(gameId, nextState, mm);
+            this.broadcaster.broadcastGameUpdate(gameId, nextState, this.unifiedMatchmaking);
           } else {
             // No more rounds - end the game
             // Finalize game - this calculates scores from captured cards
@@ -227,11 +226,11 @@ class GameCoordinatorService {
               scoreBreakdowns,
               teamScoreBreakdowns: teamScoreBreakdownsElse,
               isPartyMode: isPartyModeElse,
-            }, mm);
+            }, this.unifiedMatchmaking);
           }
         }
       } else {
-        this.broadcaster.broadcastGameUpdate(gameId, newState, mm);
+        this.broadcaster.broadcastGameUpdate(gameId, newState, this.unifiedMatchmaking);
       }
     } catch (err) {
       console.error(`[Coordinator] game-action failed: ${err.message}`);
@@ -247,8 +246,7 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex, isPartyGame } = ctx;
-    const mm = this._getMatchmakingForGame(isPartyGame);
+    const { gameId, playerIndex, isPartyGame, gameType } = ctx;
     
     // Broadcast to other player (not self)
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-start', {
@@ -258,7 +256,7 @@ class GameCoordinatorService {
       source: data.source,
       position: data.position, // normalized 0-1 coordinates
       timestamp: Date.now(),
-    }, mm);
+    }, this.unifiedMatchmaking);
   }
 
   /**
@@ -269,16 +267,15 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex, isPartyGame } = ctx;
-    const mm = this._getMatchmakingForGame(isPartyGame);
-
+    const { gameId, playerIndex, isPartyGame, gameType } = ctx;
+    
     // console.log(`[Coordinator] drag-move from P${playerIndex}:`, data);
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-move', {
       playerIndex,
       card: data.card,
       position: data.position, // normalized 0-1 coordinates
       timestamp: Date.now(),
-    }, mm);
+    }, this.unifiedMatchmaking);
   }
 
   /**
@@ -289,9 +286,8 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex, isPartyGame } = ctx;
-    const mm = this._getMatchmakingForGame(isPartyGame);
-
+    const { gameId, playerIndex, isPartyGame, gameType } = ctx;
+    
     // Broadcast end to opponent first
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-end', {
       playerIndex,
@@ -301,7 +297,7 @@ class GameCoordinatorService {
       targetType: data.targetType,
       targetId: data.targetId,
       timestamp: Date.now(),
-    }, mm);
+    }, this.unifiedMatchmaking);
   }
 
   /**
@@ -312,8 +308,7 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex, isPartyGame } = ctx;
-    const mm = this._getMatchmakingForGame(isPartyGame);
+    const { gameId, playerIndex, isPartyGame, gameType } = ctx;
 
     try {
       const state = this.gameManager.getGameState(gameId);
@@ -371,14 +366,14 @@ class GameCoordinatorService {
           scoreBreakdowns,
           teamScoreBreakdowns: teamScoreBreakdownsNext,
           isPartyMode: isPartyModeNext,
-        }, mm);
+        }, this.unifiedMatchmaking);
         return;
       }
       
       this.gameManager.saveGameState(gameId, newState);
       
       // Broadcast game update with new round
-      this.broadcaster.broadcastGameUpdate(gameId, newState, mm);
+      this.broadcaster.broadcastGameUpdate(gameId, newState, this.unifiedMatchmaking);
     } catch (err) {
       console.error(`[Coordinator] start-next-round failed: ${err.message}`);
       this.broadcaster.sendError(socket, err.message);
@@ -464,7 +459,6 @@ class GameCoordinatorService {
       console.error(`[Coordinator] ❌ Failed to update player stats:`, error.message);
     }
   }
-
 }
 
 module.exports = GameCoordinatorService;

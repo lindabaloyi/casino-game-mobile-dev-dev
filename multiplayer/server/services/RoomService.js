@@ -9,10 +9,9 @@ const CODE_LENGTH = 6;
 const ROOM_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 class RoomService {
-  constructor(gameManager, matchmaking, partyMatchmaking, broadcaster, io = null) {
+  constructor(gameManager, unifiedMatchmaking, broadcaster, io = null) {
     this.gameManager = gameManager;
-    this.matchmaking = matchmaking;
-    this.partyMatchmaking = partyMatchmaking;
+    this.unifiedMatchmaking = unifiedMatchmaking;
     this.broadcaster = broadcaster;
     this.io = io;
 
@@ -241,58 +240,58 @@ class RoomService {
 
     console.log(`[RoomService] Starting ${room.gameMode} game in room ${code}`);
 
-    // Start game via appropriate matchmaking service
-    let gameResult;
-    if (isPartyGame) {
-      // For party games, we need to manually create the game with these specific sockets
-      const sockets = room.players.map(p => io.sockets.sockets.get(p.socketId)).filter(Boolean);
-      if (sockets.length !== 4) {
-        return { success: false, error: 'Not all players connected' };
-      }
-      
-      // Create party game directly
-      const { gameId, gameState } = this.gameManager.startPartyGame();
-      room.gameId = gameId;
+     // Start game via unified matchmaking service
+     let gameResult;
+     if (isPartyGame) {
+       // For party games, we need to manually create the game with these specific sockets
+       const sockets = room.players.map(p => io.sockets.sockets.get(p.socketId)).filter(Boolean);
+       if (sockets.length !== 4) {
+         return { success: false, error: 'Not all players connected' };
+       }
+       
+       // Create party game directly
+       const { gameId, gameState } = this.gameManager.startPartyGame();
+       room.gameId = gameId;
 
-      // Register players
-      for (let i = 0; i < 4; i++) {
-        this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
-        this.partyMatchmaking.socketGameMap.set(sockets[i].id, gameId);
-        this.partyMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
-      }
+       // Register players
+       for (let i = 0; i < 4; i++) {
+         this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
+         this.unifiedMatchmaking.socketGameMap.set(sockets[i].id, gameId);
+         this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
+       }
 
-      gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
-      room.status = 'started';
-      
-      // Emit game-start to all players
-      sockets.forEach(socket => {
-        socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
-      });
-    } else {
-      // For duel games
-      const sockets = room.players.map(p => io.sockets.sockets.get(p.socketId)).filter(Boolean);
-      if (sockets.length !== 2) {
-        return { success: false, error: 'Not all players connected' };
-      }
+       gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
+       room.status = 'started';
+       
+       // Emit game-start to all players
+       sockets.forEach(socket => {
+         socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
+       });
+     } else {
+       // For duel games
+       const sockets = room.players.map(p => io.sockets.sockets.get(p.socketId)).filter(Boolean);
+       if (sockets.length !== 2) {
+         return { success: false, error: 'Not all players connected' };
+       }
 
-      const { gameId, gameState } = this.gameManager.startGame();
-      room.gameId = gameId;
+       const { gameId, gameState } = this.gameManager.startGame();
+       room.gameId = gameId;
 
-      // Register players
-      for (let i = 0; i < 2; i++) {
-        this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
-        this.matchmaking.socketGameMap.set(sockets[i].id, gameId);
-        this.matchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
-      }
+       // Register players
+       for (let i = 0; i < 2; i++) {
+         this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
+         this.unifiedMatchmaking.socketGameMap.set(sockets[i].id, gameId);
+         this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
+       }
 
-      gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
-      room.status = 'started';
+       gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
+       room.status = 'started';
 
-      // Emit game-start to all players
-      sockets.forEach(socket => {
-        socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
-      });
-    }
+       // Emit game-start to all players
+       sockets.forEach(socket => {
+         socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
+       });
+     }
 
     // Remove from room tracking (game is now in matchmaking maps)
     for (const player of room.players) {
