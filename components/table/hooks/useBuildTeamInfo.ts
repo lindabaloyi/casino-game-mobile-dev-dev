@@ -29,6 +29,9 @@ export const PLAYER_2_PURPLE = TEAM_B_COLORS.primary;
 // Blue for Player 3 (3-player mode)
 export const PLAYER_3_BLUE = '#2196F3';
 
+// Burgundy for Player 4 (4-player free-for-all mode)
+export const PLAYER_4_BURGUNDY = '#800020';
+
 interface UseBuildTeamInfoProps {
   /** Owner player index */
   owner: number;
@@ -68,6 +71,7 @@ export function useBuildTeamInfo({
   effectiveSum = 0,
 }: UseBuildTeamInfoProps): UseBuildTeamInfoResult {
   const isThreePlayerMode = playerCount === 3;
+  const isFourPlayerFreeForAll = playerCount === 4 && !isPartyMode;
   
   const { ownerTeam, ownerTag, ownerPosition, colors } = useMemo(() => {
     const team = getTeamFromIndex(owner) as TeamId;
@@ -80,6 +84,9 @@ export function useBuildTeamInfo({
     if (isPartyMode) {
       // Party mode (4-player): use team-specific colors
       teamColors = team === 'A' ? TEAM_A_COLORS : TEAM_B_COLORS;
+    } else if (isFourPlayerFreeForAll) {
+      // 4-player free-for-all: use individual player colors
+      teamColors = getPlayerColors(owner, 4);
     } else if (isThreePlayerMode) {
       // 3-player mode: use player-specific colors with playerCount
       teamColors = getPlayerColors(owner, playerCount);
@@ -96,13 +103,23 @@ export function useBuildTeamInfo({
       ownerPosition: position,
       colors: teamColors,
     };
-  }, [owner, isPartyMode, isThreePlayerMode, playerCount]);
+  }, [owner, isPartyMode, isThreePlayerMode, isFourPlayerFreeForAll, playerCount]);
 
   // Badge color: accent while incomplete (effectiveSum !== 0), team color when complete
   // Capture uses same colors as extension (team-based, not red)
   const badgeColor = useMemo(() => {
     // Helper function to get player color based on owner and playerCount
     const getPlayerColor = (playerIndex: number, count: number): string => {
+      if (count === 4) {
+        // 4-player free-for-all: P0=purple, P1=gold, P2=blue, P3=burgundy
+        switch (playerIndex) {
+          case 0: return PLAYER_2_PURPLE;  // Purple
+          case 1: return PLAYER_1_GOLD;   // Gold
+          case 2: return PLAYER_3_BLUE;   // Blue
+          case 3: return PLAYER_4_BURGUNDY;  // Burgundy
+          default: return PLAYER_2_PURPLE;
+        }
+      }
       if (count === 3) {
         // 3-player mode: P1=gold, P2=purple, P3=blue
         switch (playerIndex) {

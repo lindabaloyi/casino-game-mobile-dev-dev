@@ -15,6 +15,9 @@ class PartyMatchmakingService {
     /** Sockets waiting for a three-hands game */
     this.threeHandsWaitingPlayers = [];
 
+    /** Sockets waiting for a free-for-all game */
+    this.freeForAllWaitingPlayers = [];
+
     /** socketId → gameId */
     this.socketGameMap = new Map();
 
@@ -150,6 +153,110 @@ class PartyMatchmakingService {
   }
 
   /**
+   * Add a socket to the free-for-all queue. If 4 players are waiting, start a game.
+   */
+  addFreeForAllToQueue(socket) {
+    // Don't add if already in a game or queue
+    if (this.socketGameMap.has(socket.id)) {
+      return null;
+    }
+
+    this.freeForAllWaitingPlayers.push(socket);
+    this.socketGameMap.set(socket.id, null);
+    
+    console.log(`[PartyMatchmaking] Player ${socket.id} added to free-for-all queue. Total: ${this.freeForAllWaitingPlayers.length}`);
+    
+    return this._tryCreateFreeForAllGame();
+  }
+
+  /**
+   * Broadcast free-for-all-waiting event to ALL waiting players
+   */
+  broadcastFreeForAllWaiting(io) {
+    const count = this.freeForAllWaitingPlayers.length;
+    console.log(`[PartyMatchmaking] Broadcasting free-for-all-waiting: ${count} players`);
+    
+    this.freeForAllWaitingPlayers.forEach(playerSocket => {
+      playerSocket.emit('freeforall-waiting', { playersJoined: count });
+    });
+  }
+
+  /**
+   * Get count of waiting free-for-all players
+   */
+  getWaitingFreeForAllPlayersCount() {
+    return this.freeForAllWaitingPlayers.length;
+  }
+
+  /**
+   * Get the number of players needed to start a free-for-all game
+   */
+  getFreeForAllPlayersNeeded() {
+    return Math.max(0, 4 - this.freeForAllWaitingPlayers.length);
+  }
+
+  /**
+   * Try to create a free-for-all game when 4 players are waiting
+   */
+  _tryCreateFreeForAllGame() {
+    if (this.freeForAllWaitingPlayers.length < 4) {
+      console.log(`[PartyMatchmaking] Not enough players for free-for-all: ${this.freeForAllWaitingPlayers.length}/4`);
+      return null;
+    }
+
+    // CRITICAL: Verify we have exactly 4 ready sockets
+    if (this.freeForAllWaitingPlayers.length !== 4) {
+      console.error(`[PartyMatchmaking] ❌ Cannot start free-for-all game - expected 4 players, have ${this.freeForAllWaitingPlayers.length}`);
+      return null;
+    }
+
+    const players = this.freeForAllWaitingPlayers.splice(0, 4);
+
+    // Validate all sockets are connected and valid
+    for (let i = 0; i < players.length; i++) {
+      if (!players[i] || !players[i].id) {
+        console.error(`[PartyMatchmaking] ❌ Invalid socket at index ${i}`);
+        return null;
+      }
+    }
+
+    // Start a 4-player free-for-all game
+    console.log(`[PartyMatchmaking] Starting free-for-all game with 4 players!`);
+    const { gameId, gameState } = this.gameManager.startFreeForAllGame();
+
+    // Validate game state was created properly
+    if (!gameState) {
+      console.error(`[PartyMatchmaking] ❌ Failed to create free-for-all game state`);
+      return null;
+    }
+
+    if (gameState.players.length !== 4) {
+      console.error(`[PartyMatchmaking] ❌ Free-for-all game state has wrong player count: ${gameState.players.length}`);
+      return null;
+    }
+
+    // Map sockets → gameId
+    for (const p of players) {
+      this.socketGameMap.set(p.id, gameId);
+    }
+    this.gameSocketsMap.set(gameId, players.map(p => p.id));
+
+    // Register players in GameManager (0, 1, 2, 3)
+    for (let i = 0; i < 4; i++) {
+      this.gameManager.addPlayerToGame(gameId, players[i].id, i);
+    }
+
+    return {
+      gameId,
+      gameState,
+      players: players.map((socket, index) => ({
+        socket,
+        playerNumber: index
+      })),
+    };
+  }
+
+  /**
    * Alias for addToQueue
    */
   addToPartyQueue(socket) {
@@ -236,6 +343,8 @@ class PartyMatchmakingService {
   handleDisconnection(socket) {
     // Remove from queue if still waiting
     this.waitingPlayers = this.waitingPlayers.filter(s => s.id !== socket.id);
+    this.threeHandsWaitingPlayers = this.threeHandsWaitingPlayers.filter(s => s.id !== socket.id);
+    this.freeForAllWaitingPlayers = this.freeForAllWaitingPlayers.filter(s => s.id !== socket.id);
 
     const gameId = this.socketGameMap.get(socket.id);
     

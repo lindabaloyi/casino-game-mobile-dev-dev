@@ -72,6 +72,22 @@ class GameManager {
   }
 
   /**
+   * Create a new 4-player free-for-all game.
+   * @returns {{ gameId: number, gameState: object }}
+   */
+  startFreeForAllGame() {
+    const gameId = this._nextId++;
+    
+    // Free-for-all uses 4 players but without team mechanics
+    const gameState = initializeGame(4); // 4 players
+
+    this.activeGames.set(gameId, gameState);
+    this.socketPlayerMap.set(gameId, new Map());
+
+    return { gameId, gameState };
+  }
+
+  /**
    * Retrieve game state (returns undefined if not found).
    */
   getGameState(gameId) {

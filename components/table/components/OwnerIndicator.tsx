@@ -6,7 +6,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { PlayerIcon } from '../../ui/PlayerIcon';
-import { useBuildTeamInfo, PLAYER_1_GOLD, PLAYER_2_PURPLE, PLAYER_3_BLUE } from '../hooks/useBuildTeamInfo';
+import { useBuildTeamInfo, PLAYER_1_GOLD, PLAYER_2_PURPLE, PLAYER_3_BLUE, PLAYER_4_BURGUNDY } from '../hooks/useBuildTeamInfo';
 
 interface OwnerIndicatorProps {
   /** Owner player index */
@@ -29,6 +29,16 @@ export function OwnerIndicator({ owner, isPartyMode, playerCount }: OwnerIndicat
 
   // Get player color based on playerCount
   const getPlayerColor = (playerIndex: number, count: number): string => {
+    if (count === 4) {
+      // 4-player free-for-all: P0=purple, P1=gold, P2=blue, P3=burgundy
+      switch (playerIndex) {
+        case 0: return PLAYER_2_PURPLE;  // Purple
+        case 1: return PLAYER_1_GOLD;    // Gold
+        case 2: return PLAYER_3_BLUE;    // Blue
+        case 3: return PLAYER_4_BURGUNDY; // Burgundy
+        default: return PLAYER_2_PURPLE;
+      }
+    }
     if (count === 3) {
       switch (playerIndex) {
         case 0: return PLAYER_1_GOLD;

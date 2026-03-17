@@ -27,7 +27,7 @@ export type { Card, GameState, GameOverData, OpponentDragState };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type GameMode = 'two-hands' | 'party' | 'three-hands';
+export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'freeforall';
 
 export interface UseMultiplayerGameOptions {
   mode: GameMode;
@@ -84,6 +84,7 @@ export interface UseMultiplayerGameResult {
 export function getPlayerCount(mode: GameMode): number {
   switch (mode) {
     case 'party':
+    case 'freeforall':
       return 4;
     case 'three-hands':
       return 3;
@@ -96,6 +97,7 @@ export function getPlayerCount(mode: GameMode): number {
 export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMultiplayerGameResult {
   const { mode } = options;
   const isPartyMode = mode === 'party';
+  const isFreeForAllMode = mode === 'freeforall';
   const playerCount = getPlayerCount(mode);
 
   // Compose smaller, focused hooks
@@ -107,13 +109,14 @@ export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMulti
   // Debug: Log lobby state values
   console.log(`[useMultiplayerGame] mode: ${mode}, playerCount: ${playerCount}, isInLobby: ${lobby.isInLobby}, playersInLobby: ${lobby.playersInLobby}, requiredPlayers: ${lobby.requiredPlayers}, allPlayersReady: ${lobby.allPlayersReady}`);
   const startNextRound = useCallback(() => {
-    if (isPartyMode) {
+    // Party and Free-for-all modes need manual round transitions
+    if (isPartyMode || isFreeForAllMode) {
       socket?.emit('start-next-round');
     } else {
       // Duel mode: server handles round transitions automatically
       console.log('[useMultiplayerGame] startNextRound called - server handles transitions automatically');
     }
-  }, [socket, isPartyMode]);
+  }, [socket, isPartyMode, isFreeForAllMode]);
 
   // Combine results
   return {

@@ -61,6 +61,23 @@ class BroadcasterService {
   }
 
   /**
+   * Broadcast free-for-all game start to all 4 players in a new free-for-all game
+   */
+  broadcastFreeForAllGameStart(gameResult) {
+    const { gameId, gameState, players } = gameResult;
+    console.log(`[Broadcaster] Broadcasting free-for-all game start to ${players.length} players`);
+
+    players.forEach(({ socket, playerNumber }) => {
+      socket.emit("game-start", {
+        gameId,
+        gameState,
+        playerNumber,
+        gameMode: 'freeforall',
+      });
+    });
+  }
+
+  /**
    * Broadcast game update to all players in a game
    */
   broadcastGameUpdate(gameId, gameState, matchmakingService = null) {

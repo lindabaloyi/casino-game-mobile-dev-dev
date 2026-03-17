@@ -120,6 +120,21 @@ io.on('connection', socket => {
     }
   });
 
+  // Free-For-All Matchmaking: add player to freeforall queue; start 4-player game when ready
+  socket.on('join-freeforall-queue', () => {
+    // Remove from regular matchmaking queue first (if present)
+    matchmaking.removeFromQueue(socket.id);
+    
+    // Use party matchmaking for free-for-all games (reusing the logic)
+    const result = partyMatchmaking.addFreeForAllToQueue(socket);
+    if (result) {
+      broadcaster.broadcastFreeForAllGameStart(result);
+    } else {
+      // Broadcast to ALL waiting players
+      partyMatchmaking.broadcastFreeForAllWaiting(io);
+    }
+  });
+
   // Private Room: create room
   socket.on('create-room', (data) => {
     // Remove from matchmaking queues if present
@@ -224,10 +239,28 @@ io.on('connection', socket => {
   socket.on('request-sync', () => {
     // Check regular matchmaking first
     let gameId = matchmaking.getGameId(socket.id);
+    let isPartyGame = false;
+    let isFreeForAllGame = false;
     
     // If not in regular game, check party matchmaking
     if (!gameId) {
       gameId = partyMatchmaking.getPartyGameId(socket.id);
+      isPartyGame = true;
+    }
+    
+    // Also check free-for-all games via socketGameMap
+    if (!gameId) {
+      // Check if socket is in freeforall queue
+      const freeForAllWaiting = partyMatchmaking.freeForAllWaitingPlayers?.some(p => p.id === socket.id);
+      if (freeForAllWaiting) {
+        socket.emit('error', { message: 'Waiting for free-for-all game to start' });
+        return;
+      }
+      // Check if socket is in an active freeforall game
+      gameId = partyMatchmaking.socketGameMap?.get(socket.id);
+      if (gameId) {
+        isFreeForAllGame = true;
+      }
     }
     
     if (!gameId) { socket.emit('error', { message: 'Not in a game' }); return; }
@@ -246,6 +279,12 @@ io.on('connection', socket => {
     const threeHandsWaitingCount = partyMatchmaking.getWaitingThreeHandsPlayersCount();
     if (threeHandsWaitingCount > 0) {
       socket.emit('three-hands-waiting', { playersJoined: threeHandsWaitingCount });
+    }
+    
+    // Also check free-for-all matchmaking
+    const freeForAllWaitingCount = partyMatchmaking.getWaitingFreeForAllPlayersCount();
+    if (freeForAllWaitingCount > 0) {
+      socket.emit('freeforall-waiting', { playersJoined: freeForAllWaitingCount });
     }
   });
 

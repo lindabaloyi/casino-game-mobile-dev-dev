@@ -118,8 +118,8 @@ interface Props {
   isPartyMode?: boolean;
   currentPlayerIndex?: number;
   
-  /** Game mode type for special rendering (e.g., two-hands for 3-player) */
-  gameMode?: 'two-hands' | 'three-hands' | 'party';
+  /** Game mode type for special rendering (e.g., two-hands for 3-player, freeforall for 4-player) */
+  gameMode?: 'two-hands' | 'three-hands' | 'party' | 'freeforall';
   
   /** Callback when a build is tapped - for Shiya selection or dual builds */
   onBuildTap?: (stack: BuildStack | TempStack) => void;

@@ -402,11 +402,12 @@ export function GameBoard({
         tableVersion={computed.tableVersion}
         isMyTurn={computed.isMyTurn}
         playerNumber={playerNumber}
-        // Party mode props for team colors
-        isPartyMode={gameState.playerCount === 4}
+        // Party mode for team colors - determine from gameMode
+        // For 4-player: leave undefined so CapturedCardsView detects freeforall vs party from gameMode
         currentPlayerIndex={gameState.currentPlayer}
         // Game mode for special rendering (e.g., two-hands for 3-player)
-        gameMode={gameState.playerCount === 4 ? 'party' : (gameState.playerCount === 3 ? 'two-hands' : undefined)}
+        // For 4-player: leave undefined so CapturedCardsView falls back to freeforall
+        gameMode={gameState.playerCount === 3 ? 'two-hands' : undefined}
         tableRef={drag.tableRef}
         onTableLayout={drag.onTableLayout}
         registerCard={drag.registerCard}

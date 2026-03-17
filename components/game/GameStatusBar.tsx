@@ -49,6 +49,7 @@ export function GameStatusBar({
         currentPlayerIndex={currentPlayer}
         playerIndex={playerNumber}
         isPartyMode={isPartyMode}
+        playerCount={playerCount}
       />
 
       {/* Timer - only shown for active player's turn */}

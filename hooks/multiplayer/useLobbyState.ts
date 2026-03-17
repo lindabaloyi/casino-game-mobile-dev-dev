@@ -82,6 +82,13 @@ export function useLobbyState(
       setPlayersInLobby(data.playersJoined);
     };
 
+    // Handle freeforall-waiting (4-player free-for-all mode)
+    const handleFreeForAllWaiting = (data: { playersJoined: number }) => {
+      console.log('[useLobbyState] freeforall-waiting received:', data);
+      setIsInLobby(true);
+      setPlayersInLobby(data.playersJoined);
+    };
+
     // Handle two-hands-waiting (2-player mode)
     const handleTwoHandsWaiting = (data: { playersJoined: number }) => {
       console.log('[useLobbyState] two-hands-waiting received:', data);
@@ -101,8 +108,10 @@ export function useLobbyState(
     };
 
     // Listen to appropriate events based on player count
+    // For 4-player games, listen to both party-waiting and freeforall-waiting
     if (requiredPlayers === 4) {
       socket.on('party-waiting', handlePartyWaiting);
+      socket.on('freeforall-waiting', handleFreeForAllWaiting);
     } else if (requiredPlayers === 3) {
       socket.on('three-hands-waiting', handleThreeHandsWaiting);
     } else if (requiredPlayers === 2) {
@@ -126,6 +135,7 @@ export function useLobbyState(
       socket.off('party-waiting', handlePartyWaiting);
       socket.off('three-hands-waiting', handleThreeHandsWaiting);
       socket.off('two-hands-waiting', handleTwoHandsWaiting);
+      socket.off('freeforall-waiting', handleFreeForAllWaiting);
       socket.off('game-start', handleGameStart);
       // Clean up polling interval
       if (pollingIntervalRef.current) {

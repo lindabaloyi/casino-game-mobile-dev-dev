@@ -90,12 +90,47 @@ export const PLAYER_3_COLORS: TeamColors = {
 };
 
 /**
- * Get player-specific colors for 2 or 3-player mode
- * @param playerIndex - Player index (0 for P1, 1 for P2, 2 for P3)
- * @param playerCount - Total number of players (2 or 3)
+ * Player 4 colors - Burgundy theme for 4-player free-for-all mode
+ * Distinct color to differentiate from other players
+ */
+export const PLAYER_4_COLORS: TeamColors = {
+  primary: '#800020',   // Burgundy
+  secondary: '#F5E6E8',
+  accent: '#5C0018',
+  background: '#F5E6E8',
+  text: '#5C0018',
+  border: '#B76E84',
+};
+
+// Burgundy for Player 4 (4-player free-for-all mode)
+export const PLAYER_4_BURGUNDY = '#800020';
+
+// Player 1 Gold (for individual player identification)
+export const PLAYER_1_GOLD = '#FF9800';
+
+// Player 2 Purple (for individual player identification)
+export const PLAYER_2_PURPLE = '#9C27B0';
+
+// Player 3 Blue (for individual player identification)
+export const PLAYER_3_BLUE = '#2196F3';
+
+/**
+ * Get player-specific colors for 2, 3, or 4-player mode
+ * @param playerIndex - Player index (0 for P1, 1 for P2, 2 for P3, 3 for P4)
+ * @param playerCount - Total number of players (2, 3, or 4)
  * @returns TeamColors object for the specified player
  */
 export function getPlayerColors(playerIndex: number, playerCount: number = 2): TeamColors {
+  // For 4-player free-for-all mode: P0=purple, P1=gold, P2=blue, P3=burgundy
+  if (playerCount === 4) {
+    switch (playerIndex) {
+      case 0: return { ...TEAM_B_COLORS, primary: '#9C27B0', accent: '#7B1FA2' };  // Purple
+      case 1: return { ...TEAM_B_COLORS, primary: PLAYER_1_COLORS.primary, accent: '#B8860B' };  // Gold
+      case 2: return PLAYER_3_COLORS;  // Blue
+      case 3: return PLAYER_4_COLORS;  // Burgundy
+      default: return NEUTRAL_COLORS;
+    }
+  }
   // For 3-player mode: player 0 = Player 1 (gold/orange), player 1 = Player 2 (purple), player 2 = Player 3 (blue)
   if (playerCount === 3) {
     switch (playerIndex) {

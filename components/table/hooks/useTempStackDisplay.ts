@@ -7,7 +7,7 @@
 import { useMemo } from 'react';
 import { getBuildHint } from '../../../utils/buildCalculator';
 import { TempStack, Card } from '../types';
-import { PLAYER_1_GOLD, PLAYER_2_PURPLE, PLAYER_3_BLUE } from './useBuildTeamInfo';
+import { PLAYER_1_GOLD, PLAYER_2_PURPLE, PLAYER_3_BLUE, PLAYER_4_BURGUNDY } from './useBuildTeamInfo';
 
 interface UseTempStackDisplayResult {
   /** Display value string for the badge */
@@ -29,14 +29,25 @@ export function useTempStackDisplay(
     return getBuildHint(values);
   }, [stack.cards]);
 
-  // Get badge color based on player (gold for P1, purple for P2, blue for P3)
+  // Get badge color based on player (gold for P1, purple for P2, blue for P3, burgundy for P4)
   const getBadgeColor = (isComplete: boolean): string => {
     if (!isComplete) {
       // Incomplete - show red for need
       return '#E53935';
     }
-    // Complete - use gold for P1, purple for P2, blue for P3
+    // Complete - use player-specific colors based on playerCount
+    if (playerCount === 4) {
+      // 4-player free-for-all: P0=purple, P1=gold, P2=blue, P3=burgundy
+      switch (stack.owner) {
+        case 0: return PLAYER_2_PURPLE;  // Purple
+        case 1: return PLAYER_1_GOLD;    // Gold
+        case 2: return PLAYER_3_BLUE;    // Blue
+        case 3: return PLAYER_4_BURGUNDY; // Burgundy
+        default: return PLAYER_2_PURPLE;
+      }
+    }
     if (playerCount === 3) {
+      // 3-player mode
       switch (stack.owner) {
         case 0: return PLAYER_1_GOLD;
         case 1: return PLAYER_2_PURPLE;
@@ -44,6 +55,7 @@ export function useTempStackDisplay(
         default: return PLAYER_2_PURPLE;
       }
     }
+    // 2-player mode
     return stack.owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE;
   };
 

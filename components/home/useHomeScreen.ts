@@ -114,6 +114,9 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
       case 'party':
         router.push('/multiplayer?mode=party' as any);
         break;
+      case 'freeforall':
+        router.push('/multiplayer?mode=freeforall' as any);
+        break;
     }
   };
   

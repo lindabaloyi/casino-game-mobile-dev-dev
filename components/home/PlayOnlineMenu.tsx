@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export type GameModeOption = 'two-hands' | 'three-hands' | 'party';
+export type GameModeOption = 'two-hands' | 'three-hands' | 'party' | 'freeforall';
 
 interface GameModeInfo {
   id: GameModeOption;
@@ -53,6 +53,14 @@ const GAME_MODES: GameModeInfo[] = [
     subtitle: '2v2 Battle',
     description: 'Team up with a friend for 2v2',
     icon: 'people',
+    players: '4 Players',
+  },
+  {
+    id: 'freeforall',
+    title: '🏆 Free For All',
+    subtitle: '1v1v1v1',
+    description: 'Every player for themselves!',
+    icon: 'trophy',
     players: '4 Players',
   },
 ];

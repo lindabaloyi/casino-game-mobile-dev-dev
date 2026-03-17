@@ -26,8 +26,8 @@ interface CapturedCardsViewProps {
   playerNumber: number;
   /** Total player count (2, 3, or 4) */
   playerCount?: number;
-  /** Game mode type: 'two-hands' (3-player), 'three-hands' (3-player variant), 'party' (4-player), or undefined (default 2-player) */
-  gameMode?: 'two-hands' | 'three-hands' | 'party';
+  /** Game mode type: 'two-hands' (3-player), 'three-hands' (3-player variant), 'party' (4-player with teams), 'freeforall' (4-player without teams) or undefined (default 2-player) */
+  gameMode?: 'two-hands' | 'three-hands' | 'party' | 'freeforall';
   /** All players' captures (for 4-player mode) */
   allPlayerCaptures?: Card[][];
   /** Whether it's this player's turn */
@@ -85,13 +85,14 @@ export function CapturedCardsView({
   // Use the team utilities hook
   const {
     isPartyMode,
+    isFreeForAll,
     teammateIndex,
     opponentIndices,
     getPlayerLabel,
     getPlayerTeamColors,
     isOpponent,
     isTeammate,
-  } = usePlayerTeam(playerNumber, playerCount);
+  } = usePlayerTeam(playerNumber, playerCount, gameMode);
 
   // Override isPartyMode if explicitly provided
   const finalIsPartyMode = isPartyModeProp ?? isPartyMode;
@@ -122,30 +123,47 @@ export function CapturedCardsView({
 
   // Determine if a pile is draggable
   // In party mode: only opponents are draggable, not teammate
+  // In free-for-all mode: all opponents are draggable (no teammate)
   // In non-party mode: the single opponent is draggable
   const isPileDraggable = (idx: number): boolean => {
-    // Use inline logic to ensure we're using the correct party mode
-    // An opponent is anyone who is NOT the current player and NOT the teammate (in party mode)
-    if (idx === playerNumber) return false; // Can't drag own cards
-    if (finalIsPartyMode && idx === teammateIndex) return false; // Can't drag teammate's cards in party mode
-    // All other players (opponents) are draggable
+    // Can't drag own cards
+    if (idx === playerNumber) return false; 
+    
+    // In party mode: can't drag teammate's cards
+    if (finalIsPartyMode && idx === teammateIndex) return false; 
+    
+    // In free-for-all mode: all opponents are draggable
+    // In 2/3-player mode: all non-self players are draggable
     return true;
   };
 
   // Build left and right side player lists
   // Party mode: LEFT = one opponent + teammate (2 slots), RIGHT = player + other opponent (2 slots)
   // Two-handed (3-player): LEFT = both opponents, RIGHT = player
+  // Free-for-all (4-player): LEFT = two opponents, RIGHT = player + remaining opponent
   const isThreePlayerMode = gameMode === 'two-hands' || gameMode === 'three-hands' || playerCount === 3;
+  const isFreeForAllMode = gameMode === 'freeforall' || playerCount === 4;
   
-  const leftSideIndices: number[] = finalIsPartyMode
-    ? [opponentIndices[0], teammateIndex] // one opponent + teammate on left (2 slots)
-    : isThreePlayerMode
-    ? [opponentIndices[0], opponentIndices[1]] // both opponents on left in 3-player mode
-    : [opponentIndices[0]]; // opponent on left in 2-player
+  let leftSideIndices: number[];
+  let rightSideIndices: number[];
   
-  const rightSideIndices: number[] = finalIsPartyMode
-    ? [playerNumber, opponentIndices[1]] // player + other opponent on right (2 slots)
-    : [playerNumber]; // player on right in 2-player/3-player
+  if (isFreeForAllMode && !finalIsPartyMode) {
+    // 4-player free-for-all: LEFT = opponents[0], opponents[1], RIGHT = player + opponents[2]
+    leftSideIndices = [opponentIndices[0], opponentIndices[1]];
+    rightSideIndices = [playerNumber, opponentIndices[2]];
+  } else if (finalIsPartyMode) {
+    // 4-player party mode: LEFT = opponent[0] + teammate, RIGHT = player + opponent[1]
+    leftSideIndices = [opponentIndices[0], teammateIndex];
+    rightSideIndices = [playerNumber, opponentIndices[1]];
+  } else if (isThreePlayerMode) {
+    // 3-player mode: LEFT = both opponents, RIGHT = player
+    leftSideIndices = [opponentIndices[0], opponentIndices[1]];
+    rightSideIndices = [playerNumber];
+  } else {
+    // 2-player mode: LEFT = opponent, RIGHT = player
+    leftSideIndices = [opponentIndices[0]];
+    rightSideIndices = [playerNumber];
+  }
 
   // Render a single pile
   const renderPile = (idx: number) => {
