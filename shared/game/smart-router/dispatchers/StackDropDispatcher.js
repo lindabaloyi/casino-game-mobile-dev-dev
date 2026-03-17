@@ -84,12 +84,17 @@ class StackDropDispatcher {
       return true;
     }
 
-    // Party mode (4 players) - check teammates
-    if (state.playerCount === 4) {
+    // Determine actual party mode: must have 4 players AND team properties
+    // In party mode, players have team: 'A' or 'B'. In freeforall, they have no team.
+    const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
+
+    // Party mode - check teammates (only if actual teams exist)
+    if (isPartyMode) {
       return areTeammates(playerIndex, stack.owner);
     }
 
-    // Duel mode - only owner is friendly
+    // Three-hands mode (playerCount === 3): no teammates - only owner is friendly
+    // Four-hands free-for-all (playerCount === 4, no teams): no teammates - only owner is friendly
     return false;
   }
 }

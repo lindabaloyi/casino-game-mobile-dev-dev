@@ -49,6 +49,19 @@ function playFromCaptures(state, payload, playerIndex) {
         }
       }
     }
+  } else if (state.playerCount === 3) {
+    // Three-hands mode: check BOTH other players' captures (no teammates)
+    const otherPlayerIndices = [0, 1, 2].filter(i => i !== playerIndex);
+    for (const oIdx of otherPlayerIndices) {
+      opponentCaptures = newState.players[oIdx].captures;
+      capturedIdx = opponentCaptures.findIndex(
+        c => c.rank === capturedCard.rank && c.suit === capturedCard.suit,
+      );
+      if (capturedIdx !== -1) {
+        sourcePlayer = oIdx;
+        break;
+      }
+    }
   } else {
     // Duel mode: check single opponent
     const opponentIndex = playerIndex === 0 ? 1 : 0;

@@ -183,10 +183,10 @@ function calculateTeamScores(players) {
 
 /**
  * Determine the winner based on final scores
- * @param {Array} scores - [player0Score, player1Score]
- * @param {number} playerCount - Number of players (2 or 4)
+ * @param {Array} scores - [player0Score, player1Score] or for 3+ players
+ * @param {number} playerCount - Number of players (2, 3, or 4)
  * @param {Array} teamScores - [teamAScore, teamBScore] for 4-player mode
- * @returns {number|null} Winner player index (0 or 1) or null for tie, or 'A'/'B' for team wins
+ * @returns {number|null} Winner player index (0, 1, 2) or null for tie, or 'A'/'B' for team wins
  */
 function determineWinner(scores, playerCount = 2, teamScores = null) {
   // For 4-player mode, determine team winner
@@ -204,14 +204,33 @@ function determineWinner(scores, playerCount = 2, teamScores = null) {
     }
   }
   
-  // 2-player mode
-  if (!scores || scores.length !== 2) {
+  // 2-player or 3-player mode
+  if (!scores || scores.length < 2) {
     logger.error("Invalid scores array for winner determination", { scores });
     return null;
   }
 
   const [p0Score, p1Score] = scores;
-
+  
+  // 3-player mode: find highest score
+  if (playerCount === 3 && scores.length === 3) {
+    const p2Score = scores[2];
+    const maxScore = Math.max(p0Score, p1Score, p2Score);
+    const winners = scores.reduce((acc, score, idx) => {
+      if (score === maxScore) acc.push(idx);
+      return acc;
+    }, []);
+    
+    if (winners.length === 1) {
+      logger.info(`🏆 Player ${winners[0]} wins with ${maxScore} points vs ${p0Score}, ${p1Score}, ${p2Score}`);
+      return winners[0];
+    } else {
+      logger.info(`🤝 Tie game: Players ${winners.join(', ')} have ${maxScore} points`);
+      return null; // Tie between 2 or 3 players
+    }
+  }
+  
+  // 2-player mode
   if (p0Score > p1Score) {
     logger.info(`🏆 Player 0 wins with ${p0Score} points vs ${p1Score}`);
     return 0;
@@ -244,7 +263,7 @@ function updateScores(gameState) {
   );
   gameState.scores = perPlayerScores;
 
-  // Calculate team scores for 4-player mode
+  // Calculate team scores for 4-player mode (party mode with teams)
   if (playerCount === 4) {
     const teamScores = calculateTeamScores(players);
     gameState.teamScores = teamScores;
@@ -253,6 +272,11 @@ function updateScores(gameState) {
     gameState.winner = determineWinner(perPlayerScores, playerCount, teamScores);
     
     logger.info(`📊 Scores updated: [${perPlayerScores.join(', ')}], Teams: [${teamScores.join(', ')}], Winner: ${gameState.winner !== null ? `Team ${gameState.winner}` : 'Tie'}`);
+  } else if (playerCount === 3) {
+    // 3-player mode: each player for themselves
+    gameState.winner = determineWinner(perPlayerScores, playerCount);
+    
+    logger.info(`📊 Scores updated: [${perPlayerScores.join(', ')}], Winner: ${gameState.winner !== null ? `Player ${gameState.winner}` : 'Tie'}`);
   } else {
     // 2-player mode
     const newScores = calculateFinalScores(players.map(p => p.captures || []));

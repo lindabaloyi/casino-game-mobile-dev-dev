@@ -125,8 +125,9 @@ class RoundValidator {
   /**
    * Determine the winner of the current round based on scores.
    * For 4-player: team with higher score wins
+   * For 3-player: player with highest score wins
    * @param {object} state - Game state
-   * @returns {number} 0 for player/team 1, 1 for player/team 2, -1 for tie
+   * @returns {number} 0 for player/team 1, 1 for player/team 2, 2 for player 3, -1 for tie
    */
   static determineRoundWinner(state) {
     const playerCount = state.playerCount || state.players?.length || 2;
@@ -136,6 +137,20 @@ class RoundValidator {
       const [teamAScore, teamBScore] = state.teamScores;
       if (teamAScore > teamBScore) return 0; // Team A wins
       if (teamBScore > teamAScore) return 1; // Team B wins
+      return -1; // tie
+    }
+    
+    // For 3-player, use individual scores
+    if (playerCount === 3) {
+      const scores = state.scores || [0, 0, 0];
+      const [score0, score1, score2] = scores;
+      const maxScore = Math.max(score0, score1, score2);
+      const winners = [];
+      if (score0 === maxScore) winners.push(0);
+      if (score1 === maxScore) winners.push(1);
+      if (score2 === maxScore) winners.push(2);
+      
+      if (winners.length === 1) return winners[0];
       return -1; // tie
     }
     
@@ -203,13 +218,26 @@ class RoundValidator {
   /**
    * Check if the entire game is over.
    * For 2-player mode: game ends after round 2
+   * For 3-player mode: game ends after round 1 (single round game)
    * For 4-player party mode: game ends after round 1 (single round game)
    * @param {object} state - Game state
-   * @returns {{ gameOver: boolean, winner?: number, finalScores: [number, number] }}
+   * @returns {{ gameOver: boolean, winner?: number, finalScores: number[] }}
    */
   static checkGameOver(state) {
     const playerCount = state.playerCount || state.players?.length || 2;
     console.log(`[RoundValidator] checkGameOver: playerCount=${playerCount}, round=${state.round}`);
+    
+    // For 3-player mode: game ends after round 1 (single round game like 4-player)
+    if (playerCount === 3) {
+      console.log(`[RoundValidator] checkGameOver: 3-player mode detected, ending game after round ${state.round}`);
+      const winner = this.determineRoundWinner(state);
+      console.log(`[RoundValidator] checkGameOver: winner=${winner}, scores=${JSON.stringify(state.scores)}`);
+      return {
+        gameOver: true,
+        winner,
+        finalScores: state.scores || new Array(playerCount).fill(0)
+      };
+    }
     
     // For 4-player party mode: game ends after round 1
     if (playerCount >= 4) {

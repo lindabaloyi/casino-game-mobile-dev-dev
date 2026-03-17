@@ -39,6 +39,11 @@ function createActionRouter(config) {
      * @throws if action type is unknown or not player's turn
      */
     executeAction(state, playerIndex, actionType, payload) {
+      // 0. Guard: game is already over
+      if (state.gameOver) {
+        throw new Error('Game is over - no more actions allowed');
+      }
+
       // 1. Guard: unknown action
       if (!handlers[actionType]) {
         const known = Object.keys(handlers).join(', ') || '(none registered yet)';

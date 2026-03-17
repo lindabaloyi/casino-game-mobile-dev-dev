@@ -211,8 +211,10 @@ class GameCoordinatorService {
             
             finalizedState.gameOver = true;
             this.gameManager.saveGameState(gameId, finalizedState);
-            console.log(`[Coordinator] Broadcasting game-over (no next round) for ${playerCount}-player mode, winner: ${winner}`);
+            
+            // Fix: declare winner BEFORE using it
             const winner = RoundValidator.determineRoundWinner(finalizedState);
+            console.log(`[Coordinator] Broadcasting game-over (no next round) for ${playerCount}-player mode, winner: ${winner}`);
             this.broadcaster.broadcastToGame(gameId, 'game-over', {
               winner,
               finalScores,

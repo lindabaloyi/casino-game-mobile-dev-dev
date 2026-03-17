@@ -78,8 +78,21 @@ export function GameOverModal({
 }: GameOverModalProps) {
   const score1 = scores[0] || 0;
   const score2 = scores[1] || 0;
+  const score3 = scores[2] || 0;
   
-  const winnerText = score1 > score2 ? 'Player 1' : score2 > score1 ? 'Player 2' : 'Tie';
+  // Determine winner text based on player count
+  let winnerText: string;
+  if (playerCount === 3) {
+    const maxScore = Math.max(score1, score2, score3);
+    const winners = [score1 === maxScore ? 'Player 1' : null, score2 === maxScore ? 'Player 2' : null, score3 === maxScore ? 'Player 3' : null].filter(Boolean);
+    if (winners.length === 1) {
+      winnerText = winners[0] || '';
+    } else {
+      winnerText = 'Tie';
+    }
+  } else {
+    winnerText = score1 > score2 ? 'Player 1' : score2 > score1 ? 'Player 2' : 'Tie';
+  }
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -249,6 +262,13 @@ export function GameOverModal({
                 {renderPlayerBreakdown(0, 'Player 1', score1)}
                 {renderPlayerBreakdown(1, 'Player 2', score2)}
               </View>
+            ) : playerCount === 3 ? (
+              /* 3-player mode */
+              <View style={styles.threePlayersContainer}>
+                {renderPlayerBreakdown(0, 'Player 1', score1)}
+                {renderPlayerBreakdown(1, 'Player 2', score2)}
+                {renderPlayerBreakdown(2, 'Player 3', score3)}
+              </View>
             ) : (
               /* 4-player mode - show teams */
               <View style={styles.teamsContainer}>
@@ -332,6 +352,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   playersRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  threePlayersContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
