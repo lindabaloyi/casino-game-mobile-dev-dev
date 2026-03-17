@@ -145,8 +145,9 @@ class GameCoordinatorService {
           const tableCardsRemaining = finalizedState.tableCards?.length || 0;
           const deckRemaining = finalizedState.deck?.length || 0;
           
-          // Get team score breakdowns for 4-player mode
-          const teamScoreBreakdowns = playerCount === 4 
+          // Get team score breakdowns for 4-player party mode only
+          const isPartyMode = playerCount === 4 && finalizedState.players.some(p => p.team);
+          const teamScoreBreakdowns = isPartyMode && playerCount === 4 
             ? scoring.getTeamScoreBreakdown(finalizedState.players)
             : null;
           
@@ -174,6 +175,7 @@ class GameCoordinatorService {
             deckRemaining,
             scoreBreakdowns,
             teamScoreBreakdowns,
+            isPartyMode,
           }, mm);
           console.log(`[Coordinator] broadcastToGame called!`);
         } else {
@@ -197,8 +199,9 @@ class GameCoordinatorService {
             const tableCardsRemaining = finalizedState.tableCards?.length || 0;
             const deckRemaining = finalizedState.deck?.length || 0;
             
-            // Get team score breakdowns for 4-player mode
-            const teamScoreBreakdowns = playerCount === 4 
+            // Get team score breakdowns for 4-player party mode only
+            const isPartyModeElse = playerCount === 4 && finalizedState.players.some(p => p.team);
+            const teamScoreBreakdownsElse = isPartyModeElse && playerCount === 4 
               ? scoring.getTeamScoreBreakdown(finalizedState.players)
               : null;
             
@@ -222,7 +225,8 @@ class GameCoordinatorService {
               tableCardsRemaining,
               deckRemaining,
               scoreBreakdowns,
-              teamScoreBreakdowns,
+              teamScoreBreakdowns: teamScoreBreakdownsElse,
+              isPartyMode: isPartyModeElse,
             }, mm);
           }
         }
@@ -336,8 +340,9 @@ class GameCoordinatorService {
         const tableCardsRemaining = finalizedState.tableCards?.length || 0;
         const deckRemaining = finalizedState.deck?.length || 0;
         
-        // Get team score breakdowns for 4-player mode
-        const teamScoreBreakdowns = playerCount === 4 
+        // Get team score breakdowns for 4-player party mode only
+        const isPartyModeNext = playerCount === 4 && finalizedState.players.some(p => p.team);
+        const teamScoreBreakdownsNext = isPartyModeNext && playerCount === 4 
           ? scoring.getTeamScoreBreakdown(finalizedState.players)
           : null;
         
@@ -364,7 +369,8 @@ class GameCoordinatorService {
           tableCardsRemaining,
           deckRemaining,
           scoreBreakdowns,
-          teamScoreBreakdowns,
+          teamScoreBreakdowns: teamScoreBreakdownsNext,
+          isPartyMode: isPartyModeNext,
         }, mm);
         return;
       }

@@ -106,6 +106,7 @@ export interface GameOverData {
   capturedCards?: number[];
   tableCardsRemaining?: number;
   deckRemaining?: number;
+  isPartyMode?: boolean; // NEW: tells frontend if party mode (teams) or free-for-all
   scoreBreakdowns?: Array<{
     totalCards: number;
     spadeCount: number;

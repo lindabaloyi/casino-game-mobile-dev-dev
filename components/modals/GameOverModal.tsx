@@ -63,6 +63,7 @@ interface GameOverModalProps {
   deckRemaining?: number;
   scoreBreakdowns?: PlayerBreakdown[];
   teamScoreBreakdowns?: TeamScoreBreakdowns;
+  isPartyMode?: boolean; // NEW: for 4-player to distinguish party vs free-for-all
   onPlayAgain?: () => void;
   onBackToMenu?: () => void;
 }
@@ -73,16 +74,42 @@ export function GameOverModal({
   playerCount,
   scoreBreakdowns,
   teamScoreBreakdowns,
+  isPartyMode,
   onPlayAgain,
   onBackToMenu,
 }: GameOverModalProps) {
   const score1 = scores[0] || 0;
   const score2 = scores[1] || 0;
   const score3 = scores[2] || 0;
+  const score4 = scores[3] || 0;
   
   // Determine winner text based on player count
   let winnerText: string;
-  if (playerCount === 3) {
+  if (playerCount === 4 && isPartyMode) {
+    // 4-player party mode: determine team winner
+    const teamAScore = score1 + score2;
+    const teamBScore = score3 + score4;
+    if (teamAScore > teamBScore) {
+      winnerText = 'Team A';
+    } else if (teamBScore > teamAScore) {
+      winnerText = 'Team B';
+    } else {
+      winnerText = 'Tie';
+    }
+  } else if (playerCount === 4) {
+    // 4-player free-for-all: find highest individual score
+    const maxScore = Math.max(score1, score2, score3, score4);
+    const winners = [];
+    if (score1 === maxScore) winners.push('Player 1');
+    if (score2 === maxScore) winners.push('Player 2');
+    if (score3 === maxScore) winners.push('Player 3');
+    if (score4 === maxScore) winners.push('Player 4');
+    if (winners.length === 1) {
+      winnerText = winners[0];
+    } else {
+      winnerText = 'Tie';
+    }
+  } else if (playerCount === 3) {
     const maxScore = Math.max(score1, score2, score3);
     const winners = [score1 === maxScore ? 'Player 1' : null, score2 === maxScore ? 'Player 2' : null, score3 === maxScore ? 'Player 3' : null].filter(Boolean);
     if (winners.length === 1) {
@@ -269,27 +296,38 @@ export function GameOverModal({
                 {renderPlayerBreakdown(1, 'Player 2', score2)}
                 {renderPlayerBreakdown(2, 'Player 3', score3)}
               </View>
-            ) : (
-              /* 4-player mode - show teams */
+            ) : playerCount === 4 && isPartyMode ? (
+              /* 4-player party mode - show teams */
               <View style={styles.teamsContainer}>
                 {teamScoreBreakdowns ? (
                   <>
-                    {renderTeamBreakdown('Team A', teamScoreBreakdowns.teamA, score1 + (scores[1] || 0))}
-                    {renderTeamBreakdown('Team B', teamScoreBreakdowns.teamB, (scores[2] || 0) + (scores[3] || 0))}
+                    {renderTeamBreakdown('Team A', teamScoreBreakdowns.teamA, score1 + score2)}
+                    {renderTeamBreakdown('Team B', teamScoreBreakdowns.teamB, score3 + score4)}
                   </>
                 ) : (
                   <>
                     <View style={styles.teamRow}>
                       <Text style={styles.teamLabel}>Team A</Text>
-                      <Text style={styles.teamScore}>{score1 + (scores[1] || 0)}</Text>
+                      <Text style={styles.teamScore}>{score1 + score2}</Text>
                     </View>
                     <View style={styles.teamRow}>
                       <Text style={styles.teamLabel}>Team B</Text>
-                      <Text style={styles.teamScore}>{(scores[2] || 0) + (scores[3] || 0)}</Text>
+                      <Text style={styles.teamScore}>{score3 + score4}</Text>
                     </View>
                   </>
                 )}
               </View>
+            ) : playerCount === 4 ? (
+              /* 4-player free-for-all - show 4 individual players */
+              <View style={styles.fourPlayersContainer}>
+                {renderPlayerBreakdown(0, 'Player 1', score1)}
+                {renderPlayerBreakdown(1, 'Player 2', score2)}
+                {renderPlayerBreakdown(2, 'Player 3', score3)}
+                {renderPlayerBreakdown(3, 'Player 4', score4)}
+              </View>
+            ) : (
+              /* Fallback - should not happen */
+              <View />
             )}
           </View>
 
@@ -358,6 +396,12 @@ const styles = StyleSheet.create({
   },
   threePlayersContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  fourPlayersContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     width: '100%',
   },

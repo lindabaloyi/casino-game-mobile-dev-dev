@@ -124,19 +124,37 @@ class RoundValidator {
 
   /**
    * Determine the winner of the current round based on scores.
-   * For 4-player: team with higher score wins
-   * For 3-player: player with highest score wins
+   * For 4-player party mode: team with higher score wins
+   * For 3-player and 4-player free-for-all: player with highest score wins
    * @param {object} state - Game state
    * @returns {number} 0 for player/team 1, 1 for player/team 2, 2 for player 3, -1 for tie
    */
   static determineRoundWinner(state) {
     const playerCount = state.playerCount || state.players?.length || 2;
     
-    // For 4-player, use team scores
-    if (playerCount === 4 && state.teamScores) {
+    // Detect party mode: 4 players with team properties
+    const isPartyMode = playerCount === 4 && state.players?.some(p => p.team);
+    
+    // For 4-player party mode: use team scores
+    if (playerCount === 4 && isPartyMode && state.teamScores) {
       const [teamAScore, teamBScore] = state.teamScores;
       if (teamAScore > teamBScore) return 0; // Team A wins
       if (teamBScore > teamAScore) return 1; // Team B wins
+      return -1; // tie
+    }
+    
+    // For 4-player free-for-all: use individual scores
+    if (playerCount === 4) {
+      const scores = state.scores || [0, 0, 0, 0];
+      const [score0, score1, score2, score3] = scores;
+      const maxScore = Math.max(score0, score1, score2, score3);
+      const winners = [];
+      if (score0 === maxScore) winners.push(0);
+      if (score1 === maxScore) winners.push(1);
+      if (score2 === maxScore) winners.push(2);
+      if (score3 === maxScore) winners.push(3);
+      
+      if (winners.length === 1) return winners[0];
       return -1; // tie
     }
     
@@ -181,8 +199,11 @@ class RoundValidator {
       details[`player${i}Captures`] = captures.length;
     }
     
-    // For 4-player, also calculate team scores
-    if (playerCount === 4) {
+    // Detect party mode: 4 players with team properties
+    const isPartyMode = playerCount === 4 && players.some(p => p.team);
+    
+    // For 4-player party mode, also calculate team scores
+    if (playerCount === 4 && isPartyMode) {
       const teamAScore = scores[0] + scores[1]; // Players 0 and 1
       const teamBScore = scores[2] + scores[3]; // Players 2 and 3
       details.teamAScore = teamAScore;

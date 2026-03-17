@@ -49,6 +49,7 @@ interface GameBoardProps {
     deckRemaining?: number;
     scoreBreakdowns?: any[];
     teamScoreBreakdowns?: any;
+    isPartyMode?: boolean;
   } | null;
   playerNumber: number;
   sendAction: (action: { type: string; payload?: Record<string, unknown> }) => void;
@@ -403,11 +404,11 @@ export function GameBoard({
         isMyTurn={computed.isMyTurn}
         playerNumber={playerNumber}
         // Party mode for team colors - determine from gameMode
-        // For 4-player: leave undefined so CapturedCardsView detects freeforall vs party from gameMode
+        // For 4-player: pass isPartyMode to determine team rendering
+        isPartyMode={gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team)}
         currentPlayerIndex={gameState.currentPlayer}
-        // Game mode for special rendering (e.g., two-hands for 3-player)
-        // For 4-player: leave undefined so CapturedCardsView falls back to freeforall
-        gameMode={gameState.playerCount === 3 ? 'two-hands' : undefined}
+        // Game mode for special rendering (e.g., two-hands for 3-player, party for 4-player with teams)
+        gameMode={gameState.playerCount === 3 ? 'two-hands' : (gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team) ? 'party' : 'freeforall')}
         tableRef={drag.tableRef}
         onTableLayout={drag.onTableLayout}
         registerCard={drag.registerCard}
@@ -607,6 +608,7 @@ export function GameBoard({
         deckRemaining={gameOverData?.deckRemaining ?? gameState.deck?.length ?? 0}
         scoreBreakdowns={gameOverData?.scoreBreakdowns}
         teamScoreBreakdowns={gameOverData?.teamScoreBreakdowns}
+        isPartyMode={gameOverData?.isPartyMode}
         onPlayAgain={onRestart ? () => {
           console.log('[GameBoard] Play Again clicked');
           if (gameState.playerCount === 2) {

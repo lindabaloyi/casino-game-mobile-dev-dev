@@ -263,8 +263,11 @@ function updateScores(gameState) {
   );
   gameState.scores = perPlayerScores;
 
-  // Calculate team scores for 4-player mode (party mode with teams)
-  if (playerCount === 4) {
+  // Detect party mode: 4 players with team properties
+  const isPartyMode = playerCount === 4 && players.some(p => p.team);
+  
+  // Calculate team scores for 4-player party mode only (when teams exist)
+  if (playerCount === 4 && isPartyMode) {
     const teamScores = calculateTeamScores(players);
     gameState.teamScores = teamScores;
     
@@ -277,6 +280,12 @@ function updateScores(gameState) {
     gameState.winner = determineWinner(perPlayerScores, playerCount);
     
     logger.info(`📊 Scores updated: [${perPlayerScores.join(', ')}], Winner: ${gameState.winner !== null ? `Player ${gameState.winner}` : 'Tie'}`);
+  } else if (playerCount === 4) {
+    // 4-player free-for-all: each player for themselves
+    gameState.winner = determineWinner(perPlayerScores, playerCount);
+    gameState.teamScores = null; // No team scores for free-for-all
+    
+    logger.info(`📊 Scores updated (4-player free-for-all): [${perPlayerScores.join(', ')}], Winner: ${gameState.winner !== null ? `Player ${gameState.winner}` : 'Tie'}`);
   } else {
     // 2-player mode
     const newScores = calculateFinalScores(players.map(p => p.captures || []));
