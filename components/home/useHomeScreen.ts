@@ -8,12 +8,13 @@ import { useRouter } from 'expo-router';
 import { usePlayerProfile, AVATAR_OPTIONS } from '../../hooks/usePlayerProfile';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
+import { GameModeOption } from './PlayOnlineMenu';
 
 export interface HomeScreenHandlers {
   handleCpuGame: () => void;
-  handleMultiplayer: () => void;
+  handlePlayOnline: () => void;
+  navigateToGameMode: (mode: GameModeOption) => void;
   handlePrivateRoom: () => void;
-  handlePartyMode: () => void;
   handleProfile: () => void;
   handleFriends: () => void;
   handleSearchPlayers: () => void;
@@ -32,6 +33,10 @@ export interface HomeScreenState {
   setSearchModalVisible: (visible: boolean) => void;
   menuVisible: boolean;
   setMenuVisible: (visible: boolean) => void;
+  
+  // Play Online menu
+  playOnlineMenuVisible: boolean;
+  setPlayOnlineMenuVisible: (visible: boolean) => void;
   
   // Logout confirmation
   showLogoutConfirm: boolean;
@@ -67,6 +72,9 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
   // Menu state
   const [menuVisible, setMenuVisible] = useState(false);
   
+  // Play Online menu state
+  const [playOnlineMenuVisible, setPlayOnlineMenuVisible] = useState(false);
+  
   // Logout confirmation state
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
@@ -87,19 +95,31 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     router.push('/cpu-game' as any);
   };
   
-  const handleMultiplayer = () => {
+  // Unified Play Online handler - opens the game mode selection menu
+  const handlePlayOnline = () => {
     setMenuVisible(false);
-    router.push('/multiplayer' as any);
+    setPlayOnlineMenuVisible(true);
+  };
+  
+  // Navigate to specific game mode from Play Online menu
+  const navigateToGameMode = (mode: GameModeOption) => {
+    setPlayOnlineMenuVisible(false);
+    switch (mode) {
+      case 'two-hands':
+        router.push('/multiplayer?mode=two-hands' as any);
+        break;
+      case 'three-hands':
+        router.push('/multiplayer?mode=three-hands' as any);
+        break;
+      case 'party':
+        router.push('/multiplayer?mode=party' as any);
+        break;
+    }
   };
   
   const handlePrivateRoom = () => {
     setMenuVisible(false);
     router.push('/private-room' as any);
-  };
-  
-  const handlePartyMode = () => {
-    setMenuVisible(false);
-    router.push('/party-game' as any);
   };
   
   const handleProfile = () => {
@@ -152,6 +172,10 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     menuVisible,
     setMenuVisible,
     
+    // Play Online menu
+    playOnlineMenuVisible,
+    setPlayOnlineMenuVisible,
+    
     // Logout confirmation
     showLogoutConfirm,
     setShowLogoutConfirm,
@@ -170,9 +194,9 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     
     // Handlers
     handleCpuGame,
-    handleMultiplayer,
+    handlePlayOnline,
+    navigateToGameMode,
     handlePrivateRoom,
-    handlePartyMode,
     handleProfile,
     handleFriends,
     handleSearchPlayers,

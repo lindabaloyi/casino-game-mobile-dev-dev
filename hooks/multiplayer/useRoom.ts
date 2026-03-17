@@ -18,7 +18,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 
-export type GameMode = 'duel' | 'party';
+export type GameMode = 'two-hands' | 'party' | 'three-hands';
 
 export interface RoomPlayer {
   socketId: string;

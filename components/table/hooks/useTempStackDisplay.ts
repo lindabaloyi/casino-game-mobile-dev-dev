@@ -7,7 +7,7 @@
 import { useMemo } from 'react';
 import { getBuildHint } from '../../../utils/buildCalculator';
 import { TempStack, Card } from '../types';
-import { PLAYER_1_GOLD, PLAYER_2_PURPLE } from './useBuildTeamInfo';
+import { PLAYER_1_GOLD, PLAYER_2_PURPLE, PLAYER_3_BLUE } from './useBuildTeamInfo';
 
 interface UseTempStackDisplayResult {
   /** Display value string for the badge */
@@ -19,7 +19,8 @@ interface UseTempStackDisplayResult {
 export function useTempStackDisplay(
   stack: TempStack,
   pendingCards: Card[],
-  isExtending: boolean
+  isExtending: boolean,
+  playerCount: number = 2
 ): UseTempStackDisplayResult {
   // Compute build hint dynamically from card values
   const hint = useMemo(() => {
@@ -28,13 +29,21 @@ export function useTempStackDisplay(
     return getBuildHint(values);
   }, [stack.cards]);
 
-  // Get badge color based on player (gold for P1, purple for P2)
+  // Get badge color based on player (gold for P1, purple for P2, blue for P3)
   const getBadgeColor = (isComplete: boolean): string => {
     if (!isComplete) {
       // Incomplete - show red for need
       return '#E53935';
     }
-    // Complete - use gold for P1, purple for P2
+    // Complete - use gold for P1, purple for P2, blue for P3
+    if (playerCount === 3) {
+      switch (stack.owner) {
+        case 0: return PLAYER_1_GOLD;
+        case 1: return PLAYER_2_PURPLE;
+        case 2: return PLAYER_3_BLUE;
+        default: return PLAYER_2_PURPLE;
+      }
+    }
     return stack.owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE;
   };
 

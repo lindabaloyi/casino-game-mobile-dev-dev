@@ -19,6 +19,7 @@ import {
   GameButtons,
   SearchPlayersModal,
   HomeMenuModal,
+  PlayOnlineMenu,
 } from '../../components/home';
 import { NotificationPanel } from '../../components/friends/NotificationPanel';
 
@@ -39,6 +40,10 @@ export default function HomeScreen() {
     menuVisible,
     setMenuVisible,
     
+    // Play Online menu
+    playOnlineMenuVisible,
+    setPlayOnlineMenuVisible,
+    
     // Logout confirmation
     showLogoutConfirm,
     setShowLogoutConfirm,
@@ -56,9 +61,9 @@ export default function HomeScreen() {
     
     // Handlers
     handleCpuGame,
-    handleMultiplayer,
+    handlePlayOnline,
+    navigateToGameMode,
     handlePrivateRoom,
-    handlePartyMode,
     handleProfile,
     handleFriends,
     handleSearchPlayers,
@@ -80,9 +85,8 @@ export default function HomeScreen() {
     { label: 'Search Players', icon: 'search', onPress: handleSearchPlayers },
     { label: 'Friends', icon: 'people', onPress: handleFriends },
     { label: 'Vs AI', icon: 'person', onPress: handleCpuGame },
-    { label: 'Multiplayer', icon: 'globe', onPress: handleMultiplayer },
+    { label: 'Play Online', icon: 'globe', onPress: handlePlayOnline },
     { label: 'Private Room', icon: 'key', onPress: handlePrivateRoom },
-    { label: 'Party Mode', icon: 'people', onPress: handlePartyMode },
   ];
 
   if (!profile) {
@@ -137,6 +141,13 @@ export default function HomeScreen() {
         onLogoutCancel={handleLogoutCancel}
       />
 
+      {/* Play Online Menu */}
+      <PlayOnlineMenu
+        visible={playOnlineMenuVisible}
+        onClose={() => setPlayOnlineMenuVisible(false)}
+        onSelectMode={navigateToGameMode}
+      />
+
       {/* Main Content */}
       <ScrollView 
         style={styles.scrollView}
@@ -156,9 +167,8 @@ export default function HomeScreen() {
         {/* Game Buttons */}
         <GameButtons
           onCpuGame={handleCpuGame}
-          onMultiplayer={handleMultiplayer}
+          onPlayOnline={handlePlayOnline}
           onPrivateRoom={handlePrivateRoom}
-          onPartyMode={handlePartyMode}
         />
       </ScrollView>
     </View>

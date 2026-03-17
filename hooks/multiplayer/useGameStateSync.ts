@@ -267,6 +267,9 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     }
 
     const handleGameStart = (data: any) => {
+      console.log('[useGameStateSync] 🔥 game-start RECEIVED from server!');
+      console.log('[useGameStateSync] gameState playerCount:', data.gameState?.playerCount);
+      console.log('[useGameStateSync] playerNumber:', data.playerNumber);
       setGameState(data.gameState);
       setPlayerNumber(data.playerNumber);
       setOpponentDisconnected(false);

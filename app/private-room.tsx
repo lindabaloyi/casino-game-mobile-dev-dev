@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-type GameModeOption = 'duel' | 'party';
+type GameModeOption = 'duel' | 'party' | 'three-hands';
 
 export const options = {
   headerShown: false,
@@ -38,6 +38,7 @@ export default function PrivateRoomScreen() {
   const gameModeOptions: { value: GameModeOption; label: string; players: string }[] = [
     { value: 'duel', label: 'Duel (2 Players)', players: '2 Players' },
     { value: 'party', label: 'Party (4 Players)', players: '4 Players' },
+    { value: 'three-hands', label: 'Three Hands (3 Players)', players: '3 Players' },
   ];
 
   const currentMode = gameModeOptions.find(m => m.value === selectedMode);

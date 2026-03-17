@@ -3,25 +3,34 @@
  * Handles round transitions and card dealing for new rounds
  */
 
-const { STARTING_CARDS_PER_PLAYER } = require('./constants');
+const { STARTING_CARDS_PER_PLAYER, STARTING_CARDS_THREE_HANDS } = require('./constants');
 const { cloneState } = require('./clone');
 const { createRoundPlayers } = require('./turn');
 
 /**
+ * Determine starting cards based on player count
+ * @param {number} playerCount - Number of players
+ * @returns {number} Number of cards to deal per player
+ */
+function getStartingCards(playerCount) {
+  return playerCount === 3 ? STARTING_CARDS_THREE_HANDS : STARTING_CARDS_PER_PLAYER;
+}
+
+/**
  * Start the next round by dealing cards from the remaining deck.
  * For 2-player mode: allows up to 2 rounds total
- * For 4-player mode: returns null (no Round 2 allowed - game ends after Round 1)
+ * For 3-player and 4-player mode: returns null (no Round 2 allowed - game ends after Round 1)
  * 
  * @param {object} state - Current game state
- * @param {number} playerCount - Number of players (2 or 4)
+ * @param {number} playerCount - Number of players (2, 3, or 4)
  * @returns {object|null} Updated state for next round, or null if no more rounds allowed
  */
 function startNextRound(state, playerCount) {
   console.log(`[round] startNextRound: current round=${state.round}, playerCount=${playerCount}`);
 
-  // For 4-player: only 1 round allowed (no Round 2)
-  if (playerCount >= 4) {
-    console.log('[round] startNextRound: 4-player mode, no Round 2 allowed, returning null');
+  // For 3-player and 4-player: only 1 round allowed (no Round 2)
+  if (playerCount >= 3) {
+    console.log(`[round] startNextRound: ${playerCount}-player mode, no Round 2 allowed, returning null`);
     return null;
   }
 
@@ -32,20 +41,20 @@ function startNextRound(state, playerCount) {
   }
 
   // Check if we have enough cards in the deck
-  const cardsNeeded = playerCount * STARTING_CARDS_PER_PLAYER; // 20 for 2-player
+  const cardsNeeded = playerCount * getStartingCards(playerCount);
   if (state.deck.length < cardsNeeded) {
     console.log(`[round] startNextRound: Not enough cards in deck (have ${state.deck.length}, need ${cardsNeeded}), returning null`);
     return null;
   }
 
-  console.log(`[round] startNextRound: Dealing 10 new cards to each player from remaining deck (${state.deck.length} cards left)`);
+  console.log(`[round] startNextRound: Dealing ${getStartingCards(playerCount)} new cards to each player from remaining deck (${state.deck.length} cards left)`);
 
   // Clone state first to avoid mutation!
   const newState = cloneState(state);
 
-  // Deal 10 new cards to each player from remaining deck
+  // Deal new cards to each player from remaining deck
   const newPlayers = newState.players.map(player => {
-    const newHand = newState.deck.splice(0, STARTING_CARDS_PER_PLAYER);
+    const newHand = newState.deck.splice(0, getStartingCards(playerCount));
     return {
       ...player,
       hand: newHand,
@@ -77,4 +86,5 @@ function startNextRound(state, playerCount) {
 
 module.exports = {
   startNextRound,
+  getStartingCards,
 };

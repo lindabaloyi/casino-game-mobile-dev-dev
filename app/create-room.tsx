@@ -14,9 +14,9 @@ export default function CreateRoomScreen() {
   const params = useLocalSearchParams<{ mode?: GameMode }>();
   
   // Determine game mode from params
-  const gameMode: GameMode = params.mode === 'party' ? 'party' : 'duel';
-  const maxPlayers = gameMode === 'party' ? 4 : 2;
-  const modeLabel = gameMode === 'party' ? 'Party Mode (4 Players)' : 'Duel (2 Players)';
+  const gameMode: GameMode = params.mode === 'party' ? 'party' : (params.mode === 'three-hands' ? 'three-hands' : 'two-hands');
+  const maxPlayers = gameMode === 'party' ? 4 : (gameMode === 'three-hands' ? 3 : 2);
+  const modeLabel = gameMode === 'party' ? 'Party Mode (4 Players)' : (gameMode === 'three-hands' ? 'Three Hands (3 Players)' : 'Two Hands (2 Players)');
 
   // Connect to server
   const { socket, isConnected, error: connectionError } = useSocketConnection({ mode: gameMode });
@@ -69,12 +69,17 @@ export default function CreateRoomScreen() {
   const handleStartGame = () => {
     // For duel mode, can start with 2 players
     // For party mode, need 4 players
-    if (gameMode === 'duel' && room.playerCount < 2) {
+    // For three-hands mode, need 3 players
+    if (gameMode === 'two-hands' && room.playerCount < 2) {
       Alert.alert('Cannot Start', 'Need at least 2 players to start');
       return;
     }
     if (gameMode === 'party' && room.playerCount < 4) {
       Alert.alert('Cannot Start', 'Need 4 players to start party mode');
+      return;
+    }
+    if (gameMode === 'three-hands' && room.playerCount < 3) {
+      Alert.alert('Cannot Start', 'Need 3 players to start three-hands mode');
       return;
     }
     startGame();

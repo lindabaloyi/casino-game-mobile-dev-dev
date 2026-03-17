@@ -3,24 +3,34 @@
  * Creates fresh game states for new games
  */
 
-const { STARTING_CARDS_PER_PLAYER } = require('./constants');
+const { STARTING_CARDS_PER_PLAYER, STARTING_CARDS_THREE_HANDS } = require('./constants');
 const { createDeck, rankValue } = require('./deck');
 const { getTeamFromIndex } = require('./team');
 const { createRoundPlayers } = require('./turn');
 const { validateCardDistribution } = require('./validation');
 
 /**
+ * Determine starting cards based on player count
+ * @param {number} playerCount - Number of players
+ * @returns {number} Number of cards to deal per player
+ */
+function getStartingCards(playerCount) {
+  return playerCount === 3 ? STARTING_CARDS_THREE_HANDS : STARTING_CARDS_PER_PLAYER;
+}
+
+/**
  * Create a fresh game state.
- * @param {number} playerCount - Number of players (2 or 4)
+ * @param {number} playerCount - Number of players (2, 3, or 4)
  * @returns {object} Fresh game state
  */
 function initializeGame(playerCount = 2) {
   const deck = createDeck();
   const players = [];
+  const startingCards = getStartingCards(playerCount);
 
   // Deal cards to each player
   for (let i = 0; i < playerCount; i++) {
-    const hand = deck.splice(0, STARTING_CARDS_PER_PLAYER);
+    const hand = deck.splice(0, startingCards);
     players.push({
       id: i,
       name: `Player ${i + 1}`,
@@ -31,13 +41,21 @@ function initializeGame(playerCount = 2) {
     });
   }
 
+  // For three-hands mode: place one random card on table as initial trail
+  let tableCards = [];
+  if (playerCount === 3) {
+    const trailCard = deck.splice(0, 1)[0];
+    tableCards = [trailCard];
+    console.log(`[initialization] Three-hands mode: Initial trail card is ${trailCard.rank}${trailCard.suit}`);
+  }
+
   // Create round players for turn tracking
   const roundPlayers = createRoundPlayers(playerCount);
 
   const state = {
     deck,
     players,
-    tableCards: [],
+    tableCards,
     currentPlayer: 0,
     round: 1,
     scores: new Array(playerCount).fill(0),
@@ -72,7 +90,7 @@ function initializeGame(playerCount = 2) {
 
 /**
  * Create a test game state with specific cards.
- * @param {number} playerCount - Number of players (2 or 4)
+ * @param {number} playerCount - Number of players (2, 3, or 4)
  * @returns {object} Test game state
  */
 function initializeTestGame(playerCount = 2) {
@@ -98,7 +116,9 @@ function initializeTestGame(playerCount = 2) {
     const j = Math.floor(Math.random() * (i + 1));
     [remainingDeck[i], remainingDeck[j]] = [remainingDeck[j], remainingDeck[i]];
   }
-  while (player0Cards.length < STARTING_CARDS_PER_PLAYER) {
+
+  const startingCards = getStartingCards(playerCount);
+  while (player0Cards.length < startingCards) {
     player0Cards.push(remainingDeck.pop());
   }
 
@@ -117,7 +137,7 @@ function initializeTestGame(playerCount = 2) {
 
   // Other players get dealt hands
   for (let i = 1; i < playerCount; i++) {
-    const hand = remainingDeck.splice(0, STARTING_CARDS_PER_PLAYER);
+    const hand = remainingDeck.splice(0, startingCards);
     players.push({
       id: i,
       name: `Player ${i + 1}`,
@@ -128,7 +148,13 @@ function initializeTestGame(playerCount = 2) {
     });
   }
 
-  const tableCards = remainingDeck.splice(0, 4);
+  // For three-hands mode: place one random card on table as initial trail
+  let tableCards;
+  if (playerCount === 3) {
+    tableCards = [remainingDeck.pop()]; // Take one card for trail
+  } else {
+    tableCards = remainingDeck.splice(0, 4);
+  }
 
   // Create round players for turn tracking
   const roundPlayers = createRoundPlayers(playerCount);

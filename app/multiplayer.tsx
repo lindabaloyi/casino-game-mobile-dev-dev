@@ -7,11 +7,10 @@
 
 import React, { useEffect } from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { GameBoard } from '../components/game/GameBoard';
 import { useMultiplayerGame } from '../hooks/useMultiplayerGame';
 import { usePlayerProfile } from '../hooks/usePlayerProfile';
-import { useLobbyState } from '../hooks/useLobbyState';
 import { useNotification } from '../hooks/useNotification';
 import {
   ConnectingScreen,
@@ -28,6 +27,9 @@ export const options = {
 
 export default function MultiplayerScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const mode = (params.mode as 'two-hands' | 'party' | 'three-hands') || 'two-hands';
+  
   const { height } = useWindowDimensions();
   const screenHeight = height;
   
@@ -39,6 +41,12 @@ export default function MultiplayerScreen() {
     sendAction, 
     playerNumber,
     isConnected,
+    isInLobby,
+    playersInLobby,
+    requiredPlayers,
+    isReady,
+    allPlayersReady,
+    toggleReady,
     error,
     clearError,
     startNextRound,
@@ -47,18 +55,56 @@ export default function MultiplayerScreen() {
     emitDragStart,
     emitDragMove,
     emitDragEnd,
-  } = useMultiplayerGame({ mode: 'duel' });
+  } = useMultiplayerGame({ mode });
   
   const { profile } = usePlayerProfile();
-  const { isReady, opponentReady, toggleReady } = useLobbyState();
   const { notification, animValue, showNotification } = useNotification();
+
+  // Get mode-specific titles and messages
+  const getModeInfo = () => {
+    switch (mode) {
+      case 'three-hands':
+        return {
+          title: '🎴 Three Hands',
+          subtitle: '3 Player Battle',
+          connectingSubtitle: 'Finding opponents for three hands',
+          waitingMessage: 'Waiting for opponents to join...',
+          readyMessage: 'Waiting for opponents to ready up...',
+        };
+      case 'party':
+        return {
+          title: '🎉 Party Mode',
+          subtitle: '2v2 Battle',
+          connectingSubtitle: 'Finding players for party mode',
+          waitingMessage: 'Waiting for players to join...',
+          readyMessage: 'Waiting for players to ready up...',
+        };
+      default:
+        return {
+          title: '⚔️ 2 Hands',
+          subtitle: '1v1 Battle',
+          connectingSubtitle: 'Finding opponent for 2 hands',
+          waitingMessage: 'Waiting for opponent to join...',
+          readyMessage: 'Waiting for both players to ready up...',
+        };
+    }
+  };
+
+  const modeInfo = getModeInfo();
 
   // Show notification when opponent joins
   useEffect(() => {
     if (gameState == null && isConnected) {
-      showNotification('Opponent joined! Game starting...');
+      const joinMessage = mode === 'three-hands' 
+        ? 'Opponents joined! Game starting...'
+        : mode === 'party'
+        ? 'Players joined! Game starting...'
+        : mode === 'two-hands'
+        ? 'Opponent joined! Game starting...'
+        : 'Opponent joined! Game starting...';
+      showNotification(joinMessage);
     }
-  }, [gameState, isConnected, showNotification]);
+  }, [gameState, isConnected, showNotification, mode]);
 
   // Not connected - show connecting screen
   if (!isConnected) {
@@ -66,7 +112,7 @@ export default function MultiplayerScreen() {
       <View style={styles.container}>
         <ConnectingScreen 
           title="Connecting..." 
-          subtitle="Finding opponent for duel" 
+          subtitle={modeInfo.connectingSubtitle} 
         />
       </View>
     );
@@ -74,6 +120,7 @@ export default function MultiplayerScreen() {
 
   // Show game
   if (gameState) {
+    console.log(`[MultiplayerScreen] Game started! gameState is now available, playerNumber=${playerNumber}`);
     const safePlayerNumber = playerNumber ?? 0;
     const serverErrorObj = error ? { message: error } : null;
     
@@ -100,9 +147,22 @@ export default function MultiplayerScreen() {
 
   // Show lobby
   const getStatus = () => {
-    if (!opponentReady) return { status: 'waiting' as const, message: 'Waiting for opponent to join...' };
-    if (isReady && opponentReady) return { status: 'ready' as const, message: 'Game starting!' };
-    return { status: 'error' as const, message: 'Waiting for both players to ready up...' };
+    console.log(`[MultiplayerScreen] getStatus: allPlayersReady=${allPlayersReady}, isReady=${isReady}, playersInLobby=${playersInLobby}, requiredPlayers=${requiredPlayers}`);
+    
+    if (!allPlayersReady) {
+      const msg = `${playersInLobby}/${requiredPlayers} players joined - waiting for more...`;
+      console.log(`[MultiplayerScreen] Status: WAITING - ${msg}`);
+      return { 
+        status: 'waiting' as const, 
+        message: msg
+      };
+    }
+    if (isReady && allPlayersReady) {
+      console.log(`[MultiplayerScreen] Status: READY - Game starting!`);
+      return { status: 'ready' as const, message: 'Game starting!' };
+    }
+    console.log(`[MultiplayerScreen] Status: WAITING - ${modeInfo.readyMessage}`);
+    return { status: 'waiting' as const, message: modeInfo.readyMessage };
   };
 
   const statusInfo = getStatus();
@@ -112,8 +172,8 @@ export default function MultiplayerScreen() {
       <NotificationBanner message={notification} animValue={animValue} />
       
       <LobbyHeader 
-        title="⚔️ Duel Mode"
-        subtitle="1v1 Battle"
+        title={modeInfo.title}
+        subtitle={modeInfo.subtitle}
       />
       
       <View style={[
@@ -124,7 +184,9 @@ export default function MultiplayerScreen() {
           playerName={profile.username || 'You'}
           playerAvatar={profile.avatar}
           isReady={isReady}
-          opponentReady={opponentReady}
+          opponentReady={allPlayersReady}
+          playersInLobby={playersInLobby}
+          requiredPlayers={requiredPlayers}
         />
         
         <StatusSection 

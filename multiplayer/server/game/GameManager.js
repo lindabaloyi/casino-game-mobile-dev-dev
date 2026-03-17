@@ -54,6 +54,22 @@ class GameManager {
 
     return { gameId, gameState };
   }
+  
+  /**
+   * Create a new 3-player three-hands game.
+   * @returns {{ gameId: number, gameState: object }}
+   */
+  startThreeHandsGame() {
+    const gameId = this._nextId++;
+    
+    // Three-hands games use 3 players
+    const gameState = initializeGame(3); // 3 players
+
+    this.activeGames.set(gameId, gameState);
+    this.socketPlayerMap.set(gameId, new Map());
+
+    return { gameId, gameState };
+  }
 
   /**
    * Retrieve game state (returns undefined if not found).

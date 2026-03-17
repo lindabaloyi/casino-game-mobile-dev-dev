@@ -10,6 +10,8 @@ interface TempStackItemProps {
   unregisterTempStack: (stackId: string) => void;
   isMyTurn: boolean;
   playerNumber: number;
+  /** Total player count for color determination (2, 3, or 4) */
+  playerCount?: number;
   findCapturePileAtPoint?: (x: number, y: number) => CapturePileBounds | null;
   onDragStart?: (stack: TempStack) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
@@ -26,6 +28,7 @@ export function TempStackItem({
   unregisterTempStack,
   isMyTurn,
   playerNumber,
+  playerCount,
   findCapturePileAtPoint,
   onDragStart,
   onDragMove,
@@ -42,6 +45,7 @@ export function TempStackItem({
       unregisterTempStack={unregisterTempStack}
       isMyTurn={isMyTurn}
       playerNumber={playerNumber}
+      playerCount={playerCount}
       findCapturePileAtPoint={findCapturePileAtPoint}
       onDragStart={onDragStart}
       onDragMove={onDragMove}

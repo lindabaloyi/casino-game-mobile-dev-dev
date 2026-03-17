@@ -405,6 +405,8 @@ export function GameBoard({
         // Party mode props for team colors
         isPartyMode={gameState.playerCount === 4}
         currentPlayerIndex={gameState.currentPlayer}
+        // Game mode for special rendering (e.g., two-hands for 3-player)
+        gameMode={gameState.playerCount === 4 ? 'party' : (gameState.playerCount === 3 ? 'two-hands' : undefined)}
         tableRef={drag.tableRef}
         onTableLayout={drag.onTableLayout}
         registerCard={drag.registerCard}

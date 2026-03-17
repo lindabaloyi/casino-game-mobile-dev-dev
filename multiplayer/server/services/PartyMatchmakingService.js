@@ -11,6 +11,9 @@ class PartyMatchmakingService {
 
     /** Sockets waiting for a party game */
     this.waitingPlayers = [];
+    
+    /** Sockets waiting for a three-hands game */
+    this.threeHandsWaitingPlayers = [];
 
     /** socketId → gameId */
     this.socketGameMap = new Map();
@@ -47,6 +50,103 @@ class PartyMatchmakingService {
     this.waitingPlayers.forEach(playerSocket => {
       playerSocket.emit('party-waiting', { playersJoined: count });
     });
+  }
+  
+  /**
+   * Broadcast three-hands-waiting event to ALL waiting players
+   */
+  broadcastThreeHandsWaiting(io) {
+    const count = this.threeHandsWaitingPlayers.length;
+    console.log(`[PartyMatchmaking] Broadcasting three-hands-waiting: ${count} players`);
+    
+    this.threeHandsWaitingPlayers.forEach(playerSocket => {
+      playerSocket.emit('three-hands-waiting', { playersJoined: count });
+    });
+  }
+  
+  /**
+   * Add a socket to the three-hands queue. If 3 players are waiting, start a game.
+   */
+  addThreeHandsToQueue(socket) {
+    // Don't add if already in a game or queue
+    if (this.socketGameMap.has(socket.id)) {
+      return null;
+    }
+
+    this.threeHandsWaitingPlayers.push(socket);
+    this.socketGameMap.set(socket.id, null);
+    
+    console.log(`[PartyMatchmaking] Player ${socket.id} added to three-hands queue. Total: ${this.threeHandsWaitingPlayers.length}`);
+    
+    return this._tryCreateThreeHandsGame();
+  }
+  
+  /**
+   * Try to create a three-hands game when 3 players are waiting
+   */
+  _tryCreateThreeHandsGame() {
+    if (this.threeHandsWaitingPlayers.length < 3) {
+      console.log(`[PartyMatchmaking] Not enough players for three-hands: ${this.threeHandsWaitingPlayers.length}/3`);
+      return null;
+    }
+
+    // CRITICAL: Verify we have exactly 3 ready sockets
+    if (this.threeHandsWaitingPlayers.length !== 3) {
+      console.error(`[PartyMatchmaking] ❌ Cannot start three-hands game - expected 3 players, have ${this.threeHandsWaitingPlayers.length}`);
+      return null;
+    }
+
+    const players = this.threeHandsWaitingPlayers.splice(0, 3);
+
+    // Validate all sockets are connected and valid
+    for (let i = 0; i < players.length; i++) {
+      if (!players[i] || !players[i].id) {
+        console.error(`[PartyMatchmaking] ❌ Invalid socket at index ${i}`);
+        return null;
+      }
+    }
+
+    // Start a 3-player game
+    console.log(`[PartyMatchmaking] Starting three-hands game with 3 players!`);
+    const { gameId, gameState } = this.gameManager.startThreeHandsGame();
+
+    // Validate game state was created properly
+    if (!gameState) {
+      console.error(`[PartyMatchmaking] ❌ Failed to create three-hands game state`);
+      return null;
+    }
+
+    if (gameState.players.length !== 3) {
+      console.error(`[PartyMatchmaking] ❌ Three-hands game state has wrong player count: ${gameState.players.length}`);
+      return null;
+    }
+
+    // Map sockets → gameId
+    for (const p of players) {
+      this.socketGameMap.set(p.id, gameId);
+    }
+    this.gameSocketsMap.set(gameId, players.map(p => p.id));
+
+    // Register players in GameManager (0, 1, 2)
+    for (let i = 0; i < 3; i++) {
+      this.gameManager.addPlayerToGame(gameId, players[i].id, i);
+    }
+
+    return {
+      gameId,
+      gameState,
+      players: players.map((socket, index) => ({
+        socket,
+        playerNumber: index
+      })),
+    };
+  }
+  
+  /**
+   * Get count of waiting three-hands players
+   */
+  getWaitingThreeHandsPlayersCount() {
+    return this.threeHandsWaitingPlayers.length;
   }
 
   /**
@@ -209,6 +309,13 @@ class PartyMatchmakingService {
    */
   getPlayersNeeded() {
     return Math.max(0, 4 - this.waitingPlayers.length);
+  }
+  
+  /**
+   * Get the number of players needed to start a three-hands game
+   */
+  getThreeHandsPlayersNeeded() {
+    return Math.max(0, 3 - this.threeHandsWaitingPlayers.length);
   }
 
   /**

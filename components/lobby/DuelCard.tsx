@@ -14,6 +14,8 @@ interface DuelCardProps {
   playerAvatar: string;
   isReady: boolean;
   opponentReady: boolean;
+  playersInLobby?: number;
+  requiredPlayers?: number;
 }
 
 const AVATAR_EMOJI_MAP: Record<string, string> = {
@@ -29,73 +31,96 @@ export function DuelCard({
   playerName, 
   playerAvatar, 
   isReady, 
-  opponentReady 
+  opponentReady,
+  playersInLobby = 0,
+  requiredPlayers = 2
 }: DuelCardProps) {
+  // For 2-player mode, show traditional VS layout
+  // For 3+ player modes, show player count progress
+  const showPlayerProgress = requiredPlayers > 2;
+  
   return (
     <View style={styles.card}>
-      <View style={styles.vsContainer}>
-        {/* Player Side */}
-        <View style={styles.playerSide}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{getAvatarEmoji(playerAvatar)}</Text>
+      {showPlayerProgress ? (
+        // Multi-player mode: Show progress
+        <View style={styles.progressContainer}>
+          <Text style={styles.progressTitle}>Waiting for Players</Text>
+          <View style={styles.progressBar}>
             <View style={[
-              styles.readyIndicator,
-              isReady ? styles.readyIndicatorReady : styles.readyIndicatorNotReady
-            ]}>
-              <Ionicons 
-                name={isReady ? "checkmark" : "time-outline"} 
-                size={12} 
-                color="white" 
-              />
-            </View>
+              styles.progressFill, 
+              { width: `${Math.min((playersInLobby / requiredPlayers) * 100, 100)}%` }
+            ]} />
           </View>
-          <Text style={styles.playerName} numberOfLines={1}>
-            {playerName}
-          </Text>
-          <Text style={[
-            styles.readyLabel,
-            isReady ? styles.readyLabelReady : styles.readyLabelNotReady
-          ]}>
-            {isReady ? 'READY' : 'NOT READY'}
+          <Text style={styles.progressText}>
+            {playersInLobby} / {requiredPlayers} players
           </Text>
         </View>
-        
-        {/* VS */}
-        <View style={styles.vsCenter}>
-          <Text style={styles.vsText}>VS</Text>
-        </View>
-        
-        {/* Opponent Side */}
-        <View style={styles.playerSide}>
-          <View style={[
-            styles.avatar,
-            !opponentReady && styles.avatarEmpty
-          ]}>
-            {opponentReady ? (
-              <Text style={styles.avatarText}>👤</Text>
-            ) : (
-              <Ionicons name="person-outline" size={28} color="rgba(255,255,255,0.3)" />
-            )}
-            {opponentReady && (
+      ) : (
+        // 2-player mode: Show VS layout
+        <View style={styles.vsContainer}>
+          {/* Player Side */}
+          <View style={styles.playerSide}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{getAvatarEmoji(playerAvatar)}</Text>
               <View style={[
                 styles.readyIndicator,
-                styles.readyIndicatorReady
+                isReady ? styles.readyIndicatorReady : styles.readyIndicatorNotReady
               ]}>
-                <Ionicons name="checkmark" size={12} color="white" />
+                <Ionicons 
+                  name={isReady ? "checkmark" : "time-outline"} 
+                  size={12} 
+                  color="white" 
+                />
               </View>
-            )}
+            </View>
+            <Text style={styles.playerName} numberOfLines={1}>
+              {playerName}
+            </Text>
+            <Text style={[
+              styles.readyLabel,
+              isReady ? styles.readyLabelReady : styles.readyLabelNotReady
+            ]}>
+              {isReady ? 'READY' : 'NOT READY'}
+            </Text>
           </View>
-          <Text style={styles.playerName}>
-            {opponentReady ? 'Opponent' : 'Waiting...'}
-          </Text>
-          <Text style={[
-            styles.readyLabel,
-            opponentReady ? styles.readyLabelReady : styles.readyLabelNotReady
-          ]}>
-            {opponentReady ? 'READY' : 'NOT READY'}
-          </Text>
+          
+          {/* VS */}
+          <View style={styles.vsCenter}>
+            <Text style={styles.vsText}>VS</Text>
+          </View>
+          
+          {/* Opponent Side */}
+          <View style={styles.playerSide}>
+            <View style={[
+              styles.avatar,
+              !opponentReady && styles.avatarEmpty
+            ]}>
+              {opponentReady ? (
+                <Text style={styles.avatarText}>👤</Text>
+              ) : (
+                <Ionicons name="person-outline" size={28} color="rgba(255,255,255,0.3)" />
+              )}
+              {opponentReady && (
+                <View style={[
+                  styles.readyIndicator,
+                  styles.readyIndicatorReady
+                ]}>
+                  <Ionicons name="checkmark" size={12} color="white" />
+                </View>
+              )}
+            </View>
+            <Text style={styles.playerName}>
+              {opponentReady ? 'Opponent' : 'Waiting...'}
+            </Text>
+            <Text style={[
+              styles.readyLabel,
+              opponentReady ? styles.readyLabelReady : styles.readyLabelNotReady
+            ]}>
+              {opponentReady ? 'READY' : 'NOT READY'}
+            </Text>
+          </View>
         </View>
-      </View>
+      )}
     </View>
   );
 }
@@ -108,6 +133,34 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
     borderColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  // Progress bar styles for multi-player modes
+  progressContainer: {
+    alignItems: 'center',
+  },
+  progressTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginBottom: 16,
+  },
+  progressBar: {
+    width: '100%',
+    height: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 6,
+  },
+  progressText: {
+    fontSize: 16,
+    color: 'white',
+    fontWeight: '600',
   },
   vsContainer: {
     flexDirection: 'row',

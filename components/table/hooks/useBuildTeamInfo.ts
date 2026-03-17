@@ -12,6 +12,7 @@ import {
 import { 
   TEAM_A_COLORS,
   TEAM_B_COLORS,
+  getPlayerColors,
   type TeamId,
   type TeamColors 
 } from '../../../constants/teamColors';
@@ -25,11 +26,16 @@ export const PLAYER_1_GOLD = '#FF9800';
 // Purple for Player 2 (2-player mode)
 export const PLAYER_2_PURPLE = TEAM_B_COLORS.primary;
 
+// Blue for Player 3 (3-player mode)
+export const PLAYER_3_BLUE = '#2196F3';
+
 interface UseBuildTeamInfoProps {
   /** Owner player index */
   owner: number;
   /** Whether party mode is enabled (4-player) */
   isPartyMode: boolean;
+  /** Total player count (2, 3, or 4) */
+  playerCount?: number;
   /** Whether there's a pending extension */
   isExtending: boolean;
   /** Whether there's a pending capture (opponent building to capture) */
@@ -56,10 +62,13 @@ interface UseBuildTeamInfoResult {
 export function useBuildTeamInfo({
   owner,
   isPartyMode,
+  playerCount = 2,
   isExtending,
   isCapturing = false,
   effectiveSum = 0,
 }: UseBuildTeamInfoProps): UseBuildTeamInfoResult {
+  const isThreePlayerMode = playerCount === 3;
+  
   const { ownerTeam, ownerTag, ownerPosition, colors } = useMemo(() => {
     const team = getTeamFromIndex(owner) as TeamId;
     const tag = getPlayerTag(owner);
@@ -71,6 +80,9 @@ export function useBuildTeamInfo({
     if (isPartyMode) {
       // Party mode (4-player): use team-specific colors
       teamColors = team === 'A' ? TEAM_A_COLORS : TEAM_B_COLORS;
+    } else if (isThreePlayerMode) {
+      // 3-player mode: use player-specific colors with playerCount
+      teamColors = getPlayerColors(owner, playerCount);
     } else {
       // 2-player mode: use gold for P1, purple for P2
       teamColors = owner === 0 
@@ -84,11 +96,26 @@ export function useBuildTeamInfo({
       ownerPosition: position,
       colors: teamColors,
     };
-  }, [owner, isPartyMode]);
+  }, [owner, isPartyMode, isThreePlayerMode, playerCount]);
 
   // Badge color: accent while incomplete (effectiveSum !== 0), team color when complete
   // Capture uses same colors as extension (team-based, not red)
   const badgeColor = useMemo(() => {
+    // Helper function to get player color based on owner and playerCount
+    const getPlayerColor = (playerIndex: number, count: number): string => {
+      if (count === 3) {
+        // 3-player mode: P1=gold, P2=purple, P3=blue
+        switch (playerIndex) {
+          case 0: return PLAYER_1_GOLD;
+          case 1: return PLAYER_2_PURPLE;
+          case 2: return PLAYER_3_BLUE;
+          default: return PLAYER_2_PURPLE;
+        }
+      }
+      // 2-player mode
+      return playerIndex === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE;
+    };
+    
     if (isExtending || isCapturing) {
       if (effectiveSum !== 0) {
         return colors.accent; // incomplete - show accent
@@ -96,15 +123,15 @@ export function useBuildTeamInfo({
         // complete – use team color
         return isPartyMode 
           ? (ownerTeam === 'B' ? CANONICAL_PURPLE : PLAYER_1_GOLD)
-          : (owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE);
+          : getPlayerColor(owner, playerCount);
       }
     } else {
       // Not extending/capturing – normal team color
       return isPartyMode 
         ? (ownerTeam === 'B' ? CANONICAL_PURPLE : PLAYER_1_GOLD)
-        : (owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE);
+        : getPlayerColor(owner, playerCount);
     }
-  }, [isExtending, isCapturing, effectiveSum, colors, isPartyMode, ownerTeam, owner]);
+  }, [isExtending, isCapturing, effectiveSum, colors, isPartyMode, ownerTeam, owner, playerCount]);
 
   // Owner label color - use WHITE for consistency with party mode
   const ownerTextColor = isPartyMode ? colors.text : '#FFFFFF';

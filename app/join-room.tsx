@@ -14,9 +14,9 @@ export default function JoinRoomScreen() {
   const params = useLocalSearchParams<{ mode?: GameMode; code?: string }>();
   
   // Determine game mode from params
-  const gameMode: GameMode = params.mode === 'party' ? 'party' : 'duel';
-  const maxPlayers = gameMode === 'party' ? 4 : 2;
-  const modeLabel = gameMode === 'party' ? 'Party Mode (4 Players)' : 'Duel (2 Players)';
+  const gameMode: GameMode = params.mode === 'party' ? 'party' : (params.mode === 'three-hands' ? 'three-hands' : 'two-hands');
+  const maxPlayers = gameMode === 'party' ? 4 : (gameMode === 'three-hands' ? 3 : 2);
+  const modeLabel = gameMode === 'party' ? 'Party Mode (4 Players)' : (gameMode === 'three-hands' ? 'Three Hands (3 Players)' : 'Two Hands (2 Players)');
 
   const [roomCode, setRoomCode] = useState(params.code || '');
   const [isJoining, setIsJoining] = useState(!!params.code);

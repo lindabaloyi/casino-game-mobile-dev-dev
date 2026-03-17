@@ -27,7 +27,7 @@ export type { Card, GameState, GameOverData, OpponentDragState };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type GameMode = 'duel' | 'party';
+export type GameMode = 'two-hands' | 'party' | 'three-hands';
 
 export interface UseMultiplayerGameOptions {
   mode: GameMode;
@@ -42,10 +42,18 @@ export interface UseMultiplayerGameResult {
   playerNumber: ReturnType<typeof useGameStateSync>['playerNumber'];
   /** Whether the socket is currently connected */
   isConnected: boolean;
-  /** Whether we're in the lobby waiting for players (party mode only) */
+  /** Whether we're in the lobby waiting for players (multiplayer modes) */
   isInLobby: boolean;
-  /** Number of players currently in the lobby (party mode only) */
+  /** Number of players currently in the lobby (multiplayer modes) */
   playersInLobby: number;
+  /** Required number of players to start the game */
+  requiredPlayers: number;
+  /** Whether the local player is ready */
+  isReady: boolean;
+  /** Whether all required players have joined (for multiplayer modes) */
+  allPlayersReady: boolean;
+  /** Toggle ready status */
+  toggleReady: () => void;
   /** Whether the opponent disconnected */
   opponentDisconnected: boolean;
   /** Whether a player disconnected (party mode) */
@@ -72,17 +80,32 @@ export interface UseMultiplayerGameResult {
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
+// Helper to get player count from game mode
+export function getPlayerCount(mode: GameMode): number {
+  switch (mode) {
+    case 'party':
+      return 4;
+    case 'three-hands':
+      return 3;
+    case 'two-hands':
+    default:
+      return 2;
+  }
+}
+
 export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMultiplayerGameResult {
   const { mode } = options;
   const isPartyMode = mode === 'party';
+  const playerCount = getPlayerCount(mode);
 
   // Compose smaller, focused hooks
   const { socket, isConnected, error: socketError } = useSocketConnection({ mode });
   const gameSync = useGameStateSync(socket);
-  const lobby = useLobbyState(socket, isPartyMode);
+  const lobby = useLobbyState(socket, playerCount);
   const opponentDrag = useOpponentDrag(socket);
 
-  // Start next round (party mode only)
+  // Debug: Log lobby state values
+  console.log(`[useMultiplayerGame] mode: ${mode}, playerCount: ${playerCount}, isInLobby: ${lobby.isInLobby}, playersInLobby: ${lobby.playersInLobby}, requiredPlayers: ${lobby.requiredPlayers}, allPlayersReady: ${lobby.allPlayersReady}`);
   const startNextRound = useCallback(() => {
     if (isPartyMode) {
       socket?.emit('start-next-round');
@@ -104,9 +127,13 @@ export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMulti
     isConnected,
     error: socketError || gameSync.error,
     
-    // Lobby state (party mode)
+    // Lobby state (multiplayer modes)
     isInLobby: lobby.isInLobby,
     playersInLobby: lobby.playersInLobby,
+    requiredPlayers: lobby.requiredPlayers,
+    isReady: lobby.isReady,
+    allPlayersReady: lobby.allPlayersReady,
+    toggleReady: lobby.toggleReady,
     playerDisconnected: false, // TODO: Add to gameSync if needed
     
     // Actions

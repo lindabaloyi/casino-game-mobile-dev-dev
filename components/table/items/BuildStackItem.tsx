@@ -11,6 +11,8 @@ interface BuildStackItemProps {
   // Party mode props for team colors
   isPartyMode?: boolean;
   currentPlayerIndex?: number;
+  /** Total player count (2, 3, or 4) */
+  playerCount?: number;
   /** Callback when build is tapped - for Shiya selection */
   onBuildTap?: (stack: BuildStack) => void;
   // Drag callbacks (for dragging build with pending extension to capture pile)
@@ -30,6 +32,7 @@ export function BuildStackItem({
   unregisterTempStack,
   isPartyMode,
   currentPlayerIndex,
+  playerCount,
   onBuildTap,
   isMyTurn,
   playerNumber,
@@ -48,6 +51,7 @@ export function BuildStackItem({
       unregisterTempStack={unregisterTempStack}
       isPartyMode={isPartyMode}
       currentPlayerIndex={currentPlayerIndex}
+      playerCount={playerCount}
       onBuildTap={onBuildTap}
       isMyTurn={isMyTurn}
       playerNumber={playerNumber}

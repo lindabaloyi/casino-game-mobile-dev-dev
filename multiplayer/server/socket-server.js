@@ -105,6 +105,21 @@ io.on('connection', socket => {
     }
   });
 
+  // Three-Hands Matchmaking: add player to three-hands queue; start 3-player game when ready
+  socket.on('join-three-hands-queue', () => {
+    // Remove from regular matchmaking queue first (if present)
+    matchmaking.removeFromQueue(socket.id);
+    
+    // Use party matchmaking for 3-player games (reusing the logic)
+    const result = partyMatchmaking.addThreeHandsToQueue(socket);
+    if (result) {
+      broadcaster.broadcastThreeHandsGameStart(result);
+    } else {
+      // Broadcast to ALL waiting players
+      partyMatchmaking.broadcastThreeHandsWaiting(io);
+    }
+  });
+
   // Private Room: create room
   socket.on('create-room', (data) => {
     // Remove from matchmaking queues if present
@@ -223,8 +238,15 @@ io.on('connection', socket => {
 
   // ── Lobby status request (for polling) ───────────────────────────────────────
   socket.on('request-lobby-status', () => {
-    const waitingCount = partyMatchmaking.getWaitingPartyPlayersCount();
-    socket.emit('party-waiting', { playersJoined: waitingCount });
+    // Check party matchmaking first
+    const partyWaitingCount = partyMatchmaking.getWaitingPartyPlayersCount();
+    socket.emit('party-waiting', { playersJoined: partyWaitingCount });
+    
+    // Also check three-hands matchmaking
+    const threeHandsWaitingCount = partyMatchmaking.getWaitingThreeHandsPlayersCount();
+    if (threeHandsWaitingCount > 0) {
+      socket.emit('three-hands-waiting', { playersJoined: threeHandsWaitingCount });
+    }
   });
 
   // Disconnect

@@ -45,6 +45,9 @@ interface Props {
   registerTempStack: (stackId: string, bounds: TempStackBounds) => void;
   unregisterTempStack: (stackId: string) => void;
   
+  // Player count for color determination (2, 3, or 4 players)
+  playerCount?: number;
+  
   // Drag callbacks (for dragging temp stack to capture pile)
   isMyTurn?: boolean;
   playerNumber?: number;
@@ -64,6 +67,7 @@ export function TempStackView({
   layoutVersion, 
   registerTempStack, 
   unregisterTempStack, 
+  playerCount,
   isMyTurn,
   playerNumber,
   findCapturePileAtPoint,
@@ -97,7 +101,7 @@ export function TempStackView({
   const { bottom, top, pendingCards, isExtending } = useTempStackCards(stack);
 
   // ── 3. Display value & badge color hook ─────────────────────────────────
-  const { displayValue, badgeColor } = useTempStackDisplay(stack, pendingCards, isExtending);
+  const { displayValue, badgeColor } = useTempStackDisplay(stack, pendingCards, isExtending, playerCount);
 
   // ── 4. Resolve badge config ─────────────────────────────────────────────
   const config = getStackConfig(stack.type);

@@ -51,6 +51,8 @@ interface Props {
   currentPlayerIndex?: number;
   /** Whether this is party mode (4-player) */
   isPartyMode?: boolean;
+  /** Total player count (2, 3, or 4) */
+  playerCount?: number;
   /** Callback when build is tapped - for Shiya selection */
   onBuildTap?: (stack: BuildStack) => void;
   // Drag props - enabled when build has pending extension
@@ -72,6 +74,7 @@ export function BuildStackView({
   unregisterTempStack,
   currentPlayerIndex,
   isPartyMode = false,
+  playerCount,
   onBuildTap,
   isMyTurn,
   playerNumber,
@@ -146,6 +149,7 @@ export function BuildStackView({
   const { badgeColor } = useBuildTeamInfo({
     owner: stack.owner,
     isPartyMode,
+    playerCount,
     isExtending,
     isCapturing,
     effectiveSum,
@@ -275,7 +279,7 @@ export function BuildStackView({
         <BuildValueBadge displayValue={displayValue} badgeColor={badgeColor} />
 
         {/* Use extracted OwnerIndicator component */}
-        <OwnerIndicator owner={stack.owner} isPartyMode={isPartyMode} />
+        <OwnerIndicator owner={stack.owner} isPartyMode={isPartyMode} playerCount={playerCount} />
       </Animated.View>
     </GestureDetector>
   );

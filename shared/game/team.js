@@ -11,11 +11,43 @@
 const PARTY_TURN_SEQUENCE = [0, 2, 1, 3];
 
 /**
+ * Three-Hands Turn Sequence for 3-player games
+ * Order: Player 0 → Player 1 → Player 2
+ */
+const THREE_HANDS_TURN_SEQUENCE = [0, 1, 2];
+
+/**
+ * Check if player count indicates party mode (4 players)
+ * @param {number} playerCount - Number of players
+ * @returns {boolean} True if party mode
+ */
+function isPartyGame(playerCount) {
+  return playerCount === 4;
+}
+
+/**
+ * Check if player count indicates three-hands mode (3 players)
+ * @param {number} playerCount - Number of players
+ * @returns {boolean} True if three-hands mode
+ */
+function isThreeHandsGame(playerCount) {
+  return playerCount === 3;
+}
+
+/**
  * Get the party turn sequence for 4-player games.
  * @returns {number[]} Array of player indices in turn order
  */
 function getPartyTurnSequence() {
   return PARTY_TURN_SEQUENCE;
+}
+
+/**
+ * Get the three-hands turn sequence for 3-player games.
+ * @returns {number[]} Array of player indices in turn order
+ */
+function getThreeHandsTurnSequence() {
+  return THREE_HANDS_TURN_SEQUENCE;
 }
 
 /**
@@ -38,19 +70,38 @@ function isFirstInSequence(playerIndex) {
 
 /**
  * Get team from player index: 0,1 -> 'A', 2,3 -> 'B'
+ * For 3-player: all players are solo, returns 'A' for 0, 'B' for 1, 'C' for 2
  * @param {number} playerIndex - Player index (0-3)
- * @returns {string} Team ('A' or 'B')
+ * @returns {string} Team ('A', 'B', or 'C')
  */
 function getTeamFromIndex(playerIndex) {
-  return playerIndex < 2 ? 'A' : 'B';
+  if (playerIndex === 3) return 'B';
+  if (playerIndex >= 0 && playerIndex <= 2) {
+    // For 3-player: 0='A', 1='B', 2='C'
+    return String.fromCharCode(65 + playerIndex);
+  }
+  return 'A';
 }
 
 /**
- * Get teammate index for 2v2 mode
- * @param {number} playerIndex - Player index (0-3)
- * @returns {number|null} Teammate index or null if invalid
+ * Check if a player is in three-hands mode (solo play, no teams)
+ * @param {number} playerCount - Number of players
+ * @returns {boolean} True if three-hands mode
  */
-function getTeammateIndex(playerIndex) {
+function isSoloPlay(playerCount) {
+  return playerCount === 3;
+}
+
+/**
+ * Get teammate index for 2v2 mode or return null for solo modes
+ * @param {number} playerIndex - Player index (0-3)
+ * @param {number} playerCount - Number of players
+ * @returns {number|null} Teammate index or null if solo play
+ */
+function getTeammateIndex(playerIndex, playerCount = 4) {
+  // Three-hands: no teammates
+  if (playerCount === 3) return null;
+  
   if (playerIndex < 0 || playerIndex > 3) return null;
   // Team A: 0↔1, Team B: 2↔3
   return playerIndex < 2
@@ -94,11 +145,17 @@ module.exports = {
   getTeammateIndex,
   // Party turn sequence exports
   PARTY_TURN_SEQUENCE,
+  THREE_HANDS_TURN_SEQUENCE,
   getPartyTurnSequence,
+  getThreeHandsTurnSequence,
   getPositionInSequence,
   isFirstInSequence,
   // Player identification exports
   getPlayerPositionLabel,
   getPlayerTag,
   areTeammates,
+  // Game mode helpers
+  isPartyGame,
+  isThreeHandsGame,
+  isSoloPlay,
 };

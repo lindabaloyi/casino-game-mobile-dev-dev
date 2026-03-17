@@ -118,6 +118,9 @@ interface Props {
   isPartyMode?: boolean;
   currentPlayerIndex?: number;
   
+  /** Game mode type for special rendering (e.g., two-hands for 3-player) */
+  gameMode?: 'two-hands' | 'three-hands' | 'party';
+  
   /** Callback when a build is tapped - for Shiya selection or dual builds */
   onBuildTap?: (stack: BuildStack | TempStack) => void;
 }
@@ -171,6 +174,7 @@ export function TableArea({
   disableOverlays = false,
   isPartyMode,
   currentPlayerIndex,
+  gameMode,
   onBuildTap,
 }: Props) {
   // Separate item types
@@ -209,6 +213,7 @@ export function TableArea({
         index={index}
         isMyTurn={isMyTurn}
         playerNumber={playerNumber}
+        playerCount={playerCount}
         tableVersion={tableVersion}
         registerCard={registerCard}
         unregisterCard={unregisterCard}
@@ -281,6 +286,7 @@ export function TableArea({
         opponentDrag={opponentDrag}
         isPartyMode={isPartyMode}
         currentPlayerIndex={currentPlayerIndex}
+        gameMode={gameMode}
       />
     </View>
   );

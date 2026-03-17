@@ -9,16 +9,14 @@ import { Ionicons } from '@expo/vector-icons';
 
 interface GameButtonsProps {
   onCpuGame: () => void;
-  onMultiplayer: () => void;
+  onPlayOnline: () => void;
   onPrivateRoom: () => void;
-  onPartyMode: () => void;
 }
 
 export function GameButtons({ 
   onCpuGame, 
-  onMultiplayer, 
+  onPlayOnline, 
   onPrivateRoom, 
-  onPartyMode 
 }: GameButtonsProps) {
   const iconSize = 20;
   const buttonFontSize = 16;
@@ -35,12 +33,14 @@ export function GameButtons({
       </TouchableOpacity>
       
       <TouchableOpacity 
-        style={styles.button} 
-        onPress={onMultiplayer}
+        style={styles.playOnlineButton} 
+        onPress={onPlayOnline}
         activeOpacity={0.7}
       >
-        <Ionicons name="people" size={iconSize} color="white" />
-        <Text style={[styles.buttonText, { fontSize: buttonFontSize }]}>Multiplayer</Text>
+        <Ionicons name="globe" size={iconSize + 4} color="#0f4d0f" />
+        <Text style={[styles.playOnlineButtonText, { fontSize: buttonFontSize + 2 }]}>
+          Play Online
+        </Text>
       </TouchableOpacity>
       
       <TouchableOpacity 
@@ -52,15 +52,6 @@ export function GameButtons({
         <Text style={[styles.privateRoomButtonText, { fontSize: buttonFontSize + 2 }]}>
           Private Room
         </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={onPartyMode}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="people" size={iconSize} color="white" />
-        <Text style={[styles.buttonText, { fontSize: buttonFontSize }]}>Party Mode</Text>
       </TouchableOpacity>
     </View>
   );
@@ -87,6 +78,28 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontWeight: '600',
+    marginLeft: 10,
+  },
+  playOnlineButton: {
+    backgroundColor: '#FFD700',
+    borderRadius: 10,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  playOnlineButtonText: {
+    color: '#0f4d0f',
+    fontWeight: 'bold',
     marginLeft: 10,
   },
   privateRoomButton: {

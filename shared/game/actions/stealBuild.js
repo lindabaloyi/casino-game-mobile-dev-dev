@@ -88,6 +88,7 @@ function stealBuild(state, payload, playerIndex) {
   
   // --- VALIDATION: Check opponent(s) don't have build with same value ---
   // In party mode: check both opponents; in duel mode: check single opponent
+  // In three-hands mode: check the other two players
   let opponentHasSameValue = false;
   
   if (state.playerCount === 4) {
@@ -113,8 +114,28 @@ function stealBuild(state, payload, playerIndex) {
     // If they have no existing builds, they become the owner.
     // If they have a build with same value, merge logic below handles it.
     console.log(`[stealBuild] ✅ Steal allowed - player will become owner (hasExistingBuild: ${hasExistingBuild})`);
+  } else if (state.playerCount === 3) {
+    // Three-hands mode: check BOTH other players (all solo)
+    const otherPlayerIndices = [0, 1, 2].filter(i => i !== playerIndex);
+    for (const oIdx of otherPlayerIndices) {
+      const opponentBuilds = newState.tableCards.filter(
+        tc => tc.type === 'build_stack' && tc.owner === oIdx && tc.stackId !== stackId
+      );
+      if (opponentBuilds.some(build => build.value === buildStack.value)) {
+        opponentHasSameValue = true;
+        break;
+      }
+    }
+    
+    if (opponentHasSameValue) {
+      throw new Error(
+        `stealBuild: Cannot have build with value ${buildStack.value} - another player already has a build with this value`
+      );
+    }
+    
+    console.log(`[stealBuild] ✅ Three-hands steal allowed - player will become owner (hasExistingBuild: ${hasExistingBuild})`);
   } else {
-    // Duel mode: check single opponent (original behavior)
+    // Duel mode (2 players): check single opponent
     const opponentIndex = playerIndex === 0 ? 1 : 0;
     const opponentBuilds = newState.tableCards.filter(
       tc => tc.type === 'build_stack' && tc.owner === opponentIndex && tc.stackId !== stackId
@@ -134,10 +155,11 @@ function stealBuild(state, payload, playerIndex) {
   
   // Determine ownership after steal:
   // - Party mode: if merging with teammate, keep teammate as owner
+  // - Three-hands mode: always take ownership (no teams)
   // - Otherwise: transfer to current player
   let newOwner = playerIndex;
   
-  // Check if we're merging with teammate (we already checked this above)
+  // Check if we're merging with teammate (party mode only)
   if (state.playerCount === 4) {
     const teammateIndex = playerIndex ^ 1;
     const myMatch = hasExistingBuild && newState.tableCards.some(
@@ -157,6 +179,7 @@ function stealBuild(state, payload, playerIndex) {
       }
     }
   }
+  // Three-hands mode: always take ownership (no teams)
   
   buildStack.owner = newOwner;
   buildStack.pendingExtension = null;
@@ -164,6 +187,7 @@ function stealBuild(state, payload, playerIndex) {
   let finalDisplayValue;
   
   // Party mode: Check for merge with MY build OR TEAMMATE'S build
+  // Three-hands mode: Only merge with MY builds (no teams)
   if (state.playerCount === 4) {
     const teammateIndex = playerIndex ^ 1;
     
@@ -251,7 +275,7 @@ function stealBuild(state, payload, playerIndex) {
       }
     }
   } else {
-    // Duel mode: original merge logic
+    // Duel mode (2 players) or Three-hands mode (3 players): merge with MY builds only
     if (hasExistingBuild) {
       let currentValue = recalculatedValue;
       let mergedWithAny = false;

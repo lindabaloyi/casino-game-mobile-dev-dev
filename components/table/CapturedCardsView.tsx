@@ -24,8 +24,10 @@ interface CapturedCardsViewProps {
   opponentCaptures: Card[];
   /** Player number (0-3) */
   playerNumber: number;
-  /** Total player count (2 or 4) */
+  /** Total player count (2, 3, or 4) */
   playerCount?: number;
+  /** Game mode type: 'two-hands' (3-player), 'three-hands' (3-player variant), 'party' (4-player), or undefined (default 2-player) */
+  gameMode?: 'two-hands' | 'three-hands' | 'party';
   /** All players' captures (for 4-player mode) */
   allPlayerCaptures?: Card[][];
   /** Whether it's this player's turn */
@@ -63,6 +65,7 @@ export function CapturedCardsView({
   opponentCaptures,
   playerNumber,
   playerCount = 2,
+  gameMode,
   allPlayerCaptures,
   isMyTurn = false,
   registerCapturedCard,
@@ -131,13 +134,18 @@ export function CapturedCardsView({
 
   // Build left and right side player lists
   // Party mode: LEFT = one opponent + teammate (2 slots), RIGHT = player + other opponent (2 slots)
+  // Two-handed (3-player): LEFT = both opponents, RIGHT = player
+  const isThreePlayerMode = gameMode === 'two-hands' || gameMode === 'three-hands' || playerCount === 3;
+  
   const leftSideIndices: number[] = finalIsPartyMode
     ? [opponentIndices[0], teammateIndex] // one opponent + teammate on left (2 slots)
+    : isThreePlayerMode
+    ? [opponentIndices[0], opponentIndices[1]] // both opponents on left in 3-player mode
     : [opponentIndices[0]]; // opponent on left in 2-player
   
   const rightSideIndices: number[] = finalIsPartyMode
     ? [playerNumber, opponentIndices[1]] // player + other opponent on right (2 slots)
-    : [playerNumber]; // player on right in 2-player
+    : [playerNumber]; // player on right in 2-player/3-player
 
   // Render a single pile
   const renderPile = (idx: number) => {

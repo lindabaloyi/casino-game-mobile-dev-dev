@@ -1,8 +1,8 @@
 /**
  * useLobbyState
  * 
- * Handles party game lobby state.
- * Only applicable for party mode (4-player games).
+ * Handles multiplayer game lobby state.
+ * Supports 2-player (duel), 3-player (three-hands), and 4-player (party) games.
  * 
  * Responsibilities:
  *  - Track lobby status (waiting for players)
@@ -10,7 +10,7 @@
  *  - Poll for updates periodically
  * 
  * Usage:
- *   const { isInLobby, playersInLobby } = useLobbyState(socket, isPartyMode);
+ *   const { isInLobby, playersInLobby, requiredPlayers } = useLobbyState(socket, playerCount);
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -21,34 +21,77 @@ export interface UseLobbyStateResult {
   isInLobby: boolean;
   /** Number of players currently in lobby */
   playersInLobby: number;
+  /** Required number of players to start */
+  requiredPlayers: number;
+  /** Whether the local player is ready */
+  isReady: boolean;
+  /** Whether all required players have joined and are ready */
+  allPlayersReady: boolean;
+  /** Toggle ready status */
+  toggleReady: () => void;
 }
 
 export function useLobbyState(
   socket: Socket | null,
-  isPartyMode: boolean
+  playerCount: number
 ): UseLobbyStateResult {
   const [isInLobby, setIsInLobby] = useState(false);
   const [playersInLobby, setPlayersInLobby] = useState(0);
+  const [isReady, setIsReady] = useState(false);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  
+  // Determine required players based on playerCount
+  const requiredPlayers = playerCount || 2;
+  const isMultiplayerMode = playerCount > 1;
+  
+  // Compute whether all players are ready (all required players joined)
+  const allPlayersReady = playersInLobby >= requiredPlayers && playersInLobby > 0;
+  
+  // Debug logging for player count changes
+  console.log(`[useLobbyState] playersInLobby: ${playersInLobby}, requiredPlayers: ${requiredPlayers}, allPlayersReady: ${allPlayersReady}, isReady: ${isReady}`);
+  
+  // Toggle ready status
+  const toggleReady = () => {
+    const newReadyState = !isReady;
+    setIsReady(newReadyState);
+    if (socket?.connected) {
+      socket.emit('player-ready', { ready: newReadyState });
+    }
+  };
 
   useEffect(() => {
-    // Only listen to lobby events in party mode
-    if (!socket || !isPartyMode) {
-      // Reset state when not in party mode
+    // Only listen to lobby events in multiplayer mode (3+ players)
+    if (!socket || !isMultiplayerMode) {
+      // Reset state when not in multiplayer mode
       setIsInLobby(false);
       setPlayersInLobby(0);
       return;
     }
 
+    // Handle party-waiting (4-player mode)
     const handlePartyWaiting = (data: { playersJoined: number }) => {
-      console.log('[useLobbyState] party-waiting:', data);
+      console.log('[useLobbyState] party-waiting received:', data);
+      setIsInLobby(true);
+      setPlayersInLobby(data.playersJoined);
+    };
+
+    // Handle three-hands-waiting (3-player mode)
+    const handleThreeHandsWaiting = (data: { playersJoined: number }) => {
+      console.log('[useLobbyState] three-hands-waiting received:', data);
+      setIsInLobby(true);
+      setPlayersInLobby(data.playersJoined);
+    };
+
+    // Handle two-hands-waiting (2-player mode)
+    const handleTwoHandsWaiting = (data: { playersJoined: number }) => {
+      console.log('[useLobbyState] two-hands-waiting received:', data);
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
     };
 
     const handleGameStart = () => {
       // Game started, no longer in lobby
-      console.log('[useLobbyState] game started, leaving lobby');
+      console.log('[useLobbyState] game-start received - leaving lobby!');
       setIsInLobby(false);
       // Stop polling when game starts
       if (pollingIntervalRef.current) {
@@ -57,7 +100,15 @@ export function useLobbyState(
       }
     };
 
-    socket.on('party-waiting', handlePartyWaiting);
+    // Listen to appropriate events based on player count
+    if (requiredPlayers === 4) {
+      socket.on('party-waiting', handlePartyWaiting);
+    } else if (requiredPlayers === 3) {
+      socket.on('three-hands-waiting', handleThreeHandsWaiting);
+    } else if (requiredPlayers === 2) {
+      socket.on('two-hands-waiting', handleTwoHandsWaiting);
+    }
+    
     socket.on('game-start', handleGameStart);
 
     // Start polling for lobby status every 2 seconds
@@ -73,6 +124,8 @@ export function useLobbyState(
 
     return () => {
       socket.off('party-waiting', handlePartyWaiting);
+      socket.off('three-hands-waiting', handleThreeHandsWaiting);
+      socket.off('two-hands-waiting', handleTwoHandsWaiting);
       socket.off('game-start', handleGameStart);
       // Clean up polling interval
       if (pollingIntervalRef.current) {
@@ -80,11 +133,15 @@ export function useLobbyState(
         pollingIntervalRef.current = null;
       }
     };
-  }, [socket, isPartyMode]);
+  }, [socket, isMultiplayerMode, requiredPlayers]);
 
   return {
     isInLobby,
     playersInLobby,
+    requiredPlayers,
+    isReady,
+    allPlayersReady,
+    toggleReady,
   };
 }
 

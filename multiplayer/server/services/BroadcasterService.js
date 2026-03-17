@@ -42,6 +42,23 @@ class BroadcasterService {
       });
     });
   }
+  
+  /**
+   * Broadcast three-hands game start to all 3 players in a new three-hands game
+   */
+  broadcastThreeHandsGameStart(gameResult) {
+    const { gameId, gameState, players } = gameResult;
+    console.log(`[Broadcaster] Broadcasting three-hands game start to ${players.length} players`);
+
+    players.forEach(({ socket, playerNumber }) => {
+      socket.emit("game-start", {
+        gameId,
+        gameState,
+        playerNumber,
+        isThreeHandsGame: true,
+      });
+    });
+  }
 
   /**
    * Broadcast game update to all players in a game

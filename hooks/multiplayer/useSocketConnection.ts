@@ -19,7 +19,7 @@ import { Socket } from 'socket.io-client';
 import { io } from 'socket.io-client';
 import { getOptimalServerUrl } from '../../utils/serverUrl';
 
-export type GameMode = 'duel' | 'party';
+export type GameMode = 'two-hands' | 'party' | 'three-hands';
 
 export interface UseSocketConnectionOptions {
   mode: GameMode;
@@ -43,6 +43,7 @@ export function useSocketConnection(
 ): UseSocketConnectionResult {
   const { mode } = options;
   const isPartyMode = mode === 'party';
+  const isTwoHandsMode = mode === 'two-hands';
   
   const socketRef = useRef<Socket | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -79,10 +80,22 @@ export function useSocketConnection(
           setIsConnected(true);
           setError(null);
           
+          // Two-hands mode: join the two-hands queue when connected
+          if (isTwoHandsMode) {
+            socket.emit('join-two-hands-queue');
+            console.log('[useSocketConnection] Joined two-hands queue');
+          }
+          
           // Party mode: join the party queue when connected
           if (isPartyMode) {
             socket.emit('join-party-queue');
             console.log('[useSocketConnection] Joined party queue');
+          }
+          
+          // Three-hands mode: join the three-hands queue when connected
+          if (mode === 'three-hands') {
+            socket.emit('join-three-hands-queue');
+            console.log('[useSocketConnection] Joined three-hands queue');
           }
         });
         
@@ -100,7 +113,7 @@ export function useSocketConnection(
         console.error('[useSocketConnection] Failed to resolve URL:', err);
         setError(err.message);
       });
-  }, [mode, isPartyMode]);
+  }, [mode, isPartyMode, isTwoHandsMode]);
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {
