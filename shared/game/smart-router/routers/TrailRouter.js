@@ -62,7 +62,8 @@ class TrailRouter {
     
     // In PARTY mode: allow trailing without restrictions (after above validations)
     // In FREE-FOR-ALL mode: also allow trailing without restrictions (no team restrictions)
-    if (isPartyMode || state.playerCount === 4) {
+    // In THREE-HANDS mode: allow trailing without restrictions (no active build check)
+    if (isPartyMode || state.playerCount === 4 || state.playerCount === 3) {
       return { type: 'trail', payload };
     }
     
