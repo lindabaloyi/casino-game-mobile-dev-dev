@@ -6,11 +6,10 @@
  */
 
 class BroadcasterService {
-  constructor(matchmakingService, gameManager, io, partyMatchmakingService = null) {
+  constructor(matchmakingService, gameManager, io) {
     this.matchmaking = matchmakingService;
     this.gameManager = gameManager;
     this.io = io;
-    this.partyMatchmaking = partyMatchmakingService;
   }
 
   /**

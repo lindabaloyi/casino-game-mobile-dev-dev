@@ -396,7 +396,7 @@ async function startServer() {
   actionRouter = new ActionRouter(gameManager);
   unifiedMatchmaking = new UnifiedMatchmakingService(gameManager, io);
   roomService   = new RoomService(gameManager, unifiedMatchmaking, broadcaster, io);
-  broadcaster  = new BroadcasterService(unifiedMatchmaking, gameManager, io, null);
+  broadcaster  = new BroadcasterService(unifiedMatchmaking, gameManager, io);
   coordinator   = new GameCoordinatorService(gameManager, actionRouter, unifiedMatchmaking, broadcaster);
 
   server.listen(PORT, '0.0.0.0', () => {

@@ -119,117 +119,31 @@ class GameCoordinatorService {
         }
       }
       
-      if (roundCheck.ended) {
-        // Broadcast round end to all players
-        const summary = RoundValidator.getRoundSummary(newState);
-        this.broadcaster.broadcastToGame(gameId, 'round-end', {
-          round: newState.round,
-          reason: roundCheck.reason,
-          summary,
-        }, this.unifiedMatchmaking);
-        
-        // Check if game is over
-        const gameOverCheck = RoundValidator.checkGameOver(newState);
-        if (gameOverCheck.gameOver) {
-          // Finalize game - this calculates scores from captured cards
-          const finalizedState = finalizeGame(newState);
-          
-          // Use calculated scores from finalized state
-          const finalScores = finalizedState.scores || [0, 0];
-          
-          // Calculate detailed game-over stats from finalized state
-          const playerCount = finalizedState.playerCount || 2;
-          const capturedCards = [];
-          const scoreBreakdowns = [];
-          const tableCardsRemaining = finalizedState.tableCards?.length || 0;
-          const deckRemaining = finalizedState.deck?.length || 0;
-          
-          // Get team score breakdowns for 4-player party mode only
-          const isPartyMode = playerCount === 4 && finalizedState.players.some(p => p.team);
-          const teamScoreBreakdowns = isPartyMode && playerCount === 4 
-            ? scoring.getTeamScoreBreakdown(finalizedState.players)
-            : null;
-          
-          for (let i = 0; i < playerCount; i++) {
-            capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
-            // Get detailed score breakdown for each player
-            const captures = finalizedState.players[i]?.captures || [];
-            scoreBreakdowns.push(scoring.getScoreBreakdown(captures));
-          }
-          
-          finalizedState.gameOver = true;
-          this.gameManager.saveGameState(gameId, finalizedState);
-          
-          // Save to MongoDB for persistence
-          this._saveGameToMongo(gameId, finalizedState, isPartyGame);
-          
-          console.log(`[Coordinator] Broadcasting game-over for ${playerCount}-player mode, winner: ${gameOverCheck.winner}`);
-          console.log(`[Coordinator] Using unified matchmaking service`);
-          console.log(`[Coordinator] About to call broadcaster.broadcastToGame...`);
-          this.broadcaster.broadcastToGame(gameId, 'game-over', {
-            winner: gameOverCheck.winner,
-            finalScores,
-            capturedCards,
-            tableCardsRemaining,
-            deckRemaining,
-            scoreBreakdowns,
-            teamScoreBreakdowns,
-            isPartyMode,
-          }, this.unifiedMatchmaking);
-          console.log(`[Coordinator] broadcastToGame called!`);
-        } else {
-          // Auto-transition to next round for multiplayer
-          const nextState = RoundValidator.prepareNextRound(newState);
-          if (nextState) {
-            this.gameManager.saveGameState(gameId, nextState);
-            this.broadcaster.broadcastGameUpdate(gameId, nextState, this.unifiedMatchmaking);
-          } else {
-            // No more rounds - end the game
-            // Finalize game - this calculates scores from captured cards
-            const finalizedState = finalizeGame(newState);
-            
-            // Use calculated scores from finalized state
-            const finalScores = finalizedState.scores || [0, 0];
-            
-            // Calculate detailed game-over stats from finalized state
-            const playerCount = finalizedState.playerCount || 2;
-            const capturedCards = [];
-            const scoreBreakdowns = [];
-            const tableCardsRemaining = finalizedState.tableCards?.length || 0;
-            const deckRemaining = finalizedState.deck?.length || 0;
-            
-            // Get team score breakdowns for 4-player party mode only
-            const isPartyModeElse = playerCount === 4 && finalizedState.players.some(p => p.team);
-            const teamScoreBreakdownsElse = isPartyModeElse && playerCount === 4 
-              ? scoring.getTeamScoreBreakdown(finalizedState.players)
-              : null;
-            
-            for (let i = 0; i < playerCount; i++) {
-              capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
-              // Get detailed score breakdown for each player
-              const captures = finalizedState.players[i]?.captures || [];
-              scoreBreakdowns.push(scoring.getScoreBreakdown(captures));
-            }
-            
-            finalizedState.gameOver = true;
-            this.gameManager.saveGameState(gameId, finalizedState);
-            
-            // Fix: declare winner BEFORE using it
-            const winner = RoundValidator.determineRoundWinner(finalizedState);
-            console.log(`[Coordinator] Broadcasting game-over (no next round) for ${playerCount}-player mode, winner: ${winner}`);
-            this.broadcaster.broadcastToGame(gameId, 'game-over', {
-              winner,
-              finalScores,
-              capturedCards,
-              tableCardsRemaining,
-              deckRemaining,
-              scoreBreakdowns,
-              teamScoreBreakdowns: teamScoreBreakdownsElse,
-              isPartyMode: isPartyModeElse,
-            }, this.unifiedMatchmaking);
-          }
-        }
-      } else {
+       if (roundCheck.ended) {
+         // Broadcast round end to all players
+         const summary = RoundValidator.getRoundSummary(newState);
+         this.broadcaster.broadcastToGame(gameId, 'round-end', {
+           round: newState.round,
+           reason: roundCheck.reason,
+           summary,
+         }, this.unifiedMatchmaking);
+         
+         // Check if game is over
+         const gameOverCheck = RoundValidator.checkGameOver(newState);
+         if (gameOverCheck.gameOver) {
+           this._handleGameOver(gameId, newState, isPartyGame, false);
+         } else {
+           // Auto-transition to next round for multiplayer
+           const nextState = RoundValidator.prepareNextRound(newState);
+           if (nextState) {
+             this.gameManager.saveGameState(gameId, nextState);
+             this.broadcaster.broadcastGameUpdate(gameId, nextState, this.unifiedMatchmaking);
+           } else {
+             // No more rounds - end the game
+             this._handleGameOver(gameId, newState, isPartyGame, true);
+           }
+         }
+       } else {
         this.broadcaster.broadcastGameUpdate(gameId, newState, this.unifiedMatchmaking);
       }
     } catch (err) {
@@ -317,58 +231,14 @@ class GameCoordinatorService {
         return;
       }
 
-      // Prepare next round using RoundValidator
-      const newState = RoundValidator.prepareNextRound(state);
-      
-      if (newState === null) {
-        // No more rounds allowed - end the game
-        // Finalize game - this calculates scores from captured cards
-        const finalizedState = finalizeGame(state);
-        
-        // Use calculated scores from finalized state
-        const finalScores = finalizedState.scores || [0, 0];
-        
-        // Calculate detailed game-over stats from finalized state
-        const playerCount = finalizedState.playerCount || 2;
-        const capturedCards = [];
-        const scoreBreakdowns = [];
-        const tableCardsRemaining = finalizedState.tableCards?.length || 0;
-        const deckRemaining = finalizedState.deck?.length || 0;
-        
-        // Get team score breakdowns for 4-player party mode only
-        const isPartyModeNext = playerCount === 4 && finalizedState.players.some(p => p.team);
-        const teamScoreBreakdownsNext = isPartyModeNext && playerCount === 4 
-          ? scoring.getTeamScoreBreakdown(finalizedState.players)
-          : null;
-        
-        for (let i = 0; i < playerCount; i++) {
-          capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
-          // Get detailed score breakdown for each player
-          const captures = finalizedState.players[i]?.captures || [];
-          scoreBreakdowns.push(scoring.getScoreBreakdown(captures));
-        }
-        
-        finalizedState.gameOver = true;
-        this.gameManager.saveGameState(gameId, finalizedState);
-        
-        // Save to MongoDB for persistence
-        this._saveGameToMongo(gameId, finalizedState, isPartyGame);
-        
-        console.log(`[Coordinator] Broadcasting game-over (handleStartNextRound) for ${playerCount}-player mode`);
-        const winner = RoundValidator.determineRoundWinner(finalizedState);
-        console.log(`[Coordinator] handleStartNextRound winner: ${winner}, finalScores: ${JSON.stringify(finalScores)}`);
-        this.broadcaster.broadcastToGame(gameId, 'game-over', {
-          winner,
-          finalScores,
-          capturedCards,
-          tableCardsRemaining,
-          deckRemaining,
-          scoreBreakdowns,
-          teamScoreBreakdowns: teamScoreBreakdownsNext,
-          isPartyMode: isPartyModeNext,
-        }, this.unifiedMatchmaking);
-        return;
-      }
+       // Prepare next round using RoundValidator
+       const newState = RoundValidator.prepareNextRound(state);
+       
+       if (newState === null) {
+         // No more rounds allowed - end the game
+         this._handleGameOver(gameId, state, isPartyGame, true);
+         return;
+       }
       
       this.gameManager.saveGameState(gameId, newState);
       
@@ -380,7 +250,61 @@ class GameCoordinatorService {
     }
   }
 
-  // ── MongoDB Persistence ───────────────────────────────────────────────────────
+   // ── Game Over Handling ───────────────────────────────────────────────────────
+
+   /**
+    * Handle game over logic - centralized to avoid duplication
+    */
+   _handleGameOver(gameId, finalState, isPartyGame, forceFinalize) {
+     // Finalize game - this calculates scores from captured cards
+     const finalizedState = forceFinalize ? finalizeGame(finalState) : finalState;
+     
+     // Use calculated scores from finalized state
+     const finalScores = finalizedState.scores || [0, 0];
+     
+     // Calculate detailed game-over stats from finalized state
+     const playerCount = finalizedState.playerCount || 2;
+     const capturedCards = [];
+     const scoreBreakdowns = [];
+     const tableCardsRemaining = finalizedState.tableCards?.length || 0;
+     const deckRemaining = finalizedState.deck?.length || 0;
+     
+     // Get team score breakdowns for 4-player party mode only
+     const isPartyMode = playerCount === 4 && finalizedState.players.some(p => p.team);
+     const teamScoreBreakdowns = isPartyMode && playerCount === 4 
+       ? scoring.getTeamScoreBreakdown(finalizedState.players)
+       : null;
+     
+     for (let i = 0; i < playerCount; i++) {
+       capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
+       // Get detailed score breakdown for each player
+       const captures = finalizedState.players[i]?.captures || [];
+       scoreBreakdowns.push(scoring.getScoreBreakdown(captures));
+     }
+     
+     finalizedState.gameOver = true;
+     this.gameManager.saveGameState(gameId, finalizedState);
+     
+     // Save to MongoDB for persistence
+     this._saveGameToMongo(gameId, finalizedState, isPartyGame);
+     
+     console.log(`[Coordinator] Broadcasting game-over for ${playerCount}-player mode, winner: ${RoundValidator.determineRoundWinner(finalizedState)}`);
+     console.log(`[Coordinator] Using unified matchmaking service`);
+     console.log(`[Coordinator] About to call broadcaster.broadcastToGame...`);
+     this.broadcaster.broadcastToGame(gameId, 'game-over', {
+       winner: RoundValidator.determineRoundWinner(finalizedState),
+       finalScores,
+       capturedCards,
+       tableCardsRemaining,
+       deckRemaining,
+       scoreBreakdowns,
+       teamScoreBreakdowns,
+       isPartyMode,
+     }, this.unifiedMatchmaking);
+     console.log(`[Coordinator] broadcastToGame called!`);
+   }
+
+   // ── MongoDB Persistence ───────────────────────────────────────────────────────
 
   /**
    * Save game state to MongoDB
