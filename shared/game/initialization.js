@@ -21,23 +21,24 @@ function getStartingCards(playerCount) {
 /**
  * Create a fresh game state.
  * @param {number} playerCount - Number of players (2, 3, or 4)
+ * @param {boolean} isPartyMode - Whether this is party mode (with teams)
  * @returns {object} Fresh game state
  */
-function initializeGame(playerCount = 2) {
+function initializeGame(playerCount = 2, isPartyMode = false) {
   const deck = createDeck();
   const players = [];
   const startingCards = getStartingCards(playerCount);
 
   // Deal cards to each player
   for (let i = 0; i < playerCount; i++) {
-    const hand = deck.splice(0, startingCards);
     players.push({
       id: i,
       name: `Player ${i + 1}`,
-      hand,
+      hand: deck.splice(0, startingCards),
       captures: [],
       score: 0,
-      team: getTeamFromIndex(i)
+      // Only assign teams in party mode (4-player with 2v2)
+      team: isPartyMode ? getTeamFromIndex(i) : null
     });
   }
 
@@ -64,6 +65,8 @@ function initializeGame(playerCount = 2) {
     moveCount: 0,
     gameOver: false,
     playerCount,
+    // Game mode to help client rendering (party mode has teams, free-for-all does not)
+    gameMode: isPartyMode ? 'party' : (playerCount === 4 ? 'freeforall' : (playerCount === 3 ? 'three-hands' : 'two-hands')),
     stackCounters: { tempP1: 0, tempP2: 0, tempP3: 0, tempP4: 0, buildP1: 0, buildP2: 0, buildP3: 0, buildP4: 0 },
     // Turn tracking per round
     roundPlayers,

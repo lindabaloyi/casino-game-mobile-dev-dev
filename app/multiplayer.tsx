@@ -28,7 +28,7 @@ export const options = {
 export default function MultiplayerScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string }>();
-  const mode = (params.mode as 'two-hands' | 'party' | 'three-hands') || 'two-hands';
+  const mode = (params.mode as 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall') || 'two-hands';
   
   const { height } = useWindowDimensions();
   const screenHeight = height;
@@ -71,6 +71,22 @@ export default function MultiplayerScreen() {
           waitingMessage: 'Waiting for opponents to join...',
           readyMessage: 'Waiting for opponents to ready up...',
         };
+      case 'four-hands':
+        return {
+          title: '🎴 Four Hands',
+          subtitle: '4 Player Free-For-All',
+          connectingSubtitle: 'Finding opponents for four hands',
+          waitingMessage: 'Waiting for opponents to join...',
+          readyMessage: 'Waiting for opponents to ready up...',
+        };
+      case 'freeforall':
+        return {
+          title: '🎴 Free For All',
+          subtitle: '4 Player Battle',
+          connectingSubtitle: 'Finding opponents for free for all',
+          waitingMessage: 'Waiting for opponents to join...',
+          readyMessage: 'Waiting for opponents to ready up...',
+        };
       case 'party':
         return {
           title: '🎉 Party Mode',
@@ -95,7 +111,7 @@ export default function MultiplayerScreen() {
   // Show notification when opponent joins
   useEffect(() => {
     if (gameState == null && isConnected) {
-      const joinMessage = mode === 'three-hands' 
+      const joinMessage = mode === 'three-hands' || mode === 'four-hands' || mode === 'freeforall'
         ? 'Opponents joined! Game starting...'
         : mode === 'party'
         ? 'Players joined! Game starting...'

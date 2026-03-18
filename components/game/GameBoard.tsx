@@ -420,10 +420,10 @@ export function GameBoard({
         playerNumber={playerNumber}
         // Party mode for team colors - determine from gameMode
         // For 4-player: pass isPartyMode to determine team rendering
-        isPartyMode={gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team)}
+        isPartyMode={gameState.playerCount === 4 && gameState.gameMode === 'party'}
         currentPlayerIndex={gameState.currentPlayer}
-        // Game mode for special rendering (e.g., two-hands for 3-player, party for 4-player with teams)
-        gameMode={gameState.playerCount === 3 ? 'two-hands' : (gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team) ? 'party' : 'freeforall')}
+        // Use gameMode from gameState if available, otherwise detect from playerCount
+        gameMode={gameState.gameMode || (gameState.playerCount === 3 ? 'two-hands' : (gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team) ? 'party' : 'freeforall'))}
         tableRef={drag.tableRef}
         onTableLayout={drag.onTableLayout}
         registerCard={drag.registerCard}

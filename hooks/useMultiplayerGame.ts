@@ -27,7 +27,7 @@ export type { Card, GameState, GameOverData, OpponentDragState };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'freeforall';
+export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall';
 
 export interface UseMultiplayerGameOptions {
   mode: GameMode;
@@ -85,6 +85,7 @@ export function getPlayerCount(mode: GameMode): number {
   switch (mode) {
     case 'party':
     case 'freeforall':
+    case 'four-hands':
       return 4;
     case 'three-hands':
       return 3;
@@ -97,7 +98,7 @@ export function getPlayerCount(mode: GameMode): number {
 export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMultiplayerGameResult {
   const { mode } = options;
   const isPartyMode = mode === 'party';
-  const isFreeForAllMode = mode === 'freeforall';
+  const isFreeForAllMode = mode === 'freeforall' || mode === 'four-hands';
   const playerCount = getPlayerCount(mode);
 
   // Compose smaller, focused hooks

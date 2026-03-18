@@ -46,11 +46,26 @@ class RoomService {
   /**
    * Create a new private room
    * @param {object} hostSocket - The socket of the room host
-   * @param {string} gameMode - 'duel' or 'party'
-   * @param {number} maxPlayers - 2 or 4
+   * @param {string} gameMode - 'duel', 'party', 'three-hands', 'four-hands'
+   * @param {number} maxPlayers - 2, 3, or 4
    * @returns {object} { roomCode, room }
    */
   createRoom(hostSocket, gameMode, maxPlayers) {
+    // Map gameMode to default maxPlayers if not provided
+    if (!maxPlayers) {
+      switch (gameMode) {
+        case 'party':
+        case 'four-hands':
+          maxPlayers = 4;
+          break;
+        case 'three-hands':
+          maxPlayers = 3;
+          break;
+        default:
+          maxPlayers = 2;
+      }
+    }
+    
     const roomCode = this._generateRoomCode();
     
     const room = {
@@ -229,7 +244,22 @@ class RoomService {
 
     // Determine which game manager method to use
     const isPartyGame = room.gameMode === 'party';
-    const requiredPlayers = isPartyGame ? 4 : 2;
+    const isFourHands = room.gameMode === 'four-hands';
+    const isThreeHands = room.gameMode === 'three-hands';
+    
+    // Determine required players based on game mode
+    let requiredPlayers;
+    let playerCount;
+    if (isPartyGame || isFourHands) {
+      requiredPlayers = 4;
+      playerCount = 4;
+    } else if (isThreeHands) {
+      requiredPlayers = 3;
+      playerCount = 3;
+    } else {
+      requiredPlayers = 2;
+      playerCount = 2;
+    }
 
     if (room.players.length !== requiredPlayers) {
       return { 
@@ -238,7 +268,7 @@ class RoomService {
       };
     }
 
-    console.log(`[RoomService] Starting ${room.gameMode} game in room ${code}`);
+    console.log(`[RoomService] Starting ${room.gameMode} game in room ${code} with ${playerCount} players`);
 
      // Start game via unified matchmaking service
      let gameResult;
@@ -249,7 +279,7 @@ class RoomService {
          return { success: false, error: 'Not all players connected' };
        }
        
-       // Create party game directly
+       // Create party game directly - pass isPartyMode = true
        const { gameId, gameState } = this.gameManager.startPartyGame();
        room.gameId = gameId;
 
@@ -268,17 +298,17 @@ class RoomService {
          socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
        });
      } else {
-       // For duel games
+       // For three-hands and four-hands games - pass isPartyMode = false
        const sockets = room.players.map(p => io.sockets.sockets.get(p.socketId)).filter(Boolean);
-       if (sockets.length !== 2) {
+       if (sockets.length !== playerCount) {
          return { success: false, error: 'Not all players connected' };
        }
 
-       const { gameId, gameState } = this.gameManager.startGame();
+       const { gameId, gameState } = this.gameManager.startGame(playerCount, false); // isPartyMode = false
        room.gameId = gameId;
 
        // Register players
-       for (let i = 0; i < 2; i++) {
+       for (let i = 0; i < playerCount; i++) {
          this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
          this.unifiedMatchmaking.socketGameMap.set(sockets[i].id, gameId);
          this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));

@@ -156,7 +156,7 @@ class UnifiedMatchmakingService {
 
   // Convenience methods for backward compatibility
   getWaitingPlayersCount() {
-    return this.getWaitingCount('duel');
+    return this.getWaitingCount('two-hands');
   }
 
   getActiveGamesCount() {
@@ -165,12 +165,12 @@ class UnifiedMatchmakingService {
   }
 }
 
-// Game type configurations
+// Game type configurations - using client terminology
 const GAME_TYPES = {
-  duel: { 
+  'two-hands': { 
     minPlayers: 2, 
     maxPlayers: 2,
-    createGame: (gameManager) => gameManager.startGame(),
+    createGame: (gameManager) => gameManager.startGame(2, false),
     playerRegistration: (gameId, players, gameManager) => {
       // Register players 0, 1
       for (let i = 0; i < 2; i++) {
@@ -178,10 +178,10 @@ const GAME_TYPES = {
       }
     }
   },
-  threeHands: {
+  'three-hands': {
     minPlayers: 3,
     maxPlayers: 3,
-    createGame: (gameManager) => gameManager.startThreeHandsGame(),
+    createGame: (gameManager) => gameManager.startGame(3, false),
     playerRegistration: (gameId, players, gameManager) => {
       // Register players 0, 1, 2
       for (let i = 0; i < 3; i++) {
@@ -189,10 +189,10 @@ const GAME_TYPES = {
       }
     }
   },
-  party: {
+  'four-hands': {
     minPlayers: 4,
     maxPlayers: 4,
-    createGame: (gameManager) => gameManager.startPartyGame(),
+    createGame: (gameManager) => gameManager.startGame(4, false),
     playerRegistration: (gameId, players, gameManager) => {
       // Register players 0, 1, 2, 3
       for (let i = 0; i < 4; i++) {
@@ -200,10 +200,22 @@ const GAME_TYPES = {
       }
     }
   },
+  party: {
+    minPlayers: 4,
+    maxPlayers: 4,
+    createGame: (gameManager) => gameManager.startGame(4, true),
+    playerRegistration: (gameId, players, gameManager) => {
+      // Register players 0, 1, 2, 3
+      for (let i = 0; i < 4; i++) {
+        gameManager.addPlayerToGame(gameId, players[i].id, i);
+      }
+    }
+  },
+  // freeforall is kept for quick play matchmaking (same as four-hands but different queue)
   freeforall: {
     minPlayers: 4,
     maxPlayers: 4,
-    createGame: (gameManager) => gameManager.startFreeForAllGame(),
+    createGame: (gameManager) => gameManager.startGame(4, false),
     playerRegistration: (gameId, players, gameManager) => {
       // Register players 0, 1, 2, 3
       for (let i = 0; i < 4; i++) {

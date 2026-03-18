@@ -23,15 +23,17 @@ class GameManager {
   /**
    * Create a new game, deal cards, store state.
    * Set USE_TEST_GAME = true for debugging with specific cards.
+   * @param {number} playerCount - Number of players (2, 3, or 4)
+   * @param {boolean} isPartyMode - Whether this is party mode (with teams)
    * @returns {{ gameId: number, gameState: object }}
    */
-  startGame(playerCount = 2) {
+  startGame(playerCount = 2, isPartyMode = false) {
     const gameId = this._nextId++;
     
     // Set to true to use test deal with specific cards
     const USE_TEST_GAME = false;
     
-    const gameState = USE_TEST_GAME ? initializeTestGame(playerCount) : initializeGame(playerCount);
+    const gameState = USE_TEST_GAME ? initializeTestGame(playerCount) : initializeGame(playerCount, isPartyMode);
 
     this.activeGames.set(gameId, gameState);
     this.socketPlayerMap.set(gameId, new Map());

@@ -8,7 +8,7 @@ import { useMemo } from 'react';
 import { getTeamFromIndex, areTeammates } from '../shared/game/team';
 import { TEAM_A_COLORS, TEAM_B_COLORS, getPlayerColors, type TeamColors } from '../constants/teamColors';
 
-type GameMode = 'two-hands' | 'three-hands' | 'party' | 'freeforall' | undefined;
+type GameMode = 'two-hands' | 'three-hands' | 'party' | 'four-hands' | 'freeforall' | undefined;
 
 export function usePlayerTeam(playerNumber: number, playerCount: number, gameMode?: GameMode) {
   // Free-for-all mode: 4-player without teams

@@ -111,6 +111,9 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
       case 'three-hands':
         router.push('/multiplayer?mode=three-hands' as any);
         break;
+      case 'four-hands':
+        router.push('/multiplayer?mode=four-hands' as any);
+        break;
       case 'party':
         router.push('/multiplayer?mode=party' as any);
         break;

@@ -83,17 +83,18 @@ io.on('connection', socket => {
     // Socket automatically leaves rooms on disconnect
   });
 
-  // Add player to queue; start game if two are waiting (duel)
-  const gameResult = unifiedMatchmaking.addToQueue(socket, 'duel');
+  // Add player to two-hands queue; start game if two are waiting
+  const gameResult = unifiedMatchmaking.addToQueue(socket, 'two-hands');
   if (gameResult) {
     broadcaster.broadcastGameStart(gameResult);
   }
 
   // Party Matchmaking: add player to party queue; start 4-player game when ready
   socket.on('join-party-queue', () => {
-    // Remove from regular matchmaking queue first (if present)
-    unifiedMatchmaking.socketGameMap.delete(socket.id); // Remove from any queue
-    unifiedMatchmaking.waitingQueues.duel = unifiedMatchmaking.waitingQueues.duel.filter(s => s.id !== socket.id);
+    // Remove from matchmaking queues if present
+    unifiedMatchmaking.socketGameMap.delete(socket.id);
+    unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
     
     const partyResult = unifiedMatchmaking.addToQueue(socket, 'party');
     if (partyResult) {
@@ -106,13 +107,14 @@ io.on('connection', socket => {
 
   // Three-Hands Matchmaking: add player to three-hands queue; start 3-player game when ready
   socket.on('join-three-hands-queue', () => {
-    // Remove from regular matchmaking queue first (if present)
-    unifiedMatchmaking.socketGameMap.delete(socket.id); // Remove from any queue
-    unifiedMatchmaking.waitingQueues.duel = unifiedMatchmaking.waitingQueues.duel.filter(s => s.id !== socket.id);
+    // Remove from matchmaking queues if present
+    unifiedMatchmaking.socketGameMap.delete(socket.id);
+    unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
     
     // Use unified matchmaking for 3-player games
-    const result = unifiedMatchmaking.addToQueue(socket, 'threeHands');
+    const result = unifiedMatchmaking.addToQueue(socket, 'three-hands');
     if (result) {
       broadcaster.broadcastThreeHandsGameStart(result);
     } else {
@@ -121,13 +123,33 @@ io.on('connection', socket => {
     }
   });
 
+  // Four-Hands Matchmaking: add player to four-hands queue; start 4-player game when ready
+  socket.on('join-four-hands-queue', () => {
+    // Remove from matchmaking queues if present
+    unifiedMatchmaking.socketGameMap.delete(socket.id);
+    unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.freeforall = unifiedMatchmaking.waitingQueues.freeforall.filter(s => s.id !== socket.id);
+    
+    // Use unified matchmaking for 4-player free-for-all games
+    const result = unifiedMatchmaking.addToQueue(socket, 'four-hands');
+    if (result) {
+      broadcaster.broadcastFourHandsGameStart(result);
+    } else {
+      // Broadcast to ALL waiting players
+      broadcastFourHandsWaiting(io);
+    }
+  });
+
   // Free-For-All Matchmaking: add player to freeforall queue; start 4-player game when ready
   socket.on('join-freeforall-queue', () => {
-    // Remove from regular matchmaking queue first (if present)
-    unifiedMatchmaking.socketGameMap.delete(socket.id); // Remove from any queue
-    unifiedMatchmaking.waitingQueues.duel = unifiedMatchmaking.waitingQueues.duel.filter(s => s.id !== socket.id);
+    // Remove from matchmaking queues if present
+    unifiedMatchmaking.socketGameMap.delete(socket.id);
+    unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
-    unifiedMatchmaking.waitingQueues.threeHands = unifiedMatchmaking.waitingQueues.threeHands.filter(s => s.id !== socket.id);
     
     // Use unified matchmaking for free-for-all games
     const result = unifiedMatchmaking.addToQueue(socket, 'freeforall');
@@ -143,9 +165,10 @@ io.on('connection', socket => {
   socket.on('create-room', (data) => {
     // Remove from matchmaking queues if present
     unifiedMatchmaking.socketGameMap.delete(socket.id);
-    unifiedMatchmaking.waitingQueues.duel = unifiedMatchmaking.waitingQueues.duel.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
-    unifiedMatchmaking.waitingQueues.threeHands = unifiedMatchmaking.waitingQueues.threeHands.filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.freeforall = unifiedMatchmaking.waitingQueues.freeforall.filter(s => s.id !== socket.id);
     
     const { gameMode, maxPlayers } = data;
@@ -163,9 +186,10 @@ io.on('connection', socket => {
   socket.on('join-room', (data) => {
     // Remove from matchmaking queues if present
     unifiedMatchmaking.socketGameMap.delete(socket.id);
-    unifiedMatchmaking.waitingQueues.duel = unifiedMatchmaking.waitingQueues.duel.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
-    unifiedMatchmaking.waitingQueues.threeHands = unifiedMatchmaking.waitingQueues.threeHands.filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.freeforall = unifiedMatchmaking.waitingQueues.freeforall.filter(s => s.id !== socket.id);
     
     const result = roomService.joinRoom(socket, data.roomCode);
@@ -262,15 +286,15 @@ io.on('connection', socket => {
     
     // Also check if waiting in any queue
     if (!gameId) {
-      if (unifiedMatchmaking.waitingQueues.duel.some(s => s.id === socket.id)) {
-        socket.emit('error', { message: 'Waiting for duel game to start' });
+      if (unifiedMatchmaking.waitingQueues['two-hands'].some(s => s.id === socket.id)) {
+        socket.emit('error', { message: 'Waiting for two-hands game to start' });
         return;
       }
       if (unifiedMatchmaking.waitingQueues.party.some(s => s.id === socket.id)) {
         socket.emit('error', { message: 'Waiting for party game to start' });
         return;
       }
-      if (unifiedMatchmaking.waitingQueues.threeHands.some(s => s.id === socket.id)) {
+      if (unifiedMatchmaking.waitingQueues['three-hands'].some(s => s.id === socket.id)) {
         socket.emit('error', { message: 'Waiting for three-hands game to start' });
         return;
       }
@@ -293,7 +317,7 @@ io.on('connection', socket => {
     socket.emit('party-waiting', { playersJoined: partyWaitingCount });
     
     // Also check three-hands matchmaking
-    const threeHandsWaitingCount = unifiedMatchmaking.getWaitingCount('threeHands');
+    const threeHandsWaitingCount = unifiedMatchmaking.getWaitingCount('three-hands');
     if (threeHandsWaitingCount > 0) {
       socket.emit('three-hands-waiting', { playersJoined: threeHandsWaitingCount });
     }
@@ -304,10 +328,10 @@ io.on('connection', socket => {
       socket.emit('freeforall-waiting', { playersJoined: freeForAllWaitingCount });
     }
     
-    // Also check duel matchmaking
-    const duelWaitingCount = unifiedMatchmaking.getWaitingCount('duel');
-    if (duelWaitingCount > 0) {
-      socket.emit('duel-waiting', { playersJoined: duelWaitingCount });
+    // Also check two-hands matchmaking
+    const twoHandsWaitingCount = unifiedMatchmaking.getWaitingCount('two-hands');
+    if (twoHandsWaitingCount > 0) {
+      socket.emit('duel-waiting', { playersJoined: twoHandsWaitingCount });
     }
   });
 
@@ -349,11 +373,20 @@ function broadcastPartyWaiting(io) {
 }
 
 function broadcastThreeHandsWaiting(io) {
-  const count = unifiedMatchmaking.getWaitingCount('threeHands');
+  const count = unifiedMatchmaking.getWaitingCount('three-hands');
   console.log(`[UnifiedMatchmaking] Broadcasting three-hands-waiting: ${count} players`);
   
-  unifiedMatchmaking.waitingQueues.threeHands.forEach(playerSocket => {
+  unifiedMatchmaking.waitingQueues['three-hands'].forEach(playerSocket => {
     playerSocket.emit('three-hands-waiting', { playersJoined: count });
+  });
+}
+
+function broadcastFourHandsWaiting(io) {
+  const count = unifiedMatchmaking.getWaitingCount('four-hands');
+  console.log(`[UnifiedMatchmaking] Broadcasting four-hands-waiting: ${count} players`);
+  
+  unifiedMatchmaking.waitingQueues['four-hands'].forEach(playerSocket => {
+    playerSocket.emit('four-hands-waiting', { playersJoined: count });
   });
 }
 
