@@ -13,7 +13,7 @@
  * - 4-player freeforall: LEFT = 2 opponents, RIGHT = player + opponent
  */
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Card } from './types';
 import { CapturePileBounds, CapturedCardBounds } from '../../hooks/useDrag';
@@ -93,8 +93,6 @@ export function CapturedCardsView({
     opponentIndices,
     getPlayerLabel,
     getPlayerTeamColors,
-    isOpponent,
-    isTeammate,
   } = usePlayerTeam(playerNumber, playerCount);
 
   // Override isPartyMode if explicitly provided

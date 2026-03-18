@@ -23,31 +23,29 @@ class GameCoordinatorService {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  /** Resolve which game + player this socket belongs to, or send error. */
-  _resolvePlayer(socket) {
-    // Check unified matchmaking for any game type
-    const socketInfo = this.unifiedMatchmaking.socketGameMap.get(socket.id);
-    let gameId = null;
-    let isPartyGame = false;
-    let gameType = null;
-    
-    if (socketInfo) {
-      gameId = socketInfo.gameId;
-      gameType = socketInfo.gameType;
-      isPartyGame = (gameType === 'party');
-    }
-    
-    if (!gameId) {
-      this.broadcaster.sendError(socket, 'Not in an active game');
-      return null;
-    }
-    const playerIndex = this.gameManager.getPlayerIndex(gameId, socket.id);
-    if (playerIndex === null) {
-      this.broadcaster.sendError(socket, 'Player not found in game');
-      return null;
-    }
-    return { gameId, playerIndex, isPartyGame, gameType };
-  }
+   /** Resolve which game + player this socket belongs to, or send error. */
+   _resolvePlayer(socket) {
+     // Check unified matchmaking for any game type
+     const socketInfo = this.unifiedMatchmaking.socketGameMap.get(socket.id);
+     let gameId = null;
+     let isPartyGame = false;
+     
+     if (socketInfo) {
+       gameId = socketInfo.gameId;
+       isPartyGame = (socketInfo.gameType === 'party');
+     }
+     
+     if (!gameId) {
+       this.broadcaster.sendError(socket, 'Not in an active game');
+       return null;
+     }
+     const playerIndex = this.gameManager.getPlayerIndex(gameId, socket.id);
+     if (playerIndex === null) {
+       this.broadcaster.sendError(socket, 'Player not found in game');
+       return null;
+     }
+     return { gameId, playerIndex, isPartyGame };
+   }
 
   /**
    * Get the appropriate matchmaking service based on whether it's a party game
@@ -72,7 +70,7 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex, isPartyGame, gameType } = ctx;
+     const { gameId, playerIndex, isPartyGame } = ctx;
 
     try {
       const newState = this.actionRouter.executeAction(gameId, playerIndex, data);
@@ -160,7 +158,7 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex, isPartyGame, gameType } = ctx;
+     const { gameId, playerIndex, isPartyGame } = ctx;
     
     // Broadcast to other player (not self)
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-start', {
@@ -181,7 +179,7 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex, isPartyGame, gameType } = ctx;
+     const { gameId, playerIndex, isPartyGame } = ctx;
     
     // console.log(`[Coordinator] drag-move from P${playerIndex}:`, data);
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-move', {
@@ -200,7 +198,7 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex, isPartyGame, gameType } = ctx;
+     const { gameId, playerIndex, isPartyGame } = ctx;
     
     // Broadcast end to opponent first
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-end', {
@@ -222,7 +220,7 @@ class GameCoordinatorService {
     const ctx = this._resolvePlayer(socket);
     if (!ctx) return;
 
-    const { gameId, playerIndex, isPartyGame, gameType } = ctx;
+     const { gameId, playerIndex, isPartyGame } = ctx;
 
     try {
       const state = this.gameManager.getGameState(gameId);

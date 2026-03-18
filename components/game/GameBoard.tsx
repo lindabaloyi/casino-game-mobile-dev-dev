@@ -150,7 +150,7 @@ export function GameBoard({
         console.log('[GameBoard] OPTIMISTIC UI: Card', dragOverlay.pendingDropCard.rank, dragOverlay.pendingDropCard.suit, 'still in hand, keeping pending drop');
       }
     }
-  }, [gameState.players]);
+  }, [gameState.players, dragOverlay, playerNumber]);
 
   // KISS Round Transition Logic
   // When round ends:
@@ -199,7 +199,7 @@ export function GameBoard({
         
         // Set the recall candidate - pass the full recall object with stackId
         setShiyaRecallCandidate({ ...myRecall, stackId: firstStackId });
-
+        
         // Auto-dismiss after 4 seconds (matching expiresAt timestamp)
         const timeUntilExpiry = myRecall.expiresAt - Date.now();
         const autoCloseMs = Math.max(1000, Math.min(4000, timeUntilExpiry));
@@ -224,13 +224,13 @@ export function GameBoard({
         }
       }
     }
-
+    
     // Cleanup timer on unmount
     return () => {
       if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
       if (shiyaButtonTimerRef.current) clearTimeout(shiyaButtonTimerRef.current);
     };
-  }, [gameState.shiyaRecalls, gameState.playerCount, playerNumber]);
+  }, [gameState.shiyaRecalls, gameState.playerCount, playerNumber, shiyaRecallCandidate]);
 
   // Drag end wrapper
   const handleDragEndWrapper = () => {
@@ -298,7 +298,7 @@ export function GameBoard({
     } else {
       setSelectedBuildForShiya(null);
     }
-  }, [gameState, playerNumber, modals, actions]);
+  }, [gameState, playerNumber, modals]);
 
   // Drag handlers
   const dragHandlers = useDragHandlers({
