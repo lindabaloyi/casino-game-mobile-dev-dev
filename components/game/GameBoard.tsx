@@ -350,6 +350,8 @@ export function GameBoard({
       const isFriendlyBuild = stackOwner === playerNumber || 
         (isPartyMode && areTeammates(playerNumber, stackOwner));
       
+      console.log('[handleDropOnStack] DEBUG: source=', source, 'stackType=', stackType, 'stackOwner=', stackOwner, 'playerNumber=', playerNumber, 'isFriendlyBuild=', isFriendlyBuild);
+      
       if (!isFriendlyBuild) {
         // Find the build stack
         const buildStack = computed.table.find(
@@ -359,10 +361,23 @@ export function GameBoard({
         if (buildStack) {
           const fullStack = buildStack as any;
           
+          console.log('[handleDropOnStack] DEBUG: card.value=', card.value, 'fullStack.value=', fullStack.value, 'fullStack.hasBase=', fullStack.hasBase);
+          
           // Check if this is a steal scenario (card value > build value)
           // AND it's not a base build (base builds can't be stolen)
-          if (card.value > fullStack.value && fullStack.hasBase !== true) {
-            console.log('[GameBoard.handleDropOnStack] Steal scenario detected - showing modal');
+          const isSteal = card.value > fullStack.value && fullStack.hasBase !== true;
+          
+          // Check if this is a valid extension (total <= 10)
+          // This applies when adding to opponent's build would be legal
+          const isValidExtension = (card.value + fullStack.value) <= 10;
+          
+          console.log('[handleDropOnStack] DEBUG: isSteal=', isSteal, 'isValidExtension=', isValidExtension);
+          
+          // Show modal for:
+          // 1. Steals (card.value > build.value) - taking ownership
+          // 2. Valid extensions (card + build <= 10) - adding to opponent's build
+          if (isSteal || isValidExtension) {
+            console.log('[GameBoard.handleDropOnStack] Steal/Extension scenario detected - showing modal');
             modals.openStealModal(card, fullStack);
             return; // Don't execute - wait for modal confirmation
           }

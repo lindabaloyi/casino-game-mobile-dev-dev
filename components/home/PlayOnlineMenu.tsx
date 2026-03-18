@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export type GameModeOption = 'two-hands' | 'three-hands' | 'party' | 'freeforall';
+export type GameModeOption = 'two-hands' | 'three-hands' | 'four-hands' | 'party' | 'freeforall';
 
 interface GameModeInfo {
   id: GameModeOption;
@@ -42,25 +42,25 @@ const GAME_MODES: GameModeInfo[] = [
   {
     id: 'three-hands',
     title: '🎴 3 Hands',
-    subtitle: 'Solo Play',
+    subtitle: '3 Player Battle',
     description: 'Face off against two opponents',
     icon: 'people',
     players: '3 Players',
   },
   {
-    id: 'party',
-    title: '🎉 Party Mode',
-    subtitle: '2v2 Battle',
-    description: 'Team up with a friend for 2v2',
-    icon: 'people',
+    id: 'four-hands',
+    title: '🎯 4 Hands',
+    subtitle: '4 Player Battle',
+    description: 'Every player for themselves!',
+    icon: 'trophy',
     players: '4 Players',
   },
   {
-    id: 'freeforall',
-    title: '🏆 Free For All',
-    subtitle: '1v1v1v1',
-    description: 'Every player for themselves!',
-    icon: 'trophy',
+    id: 'party',
+    title: '🎉 4 Hands Party',
+    subtitle: '2v2 Team Battle',
+    description: 'Team up with a friend for 2v2',
+    icon: 'people',
     players: '4 Players',
   },
 ];
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   menuContainer: {
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#1a5c1a', // Match main screen green theme
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#FFD700',
@@ -191,20 +191,20 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   modeCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Match main screen card style
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   modeIconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,

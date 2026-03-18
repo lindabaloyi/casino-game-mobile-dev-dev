@@ -40,6 +40,9 @@ export function useLobbyState(
   const [isReady, setIsReady] = useState(false);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
+  // Use ref to track if game has started (avoids stale closure in event handlers)
+  const gameStartedRef = useRef(false);
+  
   // Determine required players based on playerCount
   const requiredPlayers = playerCount || 2;
   const isMultiplayerMode = playerCount > 1;
@@ -70,6 +73,10 @@ export function useLobbyState(
 
     // Handle party-waiting (4-player mode)
     const handlePartyWaiting = (data: { playersJoined: number }) => {
+      // Ignore lobby updates after game has started
+      if (gameStartedRef.current) {
+        return;
+      }
       console.log('[useLobbyState] party-waiting received:', data);
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
@@ -77,6 +84,12 @@ export function useLobbyState(
 
     // Handle three-hands-waiting (3-player mode)
     const handleThreeHandsWaiting = (data: { playersJoined: number }) => {
+      // Ignore lobby updates after game has started
+      // This prevents stale 0-player counts from overwriting game state
+      if (gameStartedRef.current) {
+        console.log('[useLobbyState] ⚠️ Ignoring three-hands-waiting after game started');
+        return;
+      }
       console.log('[useLobbyState] three-hands-waiting received:', data);
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
@@ -84,6 +97,10 @@ export function useLobbyState(
 
     // Handle freeforall-waiting (4-player free-for-all mode)
     const handleFreeForAllWaiting = (data: { playersJoined: number }) => {
+      // Ignore lobby updates after game has started
+      if (gameStartedRef.current) {
+        return;
+      }
       console.log('[useLobbyState] freeforall-waiting received:', data);
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
@@ -91,6 +108,10 @@ export function useLobbyState(
 
     // Handle two-hands-waiting (2-player mode)
     const handleTwoHandsWaiting = (data: { playersJoined: number }) => {
+      // Ignore lobby updates after game has started
+      if (gameStartedRef.current) {
+        return;
+      }
       console.log('[useLobbyState] two-hands-waiting received:', data);
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
@@ -98,8 +119,12 @@ export function useLobbyState(
 
     const handleGameStart = () => {
       // Game started, no longer in lobby
-      console.log('[useLobbyState] game-start received - leaving lobby!');
+      console.log('[useLobbyState] 🔔 game-start received - setting gameStartedRef=true');
+      gameStartedRef.current = true;
       setIsInLobby(false);
+      // CRITICAL: Set playersInLobby to requiredPlayers since game started with full lobby
+      // This ensures allPlayersReady becomes true and UI shows correct state
+      setPlayersInLobby(requiredPlayers);
       // Stop polling when game starts
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
