@@ -141,21 +141,25 @@ export function CapturedCardsView({
    let leftSideIndices: number[];
    let rightSideIndices: number[];
    
+   // Filter out invalid indices (-1) to prevent rendering ghost players
+   const validOpponentIndices = opponentIndices.filter(i => i >= 0);
+   const validTeammateIndex = teammateIndex >= 0 ? teammateIndex : null;
+   
    if (playerCount === 2) {
-     leftSideIndices = [opponentIndices[0]];
+     leftSideIndices = validOpponentIndices.length > 0 ? [validOpponentIndices[0]] : [];
      rightSideIndices = [playerNumber];
    } else if (playerCount === 3) {
      // 3-player: show both opponents on left, player on right
-     leftSideIndices = [opponentIndices[0], opponentIndices[1]];
+     leftSideIndices = validOpponentIndices.slice(0, 2);
      rightSideIndices = [playerNumber];
-   } else if (playerCount === 4 && finalIsPartyMode) {
+   } else if (playerCount === 4 && finalIsPartyMode && validTeammateIndex !== null) {
      // 4-player party: left = opponent + teammate, right = player + other opponent
-     leftSideIndices = [opponentIndices[0], teammateIndex];
-     rightSideIndices = [playerNumber, opponentIndices[1]];
+     leftSideIndices = [validOpponentIndices[0], validTeammateIndex];
+     rightSideIndices = [playerNumber, validOpponentIndices[1] ?? playerNumber];
    } else {
      // 4-player free-for-all: left = 2 opponents, right = player + opponent
-     leftSideIndices = [opponentIndices[0], opponentIndices[1]];
-     rightSideIndices = [playerNumber, opponentIndices[2]];
+     leftSideIndices = validOpponentIndices.slice(0, 2);
+     rightSideIndices = [playerNumber, validOpponentIndices[2] ?? playerNumber];
    }
 
   // Render a single pile
