@@ -83,11 +83,28 @@ io.on('connection', socket => {
     // Socket automatically leaves rooms on disconnect
   });
 
-  // Add player to two-hands queue; start game if two are waiting
-  const gameResult = unifiedMatchmaking.addToQueue(socket, 'two-hands');
-  if (gameResult) {
-    broadcaster.broadcastGameStart(gameResult);
-  }
+  // NOTE: Do NOT auto-add players to queues on connection.
+  // Players must explicitly join a queue via join-two-hands-queue, join-party-queue, etc.
+  // The previous auto-add to 'two-hands' was causing issues with other game modes.
+
+  // Two-Hands Matchmaking: add player to two-hands queue; start 2-player game when ready
+  socket.on('join-two-hands-queue', () => {
+    // Remove from matchmaking queues if present
+    unifiedMatchmaking.socketGameMap.delete(socket.id);
+    unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.freeforall = unifiedMatchmaking.waitingQueues.freeforall.filter(s => s.id !== socket.id);
+    
+    // Use unified matchmaking for 2-player games
+    const result = unifiedMatchmaking.addToQueue(socket, 'two-hands');
+    if (result) {
+      broadcaster.broadcastGameStart(result);
+    } else {
+      // Broadcast to ALL waiting players
+      broadcastTwoHandsWaiting(io);
+    }
+  });
 
   // Party Matchmaking: add player to party queue; start 4-player game when ready
   socket.on('join-party-queue', () => {
@@ -298,6 +315,10 @@ io.on('connection', socket => {
         socket.emit('error', { message: 'Waiting for three-hands game to start' });
         return;
       }
+      if (unifiedMatchmaking.waitingQueues['four-hands'].some(s => s.id === socket.id)) {
+        socket.emit('error', { message: 'Waiting for four-hands game to start' });
+        return;
+      }
       if (unifiedMatchmaking.waitingQueues.freeforall.some(s => s.id === socket.id)) {
         socket.emit('error', { message: 'Waiting for free-for-all game to start' });
         return;
@@ -320,6 +341,12 @@ io.on('connection', socket => {
     const threeHandsWaitingCount = unifiedMatchmaking.getWaitingCount('three-hands');
     if (threeHandsWaitingCount > 0) {
       socket.emit('three-hands-waiting', { playersJoined: threeHandsWaitingCount });
+    }
+    
+    // Also check four-hands matchmaking
+    const fourHandsWaitingCount = unifiedMatchmaking.getWaitingCount('four-hands');
+    if (fourHandsWaitingCount > 0) {
+      socket.emit('four-hands-waiting', { playersJoined: fourHandsWaitingCount });
     }
     
     // Also check free-for-all matchmaking
@@ -364,6 +391,15 @@ io.on('connection', socket => {
 });
 
 // Helper functions for broadcasting waiting counts
+function broadcastTwoHandsWaiting(io) {
+  const count = unifiedMatchmaking.getWaitingCount('two-hands');
+  console.log(`[UnifiedMatchmaking] Broadcasting two-hands-waiting: ${count} players`);
+  
+  unifiedMatchmaking.waitingQueues['two-hands'].forEach(playerSocket => {
+    playerSocket.emit('duel-waiting', { playersJoined: count });
+  });
+}
+
 function broadcastPartyWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('party');
   
@@ -443,7 +479,7 @@ async function startServer() {
       console.log(`[Server] ───────────────────────────────────────`);
       console.log(`[Server] Share this IP with friends on your network!`);
     }
-    console.log(`[Server] ════════════════════════════════════════`);
+    console.log(`[Server] ═══════════════════════════════════════`);
     console.log(`[Server] Registered actions: ${actionRouter.registeredActions().join(', ') || '(none yet)'}`);
   });
 
