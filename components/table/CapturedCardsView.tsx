@@ -1,17 +1,17 @@
 /**
- * CapturedCardsView
- * Displays captured cards on the sides of the table area.
- * 
- * - LEFT side: Opponent's captures (draggable - can play from)
- * - RIGHT side: Your captures (drop target - can capture to)
- * - Shows the TOP card (last in array = most recently captured)
- * 
- * Supports multi-player modes:
- * - 2-player: LEFT = opponent, RIGHT = player
- * - 3-player: LEFT = opponent 1, RIGHT = player + opponent 2
- * - 4-player party: LEFT = opponent + teammate, RIGHT = player + opponent
- * - 4-player freeforall: LEFT = 2 opponents, RIGHT = player + opponent
- */
+  * CapturedCardsView
+  * Displays captured cards on the sides of the table area.
+  * 
+  * - LEFT side: Opponent's captures (draggable - can play from)
+  * - RIGHT side: Your captures (drop target - can capture to)
+  * - Shows the TOP card (last in array = most recently captured)
+  * 
+  * Supports multi-player modes:
+  * - 2-player: LEFT = opponent, RIGHT = player
+  * - 3-player: LEFT = opponent 1 + opponent 2, RIGHT = player
+  * - 4-player party: LEFT = opponent + teammate, RIGHT = player + opponent
+  * - 4-player freeforall: LEFT = 2 opponents, RIGHT = player + opponent
+  */
 
 import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -133,30 +133,30 @@ export function CapturedCardsView({
   };
 
   // Build left and right side player lists
-  // For 2-player: LEFT = opponent, RIGHT = player
-  // For 3-player: LEFT = opponent 1, RIGHT = player + opponent 2  
-  // For 4-player party: LEFT = opponent + teammate, RIGHT = player + opponent
-  // For 4-player freeforall: LEFT = 2 opponents, RIGHT = player + opponent
-  
-  let leftSideIndices: number[];
-  let rightSideIndices: number[];
-  
-  if (playerCount === 2) {
-    leftSideIndices = [opponentIndices[0]];
-    rightSideIndices = [playerNumber];
-  } else if (playerCount === 3) {
-    // 3-player: show opponent on left, player + other opponent on right
-    leftSideIndices = [opponentIndices[0]];
-    rightSideIndices = [playerNumber, opponentIndices[1]];
-  } else if (playerCount === 4 && finalIsPartyMode) {
-    // 4-player party: left = opponent + teammate, right = player + other opponent
-    leftSideIndices = [opponentIndices[0], teammateIndex];
-    rightSideIndices = [playerNumber, opponentIndices[1]];
-  } else {
-    // 4-player free-for-all: left = 2 opponents, right = player + opponent
-    leftSideIndices = [opponentIndices[0], opponentIndices[1]];
-    rightSideIndices = [playerNumber, opponentIndices[2]];
-  }
+   // For 2-player: LEFT = opponent, RIGHT = player
+   // For 3-player: LEFT = opponent 1 + opponent 2, RIGHT = player
+   // For 4-player party: LEFT = opponent + teammate, RIGHT = player + opponent
+   // For 4-player freeforall: LEFT = 2 opponents, RIGHT = player + opponent
+   
+   let leftSideIndices: number[];
+   let rightSideIndices: number[];
+   
+   if (playerCount === 2) {
+     leftSideIndices = [opponentIndices[0]];
+     rightSideIndices = [playerNumber];
+   } else if (playerCount === 3) {
+     // 3-player: show both opponents on left, player on right
+     leftSideIndices = [opponentIndices[0], opponentIndices[1]];
+     rightSideIndices = [playerNumber];
+   } else if (playerCount === 4 && finalIsPartyMode) {
+     // 4-player party: left = opponent + teammate, right = player + other opponent
+     leftSideIndices = [opponentIndices[0], teammateIndex];
+     rightSideIndices = [playerNumber, opponentIndices[1]];
+   } else {
+     // 4-player free-for-all: left = 2 opponents, right = player + opponent
+     leftSideIndices = [opponentIndices[0], opponentIndices[1]];
+     rightSideIndices = [playerNumber, opponentIndices[2]];
+   }
 
   // Render a single pile
   const renderPile = (idx: number) => {
