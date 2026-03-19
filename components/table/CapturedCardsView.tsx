@@ -93,7 +93,7 @@ export function CapturedCardsView({
     opponentIndices,
     getPlayerLabel,
     getPlayerTeamColors,
-  } = usePlayerTeam(playerNumber, playerCount);
+  } = usePlayerTeam(playerNumber, playerCount, gameMode);
 
   // Override isPartyMode if explicitly provided
   const finalIsPartyMode = isPartyModeProp ?? isPartyMode;

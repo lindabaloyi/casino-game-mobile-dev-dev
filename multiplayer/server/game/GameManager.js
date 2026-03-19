@@ -49,7 +49,8 @@ class GameManager {
     const gameId = this._nextId++;
     
     // Party games always use regular initialization (not test deal)
-    const gameState = initializeGame(4); // 4 players
+    // Pass isPartyMode = true to enable 2v2 teams
+    const gameState = initializeGame(4, true); // 4 players, party mode with teams
 
     this.activeGames.set(gameId, gameState);
     this.socketPlayerMap.set(gameId, new Map());

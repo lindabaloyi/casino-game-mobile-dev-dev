@@ -15,25 +15,24 @@ export interface TeamColors {
 }
 
 /**
- * Team A colors - Red theme (rgb(244, 67, 54))
+ * Team A colors - Orange/Gold theme (same as Player 1 in 2-hands)
  * Players 0 and 1 belong to Team A
  */
 export const TEAM_A_COLORS: TeamColors = {
-  primary: '#F44336',
-  secondary: '#FFEBEE',
-  accent: '#C62828',
-  background: '#FFEBEE',
-  text: '#B71C1C',
-  border: '#EF5350',
+  primary: '#FF9800',   // Orange/Gold
+  secondary: '#FFF3E0',
+  accent: '#E65100',
+  background: '#FFF3E0',
+  text: '#E65100',
+  border: '#FFB74D',
 };
 
 /**
- * Team B colors - Purple/Violet theme
+ * Team B colors - Purple theme (matches Player 2 in 2-hands)
  * Players 2 and 3 belong to Team B
- * Using the canonical purple #9C27B0 from the design system
  */
 export const TEAM_B_COLORS: TeamColors = {
-  primary: '#9C27B0',
+  primary: '#9C27B0',   // Purple
   secondary: '#F3E5F5',
   accent: '#7B1FA2',
   background: '#F3E5F5',

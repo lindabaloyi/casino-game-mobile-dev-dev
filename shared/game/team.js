@@ -75,12 +75,9 @@ function isFirstInSequence(playerIndex) {
  * @returns {string} Team ('A', 'B', or 'C')
  */
 function getTeamFromIndex(playerIndex) {
-  if (playerIndex === 3) return 'B';
-  if (playerIndex >= 0 && playerIndex <= 2) {
-    // For 3-player: 0='A', 1='B', 2='C'
-    return String.fromCharCode(65 + playerIndex);
-  }
-  return 'A';
+  // FIXED: Correct party mode team assignment
+  // Players 0,1 = Team A ; Players 2,3 = Team B
+  return playerIndex < 2 ? 'A' : 'B';
 }
 
 /**
@@ -137,7 +134,9 @@ function getPlayerTag(playerIndex) {
  * @returns {boolean} True if teammates
  */
 function areTeammates(player1, player2) {
-  return getTeamFromIndex(player1) === getTeamFromIndex(player2);
+  const team1 = player1 < 2 ? 'A' : 'B';
+  const team2 = player2 < 2 ? 'A' : 'B';
+  return team1 === team2;
 }
 
 module.exports = {

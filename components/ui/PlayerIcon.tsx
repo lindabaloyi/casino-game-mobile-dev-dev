@@ -2,10 +2,9 @@
  * PlayerIcon Component
  * Displays a player indicator with team colors for party mode
  * 
- * - Team A players (0, 1): Amber Gold theme
- * - Team B players (2, 3): Violet theme
+ * - Team A players (0, 1): Orange/Gold theme (#FF9800)
+ * - Team B players (2, 3): Blue/Purple theme (#4DABF7)
  * - Shows player position (P1, P2) within their team
- * - Green background with team-colored border and text
  */
 
 import React, { useMemo } from 'react';
@@ -39,9 +38,8 @@ function getPlayerTeamColors(playerIndex: number): TeamColors {
 /**
  * PlayerIcon - displays a styled player badge with team colors
  * 
- * Team A (players 0, 1): Amber Gold theme
- * Team B (players 2, 3): Violet theme
- * Green background with team-colored border and text
+ * Team A (players 0, 1): Orange/Gold theme (#FF9800)
+ * Team B (players 2, 3): Blue/Purple theme (#4DABF7)
  */
 export function PlayerIcon({ 
   playerIndex, 

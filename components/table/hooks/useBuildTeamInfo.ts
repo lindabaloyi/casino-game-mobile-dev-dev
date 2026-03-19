@@ -17,13 +17,13 @@ import {
   type TeamColors 
 } from '../../../constants/teamColors';
 
-// Canonical purple from Team B colors
+// Canonical purple/blue from Team B colors
 export const CANONICAL_PURPLE = TEAM_B_COLORS.primary;
 
-// Gold color for Player 1 (2-player mode)
+// Orange/Gold color for Player 1 / Team A (2-player and party mode)
 export const PLAYER_1_GOLD = '#FF9800';
 
-// Purple for Player 2 (2-player mode)
+// Blue/Purple for Player 2 / Team B (2-player and party mode)
 export const PLAYER_2_PURPLE = TEAM_B_COLORS.primary;
 
 // Blue for Player 3 (3-player mode)
