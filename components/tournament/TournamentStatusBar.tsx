@@ -39,6 +39,8 @@ export function TournamentStatusBar({
     switch (tournamentPhase) {
       case 'QUALIFYING':
         return 'Qualifying Round';
+      case 'QUALIFICATION_REVIEW':
+        return 'Qualification Review';
       case 'SEMI_FINAL':
         return 'Semi-Final';
       case 'FINAL_SHOWDOWN':

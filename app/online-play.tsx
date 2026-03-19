@@ -35,7 +35,7 @@ import { GameBoard } from '../components/game/GameBoard';
 import { useMultiplayerGame } from '../hooks/useMultiplayerGame';
 import { usePlayerProfile, AVATAR_OPTIONS } from '../hooks/usePlayerProfile';
 import { useTournamentStatus } from '../hooks/useTournamentStatus';
-import { SpectatorView } from '../components/tournament/SpectatorView';
+import { SpectatorView, QualificationReviewModal } from '../components/tournament';
 
 export const options = {
   headerShown: false,
@@ -511,8 +511,28 @@ export default function OnlinePlayScreen() {
     <View style={styles.container}>
       {/* Tournament Status Bar - Removed to keep game board clear */}
       
+      {/* Qualification Review Modal - shows qualified players before next round */}
+      {tournamentStatus.isInQualificationReview && (
+        <QualificationReviewModal
+          visible={true}
+          qualifiedPlayers={tournamentStatus.qualifiedPlayers.map((playerIndex, idx) => ({
+            playerIndex,
+            score: {
+              ...tournamentStatus.qualificationScores[playerIndex],
+              rank: idx + 1
+            }
+          }))}
+          countdownSeconds={tournamentStatus.qualificationCountdown}
+          onCountdownComplete={() => {
+            // Send action to advance from qualification review to next phase
+            console.log('[OnlinePlay] Qualification countdown complete, advancing to next phase');
+            sendAction({ type: 'advanceFromQualificationReview', payload: {} });
+          }}
+        />
+      )}
+
       {/* Spectator View for eliminated players */}
-      {tournamentStatus.isSpectator ? (
+      {tournamentStatus.isSpectator && !tournamentStatus.isInQualificationReview ? (
         <SpectatorView
           tournamentPhase={tournamentStatus.tournamentPhase}
           tournamentRound={tournamentStatus.tournamentRound}
@@ -522,7 +542,7 @@ export default function OnlinePlayScreen() {
           tournamentScores={tournamentStatus.tournamentScores}
           playerCount={modeConfig.playerCount}
         />
-      ) : (
+      ) : !tournamentStatus.isInQualificationReview ? (
       <GameBoard
         gameState={gameState as any}
         gameOverData={gameOverData}
@@ -540,7 +560,7 @@ export default function OnlinePlayScreen() {
         emitDragMove={emitDragMove}
         emitDragEnd={emitDragEnd}
       />
-      )}
+      ) : null}
     </View>
   );
 }

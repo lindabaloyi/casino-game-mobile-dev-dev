@@ -80,13 +80,17 @@ function initializeGame(playerCount = 2, isPartyMode = false) {
     shiyaRecalls: {},
     // === TOURNAMENT STATE ===
     tournamentMode: null, // 'knockout' or null
-    tournamentPhase: null, // 'QUALIFYING' | 'SEMI_FINAL' | 'FINAL_SHOWDOWN' | 'COMPLETED'
+    tournamentPhase: null, // 'QUALIFYING' | 'QUALIFICATION_REVIEW' | 'SEMI_FINAL' | 'FINAL_SHOWDOWN' | 'COMPLETED'
     tournamentRound: 0,
     playerStatuses: {}, // { [playerIndex]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' }
     tournamentScores: {}, // { [playerIndex]: cumulativeScore }
     eliminationOrder: [], // [playerIndex, playerIndex, ...]
     finalShowdownHandsPlayed: 0,
     tournamentWinner: null,
+    // Qualification Review Phase
+    qualificationCountdown: 0, // seconds remaining in qualification review
+    qualifiedPlayers: [], // [playerIndex1, playerIndex2] - players advancing to semifinal
+    qualificationScores: {}, // { [playerIndex]: { totalPoints, cardPoints, tenDiamondPoints, twoSpadePoints, acePoints, spadeBonus, cardCountBonus } }
   };
 
   // Validate card distribution

@@ -8,11 +8,23 @@
 import { useMemo } from 'react';
 import type { GameState } from './useMultiplayerGame';
 
+interface QualificationScore {
+  totalPoints: number;
+  cardPoints: number;
+  tenDiamondPoints: number;
+  twoSpadePoints: number;
+  acePoints: number;
+  spadeBonus: number;
+  cardCountBonus: number;
+  rank?: number;
+}
+
 interface TournamentStatus {
   isInTournament: boolean;
   isSpectator: boolean;
   isEliminated: boolean;
   isWinner: boolean;
+  isInQualificationReview: boolean;
   playerStatus: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' | null;
   tournamentPhase: string | null;
   tournamentRound: number;
@@ -20,6 +32,9 @@ interface TournamentStatus {
   eliminationOrder: number[];
   tournamentScores: { [playerIndex: string]: number };
   playerStatuses: { [playerIndex: string]: string };
+  qualificationCountdown: number;
+  qualifiedPlayers: number[];
+  qualificationScores: { [playerIndex: string]: QualificationScore };
 }
 
 export interface UseTournamentStatusOptions {
@@ -70,11 +85,18 @@ export function useTournamentStatus(
     
     const isWinner = isInTournament && playerStatus === 'WINNER';
     
+    // Qualification review data
+    const isInQualificationReview = tournamentPhase === 'QUALIFICATION_REVIEW';
+    const qualificationCountdown = gameState?.qualificationCountdown || 0;
+    const qualifiedPlayers = gameState?.qualifiedPlayers || [];
+    const qualificationScores = gameState?.qualificationScores || {};
+    
     return {
       isInTournament,
       isSpectator,
       isEliminated,
       isWinner,
+      isInQualificationReview,
       playerStatus,
       tournamentPhase,
       tournamentRound,
@@ -82,6 +104,9 @@ export function useTournamentStatus(
       eliminationOrder,
       tournamentScores,
       playerStatuses,
+      qualificationCountdown,
+      qualifiedPlayers,
+      qualificationScores,
     };
   }, [
     gameState,

@@ -5,6 +5,7 @@
  */
 
 const { cloneState, initializeGame, calculatePlayerScore } = require('../');
+const startQualificationReview = require('./startQualificationReview');
 
 // Use the shared scoring function for standard Casino scoring (11 points total)
 const calculateScore = calculatePlayerScore;
@@ -87,19 +88,22 @@ function endTournamentRound(state, payload, playerIndex) {
   const activePlayers = Object.values(newState.playerStatuses).filter(s => s === 'ACTIVE').length;
   console.log(`[endTournamentRound] Active players: ${activePlayers}`);
   
-  // Check if we should start final showdown (2 players remain)
-  if (activePlayers === 2) {
-    console.log(`[endTournamentRound] 2 players remain - starting FINAL SHOWDOWN!`);
-    newState.tournamentPhase = 'FINAL_SHOWDOWN';
-    newState.finalShowdownHandsPlayed = 0;
+  // Check if we should start qualification review
+  // This shows qualified players with score breakdown before advancing to next round
+  // Trigger when:
+  // 1. Going from 4→3 in QUALIFYING (show top 3 qualified)
+  // 2. Going from 3→2 in SEMI_FINAL (show top 2 qualified for final)
+  const remainingAfterElimination = activePlayers - 1;
+  
+  // Trigger qualification review when going to 3 players (from 4) or 2 players (from 3)
+  if (remainingAfterElimination >= 2) {
+    console.log(`[endTournamentRound] ${remainingAfterElimination} players will remain - starting QUALIFICATION REVIEW`);
     
-    // Start first hand of final
-    const resetState = startNewRound(newState);
-    resetState.tournamentPhase = 'FINAL_SHOWDOWN';
-    resetState.finalShowdownHandsPlayed = 0;
+    // Start qualification review phase (shows qualified players with score breakdown)
+    const reviewState = startQualificationReview(newState, remainingAfterElimination);
     
-    console.log(`[endTournamentRound] Final showdown hand 1 starting`);
-    return resetState;
+    console.log(`[endTournamentRound] Qualification review started`);
+    return reviewState;
   }
   
   // Otherwise, eliminate lowest scorer
