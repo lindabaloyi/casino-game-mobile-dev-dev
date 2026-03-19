@@ -11,7 +11,7 @@
  *  - Manage reconnection settings
  * 
  * Usage:
- *   const { socket, isConnected } = useSocketConnection({ mode: 'duel' });
+ *   const { socket, isConnected } = useSocketConnection({ mode: '2-hands' });
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -19,7 +19,11 @@ import { Socket } from 'socket.io-client';
 import { io } from 'socket.io-client';
 import { getOptimalServerUrl } from '../../utils/serverUrl';
 
+<<<<<<< HEAD
 export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall';
+=======
+export type GameMode = '2-hands' | 'party';
+>>>>>>> sort-building
 
 export interface UseSocketConnectionOptions {
   mode: GameMode;

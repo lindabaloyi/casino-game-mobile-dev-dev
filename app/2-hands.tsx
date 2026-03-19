@@ -1,5 +1,5 @@
 /**
- * Multiplayer Screen (Duel Mode) - Refactored
+ * 2 Hands Screen
  * 
  * A 2-player networked game mode with enhanced lobby UI.
  * Now uses modular components for better maintainability.
@@ -25,7 +25,7 @@ export const options = {
   headerShown: false,
 };
 
-export default function MultiplayerScreen() {
+export default function TwoHandsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string }>();
   const mode = (params.mode as 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall') || 'two-hands';
@@ -55,7 +55,11 @@ export default function MultiplayerScreen() {
     emitDragStart,
     emitDragMove,
     emitDragEnd,
+<<<<<<< HEAD:app/multiplayer.tsx
   } = useMultiplayerGame({ mode });
+=======
+  } = useMultiplayerGame({ mode: '2-hands' });
+>>>>>>> sort-building:app/2-hands.tsx
   
   const { profile } = usePlayerProfile();
   const { notification, animValue, showNotification } = useNotification();
@@ -128,7 +132,11 @@ export default function MultiplayerScreen() {
       <View style={styles.container}>
         <ConnectingScreen 
           title="Connecting..." 
+<<<<<<< HEAD:app/multiplayer.tsx
           subtitle={modeInfo.connectingSubtitle} 
+=======
+          subtitle="Finding opponent for 2 Hands" 
+>>>>>>> sort-building:app/2-hands.tsx
         />
       </View>
     );
@@ -188,8 +196,13 @@ export default function MultiplayerScreen() {
       <NotificationBanner message={notification} animValue={animValue} />
       
       <LobbyHeader 
+<<<<<<< HEAD:app/multiplayer.tsx
         title={modeInfo.title}
         subtitle={modeInfo.subtitle}
+=======
+        title="🎯 2 Hands Mode"
+        subtitle="1v1 Battle"
+>>>>>>> sort-building:app/2-hands.tsx
       />
       
       <View style={[

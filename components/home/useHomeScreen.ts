@@ -98,6 +98,7 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
   // Unified Play Online handler - opens the game mode selection menu
   const handlePlayOnline = () => {
     setMenuVisible(false);
+<<<<<<< HEAD
     setPlayOnlineMenuVisible(true);
   };
   
@@ -121,6 +122,9 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
         router.push('/multiplayer?mode=freeforall' as any);
         break;
     }
+=======
+    router.push('/2-hands' as any);
+>>>>>>> sort-building
   };
   
   const handlePrivateRoom = () => {

@@ -1,7 +1,7 @@
 /**
  * RoomService
  * Manages private room creation and joining via room codes.
- * Supports both 2-player duel and 4-player party modes.
+ * Supports both 2-player 2-hands and 4-player party modes.
  */
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -46,7 +46,7 @@ class RoomService {
   /**
    * Create a new private room
    * @param {object} hostSocket - The socket of the room host
-   * @param {string} gameMode - 'duel', 'party', 'three-hands', 'four-hands'
+   * @param {string} gameMode - '2-hands', 'party', 'three-hands', 'four-hands'
    * @param {number} maxPlayers - 2, 3, or 4
    * @returns {object} { roomCode, room }
    */
@@ -270,58 +270,53 @@ class RoomService {
 
     console.log(`[RoomService] Starting ${room.gameMode} game in room ${code} with ${playerCount} players`);
 
-     // Start game via unified matchmaking service
-     let gameResult;
-     if (isPartyGame) {
-       // For party games, we need to manually create the game with these specific sockets
-       const sockets = room.players.map(p => io.sockets.sockets.get(p.socketId)).filter(Boolean);
-       if (sockets.length !== 4) {
-         return { success: false, error: 'Not all players connected' };
-       }
-       
-       // Create party game directly - pass isPartyMode = true
-       const { gameId, gameState } = this.gameManager.startPartyGame();
-       room.gameId = gameId;
+    // Get sockets for all players
+    const sockets = room.players.map(p => io.sockets.sockets.get(p.socketId)).filter(Boolean);
+    if (sockets.length !== playerCount) {
+      return { success: false, error: 'Not all players connected' };
+    }
 
-       // Register players
-       for (let i = 0; i < 4; i++) {
-         this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
-         this.unifiedMatchmaking.socketGameMap.set(sockets[i].id, gameId);
-         this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
-       }
+    // Start game via appropriate method
+    let gameResult;
+    if (isPartyGame) {
+      // For party games
+      const { gameId, gameState } = this.gameManager.startPartyGame();
+      room.gameId = gameId;
 
-       gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
-       room.status = 'started';
-       
-       // Emit game-start to all players
-       sockets.forEach(socket => {
-         socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
-       });
-     } else {
-       // For three-hands and four-hands games - pass isPartyMode = false
-       const sockets = room.players.map(p => io.sockets.sockets.get(p.socketId)).filter(Boolean);
-       if (sockets.length !== playerCount) {
-         return { success: false, error: 'Not all players connected' };
-       }
+      // Register players
+      for (let i = 0; i < 4; i++) {
+        this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
+        this.unifiedMatchmaking.socketGameMap.set(sockets[i].id, gameId);
+        this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
+      }
 
-       const { gameId, gameState } = this.gameManager.startGame(playerCount, false); // isPartyMode = false
-       room.gameId = gameId;
+      gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
+      room.status = 'started';
+      
+      // Emit game-start to all players
+      sockets.forEach(socket => {
+        socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
+      });
+    } else {
+      // For 2-hands, three-hands, and four-hands games
+      const { gameId, gameState } = this.gameManager.startGame(playerCount, false); // isPartyMode = false
+      room.gameId = gameId;
 
-       // Register players
-       for (let i = 0; i < playerCount; i++) {
-         this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
-         this.unifiedMatchmaking.socketGameMap.set(sockets[i].id, gameId);
-         this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
-       }
+      // Register players
+      for (let i = 0; i < playerCount; i++) {
+        this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
+        this.unifiedMatchmaking.socketGameMap.set(sockets[i].id, gameId);
+        this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
+      }
 
-       gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
-       room.status = 'started';
+      gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
+      room.status = 'started';
 
-       // Emit game-start to all players
-       sockets.forEach(socket => {
-         socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
-       });
-     }
+      // Emit game-start to all players
+      sockets.forEach(socket => {
+        socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
+      });
+    }
 
     // Remove from room tracking (game is now in matchmaking maps)
     for (const player of room.players) {
@@ -390,7 +385,7 @@ class RoomService {
     };
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── Helpers ─────────────────────────────────────────────────────────────
 
   _serializeRoom(room) {
     if (!room) return null;

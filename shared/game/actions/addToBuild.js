@@ -60,7 +60,7 @@ function addToBuild(state, payload, playerIndex) {
   buildStack.value = newValue;
   
   // --- VALIDATION: Check if opponent already has a build with the same value ---
-  // In party mode: check ALL opponents; in duel mode: check single opponent
+  // In party mode: check ALL opponents; in 2-hands mode: check single opponent
   let opponentHasSameValue = false;
   
   if (newState.isPartyMode) {

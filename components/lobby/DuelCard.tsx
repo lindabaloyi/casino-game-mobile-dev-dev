@@ -1,7 +1,7 @@
 /**
  * DuelCard
  * 
- * VS card display for duel mode (1v1).
+ * VS card display for 2-hands mode (1v1).
  * Shows local player on left, opponent on right.
  */
 

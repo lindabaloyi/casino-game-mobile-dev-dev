@@ -41,7 +41,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="multiplayer" options={{ headerShown: false }} />
+        <Stack.Screen name="2-hands" options={{ headerShown: false }} />
         <Stack.Screen name="cpu-game" options={{ headerShown: false }} />
         <Stack.Screen name="party-game" options={{ headerShown: false }} />
         <Stack.Screen name="private-room" options={{ headerShown: false }} />
