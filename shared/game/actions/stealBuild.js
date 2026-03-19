@@ -87,7 +87,7 @@ function stealBuild(state, payload, playerIndex) {
   console.log(`[stealBuild] AFTER: buildStack.buildType: ${buildStack.buildType}, hasBase: ${buildStack.hasBase} (buildType !== 'sum' is ${buildStack.hasBase})`);
   
   // --- VALIDATION: Check opponent(s) don't have build with same value ---
-  // In party mode: check both opponents; in duel mode: check single opponent
+  // In party mode: check both opponents; in 2-hands mode: check single opponent
   let opponentHasSameValue = false;
   
   if (state.playerCount === 4) {

@@ -1,5 +1,5 @@
 /**
- * Multiplayer Screen (Duel Mode) - Refactored
+ * 2 Hands Screen
  * 
  * A 2-player networked game mode with enhanced lobby UI.
  * Now uses modular components for better maintainability.
@@ -26,7 +26,7 @@ export const options = {
   headerShown: false,
 };
 
-export default function MultiplayerScreen() {
+export default function TwoHandsScreen() {
   const router = useRouter();
   const { height } = useWindowDimensions();
   const screenHeight = height;
@@ -47,7 +47,7 @@ export default function MultiplayerScreen() {
     emitDragStart,
     emitDragMove,
     emitDragEnd,
-  } = useMultiplayerGame({ mode: 'duel' });
+  } = useMultiplayerGame({ mode: '2-hands' });
   
   const { profile } = usePlayerProfile();
   const { isReady, opponentReady, toggleReady } = useLobbyState();
@@ -66,7 +66,7 @@ export default function MultiplayerScreen() {
       <View style={styles.container}>
         <ConnectingScreen 
           title="Connecting..." 
-          subtitle="Finding opponent for duel" 
+          subtitle="Finding opponent for 2 Hands" 
         />
       </View>
     );
@@ -112,7 +112,7 @@ export default function MultiplayerScreen() {
       <NotificationBanner message={notification} animValue={animValue} />
       
       <LobbyHeader 
-        title="⚔️ Duel Mode"
+        title="🎯 2 Hands Mode"
         subtitle="1v1 Battle"
       />
       

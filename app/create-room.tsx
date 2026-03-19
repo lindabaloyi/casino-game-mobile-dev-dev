@@ -14,9 +14,9 @@ export default function CreateRoomScreen() {
   const params = useLocalSearchParams<{ mode?: GameMode }>();
   
   // Determine game mode from params
-  const gameMode: GameMode = params.mode === 'party' ? 'party' : 'duel';
+  const gameMode: GameMode = params.mode === 'party' ? 'party' : '2-hands';
   const maxPlayers = gameMode === 'party' ? 4 : 2;
-  const modeLabel = gameMode === 'party' ? 'Party Mode (4 Players)' : 'Duel (2 Players)';
+  const modeLabel = gameMode === 'party' ? 'Party Mode (4 Players)' : '2 Hands (2 Players)';
 
   // Connect to server
   const { socket, isConnected, error: connectionError } = useSocketConnection({ mode: gameMode });
@@ -37,7 +37,7 @@ export default function CreateRoomScreen() {
   // Navigate to game when room game starts
   useEffect(() => {
     if (room.status === 'started' && gameSync.gameState) {
-      router.replace(gameMode === 'party' ? '/party-game' : '/multiplayer');
+      router.replace(gameMode === 'party' ? '/party-game' : '/2-hands');
     }
   }, [room.status, gameSync.gameState]);
 
@@ -67,9 +67,9 @@ export default function CreateRoomScreen() {
   };
 
   const handleStartGame = () => {
-    // For duel mode, can start with 2 players
+    // For 2-hands mode, can start with 2 players
     // For party mode, need 4 players
-    if (gameMode === 'duel' && room.playerCount < 2) {
+    if (gameMode === '2-hands' && room.playerCount < 2) {
       Alert.alert('Cannot Start', 'Need at least 2 players to start');
       return;
     }

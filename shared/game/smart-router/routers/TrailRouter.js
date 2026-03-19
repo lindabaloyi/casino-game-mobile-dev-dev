@@ -17,7 +17,7 @@ const StackHelper = require('../helpers/StackHelper');
 class TrailRouter {
   /**
    * Route trail action
-   * Validates that player doesn't have an active build (duel mode only)
+   * Validates that player doesn't have an active build (2-hands mode only)
    * Also validates no matching loose card or build on table
    */
   route(payload, state, playerIndex) {
@@ -76,7 +76,7 @@ class TrailRouter {
       );
     }
     
-    // Allow trail in duel mode when no active build
+    // Allow trail in 2-hands mode when no active build
     return { type: 'trail', payload };
   }
 }

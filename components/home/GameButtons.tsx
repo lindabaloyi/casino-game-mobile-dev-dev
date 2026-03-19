@@ -40,7 +40,7 @@ export function GameButtons({
         activeOpacity={0.7}
       >
         <Ionicons name="people" size={iconSize} color="white" />
-        <Text style={[styles.buttonText, { fontSize: buttonFontSize }]}>Multiplayer</Text>
+        <Text style={[styles.buttonText, { fontSize: buttonFontSize }]}>2 Hands</Text>
       </TouchableOpacity>
       
       <TouchableOpacity 

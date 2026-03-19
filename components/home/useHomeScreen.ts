@@ -89,7 +89,7 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
   
   const handleMultiplayer = () => {
     setMenuVisible(false);
-    router.push('/multiplayer' as any);
+    router.push('/2-hands' as any);
   };
   
   const handlePrivateRoom = () => {

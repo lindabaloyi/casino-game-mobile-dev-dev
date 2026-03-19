@@ -1,7 +1,7 @@
 /**
  * RoomService
  * Manages private room creation and joining via room codes.
- * Supports both 2-player duel and 4-player party modes.
+ * Supports both 2-player 2-hands and 4-player party modes.
  */
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -47,7 +47,7 @@ class RoomService {
   /**
    * Create a new private room
    * @param {object} hostSocket - The socket of the room host
-   * @param {string} gameMode - 'duel' or 'party'
+   * @param {string} gameMode - '2-hands' or 'party'
    * @param {number} maxPlayers - 2 or 4
    * @returns {object} { roomCode, room }
    */
@@ -269,7 +269,7 @@ class RoomService {
         socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
       });
     } else {
-      // For duel games
+      // For 2-hands games
       const sockets = room.players.map(p => io.sockets.sockets.get(p.socketId)).filter(Boolean);
       if (sockets.length !== 2) {
         return { success: false, error: 'Not all players connected' };

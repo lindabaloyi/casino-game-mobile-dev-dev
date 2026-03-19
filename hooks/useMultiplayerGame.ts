@@ -2,7 +2,7 @@
  * useMultiplayerGame
  * 
  * Unified hook for all multiplayer game state on the client.
- * Supports both 2-player and 4-player party games.
+ * Supports both 2-player (2-hands) and 4-player party games.
  * 
  * This hook composes smaller, focused hooks:
  * - useSocketConnection: Handles socket connection lifecycle
@@ -11,8 +11,8 @@
  * - useOpponentDrag: Handles real-time opponent drag for ghost cards
  * 
  * @example
- * // 2-player game
- * const game = useMultiplayerGame({ mode: 'duel' });
+ * // 2-player game (2 hands)
+ * const game = useMultiplayerGame({ mode: '2-hands' });
  * 
  * // 4-player party game
  * const game = useMultiplayerGame({ mode: 'party' });
@@ -27,7 +27,7 @@ export type { Card, GameState, GameOverData, OpponentDragState };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type GameMode = 'duel' | 'party';
+export type GameMode = '2-hands' | 'party';
 
 export interface UseMultiplayerGameOptions {
   mode: GameMode;
@@ -87,7 +87,7 @@ export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMulti
     if (isPartyMode) {
       socket?.emit('start-next-round');
     } else {
-      // Duel mode: server handles round transitions automatically
+      // 2-hands mode: server handles round transitions automatically
       console.log('[useMultiplayerGame] startNextRound called - server handles transitions automatically');
     }
   }, [socket, isPartyMode]);

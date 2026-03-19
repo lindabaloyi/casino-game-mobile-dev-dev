@@ -14,9 +14,9 @@ export default function JoinRoomScreen() {
   const params = useLocalSearchParams<{ mode?: GameMode; code?: string }>();
   
   // Determine game mode from params
-  const gameMode: GameMode = params.mode === 'party' ? 'party' : 'duel';
+  const gameMode: GameMode = params.mode === 'party' ? 'party' : '2-hands';
   const maxPlayers = gameMode === 'party' ? 4 : 2;
-  const modeLabel = gameMode === 'party' ? 'Party Mode (4 Players)' : 'Duel (2 Players)';
+  const modeLabel = gameMode === 'party' ? 'Party Mode (4 Players)' : '2 Hands (2 Players)';
 
   const [roomCode, setRoomCode] = useState(params.code || '');
   const [isJoining, setIsJoining] = useState(!!params.code);
@@ -59,7 +59,7 @@ export default function JoinRoomScreen() {
   // Navigate to game when room game starts
   useEffect(() => {
     if (room.status === 'started' && gameSync.gameState) {
-      router.replace(gameMode === 'party' ? '/party-game' : '/multiplayer');
+      router.replace(gameMode === 'party' ? '/party-game' : '/2-hands');
     }
   }, [room.status, gameSync.gameState]);
 
