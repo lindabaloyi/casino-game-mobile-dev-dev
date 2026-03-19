@@ -4,15 +4,10 @@
  * and declares winner after 2 hands.
  */
 
-const { cloneState, initializeGame } = require('../');
+const { cloneState, initializeGame, calculatePlayerScore } = require('../');
 
-/**
- * Calculate total score from captures for a player
- */
-function calculateScore(captures) {
-  if (!captures || captures.length === 0) return 0;
-  return captures.reduce((sum, card) => sum + (card.value || 0), 0);
-}
+// Use the shared scoring function for standard Casino scoring (11 points total)
+const calculateScore = calculatePlayerScore;
 
 function endFinalShowdown(state, payload, playerIndex) {
   const newState = cloneState(state);

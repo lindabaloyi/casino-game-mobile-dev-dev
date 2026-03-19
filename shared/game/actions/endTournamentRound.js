@@ -4,17 +4,10 @@
  * and advances to next phase or final showdown.
  */
 
-const { cloneState, initializeGame } = require('../');
+const { cloneState, initializeGame, calculatePlayerScore } = require('../');
 
-/**
- * Calculate total score from captures for a player
- * @param {Array} captures - Array of captured cards
- * @returns {number} Total score (sum of card values)
- */
-function calculateScore(captures) {
-  if (!captures || captures.length === 0) return 0;
-  return captures.reduce((sum, card) => sum + (card.value || 0), 0);
-}
+// Use the shared scoring function for standard Casino scoring (11 points total)
+const calculateScore = calculatePlayerScore;
 
 /**
  * Find the player with the lowest score
