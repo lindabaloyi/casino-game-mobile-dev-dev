@@ -13,23 +13,27 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   useEffect(() => {
-    const hideNavigationBar = async () => {
+    const setupNavigationBar = async () => {
       if (Platform.OS === 'android') {
         try {
-          await NavigationBar.setVisibilityAsync('hidden');
-          await NavigationBar.setBehaviorAsync('inset-touch');
+          // Allow back button gestures to work - use overlay-swipe behavior
+          await NavigationBar.setBehaviorAsync('overlay-swipe');
         } catch {
-          // Removed console.log for production performance
+          // Fallback to inset-touch
+          try {
+            await NavigationBar.setBehaviorAsync('inset-touch');
+          } catch {
+            // Ignore
+          }
         }
       }
     };
 
-    hideNavigationBar();
+    setupNavigationBar();
 
-    // Listen for orientation changes and re-hide navigation bar
+    // Listen for orientation changes and re-setup navigation bar
     const orientationSubscription = ScreenOrientation.addOrientationChangeListener(() => {
-      console.log('[NAVBAR] Orientation changed, re-hiding navigation bar');
-      hideNavigationBar();
+      setupNavigationBar();
     });
 
     return () => {
@@ -41,9 +45,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="multiplayer" options={{ headerShown: false }} />
+        <Stack.Screen name="online-play" options={{ headerShown: false }} />
         <Stack.Screen name="cpu-game" options={{ headerShown: false }} />
-        <Stack.Screen name="party-game" options={{ headerShown: false }} />
+
         <Stack.Screen name="private-room" options={{ headerShown: false }} />
         <Stack.Screen name="create-room" options={{ headerShown: false }} />
         <Stack.Screen name="join-room" options={{ headerShown: false }} />

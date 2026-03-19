@@ -1,12 +1,17 @@
-1/**
- * Party Game Screen (2v2 Mode) - Enhanced Lobby
+/**
+ * Online Play Screen - Unified Multiplayer Lobby
  * 
- * A 4-player networked game mode where players connect via matchmaking.
+ * A unified networked game mode lobby that supports:
+ * - 2 players (two-hands)
+ * - 3 players (three-hands)
+ * - 4 players (four-hands, party, freeforall, tournament)
+ * 
  * Features enhanced lobby UI with:
- * - Player avatars and usernames in a grid
+ * - Player avatars and usernames in a dynamic grid
  * - Ready/not ready status indicators
  * - Connection quality indicators
  * - Animated join/leave notifications
+ * - Tournament support (status bar, spectator view)
  * - Polished gradient styling
  */
 
@@ -20,20 +25,75 @@ import {
   useWindowDimensions,
   Animated,
   ScrollView,
-  TextInput,
   Vibration,
+  BackHandler,
+  Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { GameBoard } from '../components/game/GameBoard';
 import { useMultiplayerGame } from '../hooks/useMultiplayerGame';
 import { usePlayerProfile, AVATAR_OPTIONS } from '../hooks/usePlayerProfile';
 import { useTournamentStatus } from '../hooks/useTournamentStatus';
-import { TournamentStatusBar } from '../components/tournament/TournamentStatusBar';
 import { SpectatorView } from '../components/tournament/SpectatorView';
 
 export const options = {
   headerShown: false,
+};
+
+// Mode type definition
+export type GameMode = 'two-hands' | 'three-hands' | 'four-hands' | 'party' | 'freeforall' | 'tournament';
+
+// Mode configuration
+const MODE_CONFIG: Record<GameMode, {
+  title: string;
+  subtitle: string;
+  connectingSubtitle: string;
+  playerCount: number;
+  isTeamMode: boolean;
+}> = {
+  'two-hands': {
+    title: '⚔️ 2 Hands',
+    subtitle: '1v1 Battle',
+    connectingSubtitle: 'Finding opponent for 2 hands',
+    playerCount: 2,
+    isTeamMode: false,
+  },
+  'three-hands': {
+    title: '🎴 3 Hands',
+    subtitle: '3 Player Battle',
+    connectingSubtitle: 'Finding opponents for three hands',
+    playerCount: 3,
+    isTeamMode: false,
+  },
+  'four-hands': {
+    title: '🎯 4 Hands',
+    subtitle: '4 Player Free-For-All',
+    connectingSubtitle: 'Finding opponents for four hands',
+    playerCount: 4,
+    isTeamMode: false,
+  },
+  'party': {
+    title: '🎉 Party Mode',
+    subtitle: '2v2 Battle',
+    connectingSubtitle: 'Finding players for party mode',
+    playerCount: 4,
+    isTeamMode: true,
+  },
+  'freeforall': {
+    title: '🎴 Free For All',
+    subtitle: '4 Player Battle',
+    connectingSubtitle: 'Finding opponents for free for all',
+    playerCount: 4,
+    isTeamMode: false,
+  },
+  'tournament': {
+    title: '🏆 Tournament',
+    subtitle: '4 Player Knockout',
+    connectingSubtitle: 'Finding players for tournament',
+    playerCount: 4,
+    isTeamMode: false,
+  },
 };
 
 // Mock player data for demo - in production this comes from server
@@ -46,8 +106,36 @@ interface LobbyPlayer {
   ping: number;
 }
 
-export default function PartyGameScreen() {
+export default function OnlinePlayScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const mode = (params.mode as GameMode) || 'party';
+  
+  // Handle hardware back button (Android)
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Go back in navigation stack
+      if (router.canGoBack()) {
+        router.back();
+        return true; // Prevent default back behavior
+      }
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [router]);
+
+  // Handle web/browser back button via navigation state change
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // Allow normal navigation to happen
+      // This ensures browser back button works properly
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+  const modeConfig = MODE_CONFIG[mode];
   const { width, height } = useWindowDimensions();
   const screenHeight = height;
   const screenWidth = width;
@@ -67,7 +155,7 @@ export default function PartyGameScreen() {
   
   const { 
     gameState, 
-    gameOverData,  // Add this!
+    gameOverData,
     sendAction, 
     playerNumber,
     isConnected,
@@ -82,14 +170,14 @@ export default function PartyGameScreen() {
     emitDragStart,
     emitDragMove,
     emitDragEnd,
-  } = useMultiplayerGame({ mode: 'party' });
+  } = useMultiplayerGame({ mode });
   
   const { profile } = usePlayerProfile();
   
-  // Tournament status - call before any early returns
+  // Tournament status - pass gameState to avoid creating duplicate socket connections
   // Use playerNumber ?? 0 to ensure we always have a valid number
   const safePlayerNum = playerNumber ?? 0;
-  const tournamentStatus = useTournamentStatus(safePlayerNum);
+  const tournamentStatus = useTournamentStatus(gameState, safePlayerNum);
   
   // Get avatar emoji
   const getAvatarEmoji = (avatarId: string) => {
@@ -141,7 +229,8 @@ export default function PartyGameScreen() {
   
   // Add mock players as players join
   useEffect(() => {
-    if (playersInLobby > 1 && lobbyPlayers.length < Math.min(playersInLobby, 4)) {
+    const maxPlayers = modeConfig.playerCount;
+    if (playersInLobby > 1 && lobbyPlayers.length < Math.min(playersInLobby, maxPlayers)) {
       const newPlayer: LobbyPlayer = {
         id: String(lobbyPlayers.length + 1),
         username: `Player ${lobbyPlayers.length + 1}`,
@@ -153,7 +242,7 @@ export default function PartyGameScreen() {
       setLobbyPlayers(prev => [...prev, newPlayer]);
       showNotification(`${newPlayer.username} joined!`);
     }
-  }, [playersInLobby]);
+  }, [playersInLobby, modeConfig.playerCount]);
   
   // Update own ready status
   useEffect(() => {
@@ -169,7 +258,7 @@ export default function PartyGameScreen() {
         <View style={styles.connectingCard}>
           <ActivityIndicator size="large" color="#FFD700" />
           <Text style={styles.connectingTitle}>Connecting...</Text>
-          <Text style={styles.connectingSubtitle}>Finding players for party mode</Text>
+          <Text style={styles.connectingSubtitle}>{modeConfig.connectingSubtitle}</Text>
         </View>
       </View>
     );
@@ -179,7 +268,7 @@ export default function PartyGameScreen() {
   const showGame = gameState != null;
   
   if (!showGame) {
-    const playersNeeded = 4 - playersInLobby;
+    const playersNeeded = modeConfig.playerCount - playersInLobby;
     const allReady = lobbyPlayers.length >= 2 && lobbyPlayers.every(p => p.isReady);
     
     return (
@@ -198,8 +287,8 @@ export default function PartyGameScreen() {
         {/* Compact Header - no back button to save space */}
         <View style={styles.lobbyHeader}>
           <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>🎉 Party Mode</Text>
-            <Text style={styles.headerSubtitle}>2v2 Battle</Text>
+            <Text style={styles.headerTitle}>{modeConfig.title}</Text>
+            <Text style={styles.headerSubtitle}>{modeConfig.subtitle}</Text>
           </View>
           
           <View style={styles.connectionBadge}>
@@ -220,17 +309,19 @@ export default function PartyGameScreen() {
           <View style={styles.roomCodeCard}>
             <View style={styles.roomCodeContent}>
               <Text style={styles.roomCodeLabel}>Room Code</Text>
-              <Text style={styles.roomCodeValue}>PARTY</Text>
+              <Text style={styles.roomCodeValue}>
+                {mode === 'party' ? 'PARTY' : mode === 'tournament' ? 'TOURN' : mode.toUpperCase().slice(0, 4)}
+              </Text>
             </View>
             <TouchableOpacity style={styles.copyButton}>
               <Ionicons name="copy-outline" size={20} color="#FFD700" />
             </TouchableOpacity>
           </View>
           
-          {/* Player Slots */}
+          {/* Player Slots - Dynamic based on player count */}
           <View style={styles.playersSection}>
             <Text style={styles.sectionTitle}>
-              Players ({playersInLobby}/4)
+              Players ({playersInLobby}/{modeConfig.playerCount})
             </Text>
             
             <View style={styles.playersGrid}>
@@ -268,8 +359,9 @@ export default function PartyGameScreen() {
                 </Text>
               </View>
               
-              {/* Other Player Slots */}
-              {[1, 2, 3].map((slot) => {
+              {/* Dynamic Other Player Slots */}
+              {[...Array(modeConfig.playerCount - 1)].map((_, slotIndex) => {
+                const slot = slotIndex + 1;
                 const player = lobbyPlayers[slot];
                 const isFilled = player != null;
                 
@@ -417,18 +509,7 @@ export default function PartyGameScreen() {
   // Show game
   return (
     <View style={styles.container}>
-      {/* Tournament Status Bar */}
-      {tournamentStatus.isInTournament && (
-        <TournamentStatusBar
-          tournamentMode={tournamentStatus.isInTournament ? 'knockout' : null}
-          tournamentPhase={tournamentStatus.tournamentPhase}
-          tournamentRound={tournamentStatus.tournamentRound}
-          finalShowdownHandsPlayed={tournamentStatus.finalShowdownHandsPlayed}
-          playerStatuses={tournamentStatus.playerStatuses}
-          tournamentScores={tournamentStatus.tournamentScores}
-          playerCount={4}
-        />
-      )}
+      {/* Tournament Status Bar - Removed to keep game board clear */}
       
       {/* Spectator View for eliminated players */}
       {tournamentStatus.isSpectator ? (
@@ -439,19 +520,19 @@ export default function PartyGameScreen() {
           eliminationOrder={tournamentStatus.eliminationOrder}
           playerStatuses={tournamentStatus.playerStatuses}
           tournamentScores={tournamentStatus.tournamentScores}
-          playerCount={4}
+          playerCount={modeConfig.playerCount}
         />
       ) : (
       <GameBoard
         gameState={gameState as any}
-        gameOverData={gameOverData}  // Add this!
+        gameOverData={gameOverData}
         playerNumber={safePlayerNumber}
         sendAction={sendAction}
         startNextRound={startNextRound}
         onRestart={() => {
           requestSync();
         }}
-        onBackToMenu={() => router.replace('/' as any)}
+        onBackToMenu={() => router.back()}
         serverError={serverErrorObj}
         onServerErrorClose={clearError}
         opponentDrag={opponentDrag}

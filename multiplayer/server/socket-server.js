@@ -95,6 +95,7 @@ io.on('connection', socket => {
     unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.freeforall = unifiedMatchmaking.waitingQueues.freeforall.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.tournament = unifiedMatchmaking.waitingQueues.tournament?.filter(s => s.id !== socket.id) || [];
     
     // Use unified matchmaking for 2-player games
     const result = unifiedMatchmaking.addToQueue(socket, 'two-hands');
@@ -112,6 +113,7 @@ io.on('connection', socket => {
     unifiedMatchmaking.socketGameMap.delete(socket.id);
     unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.tournament = unifiedMatchmaking.waitingQueues.tournament?.filter(s => s.id !== socket.id) || [];
     
     const partyResult = unifiedMatchmaking.addToQueue(socket, 'party');
     if (partyResult) {
@@ -129,6 +131,7 @@ io.on('connection', socket => {
     unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.tournament = unifiedMatchmaking.waitingQueues.tournament?.filter(s => s.id !== socket.id) || [];
     
     // Use unified matchmaking for 3-player games
     const result = unifiedMatchmaking.addToQueue(socket, 'three-hands');
@@ -148,6 +151,7 @@ io.on('connection', socket => {
     unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.freeforall = unifiedMatchmaking.waitingQueues.freeforall.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.tournament = unifiedMatchmaking.waitingQueues.tournament?.filter(s => s.id !== socket.id) || [];
     
     // Use unified matchmaking for 4-player free-for-all games
     const result = unifiedMatchmaking.addToQueue(socket, 'four-hands');
@@ -167,6 +171,7 @@ io.on('connection', socket => {
     unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.tournament = unifiedMatchmaking.waitingQueues.tournament?.filter(s => s.id !== socket.id) || [];
     
     // Use unified matchmaking for free-for-all games
     const result = unifiedMatchmaking.addToQueue(socket, 'freeforall');
@@ -175,6 +180,35 @@ io.on('connection', socket => {
     } else {
       // Broadcast to ALL waiting players
       broadcastFreeForAllWaiting(io);
+    }
+  });
+
+  // Tournament Matchmaking: add player to tournament queue; start 4-player knockout game when ready
+  socket.on('join-tournament-queue', () => {
+    console.log(`[Socket] join-tournament-queue received from socket ${socket.id}`);
+    
+    // Remove from matchmaking queues if present
+    unifiedMatchmaking.socketGameMap.delete(socket.id);
+    unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.freeforall = unifiedMatchmaking.waitingQueues.freeforall.filter(s => s.id !== socket.id);
+    
+    // Ensure tournament queue exists
+    if (!unifiedMatchmaking.waitingQueues.tournament) {
+      unifiedMatchmaking.waitingQueues.tournament = [];
+    }
+    
+    // Use unified matchmaking for tournament games
+    const result = unifiedMatchmaking.addToQueue(socket, 'tournament');
+    if (result) {
+      console.log(`[Socket] Tournament game created with ${result.players.length} players`);
+      broadcaster.broadcastTournamentGameStart(result);
+    } else {
+      // Broadcast to ALL waiting players
+      console.log(`[Socket] Not enough players for tournament, broadcasting wait status`);
+      broadcastTournamentWaiting(io);
     }
   });
 
@@ -360,6 +394,12 @@ io.on('connection', socket => {
     if (twoHandsWaitingCount > 0) {
       socket.emit('duel-waiting', { playersJoined: twoHandsWaitingCount });
     }
+    
+    // Also check tournament matchmaking
+    const tournamentWaitingCount = unifiedMatchmaking.getWaitingCount('tournament');
+    if (tournamentWaitingCount > 0) {
+      socket.emit('tournament-waiting', { playersJoined: tournamentWaitingCount });
+    }
   });
 
   // Disconnect
@@ -432,6 +472,20 @@ function broadcastFreeForAllWaiting(io) {
   
   unifiedMatchmaking.waitingQueues.freeforall.forEach(playerSocket => {
     playerSocket.emit('freeforall-waiting', { playersJoined: count });
+  });
+}
+
+function broadcastTournamentWaiting(io) {
+  const count = unifiedMatchmaking.getWaitingCount('tournament');
+  console.log(`[UnifiedMatchmaking] Broadcasting tournament-waiting: ${count} players`);
+  
+  // Ensure tournament queue exists
+  if (!unifiedMatchmaking.waitingQueues.tournament) {
+    unifiedMatchmaking.waitingQueues.tournament = [];
+  }
+  
+  unifiedMatchmaking.waitingQueues.tournament.forEach(playerSocket => {
+    playerSocket.emit('tournament-waiting', { playersJoined: count });
   });
 }
 

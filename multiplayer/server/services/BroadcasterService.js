@@ -95,6 +95,23 @@ class BroadcasterService {
   }
 
   /**
+   * Broadcast tournament game start to all 4 players in a new tournament game
+   */
+  broadcastTournamentGameStart(gameResult) {
+    const { gameId, gameState, players } = gameResult;
+    console.log(`[Broadcaster] Broadcasting tournament game start to ${players.length} players`);
+
+    players.forEach(({ socket, playerNumber }) => {
+      socket.emit("game-start", {
+        gameId,
+        gameState,
+        playerNumber,
+        gameMode: 'tournament',
+      });
+    });
+  }
+
+  /**
    * Broadcast game update to all players in a game
    */
   broadcastGameUpdate(gameId, gameState, matchmakingService = null) {

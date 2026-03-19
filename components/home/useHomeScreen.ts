@@ -103,25 +103,12 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
   };
   
   // Navigate to specific game mode from Play Online menu
+  // Route ALL modes to /online-play (the unified lobby)
+  // Use replace() to prevent back navigation which blocks game UI
   const navigateToGameMode = (mode: GameModeOption) => {
     setPlayOnlineMenuVisible(false);
-    switch (mode) {
-      case 'two-hands':
-        router.push('/multiplayer?mode=two-hands' as any);
-        break;
-      case 'three-hands':
-        router.push('/multiplayer?mode=three-hands' as any);
-        break;
-      case 'four-hands':
-        router.push('/multiplayer?mode=four-hands' as any);
-        break;
-      case 'party':
-        router.push('/multiplayer?mode=party' as any);
-        break;
-      case 'freeforall':
-        router.push('/multiplayer?mode=freeforall' as any);
-        break;
-    }
+    // Use replace instead of push to prevent back button from blocking game UI
+    router.replace(`/online-play?mode=${mode}` as any);
   };
   
   const handlePrivateRoom = () => {
@@ -131,8 +118,9 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
   
   const handleTournament = () => {
     setMenuVisible(false);
-    // Navigate to tournament mode (free-for-all, no teams)
-    router.push('/multiplayer?mode=freeforall&tournament=true' as any);
+    // Navigate to tournament mode using unified online-play screen
+    // Use replace to prevent back button from blocking game UI
+    router.replace('/online-play?mode=tournament' as any);
   };
   
   const handleProfile = () => {

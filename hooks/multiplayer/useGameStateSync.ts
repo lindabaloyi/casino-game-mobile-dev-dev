@@ -46,6 +46,7 @@ export interface ShiyaRecall {
 
 export interface GameState {
   deck: Card[];
+  gameMode?: 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament';
   players: {
     id: number;
     name: string;

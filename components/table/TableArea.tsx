@@ -119,7 +119,7 @@ interface Props {
   currentPlayerIndex?: number;
   
   /** Game mode type for special rendering (e.g., two-hands for 3-player, freeforall for 4-player) */
-  gameMode?: 'two-hands' | 'three-hands' | 'party' | 'freeforall';
+  gameMode?: 'two-hands' | 'three-hands' | 'party' | 'four-hands' | 'freeforall' | 'tournament';
   
   /** Callback when a build is tapped - for Shiya selection or dual builds */
   onBuildTap?: (stack: BuildStack | TempStack) => void;

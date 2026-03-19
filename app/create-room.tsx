@@ -37,7 +37,7 @@ export default function CreateRoomScreen() {
   // Navigate to game when room game starts
   useEffect(() => {
     if (room.status === 'started' && gameSync.gameState) {
-      router.replace(gameMode === 'party' ? '/party-game' : '/multiplayer');
+      router.replace('/online-play');
     }
   }, [room.status, gameSync.gameState]);
 

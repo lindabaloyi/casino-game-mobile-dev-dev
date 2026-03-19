@@ -222,6 +222,18 @@ const GAME_TYPES = {
         gameManager.addPlayerToGame(gameId, players[i].id, i);
       }
     }
+  },
+  // Tournament mode - 4-player knockout
+  tournament: {
+    minPlayers: 4,
+    maxPlayers: 4,
+    createGame: (gameManager) => gameManager.startTournamentGame(),
+    playerRegistration: (gameId, players, gameManager) => {
+      // Register players 0, 1, 2, 3
+      for (let i = 0; i < 4; i++) {
+        gameManager.addPlayerToGame(gameId, players[i].id, i);
+      }
+    }
   }
 };
 

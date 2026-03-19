@@ -6,6 +6,7 @@
  */
 
 const { initializeGame, initializeTestGame } = require('../../../shared/game');
+const startTournamentAction = require('../../../shared/game/actions/startTournament');
 
 class GameManager {
   constructor() {
@@ -88,6 +89,29 @@ class GameManager {
     this.socketPlayerMap.set(gameId, new Map());
 
     return { gameId, gameState };
+  }
+
+  /**
+   * Create a new 4-player tournament (knockout) game.
+   * @returns {{ gameId: number, gameState: object }}
+   */
+  startTournamentGame() {
+    const gameId = this._nextId++;
+    
+    console.log(`[GameManager] Starting tournament game ${gameId}`);
+    
+    // Free-for-all uses 4 players but without team mechanics
+    const gameState = initializeGame(4); // 4 players
+    
+    // Initialize tournament state using the shared action
+    // The action requires (state, payload, playerIndex) - we pass null for payload and 0 for playerIndex
+    const tournamentState = startTournamentAction(gameState, null, 0);
+
+    this.activeGames.set(gameId, tournamentState);
+    this.socketPlayerMap.set(gameId, new Map());
+
+    console.log(`[GameManager] Tournament game ${gameId} created with tournamentMode=${tournamentState.tournamentMode}`);
+    return { gameId, gameState: tournamentState };
   }
 
   /**

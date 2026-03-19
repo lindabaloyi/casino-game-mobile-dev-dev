@@ -61,7 +61,7 @@ interface CapturedCardsViewProps {
   /** Current player index - for highlighting current turn */
   currentPlayerIndex?: number;
   /** Game mode type - for special rendering (two-hands for 3-player, freeforall for 4-player) */
-  gameMode?: 'two-hands' | 'three-hands' | 'party' | 'freeforall';
+  gameMode?: 'two-hands' | 'three-hands' | 'party' | 'four-hands' | 'freeforall' | 'tournament';
 }
 
 export function CapturedCardsView({

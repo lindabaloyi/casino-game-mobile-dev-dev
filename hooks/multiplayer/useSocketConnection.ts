@@ -19,7 +19,7 @@ import { Socket } from 'socket.io-client';
 import { io } from 'socket.io-client';
 import { getOptimalServerUrl } from '../../utils/serverUrl';
 
-export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall';
+export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament';
 
 export interface UseSocketConnectionOptions {
   mode: GameMode;
@@ -108,6 +108,12 @@ export function useSocketConnection(
           if (mode === 'freeforall') {
             socket.emit('join-freeforall-queue');
             console.log('[useSocketConnection] Joined freeforall queue');
+          }
+          
+          // Tournament mode: join the tournament queue when connected
+          if (mode === 'tournament') {
+            socket.emit('join-tournament-queue');
+            console.log('[useSocketConnection] Joined tournament queue');
           }
         });
         

@@ -12,6 +12,8 @@ const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn, forceEndTurn, fina
 const scoring = require('../game/scoring');
 const GameState = require('../models/GameState');
 const GameStats = require('../models/GameStats');
+const endTournamentRound = require('../../../shared/game/actions/endTournamentRound');
+const endFinalShowdown = require('../../../shared/game/actions/endFinalShowdown');
 
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, unifiedMatchmaking, broadcaster) {
@@ -128,7 +130,47 @@ class GameCoordinatorService {
          
          // Check if game is over
          const gameOverCheck = RoundValidator.checkGameOver(newState);
-         if (gameOverCheck.gameOver) {
+         
+         // Check for tournament mode - handle round transition
+         if (newState.tournamentMode === 'knockout') {
+           console.log(`[Coordinator] Tournament mode detected, handling round transition`);
+           
+           try {
+             // Check if in final showdown
+             if (newState.tournamentPhase === 'FINAL_SHOWDOWN') {
+               // Handle final showdown round
+               const showdownState = endFinalShowdown(newState);
+               
+               // Check if tournament is complete
+               if (showdownState.tournamentPhase === 'COMPLETED') {
+                 console.log(`[Coordinator] Tournament COMPLETED! Winner: ${showdownState.tournamentWinner}`);
+                 this._handleGameOver(gameId, showdownState, isPartyGame, false);
+               } else {
+                 // Continue final showdown
+                 this.gameManager.saveGameState(gameId, showdownState);
+                 this.broadcaster.broadcastGameUpdate(gameId, showdownState, this.unifiedMatchmaking);
+               }
+             } else {
+               // Handle regular tournament round
+               const tournamentState = endTournamentRound(newState);
+               
+               // Check if tournament is complete (winner declared)
+               if (tournamentState.tournamentPhase === 'COMPLETED') {
+                 console.log(`[Coordinator] Tournament COMPLETED! Winner: ${tournamentState.tournamentWinner}`);
+                 this._handleGameOver(gameId, tournamentState, isPartyGame, false);
+               } else {
+                 // Continue tournament
+                 this.gameManager.saveGameState(gameId, tournamentState);
+                 this.broadcaster.broadcastGameUpdate(gameId, tournamentState, this.unifiedMatchmaking);
+               }
+             }
+           } catch (err) {
+             console.error(`[Coordinator] Tournament round transition failed: ${err.message}`);
+             // Fall back to regular game over
+             this._handleGameOver(gameId, newState, isPartyGame, false);
+           }
+         } else if (gameOverCheck.gameOver) {
+           // Regular game over
            this._handleGameOver(gameId, newState, isPartyGame, false);
          } else {
            // Auto-transition to next round for multiplayer

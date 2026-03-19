@@ -2,10 +2,12 @@
  * usePartyTeam Hook
  * Provides team context for party mode (4-player) games
  * Includes team colors, player tags, and team relationship checks
+ * NOTE: This hook now accepts gameState and playerNumber as parameters to avoid
+ * creating duplicate socket connections. Pass them from the parent component.
  */
 
 import { useMemo, useCallback } from 'react';
-import { useMultiplayerGame } from './useMultiplayerGame';
+import type { GameState } from './useMultiplayerGame';
 import {
   getTeamFromIndex,
   getPlayerPositionLabel,
@@ -46,9 +48,13 @@ export interface UsePartyTeamReturn {
 /**
  * Provides team context for party mode games
  * Use this hook in party mode components to access team information
+ * @param gameState - The game state from parent component's useMultiplayerGame hook
+ * @param playerNumber - The player number from parent component's useMultiplayerGame hook
  */
-export function usePartyTeam(): UsePartyTeamReturn {
-  const { gameState, playerNumber } = useMultiplayerGame({ mode: 'party' });
+export function usePartyTeam(
+  gameState: GameState | null, 
+  playerNumber: number | null
+): UsePartyTeamReturn {
 
   // Get current player from gameState
   const currentPlayerIndex = gameState?.currentPlayer;
