@@ -109,10 +109,15 @@ export function PlayOptionsModal({
   
   // Check which build values have matching cards in hand
   const matchingOptions = useMemo(() => {
+    // If team build options exist, DON'T show own options - team builds take priority
+    if (teamBuildOptions.length > 0) {
+      return [];
+    }
+    
     return possibleBuildValues.filter(val => 
       (playerHand ?? []).some(card => card.value === val)
     );
-  }, [possibleBuildValues, playerHand]);
+  }, [possibleBuildValues, playerHand, teamBuildOptions]);
   
   // Get team captured builds (for party mode 2v2 cooperative rebuild)
   // Uses player-specific builds: teamCapturedBuilds[playerNumber] = builds THIS PLAYER can rebuild
