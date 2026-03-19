@@ -28,6 +28,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { GameBoard } from '../components/game/GameBoard';
 import { useMultiplayerGame } from '../hooks/useMultiplayerGame';
 import { usePlayerProfile, AVATAR_OPTIONS } from '../hooks/usePlayerProfile';
+import { useTournamentStatus } from '../hooks/useTournamentStatus';
+import { TournamentStatusBar } from '../components/tournament/TournamentStatusBar';
+import { SpectatorView } from '../components/tournament/SpectatorView';
 
 export const options = {
   headerShown: false,
@@ -82,6 +85,11 @@ export default function PartyGameScreen() {
   } = useMultiplayerGame({ mode: 'party' });
   
   const { profile } = usePlayerProfile();
+  
+  // Tournament status - call before any early returns
+  // Use playerNumber ?? 0 to ensure we always have a valid number
+  const safePlayerNum = playerNumber ?? 0;
+  const tournamentStatus = useTournamentStatus(safePlayerNum);
   
   // Get avatar emoji
   const getAvatarEmoji = (avatarId: string) => {
@@ -409,6 +417,31 @@ export default function PartyGameScreen() {
   // Show game
   return (
     <View style={styles.container}>
+      {/* Tournament Status Bar */}
+      {tournamentStatus.isInTournament && (
+        <TournamentStatusBar
+          tournamentMode={tournamentStatus.isInTournament ? 'knockout' : null}
+          tournamentPhase={tournamentStatus.tournamentPhase}
+          tournamentRound={tournamentStatus.tournamentRound}
+          finalShowdownHandsPlayed={tournamentStatus.finalShowdownHandsPlayed}
+          playerStatuses={tournamentStatus.playerStatuses}
+          tournamentScores={tournamentStatus.tournamentScores}
+          playerCount={4}
+        />
+      )}
+      
+      {/* Spectator View for eliminated players */}
+      {tournamentStatus.isSpectator ? (
+        <SpectatorView
+          tournamentPhase={tournamentStatus.tournamentPhase}
+          tournamentRound={tournamentStatus.tournamentRound}
+          finalShowdownHandsPlayed={tournamentStatus.finalShowdownHandsPlayed}
+          eliminationOrder={tournamentStatus.eliminationOrder}
+          playerStatuses={tournamentStatus.playerStatuses}
+          tournamentScores={tournamentStatus.tournamentScores}
+          playerCount={4}
+        />
+      ) : (
       <GameBoard
         gameState={gameState as any}
         gameOverData={gameOverData}  // Add this!
@@ -426,6 +459,7 @@ export default function PartyGameScreen() {
         emitDragMove={emitDragMove}
         emitDragEnd={emitDragEnd}
       />
+      )}
     </View>
   );
 }

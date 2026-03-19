@@ -15,6 +15,7 @@ export interface HomeScreenHandlers {
   handlePlayOnline: () => void;
   navigateToGameMode: (mode: GameModeOption) => void;
   handlePrivateRoom: () => void;
+  handleTournament: () => void;
   handleProfile: () => void;
   handleFriends: () => void;
   handleSearchPlayers: () => void;
@@ -128,6 +129,12 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     router.push('/private-room' as any);
   };
   
+  const handleTournament = () => {
+    setMenuVisible(false);
+    // Navigate to tournament mode (free-for-all, no teams)
+    router.push('/multiplayer?mode=freeforall&tournament=true' as any);
+  };
+  
   const handleProfile = () => {
     setMenuVisible(false);
     router.push('/profile' as any);
@@ -203,6 +210,7 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     handlePlayOnline,
     navigateToGameMode,
     handlePrivateRoom,
+    handleTournament,
     handleProfile,
     handleFriends,
     handleSearchPlayers,

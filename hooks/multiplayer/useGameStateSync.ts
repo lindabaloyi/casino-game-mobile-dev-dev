@@ -98,6 +98,15 @@ export interface GameState {
       [stackId: string]: ShiyaRecall;
     };
   };
+  // Tournament mode (knockout)
+  tournamentMode?: 'knockout' | null;
+  tournamentPhase?: 'QUALIFYING' | 'SEMI_FINAL' | 'FINAL_SHOWDOWN' | 'COMPLETED' | null;
+  tournamentRound?: number;
+  playerStatuses?: { [playerIndex: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
+  tournamentScores?: { [playerIndex: string]: number };
+  eliminationOrder?: number[];
+  finalShowdownHandsPlayed?: number;
+  finalShowdownScores?: { [playerIndex: string]: number };
 }
 
 export interface GameOverData {

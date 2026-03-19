@@ -78,6 +78,15 @@ function initializeGame(playerCount = 2, isPartyMode = false) {
     teamCapturedBuilds: {},
     // Shiya recalls - ephemeral recall offers for each player
     shiyaRecalls: {},
+    // === TOURNAMENT STATE ===
+    tournamentMode: null, // 'knockout' or null
+    tournamentPhase: null, // 'QUALIFYING' | 'SEMI_FINAL' | 'FINAL_SHOWDOWN' | 'COMPLETED'
+    tournamentRound: 0,
+    playerStatuses: {}, // { [playerIndex]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' }
+    tournamentScores: {}, // { [playerIndex]: cumulativeScore }
+    eliminationOrder: [], // [playerIndex, playerIndex, ...]
+    finalShowdownHandsPlayed: 0,
+    tournamentWinner: null,
   };
 
   // Validate card distribution

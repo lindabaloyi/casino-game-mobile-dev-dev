@@ -11,12 +11,14 @@ interface GameButtonsProps {
   onCpuGame: () => void;
   onPlayOnline: () => void;
   onPrivateRoom: () => void;
+  onTournament: () => void;
 }
 
 export function GameButtons({ 
   onCpuGame, 
   onPlayOnline, 
   onPrivateRoom, 
+  onTournament, 
 }: GameButtonsProps) {
   const iconSize = 20;
   const buttonFontSize = 16;
@@ -30,6 +32,15 @@ export function GameButtons({
       >
         <Ionicons name="person" size={iconSize} color="white" />
         <Text style={[styles.buttonText, { fontSize: buttonFontSize }]}>Vs AI</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.tournamentButton} 
+        onPress={onTournament}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="trophy" size={iconSize} color="#FFD700" />
+        <Text style={[styles.tournamentButtonText, { fontSize: buttonFontSize }]}>Tournament</Text>
       </TouchableOpacity>
       
       <TouchableOpacity 
@@ -77,6 +88,23 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
+    fontWeight: '600',
+    marginLeft: 10,
+  },
+  tournamentButton: {
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    borderRadius: 10,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  tournamentButtonText: {
+    color: '#FFD700',
     fontWeight: '600',
     marginLeft: 10,
   },

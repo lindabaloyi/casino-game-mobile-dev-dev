@@ -64,6 +64,7 @@ export default function HomeScreen() {
     handlePlayOnline,
     navigateToGameMode,
     handlePrivateRoom,
+    handleTournament,
     handleProfile,
     handleFriends,
     handleSearchPlayers,
@@ -169,6 +170,7 @@ export default function HomeScreen() {
           onCpuGame={handleCpuGame}
           onPlayOnline={handlePlayOnline}
           onPrivateRoom={handlePrivateRoom}
+          onTournament={handleTournament}
         />
       </ScrollView>
     </View>

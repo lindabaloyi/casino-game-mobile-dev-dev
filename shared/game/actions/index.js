@@ -48,6 +48,11 @@ const actionHandlers = {
   shiya:               require('./shiya'),
   recallBuild:         require('./recallBuild'),
 
+  // ── Tournament (Knockout Mode) ─────────────────────────────────────────────────
+  startTournament:    require('./startTournament'),
+  endTournamentRound: require('./endTournamentRound'),
+  endFinalShowdown:   require('./endFinalShowdown'),
+
   // ── Multi-Card Capture (Opponent) ───────────────────────────────────────────
   startBuildCapture:  require('./startBuildCapture'),
   addToCapture:        require('./addToCapture'),
