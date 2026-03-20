@@ -205,6 +205,24 @@ export default function OnlinePlayScreen() {
               rank: idx + 1
             }
           }))}
+          eliminatedPlayers={Object.keys(tournamentStatus.playerStatuses)
+            .map(Number)
+            .filter(idx => 
+              tournamentStatus.playerStatuses[idx] === 'ELIMINATED' &&
+              !tournamentStatus.qualifiedPlayers.includes(idx)
+            )
+            .map(playerIndex => ({
+              playerIndex,
+              score: tournamentStatus.qualificationScores[playerIndex] || {
+                totalPoints: tournamentStatus.tournamentScores[playerIndex] || 0,
+                cardPoints: 0,
+                tenDiamondPoints: 0,
+                twoSpadePoints: 0,
+                acePoints: 0,
+                spadeBonus: 0,
+                cardCountBonus: 0,
+              }
+            }))}
           countdownSeconds={tournamentStatus.qualificationCountdown}
           onCountdownComplete={() => {
             console.log('[OnlinePlay] Qualification countdown complete, advancing to next phase');

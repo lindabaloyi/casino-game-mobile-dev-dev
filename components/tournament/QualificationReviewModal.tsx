@@ -1,7 +1,8 @@
 /**
  * QualificationReviewModal
- * Displays qualified players in a single row with simplified score display
- * Shows countdown timer to next phase
+ * Displays all players with their status (Qualified/Knocked Out) during tournament
+ * Shows point breakdown in the same unified style as GameOverModal
+ * Includes countdown timer to next phase
  */
 
 import React, { useEffect, useState } from 'react';
@@ -22,6 +23,8 @@ interface ScoreBreakdown {
   spadeBonus: number;
   cardCountBonus: number;
   rank?: number;
+  totalCards?: number;
+  spadeCount?: number;
 }
 
 interface QualifiedPlayer {
@@ -29,9 +32,15 @@ interface QualifiedPlayer {
   score: ScoreBreakdown;
 }
 
+interface EliminatedPlayer {
+  playerIndex: number;
+  score: ScoreBreakdown;
+}
+
 interface QualificationReviewModalProps {
   visible: boolean;
   qualifiedPlayers: QualifiedPlayer[];
+  eliminatedPlayers?: EliminatedPlayer[];
   countdownSeconds: number;
   onCountdownComplete?: () => void;
 }
@@ -61,9 +70,96 @@ function getNonZeroPoints(score: ScoreBreakdown): { label: string; value: number
   return points;
 }
 
+/**
+ * Render a single player panel in the GameOverModal style
+ */
+const renderPlayerPanel = (
+  playerIndex: number,
+  score: ScoreBreakdown,
+  isQualified: boolean,
+  isKnockedOut: boolean
+) => {
+  const hasPoints =
+    score.tenDiamondPoints > 0 ||
+    score.twoSpadePoints > 0 ||
+    score.acePoints > 0 ||
+    score.spadeBonus > 0 ||
+    score.cardCountBonus > 0;
+
+  return (
+    <View key={playerIndex} style={styles.playerPanel}>
+      <View style={styles.playerHeader}>
+        <Text style={styles.playerName}>P{playerIndex + 1}</Text>
+        <Text style={styles.playerScore}>{score.totalPoints}</Text>
+      </View>
+
+      {/* Status badges */}
+      {isQualified && (
+        <View style={styles.qualifiedBadge}>
+          <Text style={styles.qualifiedBadgeText}>✓ Qualified</Text>
+        </View>
+      )}
+      {isKnockedOut && (
+        <View style={styles.knockedOutBadge}>
+          <Text style={styles.knockedOutBadgeText}>✗ Knocked Out</Text>
+        </View>
+      )}
+
+      {hasPoints && (
+        <View style={styles.pointsContainer}>
+          {score.tenDiamondPoints > 0 && (
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>10♦</Text>
+              <Text style={styles.breakdownValue}>{score.tenDiamondPoints} pts</Text>
+            </View>
+          )}
+          {score.twoSpadePoints > 0 && (
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>2♠</Text>
+              <Text style={styles.breakdownValue}>{score.twoSpadePoints} pts</Text>
+            </View>
+          )}
+          {score.acePoints > 0 && (
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Aces</Text>
+              <Text style={styles.breakdownValue}>{score.acePoints} pts</Text>
+            </View>
+          )}
+          {score.spadeBonus > 0 && (
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Spades ({score.spadeCount || 0})</Text>
+              <Text style={[styles.breakdownValue, styles.activeBonus]}>+{score.spadeBonus}</Text>
+            </View>
+          )}
+          {score.cardCountBonus > 0 && (
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Cards ({score.totalCards || 0})</Text>
+              <Text style={[styles.breakdownValue, styles.activeBonus]}>+{score.cardCountBonus}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {hasPoints && <View style={styles.separator} />}
+
+      <View style={styles.statsContainer}>
+        <View style={styles.breakdownRow}>
+          <Text style={styles.statsLabel}>Cards</Text>
+          <Text style={styles.statsValue}>{score.totalCards || 0}</Text>
+        </View>
+        <View style={styles.breakdownRow}>
+          <Text style={styles.statsLabel}>Spades</Text>
+          <Text style={styles.statsValue}>{score.spadeCount || 0}</Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
 export function QualificationReviewModal({
   visible,
   qualifiedPlayers,
+  eliminatedPlayers = [],
   countdownSeconds,
   onCountdownComplete,
 }: QualificationReviewModalProps) {
@@ -107,10 +203,6 @@ export function QualificationReviewModal({
     return () => clearTimeout(timer);
   }, [countdown, visible, onCountdownComplete]);
 
-  const getRankEmoji = (rank: number) => {
-    return rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉';
-  };
-
   const getCountdownColor = () => {
     if (countdown > 5) return '#4CAF50';
     if (countdown > 2) return '#FFC107';
@@ -122,6 +214,10 @@ export function QualificationReviewModal({
     if (count <= 2) return 'Final Showdown';
     return 'Semi-Final';
   };
+
+  // Get qualified player indices for status check
+  const qualifiedIndices = qualifiedPlayers.map(p => p.playerIndex);
+  const eliminatedIndices = eliminatedPlayers.map(p => p.playerIndex);
 
   if (!visible) return null;
 
@@ -146,50 +242,20 @@ export function QualificationReviewModal({
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>🏆 QUALIFIED! 🏆</Text>
+            <Text style={styles.title}>🏆 TOURNAMENT 🏆</Text>
             <Text style={styles.subtitle}>{getSubtitle()} starts in...</Text>
           </View>
 
-          {/* Qualified Players - Single Row */}
-          <View style={styles.playersRow}>
-            {qualifiedPlayers.map((player) => {
-              const points = getNonZeroPoints(player.score);
-              
-              return (
-                <View 
-                  key={player.playerIndex} 
-                  style={[
-                    styles.playerCard,
-                    player.score.rank === 1 ? styles.firstPlaceCard : 
-                    player.score.rank === 2 ? styles.secondPlaceCard : styles.thirdPlaceCard
-                  ]}
-                >
-                  {/* Rank & Player */}
-                  <View style={styles.rankRow}>
-                    <Text style={styles.rankEmoji}>
-                      {getRankEmoji(player.score.rank || 2)}
-                    </Text>
-                    <Text style={styles.playerName}>
-                      P{player.playerIndex + 1}
-                    </Text>
-                  </View>
-
-                  {/* Points - Simple Row */}
-                  <View style={styles.pointsRow}>
-                    {points.map((point, idx) => (
-                      <View key={idx} style={styles.pointBadge}>
-                        <Text style={styles.pointLabel}>{point.label}</Text>
-                        <Text style={styles.pointValue}>{point.value}</Text>
-                      </View>
-                    ))}
-                    <View style={styles.totalBadge}>
-                      <Text style={styles.totalLabel}>TOT</Text>
-                      <Text style={styles.totalValue}>{player.score.totalPoints}</Text>
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
+          {/* All Players Grid - Same style as GameOverModal */}
+          <View style={styles.playersGrid}>
+            {/* Qualified players */}
+            {qualifiedPlayers.map((player) =>
+              renderPlayerPanel(player.playerIndex, player.score, true, false)
+            )}
+            {/* Eliminated players */}
+            {eliminatedPlayers.map((player) =>
+              renderPlayerPanel(player.playerIndex, player.score, false, true)
+            )}
           </View>
 
           {/* Countdown */}
@@ -210,16 +276,16 @@ export function QualificationReviewModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   container: {
-    width: '95%',
-    maxWidth: 600,
+    width: '92%',
+    maxWidth: 560,
     backgroundColor: '#1B5E20',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 20,
     borderWidth: 2,
     borderColor: '#FFD700',
   },
@@ -228,7 +294,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#FFD700',
     textAlign: 'center',
@@ -239,6 +305,111 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
+  // Grid layout for all players - same as GameOverModal
+  playersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  // Player panel - GameOverModal style
+  playerPanel: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 8,
+    padding: 10,
+    marginHorizontal: 3,
+    minWidth: '45%',
+  },
+  playerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  playerName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  playerScore: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FFD700',
+  },
+  // Status badges
+  qualifiedBadge: {
+    backgroundColor: 'rgba(76, 175, 80, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  qualifiedBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  knockedOutBadge: {
+    backgroundColor: 'rgba(244, 67, 54, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  knockedOutBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  // Points section
+  pointsContainer: {
+    marginBottom: 4,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  breakdownLabel: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.75)',
+  },
+  breakdownValue: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  activeBonus: {
+    color: '#FFD700',
+    fontWeight: '600',
+  },
+  // Separator
+  separator: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginVertical: 6,
+  },
+  // Stats section
+  statsContainer: {
+    marginTop: 4,
+  },
+  statsLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  statsValue: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  // Legacy styles (kept for compatibility)
   playersRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -273,11 +444,6 @@ const styles = StyleSheet.create({
   rankEmoji: {
     fontSize: 20,
     marginRight: 4,
-  },
-  playerName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: 'white',
   },
   pointsRow: {
     flexDirection: 'row',
@@ -321,6 +487,7 @@ const styles = StyleSheet.create({
   },
   countdownContainer: {
     alignItems: 'center',
+    marginTop: 12,
   },
   countdownCircle: {
     width: 60,

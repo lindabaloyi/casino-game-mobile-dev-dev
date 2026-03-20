@@ -1,10 +1,8 @@
 /**
  * GameOverModal
  * Modal displayed when the game ends.
- * Shows detailed point breakdown by card type for 2-player mode.
- * Shows team scores with player contributions for 4-player mode.
- * 
- * KISS Design: Clean typography, minimal borders, adequate spacing.
+ * Shows a minimal point breakdown: only positive contributions, no totals.
+ * Always displays total cards and total spades below a separator.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -63,7 +61,10 @@ interface GameOverModalProps {
   deckRemaining?: number;
   scoreBreakdowns?: PlayerBreakdown[];
   teamScoreBreakdowns?: TeamScoreBreakdowns;
-  isPartyMode?: boolean; // NEW: for 4-player to distinguish party vs free-for-all
+  isPartyMode?: boolean;
+  isTournamentMode?: boolean;
+  playerStatuses?: { [playerIndex: string]: string };
+  qualifiedPlayers?: number[];
   onPlayAgain?: () => void;
   onBackToMenu?: () => void;
 }
@@ -72,9 +73,15 @@ export function GameOverModal({
   visible,
   scores,
   playerCount,
+  capturedCards,
+  tableCardsRemaining,
+  deckRemaining,
   scoreBreakdowns,
   teamScoreBreakdowns,
   isPartyMode,
+  isTournamentMode,
+  playerStatuses,
+  qualifiedPlayers,
   onPlayAgain,
   onBackToMenu,
 }: GameOverModalProps) {
@@ -82,45 +89,35 @@ export function GameOverModal({
   const score2 = scores[1] || 0;
   const score3 = scores[2] || 0;
   const score4 = scores[3] || 0;
-  
-  // Determine winner text based on player count
+
+  // Determine winner text
   let winnerText: string;
   if (playerCount === 4 && isPartyMode) {
-    // 4-player party mode: determine team winner
     const teamAScore = score1 + score2;
     const teamBScore = score3 + score4;
-    if (teamAScore > teamBScore) {
-      winnerText = 'Team A';
-    } else if (teamBScore > teamAScore) {
-      winnerText = 'Team B';
-    } else {
-      winnerText = 'Tie';
-    }
+    if (teamAScore > teamBScore) winnerText = 'Team A';
+    else if (teamBScore > teamAScore) winnerText = 'Team B';
+    else winnerText = 'Tie';
   } else if (playerCount === 4) {
-    // 4-player free-for-all: find highest individual score
     const maxScore = Math.max(score1, score2, score3, score4);
     const winners = [];
     if (score1 === maxScore) winners.push('Player 1');
     if (score2 === maxScore) winners.push('Player 2');
     if (score3 === maxScore) winners.push('Player 3');
     if (score4 === maxScore) winners.push('Player 4');
-    if (winners.length === 1) {
-      winnerText = winners[0];
-    } else {
-      winnerText = 'Tie';
-    }
+    winnerText = winners.length === 1 ? winners[0] : 'Tie';
   } else if (playerCount === 3) {
     const maxScore = Math.max(score1, score2, score3);
-    const winners = [score1 === maxScore ? 'Player 1' : null, score2 === maxScore ? 'Player 2' : null, score3 === maxScore ? 'Player 3' : null].filter(Boolean);
-    if (winners.length === 1) {
-      winnerText = winners[0] || '';
-    } else {
-      winnerText = 'Tie';
-    }
+    const winners = [
+      score1 === maxScore ? 'Player 1' : null,
+      score2 === maxScore ? 'Player 2' : null,
+      score3 === maxScore ? 'Player 3' : null,
+    ].filter(Boolean);
+    winnerText = winners.length === 1 ? winners[0]! : 'Tie';
   } else {
     winnerText = score1 > score2 ? 'Player 1' : score2 > score1 ? 'Player 2' : 'Tie';
   }
-  
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
@@ -128,147 +125,267 @@ export function GameOverModal({
     if (visible) {
       fadeAnim.setValue(0);
       scaleAnim.setValue(0.8);
-
       Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }),
       ]).start();
     }
   }, [visible, fadeAnim, scaleAnim]);
 
-  const getWinnerText = () => {
-    if (winnerText === 'Tie') return "It's a Tie!";
-    return `${winnerText} Wins!`;
-  };
+  const getWinnerText = () => (winnerText === 'Tie' ? "It's a Tie!" : `${winnerText} Wins!`);
 
-  // Render detailed point breakdown for 2-player mode
+  // New minimal player breakdown: only positive points & bonuses, then separator, then cards/spades
   const renderPlayerBreakdown = (playerIndex: number, playerName: string, score: number) => {
     const bd = scoreBreakdowns?.[playerIndex];
-    
+    if (!bd) {
+      return (
+        <View style={styles.playerPanel}>
+          <View style={styles.playerHeader}>
+            <Text style={styles.playerName}>{playerName}</Text>
+            <Text style={styles.playerScore}>{score}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    // Determine if any point line should be shown
+    const hasPoints =
+      bd.tenDiamondPoints > 0 ||
+      bd.twoSpadePoints > 0 ||
+      bd.acePoints > 0 ||
+      bd.spadeBonus > 0 ||
+      bd.cardCountBonus > 0;
+
     return (
       <View style={styles.playerPanel}>
         <View style={styles.playerHeader}>
           <Text style={styles.playerName}>{playerName}</Text>
           <Text style={styles.playerScore}>{score}</Text>
         </View>
-        
-        {bd && (
-          <View style={styles.breakdownContainer}>
-            <Text style={styles.breakdownTitle}>Points From Cards</Text>
-            
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>10♦ (2 pts each)</Text>
-              <Text style={styles.breakdownValue}>
-                {bd.tenDiamondCount > 0 ? `${bd.tenDiamondCount} × 2 = ${bd.tenDiamondPoints}` : '0'}
-              </Text>
-            </View>
-            
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>2♠ (1 pt each)</Text>
-              <Text style={styles.breakdownValue}>
-                {bd.twoSpadeCount > 0 ? `${bd.twoSpadeCount} × 1 = ${bd.twoSpadePoints}` : '0'}
-              </Text>
-            </View>
-            
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Aces (1 pt each)</Text>
-              <Text style={styles.breakdownValue}>
-                {bd.aceCount > 0 ? `${bd.aceCount} × 1 = ${bd.acePoints}` : '0'}
-              </Text>
-            </View>
-            
-            <View style={[styles.breakdownRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Card Points</Text>
-              <Text style={styles.totalValue}>{bd.cardPoints}</Text>
-            </View>
 
-            <View style={styles.bonusSection}>
+        {hasPoints && (
+          <View style={styles.pointsContainer}>
+            {bd.tenDiamondPoints > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>10♦</Text>
+                <Text style={styles.breakdownValue}>{bd.tenDiamondPoints} pts</Text>
+              </View>
+            )}
+            {bd.twoSpadePoints > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>2♠</Text>
+                <Text style={styles.breakdownValue}>{bd.twoSpadePoints} pts</Text>
+              </View>
+            )}
+            {bd.acePoints > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Aces</Text>
+                <Text style={styles.breakdownValue}>{bd.acePoints} pts</Text>
+              </View>
+            )}
+            {bd.spadeBonus > 0 && (
               <View style={styles.breakdownRow}>
                 <Text style={styles.breakdownLabel}>Spades ({bd.spadeCount})</Text>
-                <Text style={[styles.breakdownValue, bd.spadeBonus > 0 && styles.activeBonus]}>
-                  {bd.spadeBonus > 0 ? `+${bd.spadeBonus}` : '0'}
-                </Text>
+                <Text style={[styles.breakdownValue, styles.activeBonus]}>+{bd.spadeBonus}</Text>
               </View>
-              {bd.cardCountBonus > 0 && (
-                <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>Cards ({bd.totalCards})</Text>
-                  <Text style={[styles.breakdownValue, styles.activeBonus]}>
-                    +{bd.cardCountBonus}
-                  </Text>
-                </View>
-              )}
-            </View>
+            )}
+            {bd.cardCountBonus > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Cards ({bd.totalCards})</Text>
+                <Text style={[styles.breakdownValue, styles.activeBonus]}>+{bd.cardCountBonus}</Text>
+              </View>
+            )}
           </View>
         )}
+
+        {/* Separator only if there are points to show above */}
+        {hasPoints && <View style={styles.separator} />}
+
+        {/* Always show cards and spades */}
+        <View style={styles.statsContainer}>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.statsLabel}>Cards</Text>
+            <Text style={styles.statsValue}>{bd.totalCards}</Text>
+          </View>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.statsLabel}>Spades</Text>
+            <Text style={styles.statsValue}>{bd.spadeCount}</Text>
+          </View>
+        </View>
       </View>
     );
   };
 
-  // Render team breakdown for 4-player mode
+  // Similar style for team breakdown
   const renderTeamBreakdown = (teamName: string, team: TeamBreakdown, teamScore: number) => {
+    const hasPoints =
+      team.tenDiamondPoints > 0 ||
+      team.twoSpadePoints > 0 ||
+      team.acePoints > 0 ||
+      team.spadeBonus > 0 ||
+      team.cardCountBonus > 0;
+
     return (
       <View style={styles.teamPanel}>
         <View style={styles.teamHeader}>
           <Text style={styles.teamName}>{teamName}</Text>
           <Text style={styles.teamScore}>{teamScore}</Text>
         </View>
-        
-        {/* Team card breakdown */}
-        <View style={styles.teamBreakdown}>
-          <Text style={styles.breakdownTitle}>Team Points</Text>
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>10♦</Text>
-            <Text style={styles.breakdownValue}>{team.tenDiamondPoints}</Text>
-          </View>
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>2♠</Text>
-            <Text style={styles.breakdownValue}>{team.twoSpadePoints}</Text>
-          </View>
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Aces</Text>
-            <Text style={styles.breakdownValue}>{team.acePoints}</Text>
-          </View>
-          <View style={[styles.breakdownRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Card Points</Text>
-            <Text style={styles.totalValue}>{team.cardPoints}</Text>
-          </View>
-          
-          <View style={styles.bonusSection}>
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Spades ({team.spadeCount})</Text>
-              <Text style={[styles.breakdownValue, team.spadeBonus > 0 && styles.activeBonus]}>
-                {team.spadeBonus > 0 ? `+${team.spadeBonus}` : '0'}
-              </Text>
-            </View>
+
+        {hasPoints && (
+          <View style={styles.pointsContainer}>
+            {team.tenDiamondPoints > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>10♦</Text>
+                <Text style={styles.breakdownValue}>{team.tenDiamondPoints} pts</Text>
+              </View>
+            )}
+            {team.twoSpadePoints > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>2♠</Text>
+                <Text style={styles.breakdownValue}>{team.twoSpadePoints} pts</Text>
+              </View>
+            )}
+            {team.acePoints > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Aces</Text>
+                <Text style={styles.breakdownValue}>{team.acePoints} pts</Text>
+              </View>
+            )}
+            {team.spadeBonus > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Spades ({team.spadeCount})</Text>
+                <Text style={[styles.breakdownValue, styles.activeBonus]}>+{team.spadeBonus}</Text>
+              </View>
+            )}
             {team.cardCountBonus > 0 && (
               <View style={styles.breakdownRow}>
                 <Text style={styles.breakdownLabel}>Cards ({team.totalCards})</Text>
-                <Text style={[styles.breakdownValue, styles.activeBonus]}>
-                  +{team.cardCountBonus}
-                </Text>
+                <Text style={[styles.breakdownValue, styles.activeBonus]}>+{team.cardCountBonus}</Text>
               </View>
             )}
           </View>
+        )}
+
+        {hasPoints && <View style={styles.separator} />}
+
+        <View style={styles.statsContainer}>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.statsLabel}>Cards</Text>
+            <Text style={styles.statsValue}>{team.totalCards}</Text>
+          </View>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.statsLabel}>Spades</Text>
+            <Text style={styles.statsValue}>{team.spadeCount}</Text>
+          </View>
         </View>
 
-        {/* Individual player contributions */}
-        <View style={styles.playersSection}>
-          <Text style={styles.breakdownTitle}>Player Contributions</Text>
-          {team.players.map((player, idx) => (
-            <View key={idx} style={styles.playerContribution}>
-              <Text style={styles.playerLabel}>P{player.playerIndex + 1}</Text>
-              <Text style={styles.playerPoints}>{player.cardPoints} pts</Text>
-            </View>
-          ))}
+        {/* Player contributions (only for team mode) */}
+        {team.players.length > 0 && (
+          <View style={styles.playersSection}>
+            <Text style={styles.breakdownTitle}>Contributions</Text>
+            {team.players.map((player, idx) => (
+              <View key={idx} style={styles.playerContribution}>
+                <Text style={styles.playerLabel}>P{player.playerIndex + 1}</Text>
+                <Text style={styles.playerPoints}>{player.cardPoints} pts</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  // Tournament player: status badges + same minimal layout
+  const renderTournamentPlayer = (playerIndex: number, playerName: string, score: number) => {
+    const bd = scoreBreakdowns?.[playerIndex];
+    const status = playerStatuses?.[playerIndex];
+    const isQualified = qualifiedPlayers?.includes(playerIndex) || status === 'WINNER';
+    const isKnockedOut = status === 'ELIMINATED';
+
+    if (!bd) {
+      return (
+        <View style={styles.playerPanel}>
+          <View style={styles.playerHeader}>
+            <Text style={styles.playerName}>{playerName}</Text>
+            <Text style={styles.playerScore}>{score}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    const hasPoints =
+      bd.tenDiamondPoints > 0 ||
+      bd.twoSpadePoints > 0 ||
+      bd.acePoints > 0 ||
+      bd.spadeBonus > 0 ||
+      bd.cardCountBonus > 0;
+
+    return (
+      <View style={styles.playerPanel}>
+        <View style={styles.playerHeader}>
+          <Text style={styles.playerName}>{playerName}</Text>
+          <Text style={styles.playerScore}>{score}</Text>
+        </View>
+
+        {/* Status badges */}
+        {isQualified && (
+          <View style={styles.qualifiedBadge}>
+            <Text style={styles.qualifiedBadgeText}>✓ Qualified</Text>
+          </View>
+        )}
+        {isKnockedOut && (
+          <View style={styles.knockedOutBadge}>
+            <Text style={styles.knockedOutBadgeText}>✗ Knocked Out</Text>
+          </View>
+        )}
+
+        {hasPoints && (
+          <View style={styles.pointsContainer}>
+            {bd.tenDiamondPoints > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>10♦</Text>
+                <Text style={styles.breakdownValue}>{bd.tenDiamondPoints} pts</Text>
+              </View>
+            )}
+            {bd.twoSpadePoints > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>2♠</Text>
+                <Text style={styles.breakdownValue}>{bd.twoSpadePoints} pts</Text>
+              </View>
+            )}
+            {bd.acePoints > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Aces</Text>
+                <Text style={styles.breakdownValue}>{bd.acePoints} pts</Text>
+              </View>
+            )}
+            {bd.spadeBonus > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Spades ({bd.spadeCount})</Text>
+                <Text style={[styles.breakdownValue, styles.activeBonus]}>+{bd.spadeBonus}</Text>
+              </View>
+            )}
+            {bd.cardCountBonus > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Cards ({bd.totalCards})</Text>
+                <Text style={[styles.breakdownValue, styles.activeBonus]}>+{bd.cardCountBonus}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {hasPoints && <View style={styles.separator} />}
+
+        <View style={styles.statsContainer}>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.statsLabel}>Cards</Text>
+            <Text style={styles.statsValue}>{bd.totalCards}</Text>
+          </View>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.statsLabel}>Spades</Text>
+            <Text style={styles.statsValue}>{bd.spadeCount}</Text>
+          </View>
         </View>
       </View>
     );
@@ -282,22 +399,23 @@ export function GameOverModal({
 
           <View style={styles.scoresSection}>
             <Text style={styles.scoresTitle}>Final Scores</Text>
-            
-            {playerCount === 2 ? (
-              /* 2-player mode */
+
+            {playerCount === 2 && (
               <View style={styles.playersRow}>
                 {renderPlayerBreakdown(0, 'Player 1', score1)}
                 {renderPlayerBreakdown(1, 'Player 2', score2)}
               </View>
-            ) : playerCount === 3 ? (
-              /* 3-player mode */
+            )}
+
+            {playerCount === 3 && (
               <View style={styles.threePlayersContainer}>
                 {renderPlayerBreakdown(0, 'Player 1', score1)}
                 {renderPlayerBreakdown(1, 'Player 2', score2)}
                 {renderPlayerBreakdown(2, 'Player 3', score3)}
               </View>
-            ) : playerCount === 4 && isPartyMode ? (
-              /* 4-player party mode - show teams */
+            )}
+
+            {playerCount === 4 && isPartyMode && (
               <View style={styles.teamsContainer}>
                 {teamScoreBreakdowns ? (
                   <>
@@ -317,23 +435,20 @@ export function GameOverModal({
                   </>
                 )}
               </View>
-            ) : playerCount === 4 ? (
-              /* 4-player free-for-all - show 4 individual players */
+            )}
+
+            {/* All 4-player modes use the same breakdown layout */}
+            {playerCount === 4 && !isPartyMode && (
               <View style={styles.fourPlayersContainer}>
                 {renderPlayerBreakdown(0, 'Player 1', score1)}
                 {renderPlayerBreakdown(1, 'Player 2', score2)}
                 {renderPlayerBreakdown(2, 'Player 3', score3)}
                 {renderPlayerBreakdown(3, 'Player 4', score4)}
               </View>
-            ) : (
-              /* Fallback - should not happen */
-              <View />
             )}
           </View>
 
-          <Text style={styles.winnerText}>
-            {getWinnerText()}
-          </Text>
+          <Text style={styles.winnerText}>{getWinnerText()}</Text>
 
           <View style={styles.buttons}>
             {onPlayAgain && (
@@ -343,7 +458,6 @@ export function GameOverModal({
                 </Text>
               </View>
             )}
-
             {onBackToMenu && (
               <Text style={styles.backButtonText} onPress={onBackToMenu}>
                 Back to Menu
@@ -431,14 +545,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFD700',
   },
-  breakdownContainer: {
-    flex: 1,
-  },
-  breakdownTitle: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: 6,
+  pointsContainer: {
+    marginBottom: 4,
   },
   breakdownRow: {
     flexDirection: 'row',
@@ -454,33 +562,29 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#FFFFFF',
   },
-  totalRow: {
-    marginTop: 4,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  totalLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  totalValue: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  bonusSection: {
-    marginTop: 8,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-  },
   activeBonus: {
     color: '#FFD700',
     fontWeight: '600',
   },
-  // Team styles for 4-player mode
+  separator: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginVertical: 6,
+  },
+  statsContainer: {
+    marginTop: 4,
+  },
+  statsLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  statsValue: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  // Team styles
   teamsContainer: {
     width: '100%',
   },
@@ -509,11 +613,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFD700',
   },
-  teamBreakdown: {
-    marginBottom: 8,
+  breakdownTitle: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 4,
   },
   playersSection: {
     paddingTop: 8,
+    marginTop: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -572,6 +680,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 2,
+  },
+  // Tournament-specific styles
+  qualifiedBadge: {
+    backgroundColor: 'rgba(76, 175, 80, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  qualifiedBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  knockedOutBadge: {
+    backgroundColor: 'rgba(244, 67, 54, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  knockedOutBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
 

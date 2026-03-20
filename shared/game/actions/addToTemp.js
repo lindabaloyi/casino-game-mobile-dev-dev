@@ -104,12 +104,21 @@ function addToTemp(state, payload, playerIndex) {
   const cardInfo = findCardAtSource(state, card, cardSource, playerIndex);
   
   if (!cardInfo.found) {
-    // Check if card already exists in a temp stack (action was already processed)
-    const existingTempStack = state.tableCards.find(
+    // Check if card already exists in ANY temp stack (action was already processed)
+    // Check both original state AND new state (in case createTemp ran first in same batch)
+    const existingTempStackInOriginal = state.tableCards.find(
       tc => tc.type === 'temp_stack' && tc.stackId !== stackId && tc.cards?.some(c => c.rank === card.rank && c.suit === card.suit)
     );
-    if (existingTempStack) {
+    if (existingTempStackInOriginal) {
       return state;
+    }
+    
+    // Also check in the new state's temp stacks (for same-batch processing)
+    const newStateTempStack = newState.tableCards.find(
+      tc => tc.type === 'temp_stack' && tc.stackId !== stackId && tc.cards?.some(c => c.rank === card.rank && c.suit === card.suit)
+    );
+    if (newStateTempStack) {
+      return newState;
     }
     
     console.error('[addToTemp] ===== CARD NOT AT CLAIMED SOURCE =====');

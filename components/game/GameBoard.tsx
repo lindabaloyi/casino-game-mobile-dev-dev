@@ -53,6 +53,10 @@ interface GameBoardProps {
     scoreBreakdowns?: any[];
     teamScoreBreakdowns?: any;
     isPartyMode?: boolean;
+    // Tournament-specific props
+    isTournamentMode?: boolean;
+    playerStatuses?: { [playerIndex: string]: string };
+    qualifiedPlayers?: number[];
   } | null;
   playerNumber: number;
   sendAction: (action: { type: string; payload?: Record<string, unknown> }) => void;

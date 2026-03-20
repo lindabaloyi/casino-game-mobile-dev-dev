@@ -108,6 +108,8 @@ export interface GameState {
   eliminationOrder?: number[];
   finalShowdownHandsPlayed?: number;
   finalShowdownScores?: { [playerIndex: string]: number };
+  qualifiedPlayers?: number[];
+  qualificationScores?: { [playerIndex: string]: { totalPoints: number; cardPoints: number; tenDiamondPoints: number; twoSpadePoints: number; acePoints: number; spadeBonus: number; cardCountBonus: number; rank?: number } };
 }
 
 export interface GameOverData {
@@ -117,6 +119,12 @@ export interface GameOverData {
   tableCardsRemaining?: number;
   deckRemaining?: number;
   isPartyMode?: boolean; // NEW: tells frontend if party mode (teams) or free-for-all
+  // Tournament-specific data
+  isTournamentMode?: boolean;
+  playerStatuses?: { [playerIndex: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
+  qualifiedPlayers?: number[];
+  qualificationScores?: { [playerIndex: string]: { totalPoints: number; cardPoints: number; tenDiamondPoints: number; twoSpadePoints: number; acePoints: number; spadeBonus: number; cardCountBonus: number; rank?: number } };
+
   scoreBreakdowns?: Array<{
     totalCards: number;
     spadeCount: number;

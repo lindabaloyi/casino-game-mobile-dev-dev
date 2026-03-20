@@ -23,7 +23,7 @@ class GameCoordinatorService {
     this.broadcaster  = broadcaster;
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── Helpers ─────────────────────────────────────────────────────────────
 
    /** Resolve which game + player this socket belongs to, or send error. */
    _resolvePlayer(socket) {
@@ -185,7 +185,7 @@ class GameCoordinatorService {
          }
        } else {
         this.broadcaster.broadcastGameUpdate(gameId, newState, this.unifiedMatchmaking);
-      }
+       }
     } catch (err) {
       console.error(`[Coordinator] game-action failed: ${err.message}`);
       this.broadcaster.sendError(socket, err.message);
@@ -315,6 +315,11 @@ class GameCoordinatorService {
        ? scoring.getTeamScoreBreakdown(finalizedState.players)
        : null;
      
+     // Get tournament-specific data
+     const isTournamentMode = finalizedState.tournamentMode === 'knockout';
+     const playerStatuses = finalizedState.playerStatuses || null;
+     const qualifiedPlayers = finalizedState.qualifiedPlayers || null;
+     
      for (let i = 0; i < playerCount; i++) {
        capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
        // Get detailed score breakdown for each player
@@ -329,6 +334,7 @@ class GameCoordinatorService {
      this._saveGameToMongo(gameId, finalizedState, isPartyGame);
      
      console.log(`[Coordinator] Broadcasting game-over for ${playerCount}-player mode, winner: ${RoundValidator.determineRoundWinner(finalizedState)}`);
+     console.log(`[Coordinator] isTournamentMode: ${isTournamentMode}, playerStatuses: ${JSON.stringify(playerStatuses)}, qualifiedPlayers: ${JSON.stringify(qualifiedPlayers)}`);
      console.log(`[Coordinator] Using unified matchmaking service`);
      console.log(`[Coordinator] About to call broadcaster.broadcastToGame...`);
      this.broadcaster.broadcastToGame(gameId, 'game-over', {
@@ -340,6 +346,9 @@ class GameCoordinatorService {
        scoreBreakdowns,
        teamScoreBreakdowns,
        isPartyMode,
+       isTournamentMode,
+       playerStatuses,
+       qualifiedPlayers,
      }, this.unifiedMatchmaking);
      console.log(`[Coordinator] broadcastToGame called!`);
    }
@@ -360,7 +369,7 @@ class GameCoordinatorService {
         name: p.name || `Player ${index + 1}`,
         userId: p.userId || null
       }));
-      
+
       await GameState.save({
         roomId: gameId,
         gameState: gameState,
