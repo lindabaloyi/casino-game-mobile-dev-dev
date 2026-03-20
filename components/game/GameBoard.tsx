@@ -429,7 +429,8 @@ export function GameBoard({
         isPartyMode={gameState.playerCount === 4 && gameState.gameMode === 'party'}
         currentPlayerIndex={gameState.currentPlayer}
         // Use gameMode from gameState if available, otherwise detect from playerCount
-        gameMode={gameState.gameMode || (gameState.playerCount === 3 ? 'two-hands' : (gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team) ? 'party' : 'freeforall'))}
+        // Fix: 2-player mode should default to 'two-hands', not 'freeforall'
+        gameMode={gameState.gameMode || (gameState.playerCount === 2 ? 'two-hands' : (gameState.playerCount === 3 ? 'two-hands' : (gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team) ? 'party' : 'freeforall')))}
         tableRef={drag.tableRef}
         onTableLayout={drag.onTableLayout}
         registerCard={drag.registerCard}

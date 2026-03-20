@@ -14,7 +14,8 @@ export function usePlayerTeam(playerNumber: number, playerCount: number, gameMod
   // Free-for-all mode: 4-player without teams
   const isFreeForAll = gameMode === 'freeforall' || (playerCount === 4 && gameMode !== 'party');
   const isPartyMode = gameMode === 'party' || (playerCount === 4 && !isFreeForAll);
-  const isThreePlayerMode = gameMode === 'two-hands' || gameMode === 'three-hands' || playerCount === 3;
+  // Fix: 'two-hands' is 2-player mode, not 3-player mode
+  const isThreePlayerMode = gameMode === 'three-hands' || playerCount === 3;
 
   const teammateIndex = useMemo(() => {
     if (isThreePlayerMode || isFreeForAll) {
