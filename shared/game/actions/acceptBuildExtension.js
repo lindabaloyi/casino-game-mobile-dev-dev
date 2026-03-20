@@ -93,9 +93,20 @@ function acceptBuildExtension(state, payload, playerIndex) {
   buildStack.base = buildResult.base;
   buildStack.need = buildResult.need;
   buildStack.buildType = buildResult.buildType;
+  
+  // Check if any hand card was used in the extension
+  const usedHandCard = buildStack.pendingExtension?.usedHandCard || false;
+  
+  // Clear the pending extension
   buildStack.pendingExtension = null;
 
-  return nextTurn(newState);
+  // End turn only if a hand card was used; otherwise continue turn
+  if (usedHandCard) {
+    return nextTurn(newState);
+  } else {
+    // Turn continues - player can make additional moves (e.g., capture)
+    return newState;
+  }
 }
 
 module.exports = acceptBuildExtension;

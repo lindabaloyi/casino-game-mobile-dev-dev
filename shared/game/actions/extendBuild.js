@@ -220,10 +220,14 @@ function extendBuild(state, payload, playerIndex) {
     // ----- Determine if we are starting or adding to a pending extension -----
     const hasPending = !!buildStack.pendingExtension;
 
+    // Track whether a hand card is being used (for turn ending logic)
+    const isHandCard = cardSource === 'hand';
+
     if (!hasPending) {
       // Start a new pending extension
       buildStack.pendingExtension = {
-        cards: [{ card: removedCard, source: cardSource }]
+        cards: [{ card: removedCard, source: cardSource }],
+        usedHandCard: isHandCard
       };
     } else {
       // Adding to an existing pending extension
@@ -233,6 +237,8 @@ function extendBuild(state, payload, playerIndex) {
         if (handCardsInExtension >= 1) {
           throw new Error('extendBuild: cannot add more than one hand card to a pending extension');
         }
+        // Mark that a hand card was used
+        buildStack.pendingExtension.usedHandCard = true;
       }
       buildStack.pendingExtension.cards.push({ card: removedCard, source: cardSource });
     }
