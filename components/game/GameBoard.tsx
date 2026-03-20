@@ -34,6 +34,9 @@ import { ErrorBanner } from '../shared/ErrorBanner';
 import { Card as TableCard } from '../../types';
 import { GameOverModal } from '../modals/GameOverModal';
 import { ShiyaRecallModal } from '../modals/ShiyaRecallModal';
+import { HomeMenuButton } from './HomeMenuButton';
+import { OpponentProfileModal } from '../modals/OpponentProfileModal';
+import { useOpponentInfo } from '../../hooks/useOpponentInfo';
 import { areTeammates } from '../../shared/game/team';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -111,6 +114,9 @@ export function GameBoard({
   const modals = useModalManager();
   const actions = useGameActions(sendAction);
   
+  // Opponent info hook for profile modal
+  const opponentInfo = useOpponentInfo();
+
   // Computed values
   const computed = useGameComputed(gameState, playerNumber);
   const { getTableBounds } = useTableBounds(drag.dropBounds);
@@ -631,6 +637,36 @@ export function GameBoard({
           }
         } : undefined}
         onBackToMenu={onBackToMenu}
+      />
+
+      {/* Home Menu Button - Bottom left corner */}
+      <HomeMenuButton
+        playerNumber={playerNumber}
+        players={gameState.players || []}
+        onQuitGame={() => {
+          if (onBackToMenu) {
+            onBackToMenu();
+          }
+        }}
+        onOpponentPress={(playerIndex) => {
+          opponentInfo.selectOpponent(playerIndex, gameState.players || []);
+        }}
+      />
+
+      {/* Opponent Profile Modal */}
+      <OpponentProfileModal
+        visible={opponentInfo.isModalVisible}
+        opponent={opponentInfo.selectedOpponent}
+        isFriend={opponentInfo.isFriend(opponentInfo.selectedOpponent?.userId)}
+        isPendingRequest={opponentInfo.isPendingRequest(opponentInfo.selectedOpponent?.userId)}
+        isLoading={opponentInfo.isLoadingFriendRequest}
+        onClose={opponentInfo.closeModal}
+        onSendFriendRequest={async () => {
+          const result = await opponentInfo.sendFriendRequest();
+          if (!result.success) {
+            console.log('[GameBoard] Failed to send friend request:', result.error);
+          }
+        }}
       />
     </View>
   );

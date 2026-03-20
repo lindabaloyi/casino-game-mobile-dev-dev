@@ -178,14 +178,17 @@ export function PlayerHandArea({
     }
     
     if (numCards <= 1) {
+      // Calculate centering offset for single card - center it on screen
+      const singleCardWidth = responsiveCw + 16;
+      const offset = Math.max(0, (screenWidth - singleCardWidth - 32) / 2);
       return { 
         cardOverlap: 0, 
-        handWidth: responsiveCw + 16,
+        handWidth: singleCardWidth,
         containerHeight: halfHeight + 8,
         responsiveCardWidth: responsiveCw,
         responsiveCardHeight: responsiveCh,
-        centerOffset: 0,
-        shouldCenterCards: false,
+        centerOffset: offset,
+        shouldCenterCards: true,  // Enable centering for single card
         containerPaddingHorizontal: 16
       };
     }
