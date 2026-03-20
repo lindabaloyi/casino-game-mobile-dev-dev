@@ -1,7 +1,7 @@
 /**
  * addToCapture
  * Opponent adds another card to an existing pending capture set.
- * Supports cards from hand or table only.
+ * Supports cards from hand, table, or captured pile.
  */
 
 const { cloneState } = require('../');
@@ -11,7 +11,7 @@ function areTeammates(pA, pB) {
 }
 
 /**
- * Find a card at a specific source location (hand or table only)
+ * Find a card at a specific source location (hand, table, or captured)
  */
 function findCardAtSource(state, card, source, playerIndex) {
   const cardKey = `${card.rank}${card.suit}`;
@@ -40,6 +40,27 @@ function findCardAtSource(state, card, source, playerIndex) {
     return { found: false };
   }
 
+  // Search captured pile - can be 'captured' (own) or 'captured_<playerIndex>'
+  if (source === 'captured' || (typeof source === 'string' && source.startsWith('captured_'))) {
+    let ownerIndex = playerIndex;
+    
+    if (source.startsWith('captured_')) {
+      const parsed = parseInt(source.split('_')[1], 10);
+      if (!isNaN(parsed) && parsed >= 0 && parsed < state.players.length) {
+        ownerIndex = parsed;
+      }
+    }
+    
+    const captures = state.players[ownerIndex]?.captures || [];
+    const captureIdx = captures.findIndex(c => c.rank === card.rank && c.suit === card.suit);
+    console.log('[addToCapture-findCardAtSource] Captured search result:', captureIdx, 'at owner:', ownerIndex);
+    
+    if (captureIdx !== -1) {
+      return { found: true, card: captures[captureIdx], index: captureIdx, ownerIndex };
+    }
+    return { found: false };
+  }
+
   return { found: false };
 }
 
@@ -51,9 +72,12 @@ function addToCapture(state, payload, playerIndex) {
   if (!stackId) throw new Error('addToCapture: missing stackId');
   if (!card?.rank || !card?.suit) throw new Error('addToCapture: invalid card');
 
-  // Validate source - only hand and table allowed for capture
-  if (cardSource !== 'hand' && cardSource !== 'table') {
-    throw new Error('addToCapture: card source must be "hand" or "table"');
+  // Validate source - hand, table, or captured allowed for capture
+  const validSources = ['hand', 'table', 'captured'];
+  const isValidSource = validSources.includes(cardSource) || 
+    (typeof cardSource === 'string' && cardSource.startsWith('captured_'));
+  if (!isValidSource) {
+    throw new Error('addToCapture: card source must be "hand", "table", or "captured" (or "captured_<playerIndex>")');
   }
 
   const newState = cloneState(state);
@@ -95,6 +119,7 @@ function addToCapture(state, payload, playerIndex) {
 
   // Remove card from source
   let usedCard;
+  const cardOwnerIndex = cardInfo.ownerIndex ?? playerIndex;
 
   try {
     if (cardSource === 'table') {
@@ -104,6 +129,10 @@ function addToCapture(state, payload, playerIndex) {
       const hand = newState.players[playerIndex].hand;
       [usedCard] = hand.splice(cardInfo.index, 1);
       usedCard = { ...usedCard, source: 'hand' };
+    } else if (cardSource === 'captured' || (typeof cardSource === 'string' && cardSource.startsWith('captured_'))) {
+      const captures = newState.players[cardOwnerIndex].captures;
+      [usedCard] = captures.splice(cardInfo.index, 1);
+      usedCard = { ...usedCard, source: cardSource };
     } else {
       throw new Error(`addToCapture: unknown cardSource "${cardSource}"`);
     }
@@ -120,6 +149,8 @@ function addToCapture(state, payload, playerIndex) {
       newState.tableCards.splice(cardInfo.index, 0, cardInfo.card);
     } else if (cardSource === 'hand') {
       newState.players[playerIndex].hand.splice(cardInfo.index, 0, cardInfo.card);
+    } else if (cardSource === 'captured' || (typeof cardSource === 'string' && cardSource.startsWith('captured_'))) {
+      newState.players[cardOwnerIndex].captures.splice(cardInfo.index, 0, cardInfo.card);
     }
     throw error;
   }

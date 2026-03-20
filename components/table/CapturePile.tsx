@@ -41,6 +41,8 @@ interface CapturePileProps {
   findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   /** Extend build callback */
   onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}`) => void;
+  /** Callback for capturing opponent's build with a captured card */
+  onCaptureBuild?: (card: Card, stackId: string, cardSource: 'captured' | `captured_${number}`) => void;
   /** Opponent drag state */
   opponentDrag?: OpponentDragState | null;
   /** Registration callbacks */
@@ -66,6 +68,7 @@ export function CapturePile({
   findCardAtPoint,
   findTempStackAtPoint,
   onExtendBuild,
+  onCaptureBuild,
   opponentDrag,
   registerCapturePile,
   unregisterCapturePile,
@@ -145,6 +148,7 @@ export function CapturePile({
           isPartyMode={isPartyMode}
           opponentDrag={opponentDrag}
           onExtendBuild={onExtendBuild}
+          onCaptureBuild={onCaptureBuild}
         />
       );
     }

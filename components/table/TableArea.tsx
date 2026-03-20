@@ -102,6 +102,8 @@ interface Props {
   // Build extension handlers
   extendingBuildId?: string | null;
   onExtendBuild?: (card: Card, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}`) => void;
+  /** Callback for capturing opponent's build with a captured card */
+  onCaptureBuild?: (card: Card, stackId: string, cardSource: 'captured' | `captured_${number}`) => void;
   onAcceptExtend?: (stackId: string) => void;
   onDeclineExtend?: (stackId: string) => void;
   
@@ -168,6 +170,7 @@ export function TableArea({
   onTempStackDragEnd,
   extendingBuildId,
   onExtendBuild,
+  onCaptureBuild,
   onAcceptExtend,
   onDeclineExtend,
   opponentDrag,
@@ -283,6 +286,7 @@ export function TableArea({
         registerCapturePile={registerCapturePile}
         unregisterCapturePile={unregisterCapturePile}
         onExtendBuild={onExtendBuild}
+        onCaptureBuild={onCaptureBuild}
         opponentDrag={opponentDrag}
         isPartyMode={isPartyMode}
         currentPlayerIndex={currentPlayerIndex}

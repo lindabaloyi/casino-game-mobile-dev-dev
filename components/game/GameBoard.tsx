@@ -463,6 +463,10 @@ export function GameBoard({
         onCapturedCardDragStart={dragHandlers.handleCapturedDragStart}
         onCapturedCardDragMove={dragOverlay.moveDrag}
         onCapturedCardDragEnd={(card, targetCard, targetStackId, source) => {
+          // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
+          // This prevents seeing the card "drag back" to the pile
+          dragOverlay.markPendingDrop(card, 'captured');
+          
           // Emit drag-end to server so opponents can clean up ghost cards
           if (emitDragEnd) {
             const absX = dragOverlay.overlayX.value + 28;
@@ -486,6 +490,36 @@ export function GameBoard({
           } else if (targetStackId) {
             actions.addToTemp(card, targetStackId, source || 'captured');
           }
+          dragOverlay.endDrag();
+        }}
+        onCaptureBuild={(card, stackId, cardSource) => {
+          console.log('[GameBoard] onCaptureBuild called:', card?.rank, card?.suit, 'stackId:', stackId, 'source:', cardSource);
+          // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
+          // This prevents seeing the card "drag back" to the pile
+          dragOverlay.markPendingDrop(card, 'captured');
+          
+          // Emit drag-end to server so opponents can clean up ghost cards
+          if (emitDragEnd) {
+            const absX = dragOverlay.overlayX.value + 28;
+            const absY = dragOverlay.overlayY.value + 42;
+            const tableBounds = drag.dropBounds.current;
+            const normX = Math.max(0, Math.min(1, absX / (tableBounds.width || 400)));
+            const normY = Math.max(0, Math.min(1, absY / (tableBounds.height || 300)));
+            emitDragEnd(card, { x: normX, y: normY }, 'success', 'build_stack', stackId);
+          }
+          
+          // Find the build stack to get owner - use smart router via stackDrop
+          // This ensures proper handling of pending captures (addToCapture vs startBuildCapture)
+          const buildStack = computed.table.find(
+            (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
+          ) as any;
+          const stackOwner = buildStack?.owner ?? 0;
+          
+          // Use stackDrop which goes through smart router to handle pending captures correctly
+          // cardSource is 'captured_<playerIndex>' - e.g., 'captured_3' means card from player 3's pile
+          // We need to pass this through so server knows which player's captures to search
+          const source = cardSource || 'captured';
+          actions.stackDrop(card, stackId, stackOwner, 'build_stack', source as any);
           dragOverlay.endDrag();
         }}
         findCapturePileAtPoint={drag.findCapturePileAtPoint}

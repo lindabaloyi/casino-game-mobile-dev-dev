@@ -28,6 +28,8 @@ export interface DraggableOpponentCardProps {
   isPartyMode?: boolean;
   opponentDrag?: OpponentDragState | null;
   onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}`) => void;
+  /** Callback for capturing opponent's build with a captured card */
+  onCaptureBuild?: (card: Card, stackId: string, cardSource: 'captured' | `captured_${number}`) => void;
 }
 
 export function DraggableOpponentCard({
@@ -43,7 +45,8 @@ export function DraggableOpponentCard({
   playerCount = 2,
   isPartyMode: isPartyModeProp,
   opponentDrag,
-  onExtendBuild
+  onExtendBuild,
+  onCaptureBuild
 }: DraggableOpponentCardProps) {
   // Determine party mode
   const isPartyMode = isPartyModeProp ?? playerCount === 4;
@@ -112,6 +115,11 @@ export function DraggableOpponentCard({
           // Can only add to own temp stack
           onDragEnd(card, undefined, targetStack.stackId, `captured_${opponentIndex}`);
           handled = true;
+        } else if (targetStack.stackType === 'build_stack' && onCaptureBuild) {
+          // Opponent's build stack - capture it!
+          console.log('[DraggableOpponentCard] Capturing opponent build:', targetStack.stackId, 'with card:', card.rank, card.suit);
+          onCaptureBuild(card, targetStack.stackId, `captured_${opponentIndex}`);
+          handled = true;
         }
       }
     }
@@ -126,7 +134,7 @@ export function DraggableOpponentCard({
     translateY.value = 0;
     isDragging.value = false;
     draggedCard.value = null;
-  }, [onDragEnd, findCardAtPoint, findTempStackAtPoint, onExtendBuild, playerNumber, isFriendlyBuild, translateX, translateY, isDragging, draggedCard, opponentIndex]);
+  }, [onDragEnd, findCardAtPoint, findTempStackAtPoint, onExtendBuild, onCaptureBuild, playerNumber, isFriendlyBuild, translateX, translateY, isDragging, draggedCard, opponentIndex]);
 
   const panGesture = Gesture.Pan()
     .enabled(isMyTurn)

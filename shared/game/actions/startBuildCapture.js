@@ -1,47 +1,168 @@
 /**
  * startBuildCapture
  * Opponent starts capturing a build by locking a card to a pending capture set.
- * Supports cards from hand or table only.
+ * Now supports cards from hand, table, or any player's captured pile.
+ * Mirrors the pattern used in extendBuild for consistency.
+ * 
+ * Payload: { stackId, card, cardSource }
+ * - stackId: ID of the build stack being captured
+ * - card: { rank, suit } of the card to use
+ * - cardSource: source location ('hand', 'table', 'captured', 'captured_<playerIndex>)
  */
 
 const { cloneState } = require('../');
 
-function areTeammates(pA, pB) {
-  return (pA < 2 && pB < 2) || (pA >= 2 && pB >= 2);
-}
+// ---------- Internal helpers ----------
 
 /**
- * Find a card at a specific source location (hand or table only)
+ * Find card at specific source location
+ * Returns { found: true, card, index, ownerIndex } or { found: false }
+ * 
+ * Source format:
+ * - 'hand' - current player's hand
+ * - 'table' - table cards
+ * - 'captured' - current player's own captures (backward compat)
+ * - 'captured_<playerIndex>' - specific player's captures (e.g., 'captured_2')
  */
 function findCardAtSource(state, card, source, playerIndex) {
   const cardKey = `${card.rank}${card.suit}`;
-  console.log(`[startBuildCapture-findCardAtSource] Looking for ${cardKey} at source:`, source);
-
-  // Search table (loose cards only)
-  if (source === 'table') {
-    const tableIdx = state.tableCards.findIndex(
-      tc => !tc.type && tc.rank === card.rank && tc.suit === card.suit
-    );
-    console.log('[startBuildCapture-findCardAtSource] Table search result:', tableIdx);
-    if (tableIdx !== -1) {
-      return { found: true, card: state.tableCards[tableIdx], index: tableIdx };
-    }
-    return { found: false };
+  
+  // Helper to check if two players are teammates in a 4‑player game
+  function areTeammates(pA, pB) {
+    return (pA < 2 && pB < 2) || (pA >= 2 && pB >= 2);
   }
 
-  // Search hand
-  if (source === 'hand') {
-    const hand = state.players[playerIndex].hand;
-    const handIdx = hand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
-    console.log('[startBuildCapture-findCardAtSource] Hand search result:', handIdx);
-    if (handIdx !== -1) {
-      return { found: true, card: hand[handIdx], index: handIdx };
+  switch (source) {
+    case 'table': {
+      const tableIdx = state.tableCards.findIndex(
+        tc => !tc.type && tc.rank === card.rank && tc.suit === card.suit,
+      );
+      if (tableIdx !== -1) {
+        return { found: true, card: state.tableCards[tableIdx], index: tableIdx };
+      }
+      break;
     }
-    return { found: false };
+    
+    case 'hand': {
+      const hand = state.players[playerIndex].hand;
+      const handIdx = hand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
+      if (handIdx !== -1) {
+        return { found: true, card: hand[handIdx], index: handIdx };
+      }
+      break;
+    }
+    
+    case 'captured':
+    default: {
+      // Handle both 'captured' (backward compat) and 'captured_<playerIndex>'
+      let ownerIndex = playerIndex;
+      const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
+      
+      if (source && source.startsWith('captured_')) {
+        const parsed = parseInt(source.split('_')[1], 10);
+        if (!isNaN(parsed) && parsed >= 0 && parsed < state.players.length) {
+          ownerIndex = parsed;
+        }
+      }
+      
+      // For backward compatibility with 'captured', allow searching own, teammates, opponents
+      // For 'captured_<index>', directly access the specified player's captures
+      if (source === 'captured') {
+        // Search own captures first
+        let captures = state.players[playerIndex].captures;
+        let captureIdx = captures.findIndex(c => c.rank === card.rank && c.suit === card.suit);
+        if (captureIdx !== -1) {
+          return { found: true, card: captures[captureIdx], index: captureIdx, ownerIndex: playerIndex };
+        }
+        
+        // If not found and in party mode, search teammates' captures
+        if (isPartyMode) {
+          const teammateIndices = playerIndex < 2 ? [1, 0] : [3, 2];
+          for (const tIdx of teammateIndices) {
+            captures = state.players[tIdx].captures;
+            captureIdx = captures.findIndex(c => c.rank === card.rank && c.suit === card.suit);
+            if (captureIdx !== -1) {
+              return { found: true, card: captures[captureIdx], index: captureIdx, ownerIndex: tIdx };
+            }
+          }
+        }
+        
+        // Search opponents' captures
+        const opponentIndices = isPartyMode 
+          ? (playerIndex < 2 ? [2, 3] : [0, 1])
+          : [playerIndex === 0 ? 1 : 0];
+        
+        for (const oIdx of opponentIndices) {
+          captures = state.players[oIdx].captures;
+          captureIdx = captures.findIndex(c => c.rank === card.rank && c.suit === card.suit);
+          if (captureIdx !== -1) {
+            return { found: true, card: captures[captureIdx], index: captureIdx, ownerIndex: oIdx };
+          }
+        }
+      } else {
+        // Specific player index – check permission
+        const isOwner = ownerIndex === playerIndex;
+        const isTeammate = isPartyMode && areTeammates(ownerIndex, playerIndex);
+        const isOpponent = !isOwner && !isTeammate;
+        
+        if (!isOwner && !isTeammate && !isOpponent) {
+          // Access denied, return not found
+          return { found: false };
+        }
+        
+        // Direct access to specified player's captures
+        const captures = state.players[ownerIndex].captures;
+        const captureIdx = captures.findIndex(c => c.rank === card.rank && c.suit === card.suit);
+        if (captureIdx !== -1) {
+          return { found: true, card: captures[captureIdx], index: captureIdx, ownerIndex };
+        }
+      }
+      break;
+    }
   }
-
+  
   return { found: false };
 }
+
+/**
+ * Remove a card from its source location (hand, table, or captures).
+ * Returns { removedCard, rollback: function }.
+ * The rollback function can be called to restore the card if validation fails.
+ */
+function removeCardFromSource(state, cardInfo, source, playerIndex) {
+  const { index, ownerIndex } = cardInfo;
+  let removedCard;
+  let rollback;
+
+  if (source === 'table') {
+    [removedCard] = state.tableCards.splice(index, 1);
+    removedCard.source = 'table';
+    rollback = () => { state.tableCards.splice(index, 0, removedCard); };
+  } else if (source === 'hand') {
+    const hand = state.players[playerIndex].hand;
+    [removedCard] = hand.splice(index, 1);
+    removedCard.source = 'hand';
+    rollback = () => { hand.splice(index, 0, removedCard); };
+  } else if (source === 'captured' || source.startsWith('captured_')) {
+    const ownerIdx = ownerIndex !== undefined ? ownerIndex : playerIndex;
+    const captures = state.players[ownerIdx].captures;
+    [removedCard] = captures.splice(index, 1);
+    removedCard.source = 'captured';
+    removedCard.originalOwner = ownerIdx;
+    rollback = () => { captures.splice(index, 0, removedCard); };
+  } else {
+    throw new Error(`Unknown source: ${source}`);
+  }
+
+  return { removedCard, rollback };
+}
+
+// Helper to check teammates
+function areTeammates(playerA, playerB) {
+  return (playerA < 2 && playerB < 2) || (playerA >= 2 && playerB >= 2);
+}
+
+// ---------- Main action ----------
 
 function startBuildCapture(state, payload, playerIndex) {
   const { stackId, card, cardSource = 'table' } = payload;
@@ -50,11 +171,7 @@ function startBuildCapture(state, payload, playerIndex) {
 
   if (!stackId) throw new Error('startBuildCapture: missing stackId');
   if (!card?.rank || !card?.suit) throw new Error('startBuildCapture: invalid card');
-
-  // Validate source - only hand and table allowed for capture
-  if (cardSource !== 'hand' && cardSource !== 'table') {
-    throw new Error('startBuildCapture: card source must be "hand" or "table"');
-  }
+  if (!cardSource) throw new Error('startBuildCapture: missing cardSource');
 
   const newState = cloneState(state);
   // Determine party mode: check if any player has a team property (indicates party mode)
@@ -71,6 +188,7 @@ function startBuildCapture(state, payload, playerIndex) {
   const owner = buildStack.owner;
 
   // Validate that player is NOT owner and NOT teammate (i.e., opponent)
+  // This is the key restriction: only opponents can start a capture
   const isOwner = owner === playerIndex;
   const isTeammate = isPartyMode && areTeammates(owner, playerIndex);
   if (isOwner || isTeammate) {
@@ -82,32 +200,24 @@ function startBuildCapture(state, payload, playerIndex) {
     throw new Error('startBuildCapture: build already has a pending capture');
   }
 
-  // Validate card exists at claimed source
+  // Debug log to verify source
+  console.log('[startBuildCapture] Searching for card', card, 'with source', cardSource);
+  
+  // Locate the card at the claimed source (now supports 'captured' for any player's pile)
   const cardInfo = findCardAtSource(state, card, cardSource, playerIndex);
   if (!cardInfo.found) {
     throw new Error(`startBuildCapture: card ${card.rank}${card.suit} not found at source ${cardSource}`);
   }
 
-  // Remove card from source
-  let usedCard;
-
-  if (cardSource === 'table') {
-    [usedCard] = newState.tableCards.splice(cardInfo.index, 1);
-    usedCard = { ...usedCard, source: 'table' };
-  } else if (cardSource === 'hand') {
-    const hand = newState.players[playerIndex].hand;
-    [usedCard] = hand.splice(cardInfo.index, 1);
-    usedCard = { ...usedCard, source: 'hand' };
-  } else {
-    throw new Error(`startBuildCapture: unknown cardSource "${cardSource}"`);
-  }
+  // Remove the card using the helper (provides rollback on failure)
+  const { removedCard } = removeCardFromSource(newState, cardInfo, cardSource, playerIndex);
 
   // Initialize pending capture
   buildStack.pendingCapture = {
-    cards: [{ card: usedCard, source: cardSource }]
+    cards: [{ card: removedCard, source: cardSource }]
   };
 
-  console.log('[startBuildCapture] Success – pending capture started with', `${usedCard.rank}${usedCard.suit}`);
+  console.log('[startBuildCapture] Success – pending capture started with', `${removedCard.rank}${removedCard.suit}`);
 
   return newState;
 }

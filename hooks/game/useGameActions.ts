@@ -174,6 +174,15 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
+  // Start build capture - for capturing opponent's build with a captured card
+  // cardSource: 'captured' (own captures) or 'captured_<playerIndex>' (specific opponent's captures)
+  const startBuildCapture = useCallback((card: any, stackId: string, cardSource: CardSource = 'captured') => {
+    sendAction({ 
+      type: 'startBuildCapture', 
+      payload: { card, stackId, cardSource } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
   return {
     createTemp,
     addToTemp,
@@ -193,6 +202,7 @@ export function useGameActions(sendAction: SendAction) {
     shiya,
     recallBuild,
     setTempBuildValue,
+    startBuildCapture,
   };
 }
 
