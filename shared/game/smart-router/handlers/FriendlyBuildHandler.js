@@ -53,7 +53,7 @@ class FriendlyBuildHandler {
       // Player has spare cards of same rank - can extend this build
       console.log('[FriendlyBuildHandler] Has spare cards of same rank - starting extension');
       return {
-        type: 'startBuildExtension',
+        type: 'extendBuild',
         payload: { card, stackId, cardSource: source }
       };
     }

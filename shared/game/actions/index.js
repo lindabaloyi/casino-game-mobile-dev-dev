@@ -29,8 +29,10 @@ const actionHandlers = {
   stealBuild:          require('./stealBuild'),
 
   // ── Build Extension actions ────────────────────────────────────────────────
-  startBuildExtension: require('./startBuildExtension'),
-  addToPendingExtension: require('./addToPendingExtension'),
+  // Unified action (already defined above at line 25)
+  // Backward compatibility aliases
+  startBuildExtension: require('./extendBuild'),
+  addToPendingExtension: require('./extendBuild'),
   acceptBuildExtension: require('./acceptBuildExtension'),
   declineBuildExtension: require('./declineBuildExtension'),
 

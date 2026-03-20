@@ -1,6 +1,10 @@
 /**
  * ExtendRouter
- * Handles build extension logic - start vs addToPending.
+ * Handles build extension logic.
+ * 
+ * Now uses unified extendBuild action which handles both:
+ * - Starting a new pending extension
+ * - Adding to an existing pending extension
  */
 
 const StackHelper = require('../helpers/StackHelper');
@@ -8,9 +12,9 @@ const StackHelper = require('../helpers/StackHelper');
 class ExtendRouter {
   /**
    * Route extendBuild action
-   * - If player Shiya'd this build → route to capture (allows Shiya player to capture)
-   * - Has pending extension → addToPendingExtension
-   * - No pending extension → startBuildExtension
+   * The unified extendBuild action handles all cases internally:
+   * - If no pending extension → starts one
+   * - If has pending extension → adds to it
    */
   route(payload, state, playerIndex) {
     const { stackId, card, cardSource } = payload;
@@ -20,17 +24,9 @@ class ExtendRouter {
       throw new Error(`Build "${stackId}" not found`);
     }
     
-    if (stack.pendingExtension) {
-      // Has pending = add to it
-      return { 
-        type: 'addToPendingExtension', 
-        payload: { stackId, card, cardSource } 
-      };
-    }
-    
-    // No pending = start new extension
+    // Unified action handles both cases
     return { 
-      type: 'startBuildExtension', 
+      type: 'extendBuild', 
       payload: { stackId, card, cardSource } 
     };
   }

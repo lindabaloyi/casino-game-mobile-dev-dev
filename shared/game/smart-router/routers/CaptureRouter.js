@@ -58,7 +58,7 @@ class CaptureRouter {
       // If there is a spare (more than one), the player must extend the build
       if (sameRankCount > 1) {
         return { 
-          type: 'startBuildExtension', 
+          type: 'extendBuild', 
           payload: { card, stackId: payload.targetStackId, cardSource: 'hand' } 
         };
       } else {
