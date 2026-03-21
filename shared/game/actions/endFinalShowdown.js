@@ -90,6 +90,7 @@ function endFinalShowdown(state, payload, playerIndex) {
   resetState.eliminationOrder = newState.eliminationOrder;
   resetState.finalShowdownHandsPlayed = newState.finalShowdownHandsPlayed;
   resetState.tournamentWinner = newState.tournamentWinner;
+  resetState.qualifiedPlayers = newState.qualifiedPlayers;
   
   console.log(`[endFinalShowdown] Hand ${resetState.finalShowdownHandsPlayed + 1} starting`);
   

@@ -14,13 +14,18 @@
 class LooseCardRouter {
   /**
    * Check if the player currently has an active build on the table.
+   * Active builds include:
+   * - temp_stack: unaccepted temporary stacks
+   * - build_stack: accepted/confirmed builds
+   * 
    * @param {object} state - Game state
    * @param {number} playerIndex - Index of the player
-   * @returns {boolean} - True if there is at least one temp stack owned by the player
+   * @returns {boolean} - True if there is at least one temp_stack or build_stack owned by the player
    */
   hasActiveBuild(state, playerIndex) {
     return state.tableCards.some(tc => 
-      tc.type === 'temp_stack' && tc.owner === playerIndex
+      (tc.type === 'temp_stack' || tc.type === 'build_stack') && 
+      tc.owner === playerIndex
     );
   }
 

@@ -75,6 +75,8 @@ export function CapturePile({
   getPlayerLabel,
   getPlayerTeamColors,
 }: CapturePileProps) {
+  // Debug logging
+  console.log(`[CapturePile] Rendering pile for playerIndex=${playerIndex}, playerNumber=${playerNumber}, playerCount=${playerCount}, captures=${captures?.length || 0}`);
   // Get top card (last in array = most recently captured)
   const topCard = captures.length > 0 ? captures[captures.length - 1] : null;
   const colors = getPlayerTeamColors(playerIndex);
