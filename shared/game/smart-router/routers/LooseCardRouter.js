@@ -30,6 +30,20 @@ class LooseCardRouter {
   }
 
   /**
+   * Check if there are other loose cards on the table besides the target.
+   * Loose cards are table cards without a 'type' property (not temp_stack, build_stack, etc.)
+   * 
+   * @param {object} state - Game state
+   * @param {object} targetCard - The target loose card being considered
+   * @returns {boolean} - True if there is at least one other loose card
+   */
+  hasOtherLooseCards(state, targetCard) {
+    const looseCards = state.tableCards.filter(tc => !tc.type);
+    // If more than one loose card, there is at least one other besides the target
+    return looseCards.length > 1;
+  }
+
+  /**
    * Route createTemp with a target card
    * @param {object} payload - Contains card, targetCard, and source ('hand'|'table')
    * @param {object} state - Game state
@@ -55,7 +69,7 @@ class LooseCardRouter {
       return { type: 'createTemp', payload: { card, targetCard, source } };
     }
 
-    // If player has an active build, force capture (ignore low-rank/spare checks)
+    // If player has an active build, force capture (overrides all other rules)
     if (this.hasActiveBuild(state, playerIndex)) {
       return {
         type: 'captureOwn',
@@ -68,13 +82,19 @@ class LooseCardRouter {
       };
     }
 
+    // If there are other loose cards on the table besides the target, force build
+    // This enforces the strategic rule: must build if not the only loose card
+    if (this.hasOtherLooseCards(state, targetCard)) {
+      return { type: 'createTemp', payload: { card, targetCard, source } };
+    }
+
     // Get player's hand for spare-card check
     const playerHand = state.players?.[playerIndex]?.hand || [];
     const cardValue = card.value || 0;
 
-    // Cards 1-4 (A-4): Always stack (create temp) - no auto-capture
-    // Cards 5+ (5-K): Keep existing capture behavior
-    const isLowRank = cardValue <= 4;
+    // Cards 1-5 (A-5): Always stack (create temp) - no auto-capture
+    // Cards 6+ (6-K): Keep existing capture behavior
+    const isLowRank = cardValue <= 5;
 
     // Count how many cards of this rank the player has in hand (including the one being played)
     const sameRankCards = playerHand.filter(c => c.rank === card.rank);
