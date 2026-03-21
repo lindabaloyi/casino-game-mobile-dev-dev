@@ -66,12 +66,14 @@ export default function HomeScreen() {
     handlePrivateRoom,
     handleTournament,
     handleProfile,
+    handleEditProfile,
     handleFriends,
     handleSearchPlayers,
     handleLogout,
     handleLogoutConfirm,
     handleLogoutCancel,
     handleSignIn,
+    handleMenuItem,
   } = useHomeScreen();
 
   // Responsive calculations
@@ -83,6 +85,7 @@ export default function HomeScreen() {
 
   // Build menu items for the drawer
   const menuItems = [
+    { label: 'Profile', icon: 'person', onPress: handleEditProfile },
     { label: 'Stats', icon: 'stats-chart', onPress: () => handleMenuItem('/stats') },
     { label: 'Tournaments', icon: 'trophy', onPress: handleTournament },
     { label: 'Friends', icon: 'people', onPress: handleFriends },

@@ -56,8 +56,11 @@ router.post('/register', async (req, res) => {
       avatar: generateAvatar(username)
     });
 
-    // Create default profile
-    await PlayerProfile.create(user._id.toString());
+    // Create default profile with username and default avatar
+    await PlayerProfile.create(user._id.toString(), {
+      displayName: username,
+      avatar: 'lion'  // Default animal avatar
+    });
 
     // Create initial stats
     await GameStats.create(user._id.toString());

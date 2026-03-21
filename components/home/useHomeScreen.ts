@@ -17,6 +17,7 @@ export interface HomeScreenHandlers {
   handlePrivateRoom: () => void;
   handleTournament: () => void;
   handleProfile: () => void;
+  handleEditProfile: () => void;
   handleFriends: () => void;
   handleSearchPlayers: () => void;
   handleLogout: () => Promise<void>;
@@ -125,6 +126,19 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
   
   const handleProfile = () => {
     setMenuVisible(false);
+    // Navigate to the current user's public profile page
+    const userId = user?._id;
+    if (userId) {
+      router.push(`/user/${userId}` as any);
+    } else {
+      // Fallback to old profile page if no user ID
+      router.push('/profile' as any);
+    }
+  };
+
+  // Navigate to editable profile page (for settings)
+  const handleEditProfile = () => {
+    setMenuVisible(false);
     router.push('/profile' as any);
   };
   
@@ -200,6 +214,7 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     handlePrivateRoom,
     handleTournament,
     handleProfile,
+    handleEditProfile,
     handleFriends,
     handleSearchPlayers,
     handleLogout,

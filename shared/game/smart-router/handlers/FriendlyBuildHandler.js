@@ -91,13 +91,18 @@ class FriendlyBuildHandler {
       return false;
     }
 
-    // Use the build calculator for proper multi-card build validation
-    const buildValues = stack.cards.map(c => c.value);
+    // Check if this is a same-rank build
+    const isSameRankBuild = stack.cards.length > 0 && 
+                            stack.cards.every(c => c.rank === stack.cards[0].rank);
     
-    // Check if card value can capture this build
-    // For sum builds: card value equals build value
-    // For diff builds: card value equals build value
-    return buildValues.includes(cardValue);
+    if (isSameRankBuild) {
+      // Same-rank build: card can capture if its rank matches the build rank
+      // (This is handled by the spare card check in handle() - not here)
+      return false;
+    }
+    
+    // Sum/diff build: card can capture if its value equals the build value
+    return cardValue === stack.value;
   }
 
   /**

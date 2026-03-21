@@ -38,8 +38,6 @@ interface UserProfileData {
     totalGames: number;
     wins: number;
     losses: number;
-    highestScore: number;
-    achievements: string[];
   };
   rank: number | null;
 }

@@ -3,23 +3,33 @@
  * Handles loose card drop decisions - capture vs createTemp.
  * 
  * Rules:
- * - Dropped card must be from hand to capture.
- * - Ranks must match for capture.
- * - For High Ranks (6-10, J, Q, K):
- *   - If player has another card of same rank (spare) → create temp stack
- *   - If only that one card → capture
- * - For Low Ranks (A-5):
- *   - Check for double card value first (e.g., 4 → 8)
- *     - If has double → create temp stack (sum build)
- *   - Else check for spare (same rank)
- *     - If has spare → create temp stack
- *   - Else → capture
+ * - If player has an active build → force capture (if card from hand).
+ * - Otherwise:
+ *   - For Low Ranks (A-4): Always create temp stack (no auto-capture)
+ *   - For High Ranks (5-K):
+ *     - If player has another card of same rank (spare) → create temp stack
+ *     - If only that one card → capture
  */
 
 class LooseCardRouter {
   /**
+   * Check if the player currently has an active build on the table.
+   * @param {object} state - Game state
+   * @param {number} playerIndex - Index of the player
+   * @returns {boolean} - True if there is at least one temp stack owned by the player
+   */
+  hasActiveBuild(state, playerIndex) {
+    return state.tableCards.some(tc => 
+      tc.type === 'temp_stack' && tc.owner === playerIndex
+    );
+  }
+
+  /**
    * Route createTemp with a target card
    * @param {object} payload - Contains card, targetCard, and source ('hand'|'table')
+   * @param {object} state - Game state
+   * @param {number} playerIndex - Index of the player
+   * @returns {object} - Action object { type, payload }
    */
   routeCreateTemp(payload, state, playerIndex) {
     const { card, targetCard, source } = payload;
@@ -40,48 +50,42 @@ class LooseCardRouter {
       return { type: 'createTemp', payload: { card, targetCard, source } };
     }
 
-    // Get player's hand
+    // If player has an active build, force capture (ignore low-rank/spare checks)
+    if (this.hasActiveBuild(state, playerIndex)) {
+      return {
+        type: 'captureOwn',
+        payload: {
+          card,
+          targetType: 'loose',
+          targetRank: targetCard.rank,
+          targetSuit: targetCard.suit
+        }
+      };
+    }
+
+    // Get player's hand for spare-card check
     const playerHand = state.players?.[playerIndex]?.hand || [];
     const cardValue = card.value || 0;
-    
-    // Determine if this is a high rank (6-10, J, Q, K) or low rank (A-5)
-    const isHighRank = cardValue > 5;
-    
+
+    // Cards 1-4 (A-4): Always stack (create temp) - no auto-capture
+    // Cards 5+ (5-K): Keep existing capture behavior
+    const isLowRank = cardValue <= 4;
+
     // Count how many cards of this rank the player has in hand (including the one being played)
     const sameRankCards = playerHand.filter(c => c.rank === card.rank);
     const hasSpare = sameRankCards.length > 1;
-    
-    if (isHighRank) {
-      // HIGH RANKS (6-10, J, Q, K): Only same-rank stacks allowed
+
+    if (isLowRank) {
+      // LOW RANKS (A-4): Always create temp - no auto-capture
+      // Player can decide later what to do with the stack
+      return { type: 'createTemp', payload: { card, targetCard, source } };
+    } else {
+      // HIGH RANKS (5-K): Keep existing behavior
       // If player has a spare card of this rank → create temp stack
       // Otherwise → capture
       if (hasSpare) {
         return { type: 'createTemp', payload: { card, targetCard, source } };
       } else {
-        return {
-          type: 'captureOwn',
-          payload: {
-            card,
-            targetType: 'loose',
-            targetRank: targetCard.rank,
-            targetSuit: targetCard.suit
-          }
-        };
-      }
-    } else {
-      // LOW RANKS (A-5): Can be same-rank OR sum builds
-      // First, check if player has a card with exactly double the value (for sum build)
-      const doubleValue = cardValue * 2;
-      const hasDouble = playerHand.some(c => c.value === doubleValue);
-      
-      if (hasDouble) {
-        // Has the double card → create sum build temp stack
-        return { type: 'createTemp', payload: { card, targetCard, source } };
-      } else if (hasSpare) {
-        // No double, but has spare → create same-rank build
-        return { type: 'createTemp', payload: { card, targetCard, source } };
-      } else {
-        // No double, no spare → capture
         return {
           type: 'captureOwn',
           payload: {

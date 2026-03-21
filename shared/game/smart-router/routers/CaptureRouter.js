@@ -70,10 +70,11 @@ class CaptureRouter {
       if (card.value === stack.value) {
         return { type: 'captureOwn', payload };
       } else {
-        // Value doesn't match – maybe they're trying to add to the sum build?
+        // Value doesn't match – they're trying to extend the sum build
+        // Route to extendBuild (not addToTemp which is only for temp stacks)
         return { 
-          type: 'addToTemp', 
-          payload: { card, stackId: payload.targetStackId } 
+          type: 'extendBuild', 
+          payload: { card, stackId: payload.targetStackId, cardSource: 'hand' } 
         };
       }
     }
