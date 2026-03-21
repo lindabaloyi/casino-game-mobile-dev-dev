@@ -201,6 +201,7 @@ export default function OnlinePlayScreen() {
       {tournamentStatus.isInQualificationReview && (
         <QualificationReviewModal
           visible={true}
+          currentPlayerIndex={safePlayerNumber}
           qualifiedPlayers={tournamentStatus.qualifiedPlayers.map((playerIndex, idx) => ({
             playerIndex,
             score: {
@@ -211,7 +212,7 @@ export default function OnlinePlayScreen() {
           eliminatedPlayers={Object.keys(tournamentStatus.playerStatuses)
             .map(Number)
             .filter(idx => 
-              tournamentStatus.playerStatuses[idx] === 'ELIMINATED' &&
+              // Include players NOT in the qualified list (they didn't qualify)
               !tournamentStatus.qualifiedPlayers.includes(idx)
             )
             .map(playerIndex => ({

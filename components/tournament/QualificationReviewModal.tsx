@@ -1,271 +1,226 @@
 /**
- * QualificationReviewModal
- * Displays all players with their status (Qualified/Knocked Out) during tournament
- * Shows point breakdown in the same unified style as GameOverModal
- * Includes countdown timer to next phase
+ * QualificationReviewModal — landscape layout
+ * All players in a single row, countdown below.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
   Animated,
+  Modal,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 interface ScoreBreakdown {
   totalPoints: number;
-  cardPoints: number;
   tenDiamondPoints: number;
   twoSpadePoints: number;
   acePoints: number;
   spadeBonus: number;
   cardCountBonus: number;
-  rank?: number;
-  totalCards?: number;
   spadeCount?: number;
+  totalCards?: number;
 }
 
-interface QualifiedPlayer {
+interface Player {
   playerIndex: number;
   score: ScoreBreakdown;
 }
 
-interface EliminatedPlayer {
-  playerIndex: number;
-  score: ScoreBreakdown;
-}
-
-interface QualificationReviewModalProps {
+interface Props {
   visible: boolean;
-  qualifiedPlayers: QualifiedPlayer[];
-  eliminatedPlayers?: EliminatedPlayer[];
+  qualifiedPlayers: Player[];
+  eliminatedPlayers?: Player[];
   countdownSeconds: number;
+  currentPlayerIndex?: number;
   onCountdownComplete?: () => void;
 }
 
-/**
- * Get only non-zero points as a simple array
- */
-function getNonZeroPoints(score: ScoreBreakdown): { label: string; value: number }[] {
-  const points: { label: string; value: number }[] = [];
-  
-  if (score.tenDiamondPoints > 0) {
-    points.push({ label: '10♦', value: score.tenDiamondPoints });
-  }
-  if (score.twoSpadePoints > 0) {
-    points.push({ label: '2♠', value: score.twoSpadePoints });
-  }
-  if (score.acePoints > 0) {
-    points.push({ label: 'A', value: score.acePoints });
-  }
-  if (score.spadeBonus > 0) {
-    points.push({ label: 'S', value: score.spadeBonus });
-  }
-  if (score.cardCountBonus > 0) {
-    points.push({ label: 'C', value: score.cardCountBonus });
+function getPlayerStatusTitle(
+  qualifiedPlayers: Player[],
+  eliminatedPlayers: Player[],
+  currentPlayerIndex?: number
+): string {
+  // Check if current player is in qualified list
+  const qualifiedPlayer = qualifiedPlayers.find(p => p.playerIndex === currentPlayerIndex);
+  if (qualifiedPlayer) {
+    if (qualifiedPlayer.score.rank === 1) {
+      return 'WINNER';
+    }
+    return 'Qualified';
   }
   
-  return points;
+  // Check if current player is in eliminated list
+  const eliminatedPlayer = eliminatedPlayers.find(p => p.playerIndex === currentPlayerIndex);
+  if (eliminatedPlayer) {
+    return 'Knocked out';
+  }
+  
+  // Default: show round name if we can't determine player status
+  return qualifiedPlayers.length <= 2 ? 'Final Showdown' : 'Semi-Final';
 }
 
-/**
- * Render a single player panel in the GameOverModal style
- */
-const renderPlayerPanel = (
-  playerIndex: number,
-  score: ScoreBreakdown,
-  isQualified: boolean,
-  isKnockedOut: boolean
-) => {
-  const hasPoints =
-    score.tenDiamondPoints > 0 ||
-    score.twoSpadePoints > 0 ||
-    score.acePoints > 0 ||
-    score.spadeBonus > 0 ||
-    score.cardCountBonus > 0;
+function getCountdownColor(t: number) {
+  if (t > 5) return '#4CAF50';
+  if (t > 2) return '#FFC107';
+  return '#F44336';
+}
 
+function PlayerCard({
+  player,
+  qualified,
+}: {
+  player: Player;
+  qualified: boolean;
+}) {
+  const s = player.score;
   return (
-    <View key={playerIndex} style={styles.playerPanel}>
-      <View style={styles.playerHeader}>
-        <Text style={styles.playerName}>P{playerIndex + 1}</Text>
-        <Text style={styles.playerScore}>{score.totalPoints}</Text>
+    <View style={[styles.card, qualified ? styles.cardQualified : styles.cardKnockedOut]}>
+      {/* Header */}
+      <View style={styles.cardTop}>
+        <Text style={styles.playerName}>P{player.playerIndex + 1}</Text>
+        <Text style={styles.playerScore}>{s.totalPoints}</Text>
       </View>
 
-      {/* Status badges */}
-      {isQualified && (
-        <View style={styles.qualifiedBadge}>
-          <Text style={styles.qualifiedBadgeText}>✓ Qualified</Text>
-        </View>
-      )}
-      {isKnockedOut && (
-        <View style={styles.knockedOutBadge}>
-          <Text style={styles.knockedOutBadgeText}>✗ Knocked Out</Text>
-        </View>
-      )}
+      {/* Status badge */}
+      <View style={[styles.badge, qualified ? styles.badgeQ : styles.badgeKO]}>
+        <Text style={[styles.badgeText, qualified ? styles.badgeTextQ : styles.badgeTextKO]}>
+          {qualified ? 'Qualified' : 'Knocked out'}
+        </Text>
+      </View>
 
-      {hasPoints && (
-        <View style={styles.pointsContainer}>
-          {score.tenDiamondPoints > 0 && (
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>10♦</Text>
-              <Text style={styles.breakdownValue}>{score.tenDiamondPoints} pts</Text>
-            </View>
-          )}
-          {score.twoSpadePoints > 0 && (
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>2♠</Text>
-              <Text style={styles.breakdownValue}>{score.twoSpadePoints} pts</Text>
-            </View>
-          )}
-          {score.acePoints > 0 && (
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Aces</Text>
-              <Text style={styles.breakdownValue}>{score.acePoints} pts</Text>
-            </View>
-          )}
-          {score.spadeBonus > 0 && (
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Spades ({score.spadeCount || 0})</Text>
-              <Text style={[styles.breakdownValue, styles.activeBonus]}>+{score.spadeBonus}</Text>
-            </View>
-          )}
-          {score.cardCountBonus > 0 && (
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Cards ({score.totalCards || 0})</Text>
-              <Text style={[styles.breakdownValue, styles.activeBonus]}>+{score.cardCountBonus}</Text>
-            </View>
-          )}
-        </View>
-      )}
+      {/* Point breakdown */}
+      <View style={styles.breakdown}>
+        {s.tenDiamondPoints > 0 && (
+          <Row label="10♦" value={`${s.tenDiamondPoints} pts`} />
+        )}
+        {s.twoSpadePoints > 0 && (
+          <Row label="2♠" value={`${s.twoSpadePoints} pts`} />
+        )}
+        {s.acePoints > 0 && (
+          <Row label="Aces" value={`${s.acePoints} pts`} />
+        )}
+        {s.spadeBonus > 0 && (
+          <Row label="Spades bonus" value={`+${s.spadeBonus}`} gold />
+        )}
+        {s.cardCountBonus > 0 && (
+          <Row label="Cards bonus" value={`+${s.cardCountBonus}`} gold />
+        )}
 
-      {hasPoints && <View style={styles.separator} />}
+        <View style={styles.sep} />
 
-      <View style={styles.statsContainer}>
-        <View style={styles.breakdownRow}>
-          <Text style={styles.statsLabel}>Cards</Text>
-          <Text style={styles.statsValue}>{score.totalCards || 0}</Text>
-        </View>
-        <View style={styles.breakdownRow}>
-          <Text style={styles.statsLabel}>Spades</Text>
-          <Text style={styles.statsValue}>{score.spadeCount || 0}</Text>
+        <Row label="Cards" value={String(s.totalCards ?? 0)} />
+        <Row label="Spades" value={String(s.spadeCount ?? 0)} />
+      </View>
+    </View>
+  );
+}
+
+function Row({
+  label,
+  value,
+  gold,
+}: {
+  label: string;
+  value: string;
+  gold?: boolean;
+}) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={[styles.rowValue, gold && styles.rowValueGold]}>{value}</Text>
+    </View>
+  );
+}
+
+function CountdownRing({ seconds, total }: { seconds: number; total: number }) {
+  const color = getCountdownColor(seconds);
+  const radius = 22;
+  const circ = 2 * Math.PI * radius;
+  const progress = circ * (1 - seconds / total);
+
+  return (
+    <View style={styles.countdownWrap}>
+      <Text style={styles.countdownLabel}>Next phase starting in</Text>
+      <View style={styles.ringOuter}>
+        {/* We fake the SVG ring with a View border trick */}
+        <View style={[styles.ringTrack]} />
+        <View
+          style={[
+            styles.ringFill,
+            {
+              borderColor: color,
+              // Rotate to show progress — approximate with border trick
+              // For a true arc, use react-native-svg in production
+            },
+          ]}
+        />
+        <View style={styles.ringCenter}>
+          <Text style={[styles.countdownNumber, { color }]}>{seconds}</Text>
         </View>
       </View>
     </View>
   );
-};
+}
 
 export function QualificationReviewModal({
   visible,
   qualifiedPlayers,
   eliminatedPlayers = [],
   countdownSeconds,
+  currentPlayerIndex,
   onCountdownComplete,
-}: QualificationReviewModalProps) {
+}: Props) {
   const [countdown, setCountdown] = useState(countdownSeconds);
-  const scaleAnim = React.useRef(new Animated.Value(0.8)).current;
-  const opacityAnim = React.useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      setCountdown(countdownSeconds);
-      
-      // Animate in
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible, countdownSeconds]);
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!visible) return;
-    
-    if (countdown <= 0) {
-      onCountdownComplete?.();
+    setCountdown(countdownSeconds);
+    Animated.parallel([
+      Animated.spring(scaleAnim, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+    ]).start();
+  }, [visible, countdownSeconds]);
+
+  useEffect(() => {
+    if (!visible || countdown <= 0) {
+      if (countdown <= 0) onCountdownComplete?.();
       return;
     }
-
-    const timer = setTimeout(() => {
-      setCountdown(prev => prev - 1);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [countdown, visible, onCountdownComplete]);
-
-  const getCountdownColor = () => {
-    if (countdown > 5) return '#4CAF50';
-    if (countdown > 2) return '#FFC107';
-    return '#F44336';
-  };
-
-  const getSubtitle = () => {
-    const count = qualifiedPlayers.length;
-    if (count <= 2) return 'Final Showdown';
-    return 'Semi-Final';
-  };
-
-  // Get qualified player indices for status check
-  const qualifiedIndices = qualifiedPlayers.map(p => p.playerIndex);
-  const eliminatedIndices = eliminatedPlayers.map(p => p.playerIndex);
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [countdown, visible]);
 
   if (!visible) return null;
 
+  const allPlayers = [
+    ...qualifiedPlayers.map(p => ({ player: p, qualified: true })),
+    ...eliminatedPlayers.map(p => ({ player: p, qualified: false })),
+  ];
+
   return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType="none"
-      statusBarTranslucent
-    >
-      <Animated.View 
-        style={[
-          styles.overlay,
-          { opacity: opacityAnim }
-        ]}
-      >
-        <Animated.View 
-          style={[
-            styles.container,
-            { transform: [{ scale: scaleAnim }] }
-          ]}
-        >
+    <Modal transparent visible={visible} animationType="none" statusBarTranslucent>
+      <Animated.View style={[styles.overlay, { opacity: opacityAnim }]}>
+        <Animated.View style={[styles.modal, { transform: [{ scale: scaleAnim }] }]}>
+
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>🏆 TOURNAMENT 🏆</Text>
-            <Text style={styles.subtitle}>{getSubtitle()} starts in...</Text>
+            <Text style={styles.title}>{getPlayerStatusTitle(qualifiedPlayers, eliminatedPlayers, currentPlayerIndex)}</Text>
+            <Text style={styles.subtitle}>Next phase starting soon</Text>
           </View>
 
-          {/* All Players Grid - Same style as GameOverModal */}
-          <View style={styles.playersGrid}>
-            {/* Qualified players */}
-            {qualifiedPlayers.map((player) =>
-              renderPlayerPanel(player.playerIndex, player.score, true, false)
-            )}
-            {/* Eliminated players */}
-            {eliminatedPlayers.map((player) =>
-              renderPlayerPanel(player.playerIndex, player.score, false, true)
-            )}
+          {/* Single-row player grid */}
+          <View style={styles.playersRow}>
+            {allPlayers.map(({ player, qualified }) => (
+              <PlayerCard key={player.playerIndex} player={player} qualified={qualified} />
+            ))}
           </View>
 
           {/* Countdown */}
-          <View style={styles.countdownContainer}>
-            <View style={[styles.countdownCircle, { borderColor: getCountdownColor() }]}>
-              <Text style={[styles.countdownNumber, { color: getCountdownColor() }]}>
-                {countdown}
-              </Text>
-            </View>
-          </View>
+          <CountdownRing seconds={countdown} total={countdownSeconds} />
 
         </Animated.View>
       </Animated.View>
@@ -273,230 +228,173 @@ export function QualificationReviewModal({
   );
 }
 
+const GOLD = '#C9A227';
+const GREEN_DARK = '#1B5E20';
+
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  container: {
+  modal: {
     width: '92%',
-    maxWidth: 560,
-    backgroundColor: '#1B5E20',
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 2,
-    borderColor: '#FFD700',
+    maxWidth: 720,
+    backgroundColor: GREEN_DARK,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: GOLD,
+    padding: 16,
   },
+
+  // Header
   header: {
     alignItems: 'center',
     marginBottom: 12,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFD700',
-    textAlign: 'center',
+    color: GOLD,
+    marginBottom: 4,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   subtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
-    textAlign: 'center',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
   },
-  // Grid layout for all players - same as GameOverModal
-  playersGrid: {
+
+  // Players
+  playersRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    width: '100%',
+    gap: 8,
+    marginBottom: 14,
   },
-  // Player panel - GameOverModal style
-  playerPanel: {
+  card: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.1)',
     padding: 10,
-    marginHorizontal: 3,
-    minWidth: '45%',
   },
-  playerHeader: {
+  cardQualified: {
+    borderColor: 'rgba(76,175,80,0.55)',
+  },
+  cardKnockedOut: {
+    borderColor: 'rgba(244,67,54,0.4)',
+    opacity: 0.75,
+  },
+  cardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    alignItems: 'baseline',
     paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.15)',
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 7,
   },
   playerName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
   },
   playerScore: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: GOLD,
   },
-  // Status badges
-  qualifiedBadge: {
-    backgroundColor: 'rgba(76, 175, 80, 0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+
+  // Badge
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
     borderRadius: 4,
-    alignSelf: 'center',
-    marginBottom: 8,
+    marginBottom: 7,
   },
-  qualifiedBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
+  badgeQ: {
+    backgroundColor: 'rgba(76,175,80,0.2)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(76,175,80,0.4)',
   },
-  knockedOutBadge: {
-    backgroundColor: 'rgba(244, 67, 54, 0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'center',
-    marginBottom: 8,
+  badgeKO: {
+    backgroundColor: 'rgba(244,67,54,0.15)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(244,67,54,0.35)',
   },
-  knockedOutBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '500',
   },
-  // Points section
-  pointsContainer: {
-    marginBottom: 4,
+  badgeTextQ: { color: '#81c784' },
+  badgeTextKO: { color: '#e57373' },
+
+  // Breakdown rows
+  breakdown: {
+    gap: 3,
   },
-  breakdownRow: {
+  row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 2,
   },
-  breakdownLabel: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.75)',
-  },
-  breakdownValue: {
-    fontSize: 11,
+  rowLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
     fontWeight: '500',
-    color: '#FFFFFF',
   },
-  activeBonus: {
-    color: '#FFD700',
+  rowValue: {
+    fontSize: 12,
+    color: '#fff',
     fontWeight: '600',
   },
-  // Separator
-  separator: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginVertical: 6,
+  rowValueGold: {
+    color: GOLD,
   },
-  // Stats section
-  statsContainer: {
-    marginTop: 4,
+  sep: {
+    height: 0.5,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginVertical: 4,
   },
-  statsLabel: {
-    fontSize: 11,
+
+  // Countdown
+  countdownWrap: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  countdownLabel: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 0.4,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
-  statsValue: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#FFFFFF',
-  },
-  // Legacy styles (kept for compatibility)
-  playersRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 12,
-  },
-  playerCard: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderRadius: 10,
-    padding: 10,
-    marginHorizontal: 4,
+  ringOuter: {
+    width: 52,
+    height: 52,
     alignItems: 'center',
-    borderWidth: 1,
-  },
-  firstPlaceCard: {
-    borderColor: '#FFD700',
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-  },
-  secondPlaceCard: {
-    borderColor: '#C0C0C0',
-    backgroundColor: 'rgba(192, 192, 192, 0.15)',
-  },
-  thirdPlaceCard: {
-    borderColor: '#CD7F32',
-    backgroundColor: 'rgba(205, 127, 50, 0.15)',
-  },
-  rankRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  rankEmoji: {
-    fontSize: 20,
-    marginRight: 4,
-  },
-  pointsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'center',
   },
-  pointBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    margin: 2,
-    alignItems: 'center',
-  },
-  pointLabel: {
-    fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  pointValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  totalBadge: {
-    backgroundColor: '#FFD700',
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    margin: 2,
-    alignItems: 'center',
-  },
-  totalLabel: {
-    fontSize: 10,
-    color: '#1B5E20',
-    fontWeight: 'bold',
-  },
-  totalValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1B5E20',
-  },
-  countdownContainer: {
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  countdownCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  ringTrack: {
+    position: 'absolute',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     borderWidth: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  ringFill: {
+    position: 'absolute',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 3,
+  },
+  ringCenter: {
+    position: 'absolute',
   },
   countdownNumber: {
     fontSize: 28,

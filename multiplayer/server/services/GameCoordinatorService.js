@@ -57,6 +57,48 @@ class GameCoordinatorService {
     return this.unifiedMatchmaking;
   }
 
+  /**
+   * Remap socket player indices when tournament transitions to new round
+   * This ensures the winner starts first (playerIndex 0)
+   * @param {number} gameId - The game ID
+   * @param {number[]} qualifiedPlayers - Array of original player indices that qualified
+   */
+  _remapPlayerIndices(gameId, qualifiedPlayers) {
+    const socketMap = this.gameManager.socketPlayerMap.get(gameId);
+    if (!socketMap) {
+      console.warn(`[Coordinator] No socket map found for game ${gameId}`);
+      return;
+    }
+
+    console.log(`[Coordinator] Remapping player indices for game ${gameId}`);
+    
+    // Create a reverse mapping: old player index -> new player index
+    // qualifiedPlayers[0] = winner -> new index 0
+    // qualifiedPlayers[1] -> new index 1
+    // etc.
+    const oldToNewMap = {};
+    qualifiedPlayers.forEach((oldIndex, newIndex) => {
+      oldToNewMap[oldIndex] = newIndex;
+    });
+
+    console.log(`[Coordinator] Old to new mapping:`, oldToNewMap);
+
+    // Update each socket's player index
+    socketMap.forEach((oldPlayerIndex, socketId) => {
+      if (oldToNewMap.hasOwnProperty(oldPlayerIndex)) {
+        const newPlayerIndex = oldToNewMap[oldPlayerIndex];
+        socketMap.set(socketId, newPlayerIndex);
+        console.log(`[Coordinator] Socket ${socketId}: player ${oldPlayerIndex} -> ${newPlayerIndex}`);
+      } else {
+        // This socket's player was eliminated - remove from game
+        console.log(`[Coordinator] Socket ${socketId}: player ${oldPlayerIndex} eliminated, removing`);
+        socketMap.delete(socketId);
+      }
+    });
+
+    console.log(`[Coordinator] Player remapping complete`);
+  }
+
   // ── Event handlers ────────────────────────────────────────────────────────
 
   /**
@@ -137,7 +179,15 @@ class GameCoordinatorService {
            
            try {
              // Check if in final showdown
-             if (newState.tournamentPhase === 'FINAL_SHOWDOWN') {
+             // Check if transitioning to semifinal or final showdown from qualification review
+              if (data?.type === 'advanceFromQualificationReview') {
+                if (newState.tournamentPhase === 'SEMI_FINAL' || newState.tournamentPhase === 'FINAL_SHOWDOWN') {
+                  const qualifiedPlayers = newState.qualifiedPlayers || [];
+                  this._remapPlayerIndices(gameId, qualifiedPlayers);
+                }
+              }
+              
+              if (newState.tournamentPhase === 'FINAL_SHOWDOWN') {
                // Handle final showdown round
                const showdownState = endFinalShowdown(newState);
                
@@ -146,16 +196,27 @@ class GameCoordinatorService {
                  console.log(`[Coordinator] Tournament COMPLETED! Winner: ${showdownState.tournamentWinner}`);
                  this._handleGameOver(gameId, showdownState, isPartyGame, false);
                } else {
-                 // Continue final showdown
-                 this.gameManager.saveGameState(gameId, showdownState);
+                 // Continue final showdown - also remap for round transitions
+                 this._remapPlayerIndices(gameId, showdownState.qualifiedPlayers || []);
+                  this.gameManager.saveGameState(gameId, showdownState);
                  this.broadcaster.broadcastGameUpdate(gameId, showdownState, this.unifiedMatchmaking);
                }
              } else {
-               // Handle regular tournament round
+               // Handle regular tournament round - with phase check
                const tournamentState = endTournamentRound(newState);
                
-               // Check if tournament is complete (winner declared)
-               if (tournamentState.tournamentPhase === 'COMPLETED') {
+               // Check tournament phase for player remapping
+               if (tournamentState.tournamentPhase === 'QUALIFICATION_REVIEW') {
+                  // Qualification review - just broadcast
+                  this.gameManager.saveGameState(gameId, tournamentState);
+                  this.broadcaster.broadcastGameUpdate(gameId, tournamentState, this.unifiedMatchmaking);
+                } else if (tournamentState.tournamentPhase === 'SEMI_FINAL' || tournamentState.tournamentPhase === 'FINAL_SHOWDOWN') {
+                  // Need to remap player indices for new round
+                  const qualifiedPlayers = tournamentState.qualifiedPlayers || [];
+                  this._remapPlayerIndices(gameId, qualifiedPlayers);
+                  this.gameManager.saveGameState(gameId, tournamentState);
+                  this.broadcaster.broadcastGameUpdate(gameId, tournamentState, this.unifiedMatchmaking);
+                } else if (tournamentState.tournamentPhase === 'COMPLETED') {
                  console.log(`[Coordinator] Tournament COMPLETED! Winner: ${tournamentState.tournamentWinner}`);
                  this._handleGameOver(gameId, tournamentState, isPartyGame, false);
                } else {
