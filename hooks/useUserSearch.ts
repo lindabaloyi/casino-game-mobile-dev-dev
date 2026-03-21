@@ -85,13 +85,11 @@ export function useUserSearch(): UseUserSearchResult {
   const sendFriendRequest = useCallback(async (userId: string) => {
     try {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      const stored = await AsyncStorage.getItem('casino_auth_user');
-      if (!stored) {
+      // Get the JWT token from correct storage key
+      const token = await AsyncStorage.getItem('casino_auth_token');
+      if (!token) {
         return { success: false, error: 'Not authenticated' };
       }
-      
-      const userData = JSON.parse(stored);
-      const token = userData._id;
 
       const response = await fetch(`${API_BASE}/api/friends/request/${userId}`, {
         method: 'POST',
@@ -104,6 +102,7 @@ export function useUserSearch(): UseUserSearchResult {
       const data = await response.json();
       return data.success ? { success: true } : { success: false, error: data.error };
     } catch (err) {
+      console.error('[useUserSearch] Send friend request error:', err);
       return { success: false, error: 'Failed to send request' };
     }
   }, []);

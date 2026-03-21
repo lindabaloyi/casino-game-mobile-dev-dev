@@ -239,6 +239,18 @@ export default function UserProfilePage() {
         {/* Member Since */}
         <Text style={styles.memberSince}>Member since {formatDate(profileData.user.createdAt)}</Text>
 
+        {/* Debug info - remove in production */}
+        {(!currentUser?._id || currentUser._id === userId) && (
+          <View style={{padding: 10, backgroundColor: 'rgba(255,0,0,0.3)', marginBottom: 10}}>
+            <Text style={{color: 'white', fontSize: 12}}>
+              Debug: currentUser={currentUser?._id || 'null'}, userId={userId}
+            </Text>
+            <Text style={{color: 'white', fontSize: 12}}>
+              Status: {friendStatus}
+            </Text>
+          </View>
+        )}
+
         {/* Friend Action Button */}
         {currentUser?._id && currentUser._id !== userId && (
           <View style={styles.actionContainer}>
