@@ -21,13 +21,22 @@ export interface LobbyPlayer {
   ping: number;
 }
 
+interface ServerLobbyPlayer {
+  userId: string;
+  username: string;
+  avatar: string;
+  displayName: string;
+}
+
 interface UseLobbyMockProps {
   modeConfig: ModeConfig;
   playersInLobby: number;
   profile: {
     username?: string;
     avatar: string;
+    userId?: string;
   };
+  serverLobbyPlayers?: ServerLobbyPlayer[];
   initialReady?: boolean;
 }
 
@@ -35,6 +44,7 @@ export const useLobbyMock = ({
   modeConfig, 
   playersInLobby, 
   profile,
+  serverLobbyPlayers,
   initialReady = false,
 }: UseLobbyMockProps) => {
   const [lobbyPlayers, setLobbyPlayers] = useState<LobbyPlayer[]>([]);
@@ -42,8 +52,39 @@ export const useLobbyMock = ({
   const notificationAnim = useRef(new Animated.Value(-100)).current;
   const [isReady, setIsReady] = useState(initialReady);
 
-  // Initialize with self
+  // Initialize with self and merge with server players when available
   useEffect(() => {
+    // If we have server player data, use it (with self at index 0)
+    if (serverLobbyPlayers && serverLobbyPlayers.length > 0) {
+      // Map server players to lobby player format
+      const mappedPlayers: LobbyPlayer[] = serverLobbyPlayers.map((player, index) => ({
+        id: player.userId || String(index + 1),
+        username: player.username || 'Player',
+        avatar: player.avatar || 'lion',
+        isReady: index > 0, // Other players assumed ready
+        isConnected: true,
+        ping: Math.floor(Math.random() * 150) + 30,
+      }));
+      
+      // Update self with profile data
+      if (mappedPlayers.length > 0 && profile.userId) {
+        const selfIndex = mappedPlayers.findIndex(p => p.id === profile.userId);
+        if (selfIndex >= 0) {
+          mappedPlayers[selfIndex] = {
+            ...mappedPlayers[selfIndex],
+            username: profile.username || mappedPlayers[selfIndex].username,
+            avatar: profile.avatar || mappedPlayers[selfIndex].avatar,
+            isReady,
+            ping: 45,
+          };
+        }
+      }
+      
+      setLobbyPlayers(mappedPlayers);
+      return;
+    }
+    
+    // Fallback: Create self with profile data
     setLobbyPlayers([
       {
         id: '1',
@@ -54,7 +95,7 @@ export const useLobbyMock = ({
         ping: 45,
       },
     ]);
-  }, [profile, isReady]);
+  }, [profile, isReady, serverLobbyPlayers]);
 
   // Update own ready status
   useEffect(() => {
@@ -63,8 +104,15 @@ export const useLobbyMock = ({
     );
   }, [isReady]);
 
-  // Simulate other players joining
+  // Handle server player updates (when real player data is available)
   useEffect(() => {
+    // If we have server player data, use it directly instead of simulating
+    if (serverLobbyPlayers && serverLobbyPlayers.length > 0) {
+      // Already handled in the initialization effect
+      return;
+    }
+    
+    // Fallback: Simulate other players joining (when no server data)
     const maxPlayers = modeConfig.playerCount;
     if (playersInLobby > 1 && lobbyPlayers.length < Math.min(playersInLobby, maxPlayers)) {
       const newPlayer: LobbyPlayer = {
@@ -97,7 +145,7 @@ export const useLobbyMock = ({
 
       return () => clearTimeout(timer);
     }
-  }, [playersInLobby, modeConfig.playerCount]);
+  }, [playersInLobby, modeConfig.playerCount, serverLobbyPlayers]);
 
   // Helper functions for Lobby component
   const getAvatarEmoji = (avatarId: string) => {

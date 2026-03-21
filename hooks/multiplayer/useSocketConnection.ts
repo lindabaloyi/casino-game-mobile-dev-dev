@@ -18,6 +18,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Socket } from 'socket.io-client';
 import { io } from 'socket.io-client';
 import { getOptimalServerUrl } from '../../utils/serverUrl';
+import { useAuth } from '../useAuth';
 
 export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament';
 
@@ -44,6 +45,9 @@ export function useSocketConnection(
   const { mode } = options;
   const isPartyMode = mode === 'party';
   const isTwoHandsMode = mode === 'two-hands';
+  
+  // Get user authentication info
+  const { user } = useAuth();
   
   const socketRef = useRef<Socket | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -79,6 +83,12 @@ export function useSocketConnection(
           setSocket(socket); // Set socket as state to trigger re-render
           setIsConnected(true);
           setError(null);
+          
+          // Authenticate after connecting if user is logged in
+          if (user?._id) {
+            socket.emit('authenticate', user._id);
+            console.log(`[useSocketConnection] Authenticated with userId: ${user._id}`);
+          }
           
           // Two-hands mode: join the two-hands queue when connected
           if (isTwoHandsMode) {
@@ -131,7 +141,7 @@ export function useSocketConnection(
         console.error('[useSocketConnection] Failed to resolve URL:', err);
         setError(err.message);
       });
-  }, [mode, isPartyMode, isTwoHandsMode]);
+  }, [mode, isPartyMode, isTwoHandsMode, user]);
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {

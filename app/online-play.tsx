@@ -93,6 +93,7 @@ export default function OnlinePlayScreen() {
   }, [navigation, router]);
 
   // Multiplayer game state
+  const multiplayerResult = useMultiplayerGame({ mode });
   const { 
     gameState, 
     gameOverData,
@@ -100,6 +101,7 @@ export default function OnlinePlayScreen() {
     playerNumber,
     isConnected,
     playersInLobby,
+    lobbyPlayers: serverLobbyPlayers,
     playerDisconnected,
     error,
     clearError,
@@ -109,7 +111,7 @@ export default function OnlinePlayScreen() {
     emitDragStart,
     emitDragMove,
     emitDragEnd,
-  } = useMultiplayerGame({ mode });
+  } = multiplayerResult;
   
   const { profile } = usePlayerProfile();
   
@@ -128,6 +130,7 @@ export default function OnlinePlayScreen() {
     modeConfig,
     playersInLobby,
     profile,
+    serverLobbyPlayers,
     initialReady: false,
   });
 

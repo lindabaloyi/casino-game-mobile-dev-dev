@@ -54,6 +54,8 @@ export interface UseMultiplayerGameResult {
   allPlayersReady: boolean;
   /** Toggle ready status */
   toggleReady: () => void;
+  /** Player info from server lobby (when available) */
+  lobbyPlayers: ReturnType<typeof useLobbyState>['lobbyPlayers'];
   /** Whether the opponent disconnected */
   opponentDisconnected: boolean;
   /** Whether a player disconnected (party mode) */
@@ -139,6 +141,7 @@ export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMulti
     isReady: lobby.isReady,
     allPlayersReady: lobby.allPlayersReady,
     toggleReady: lobby.toggleReady,
+    lobbyPlayers: lobby.lobbyPlayers,
     playerDisconnected: false, // TODO: Add to gameSync if needed
     
     // Actions
