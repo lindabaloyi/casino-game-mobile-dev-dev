@@ -12,6 +12,7 @@ import {
   TouchableOpacity, 
   StyleSheet,
   useWindowDimensions,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -117,7 +118,12 @@ export function HomeMenuModal({
             <View style={styles.divider} />
 
             {/* Menu Items */}
-            <View style={styles.itemsContainer}>
+            <ScrollView 
+              style={styles.itemsContainer}
+              contentContainerStyle={styles.itemsContentContainer}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={true}
+            >
               {menuItems.map((item, index) => (
                 <TouchableOpacity
                   key={index}
@@ -139,7 +145,7 @@ export function HomeMenuModal({
                 <Ionicons name={authMenuItem.icon} size={16} color="white" />
                 <Text style={styles.menuItemText}>{authMenuItem.label}</Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -242,6 +248,10 @@ const styles = StyleSheet.create({
   },
   itemsContainer: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  itemsContentContainer: {
+    paddingBottom: 20,
   },
   menuItem: {
     flexDirection: 'row',
