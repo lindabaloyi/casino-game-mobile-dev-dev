@@ -10,15 +10,17 @@
  *  - Shows action strip (Accept/Cancel) when there's a pending stack
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useCallback } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions, TouchableOpacity, Text } from 'react-native';
 import { DraggableHandCard } from '../cards/DraggableHandCard';
+import { AnimatedCard } from '../cards/AnimatedCard';
 import { DropBounds } from '../../hooks/useDrag';
 import { TableItem } from '../table/types';
 import { OpponentDragState } from '../../hooks/useGameState';
 import { StackActionStrip } from '../table/StackActionStrip';
 import { areTeammates } from '../../shared/game/team';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
+import { useDealingAnimation } from '../../hooks/useDealingAnimation';
 
 interface Card {
   rank: string;
@@ -140,7 +142,10 @@ export function PlayerHandArea({
   pendingDropCard,
   pendingDropSource,
 }: Props) {
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  
+  // Track dealing animations for the local player's hand
+  const { animatingCardIds, getCardDelay, onAnimationComplete } = useDealingAnimation(hand);
   
   // Calculate responsive card dimensions based on screen width
   // Show only top half of card (half height for container)
@@ -271,39 +276,56 @@ export function PlayerHandArea({
             isPendingDrop
           );
           
+          // Check if card should animate (new card being dealt)
+          const animatingCardId = `${card.rank}${card.suit}`;
+          const shouldAnimate = animatingCardIds.has(animatingCardId);
+          const delayMs = shouldAnimate ? getCardDelay(card) : 0;
+          
+          // Calculate final position within the hand for proper slide-in
+          // Each card's position = index * (cardWidth - overlap)
+          const cardSpacing = responsiveCardWidth - cardOverlap;
+          const finalPosition = index * cardSpacing;
+          
           return (
-            <View
+            <AnimatedCard
               key={cardId}
-              style={[
-                { 
+              card={card}
+              shouldAnimate={shouldAnimate}
+              delayMs={delayMs}
+              onAnimationComplete={onAnimationComplete}
+              finalPosition={finalPosition}
+              cardWidth={responsiveCardWidth}
+            >
+              <View
+                style={{
                   width: responsiveCardWidth,
                   height: responsiveCardHeight,
                   marginRight: index === hand.length - 1 ? 0 : -cardOverlap,
                   zIndex: index + 1,
                   overflow: 'hidden', // Clip to show only top half
-                }
-              ]}
-            >
-              <DraggableHandCard
-                card={card}
-                dropBounds={dropBounds}
-                findCardAtPoint={findCardAtPoint}
-                findTempStackAtPoint={findTempStackAtPoint}
-                isMyTurn={isMyTurn}
-                playerNumber={playerNumber}
-                playerHand={hand}
-                tableCards={tableCards}
-                onDropOnStack={onDropOnStack}
-                onDropOnCard={onDropOnCard}
-                onDropOnTable={onDropOnTable}
-                onDragStart={onDragStart}
-                onDragMove={onDragMove}
-                onDragEnd={onDragEnd}
-                isHidden={isHidden}
-                cardWidth={responsiveCardWidth}
-                cardHeight={responsiveCardHeight}
-              />
-            </View>
+                }}
+              >
+                <DraggableHandCard
+                  card={card}
+                  dropBounds={dropBounds}
+                  findCardAtPoint={findCardAtPoint}
+                  findTempStackAtPoint={findTempStackAtPoint}
+                  isMyTurn={isMyTurn}
+                  playerNumber={playerNumber}
+                  playerHand={hand}
+                  tableCards={tableCards}
+                  onDropOnStack={onDropOnStack}
+                  onDropOnCard={onDropOnCard}
+                  onDropOnTable={onDropOnTable}
+                  onDragStart={onDragStart}
+                  onDragMove={onDragMove}
+                  onDragEnd={onDragEnd}
+                  isHidden={isHidden}
+                  cardWidth={responsiveCardWidth}
+                  cardHeight={responsiveCardHeight}
+                />
+              </View>
+            </AnimatedCard>
           );
         })}
       </ScrollView>
