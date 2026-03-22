@@ -44,6 +44,23 @@ class LooseCardRouter {
   }
 
   /**
+   * Check if the targetCard actually exists on the table as a loose card.
+   * This handles the case where a card was dragged but not actually dropped on a target.
+   * 
+   * @param {object} state - Game state
+   * @param {object} targetCard - The target card to validate
+   * @returns {boolean} - True if the target exists on the table as a loose card
+   */
+  isValidTargetOnTable(state, targetCard) {
+    if (!targetCard || !targetCard.rank || !targetCard.suit) {
+      return false;
+    }
+    return state.tableCards.some(tc => 
+      !tc.type && tc.rank === targetCard.rank && tc.suit === targetCard.suit
+    );
+  }
+
+  /**
    * Route createTemp with a target card
    * @param {object} payload - Contains card, targetCard, and source ('hand'|'table')
    * @param {object} state - Game state
@@ -56,6 +73,13 @@ class LooseCardRouter {
     // No target card – just create a temporary stack
     if (!targetCard) {
       return { type: 'createTemp', payload: { card } };
+    }
+
+    // Target card provided but not found on table - user dragged without intent
+    // Return no-op instead of throwing an error (graceful handling)
+    if (!this.isValidTargetOnTable(state, targetCard)) {
+      console.log('[LooseCardRouter] Target card not found on table - no-op');
+      return { type: 'noop', payload: {} };
     }
 
     // Card from table cannot be used to capture

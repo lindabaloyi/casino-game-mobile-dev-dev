@@ -29,10 +29,35 @@ class FriendlyBuildHandler {
     console.log('[FriendlyBuildHandler] Stack owner:', stack.owner);
     console.log('[FriendlyBuildHandler] Has pendingExtension:', !!(stack.pendingExtension?.looseCard || stack.pendingExtension?.cards));
 
-    // Step 1: Check for pending extension - delegate to ExtendRouter
+    // Step 1: Determine card source
+    const source = cardSource || this.getCardSource(state, playerIndex, card);
+    console.log('[FriendlyBuildHandler] Card source:', source);
+
+    // Step 2: For hand cards, ALWAYS check for spare first - before any extension logic
+    // This ensures the spare check runs even when there's a pending extension
+    if (source === 'hand') {
+      const playerHand = state.players[playerIndex]?.hand || [];
+      const sameRankCards = playerHand.filter(c => c.rank === card.rank);
+      const hasSpare = sameRankCards.length > 1; // includes the card being played
+
+      if (!hasSpare && stack.owner === playerIndex) {
+        // No spare – capture the whole build (even if there's a pending extension)
+        console.log('[FriendlyBuildHandler] No spare - capturing own build');
+        return {
+          type: 'captureOwn',
+          payload: {
+            card,
+            targetType: 'build',
+            targetStackId: stack.stackId,
+          }
+        };
+      }
+    }
+
+    // Step 3: Has spare (or card from table) – proceed with extension
+    // Check for pending extension first
     if (stack.pendingExtension?.looseCard || stack.pendingExtension?.cards) {
       console.log('[FriendlyBuildHandler] Has pending extension - delegating to ExtendRouter');
-      const source = this.getCardSource(state, playerIndex, card);
       return this.extendRouter.route(
         { stackId, card, cardSource: source },
         state,
@@ -40,42 +65,8 @@ class FriendlyBuildHandler {
       );
     }
 
-    // Step 2: Determine card source
-    const source = cardSource || this.getCardSource(state, playerIndex, card);
-    console.log('[FriendlyBuildHandler] Card source:', source);
-
-    // Step 3: Check if player can extend this build (has spare cards of same rank)
-    // Both own builds AND teammate's builds can be extended
-    const hand = state.players?.[playerIndex]?.hand || [];
-    const sameRankCount = hand.filter(c => c.rank === card.rank).length;
-    
-    if (sameRankCount > 1) {
-      // Player has spare cards of same rank - can extend this build
-      console.log('[FriendlyBuildHandler] Has spare cards of same rank - starting extension');
-      return {
-        type: 'extendBuild',
-        payload: { card, stackId, cardSource: source }
-      };
-    }
-
-    // Step 4: For OWN builds only - check if card from hand can capture
-    // (Cannot capture teammate's build - it's friendly)
-    if (stack.owner === playerIndex && source === 'hand') {
-      // Check if card value matches build value (can capture own build)
-      const canCapture = this.checkCanCaptureOwn(card.value, stack);
-      
-      if (canCapture) {
-        console.log('[FriendlyBuildHandler] Hand card can capture own build - delegating to CaptureRouter');
-        return this.captureRouter.route(
-          { card, targetType: 'build', targetStackId: stackId },
-          state,
-          playerIndex
-        );
-      }
-    }
-
-    // Step 5: Default - delegate to ExtendRouter (stack the card)
-    console.log('[FriendlyBuildHandler] Default - delegating to ExtendRouter (stack card)');
+    // Step 4: Start new extension
+    console.log('[FriendlyBuildHandler] Starting new extension - delegating to ExtendRouter');
     return this.extendRouter.route(
       { stackId, card, cardSource: source },
       state,

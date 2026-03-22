@@ -251,34 +251,36 @@ export function GameBoard({
   const handleBuildTap = useCallback((stack: any) => {
     console.log('[handleBuildTap] Tapped stack:', stack?.type, 'owner:', stack?.owner, 'value:', stack?.value);
     
-    // Check if this is a temp stack (dual builds feature)
-    if (stack.type === 'temp_stack') {
-      // For temp stacks, show confirmation modal on double-click
-      console.log('[GameBoard] Temp stack double-tapped, showing confirm modal');
-      modals.openConfirmTempBuildModal(stack);
-      return;
-    }
-    
-    // Handle BuildStack for Shiya selection
-    // Only set as selected if it's a teammate's build (NOT own build) and we have a matching card
+    // Check if party mode (required for Shiya)
     if (!stack || gameState.playerCount !== 4) {
+      // Not party mode - only handle confirm modal for own temp stacks (dual builds feature)
+      if (stack?.type === 'temp_stack' && stack.owner === playerNumber) {
+        console.log('[GameBoard] Temp stack tapped in non-party mode, showing confirm modal');
+        modals.openConfirmTempBuildModal(stack);
+      }
       console.log('[handleBuildTap] Not party mode or no stack');
       setSelectedBuildForShiya(null);
       return;
     }
     
-    // Check if it's NOT own build (must be teammate's build, not own)
+    // === SHIYA ELIGIBILITY CHECK (for BOTH build_stack and temp_stack) ===
+    
+    // Check if it's own stack - no Shiya on own stacks
     if (stack.owner === playerNumber) {
-      console.log('[handleBuildTap] Own build - no Shiya');
+      console.log('[handleBuildTap] Own stack - showing confirm modal for temp stacks');
+      // For own temp stacks, show confirm modal (dual builds feature)
+      if (stack.type === 'temp_stack') {
+        modals.openConfirmTempBuildModal(stack);
+      }
       setSelectedBuildForShiya(null);
       return;
     }
     
-    // Check if it's a teammate's build
+    // Check if it's a teammate's stack
     const isTeammate = areTeammates(playerNumber, stack.owner);
     console.log('[handleBuildTap] Player:', playerNumber, 'Stack owner:', stack.owner, 'Are teammates:', isTeammate);
     if (!isTeammate) {
-      console.log('[handleBuildTap] Not a teammate build');
+      console.log('[handleBuildTap] Not a teammate stack');
       setSelectedBuildForShiya(null);
       return;
     }
@@ -290,13 +292,14 @@ export function GameBoard({
       return;
     }
     
-    // Check if we have a matching card
+    // Check if we have a matching card (matches stack value - works for both builds and temp stacks)
     const myHand = gameState.players?.[playerNumber]?.hand ?? [];
     const hasMatch = myHand.some((card: any) => card.value === stack.value);
     console.log('[handleBuildTap] Stack value:', stack.value, 'Has matching card:', hasMatch, 'Hand:', myHand.map((c: any) => c.value));
     
     if (hasMatch) {
-      console.log('[handleBuildTap] Setting selected build for Shiya');
+      // Eligible for Shiya - set selected for Shiya button (works for both builds and temp stacks)
+      console.log('[handleBuildTap] Setting selected stack for Shiya');
       setSelectedBuildForShiya(stack);
       
       // Auto-hide Shiya button after 5 seconds if not clicked
@@ -306,6 +309,10 @@ export function GameBoard({
         shiyaButtonTimerRef.current = null;
       }, 5000);
     } else {
+      // Not eligible for Shiya - show confirm modal for own temp stacks only
+      if (stack.type === 'temp_stack' && stack.owner === playerNumber) {
+        modals.openConfirmTempBuildModal(stack);
+      }
       setSelectedBuildForShiya(null);
     }
   }, [gameState, playerNumber, modals]);
