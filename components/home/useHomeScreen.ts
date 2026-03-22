@@ -97,10 +97,10 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     router.push('/cpu-game' as any);
   };
   
-  // Unified Play Online handler - opens the game mode selection menu
+  // Unified Play Online handler - opens the game mode selection page
   const handlePlayOnline = () => {
     setMenuVisible(false);
-    setPlayOnlineMenuVisible(true);
+    router.push('/game-modes' as any);
   };
   
   // Navigate to specific game mode from Play Online menu

@@ -44,6 +44,8 @@ interface CapturePileProps {
   onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}`) => void;
   /** Callback for capturing opponent's build with a captured card */
   onCaptureBuild?: (card: Card, stackId: string, cardSource: 'captured' | `captured_${number}`) => void;
+  /** Sound callback - called on ANY successful drop of opponent's captured card */
+  onCardPlayed?: () => void;
   /** Opponent drag state */
   opponentDrag?: OpponentDragState | null;
   /** Registration callbacks */
@@ -72,6 +74,7 @@ export function CapturePile({
   findTempStackAtPoint,
   onExtendBuild,
   onCaptureBuild,
+  onCardPlayed,
   opponentDrag,
   registerCapturePile,
   unregisterCapturePile,
@@ -171,6 +174,7 @@ export function CapturePile({
           opponentDrag={opponentDrag}
           onExtendBuild={onExtendBuild}
           onCaptureBuild={onCaptureBuild}
+          onCardPlayed={onCardPlayed}
         />
       );
     }

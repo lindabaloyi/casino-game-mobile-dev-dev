@@ -1,9 +1,7 @@
 /**
  * useDealingAnimation
- * Hook to detect new cards being dealt and provide stagger delays.
- * 
- * Minimal implementation - only tracks which cards need animation
- * and provides stagger delay for sequential slide-in effect.
+ * Simplified: animates only the initial deal (first time hand has cards).
+ * After that, no further animations occur.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -16,73 +14,72 @@ interface Card {
 }
 
 interface UseDealingAnimationResult {
-  /** Set of card IDs that are currently being animated */
+  /** Set of card IDs that should be animated (only for the initial deal) */
   animatingCardIds: Set<string>;
-  /** Delay in ms for a card based on its index among the new cards */
+  /** Delay in ms for a card based on its position in the hand */
   getCardDelay: (card: Card) => number;
   /** Mark a card as finished animating */
   onAnimationComplete: (cardId: string) => void;
-  /** Reset animation state (e.g., after all cards are done) */
+  /** Reset animation state (for a new game) */
   reset: () => void;
 }
 
-// Helper to generate stable ID for a card
 function getCardId(card: Card): string {
   return card.id || `${card.rank}${card.suit}`;
 }
 
-/**
- * Hook to track dealing animation state
- * @param hand - The current hand array
- */
 export function useDealingAnimation(hand: Card[]): UseDealingAnimationResult {
+  const initialDealCompleteRef = useRef(false);
+  const wasCalledRef = useRef(false);
   const [animatingCardIds, setAnimatingCardIds] = useState<Set<string>>(new Set());
-  const prevHandRef = useRef<Card[]>(hand);
-  // Initialize to 0 so initial deal is detected as new cards
-  const prevLengthRef = useRef<number>(0);
 
-  // Detect new cards when hand changes
+  // Track when useDealingAnimation is called
+  if (!wasCalledRef.current) {
+    wasCalledRef.current = true;
+    console.log('[useDealingAnimation] 🔵 FIRST TIME CALL - hand.length:', hand.length);
+  }
+
+  console.log('[useDealingAnimation] 🔄 Called - hand.length:', hand.length, 'initialDealComplete:', initialDealCompleteRef.current, 'animatingCardIds.size:', animatingCardIds.size);
+
+  // Detect when hand first gets cards (initial deal)
   useEffect(() => {
-    const currentLength = hand.length;
-    const previousLength = prevLengthRef.current;
-
-    console.log('[useDealingAnimation] Hand changed:', { currentLength, previousLength });
+    console.log('[useDealingAnimation] ⚡ useEffect - hand.length:', hand.length, 'initialDealComplete:', initialDealCompleteRef.current);
     
-    if (currentLength > previousLength) {
-      // New cards added (either initial deal or new cards)
-      const newCards = hand.slice(previousLength);
-      const newCardIds = new Set(newCards.map(getCardId));
-      console.log('[useDealingAnimation] New cards detected:', newCardIds.size, 'Cards:', Array.from(newCardIds));
-      setAnimatingCardIds(newCardIds);
-    } else if (currentLength < previousLength) {
-      // Cards were played - reset animating state
-      console.log('[useDealingAnimation] Cards played, resetting animation state');
-      setAnimatingCardIds(new Set());
+    if (!initialDealCompleteRef.current && hand.length > 0) {
+      // First time we have cards – animate all of them
+      const allIds = new Set(hand.map(getCardId));
+      setAnimatingCardIds(allIds);
+      // Mark as complete so this never runs again
+      initialDealCompleteRef.current = true;
+      console.log('[useDealingAnimation] ✅ INITIAL DEAL - Set animatingCardIds:', Array.from(allIds));
+    } else if (initialDealCompleteRef.current) {
+      console.log('[useDealingAnimation] ⛔ SKIP - Already complete');
     }
-
-    prevHandRef.current = hand;
-    prevLengthRef.current = currentLength;
   }, [hand]);
 
-  // Calculate delay based on position among new cards
+  // Stagger delay based on card's index in the hand (for the initial deal)
   const getCardDelay = useCallback((card: Card): number => {
-    // Find all new cards in order of appearance in the hand
-    const newCards = hand.filter(c => animatingCardIds.has(getCardId(c)));
-    const index = newCards.findIndex(c => getCardId(c) === getCardId(card));
-    return index * 120; // 120ms stagger per card
-  }, [hand, animatingCardIds]);
+    // If we haven't completed the initial deal yet, compute stagger
+    if (!initialDealCompleteRef.current) {
+      const index = hand.findIndex(c => getCardId(c) === getCardId(card));
+      return index * 500; // 500ms per card (slowed down for testing)
+    }
+    return 0; // No delay after initial deal
+  }, [hand]);
 
-  // Mark a card as finished animating
   const onAnimationComplete = useCallback((cardId: string) => {
+    console.log('[useDealingAnimation] 🎬 Animation complete:', cardId);
     setAnimatingCardIds(prev => {
       const next = new Set(prev);
       next.delete(cardId);
+      console.log('[useDealingAnimation]   Remaining animating:', Array.from(next));
       return next;
     });
   }, []);
 
-  // Reset animation state
   const reset = useCallback(() => {
+    console.log('[useDealingAnimation] 🔄 RESET');
+    initialDealCompleteRef.current = false;
     setAnimatingCardIds(new Set());
   }, []);
 

@@ -23,6 +23,8 @@ import { useDragHandlers } from '../../hooks/game/useDragHandlers';
 import { useActionHandlers } from '../../hooks/game/useActionHandlers';
 import { useTableBounds } from '../../hooks/game/useTableBounds';
 import { useTurnTimer } from '../../hooks/game/useTurnTimer';
+import { useCaptureSound } from '../../hooks/useCaptureSound';
+import { useSound } from '../../hooks/useSound';
 
 import { GameStatusBar } from './GameStatusBar';
 import { TableArea } from '../table/TableArea';
@@ -135,6 +137,12 @@ export function GameBoard({
       actions.endTurn();
     },
   });
+
+  // Capture sound detection - plays sound when player captures cards
+  useCaptureSound(gameState, playerNumber);
+
+  // Sound effects for card contact (moved here to persist across drags)
+  const { playCardContact, playTrail, playTableCardDrag, playButton, playCapture } = useSound();
 
   // Debug logging disabled for cleaner console
 
@@ -324,6 +332,7 @@ export function GameBoard({
     onDragEndWrapper: handleDragEndWrapper,
     openStealModal: modals.openStealModal,
     table: computed.table,
+    onTableCardDragDrop: playTableCardDrag,
   });
 
   // Action handlers
@@ -539,6 +548,8 @@ export function GameBoard({
         disableOverlays={!!computed.overlayStackId}
         onBuildTap={handleBuildTap}
         onRecallAttempt={handleRecallAttempt}
+        onPlayButtonSound={playButton}
+        onCardPlayed={playCardContact}
       />
 
       <PlayerHandArea
@@ -576,6 +587,12 @@ export function GameBoard({
           modals.hideEndTurnButton();
           actions.endTurn();
         }}
+        // Sound effect for card contact
+        onCardContact={playCardContact}
+        // Sound effect for trail
+        onTrailSound={playTrail}
+        // Sound effect for button clicks
+        onPlayButtonSound={playButton}
         // Shiya props - party mode build capture
         gameState={gameState}
         currentPlayer={gameState.currentPlayer}
@@ -618,6 +635,7 @@ export function GameBoard({
         players={gameState.players}
         onConfirmPlay={actionHandlers.handleConfirmPlay}
         onCancelPlay={modals.closePlayModal}
+        onPlayButtonSound={playButton}
         showStealModal={modals.showStealModal}
         stealTargetCard={modals.stealTargetCard}
         stealTargetStack={modals.stealTargetStack}

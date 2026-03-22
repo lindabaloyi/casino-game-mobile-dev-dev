@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { MusicToggleButton } from '../components/ui/MusicToggleButton';
 import { usePlayerProfile, AVATAR_OPTIONS, AvatarId } from '../hooks/usePlayerProfile';
 
 export const options = {
@@ -69,6 +70,10 @@ export default function ProfileScreen() {
       >
         <Ionicons name="arrow-back" size={22} color="white" />
       </TouchableOpacity>
+
+      <View style={styles.musicButtonContainer}>
+        <MusicToggleButton />
+      </View>
 
       <Text style={[styles.title, { fontSize: titleSize }]}>Profile</Text>
 
@@ -274,6 +279,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     padding: 8,
     borderRadius: 8,
+  },
+  musicButtonContainer: {
+    position: 'absolute',
+    top: 50,
+    right: 16,
+    zIndex: 100,
   },
   title: {
     fontWeight: 'bold',

@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
+import { SoundProvider } from '../hooks/useSoundContext';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -43,18 +44,20 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="online-play" options={{ headerShown: false }} />
-        <Stack.Screen name="cpu-game" options={{ headerShown: false }} />
+      <SoundProvider>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="online-play" options={{ headerShown: false }} />
+          <Stack.Screen name="cpu-game" options={{ headerShown: false }} />
 
-        <Stack.Screen name="private-room" options={{ headerShown: false }} />
-        <Stack.Screen name="create-room" options={{ headerShown: false }} />
-        <Stack.Screen name="join-room" options={{ headerShown: false }} />
-        <Stack.Screen name="profile" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar hidden />
+          <Stack.Screen name="private-room" options={{ headerShown: false }} />
+          <Stack.Screen name="create-room" options={{ headerShown: false }} />
+          <Stack.Screen name="join-room" options={{ headerShown: false }} />
+          <Stack.Screen name="profile" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack>
+        <StatusBar hidden />
+      </SoundProvider>
     </GestureHandlerRootView>
   );
 }

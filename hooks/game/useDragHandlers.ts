@@ -23,6 +23,8 @@ interface UseDragHandlersProps {
   openStealModal?: (card: any, stack: any) => void;
   // Table data for finding full build stack info
   table?: any[];
+  // Sound callback for table card drop (played when card is dropped successfully)
+  onTableCardDragDrop?: () => void;
 }
 
 export function useDragHandlers({
@@ -39,6 +41,7 @@ export function useDragHandlers({
   onDragEndWrapper,
   openStealModal,
   table,
+  onTableCardDragDrop,
 }: UseDragHandlersProps) {
   
   const getNormalizedPosition = useCallback((absX: number, absY: number) => {
@@ -121,6 +124,10 @@ export function useDragHandlers({
     if (findCapturePileAtPoint) {
       const capturePile = findCapturePileAtPoint(absX, absY);
       if (capturePile) {
+        // Play sound on successful drop
+        if (onTableCardDragDrop) {
+          onTableCardDragDrop();
+        }
         // Pass targetId as the player index for capture pile
         handleDragEnd('capture', 'success', String(capturePile.playerIndex));
         return;
@@ -130,6 +137,10 @@ export function useDragHandlers({
     // Check loose cards
     const targetCardResult = findCardAtPoint?.(absX, absY);
     if (targetCardResult && dragOverlay.draggingCard) {
+      // Play sound on successful drop
+      if (onTableCardDragDrop) {
+        onTableCardDragDrop();
+      }
       // Pass the source so SmartRouter can determine capture vs createTemp
       actions.createTemp(dragOverlay.draggingCard, targetCardResult.card, dragOverlay.dragSource || 'hand');
       handleDragEnd('card', 'success', targetCardResult.id);
@@ -141,6 +152,10 @@ export function useDragHandlers({
     if (targetStack && targetStack.stackType === 'temp_stack' && dragOverlay.draggingCard) {
       if (targetStack.owner === playerNumber) {
         actions.addToTemp(dragOverlay.draggingCard, targetStack.stackId, dragOverlay.dragSource || 'hand');
+      }
+      // Play sound on successful drop
+      if (onTableCardDragDrop) {
+        onTableCardDragDrop();
       }
       handleDragEnd('temp_stack', 'success', targetStack.stackId);
       return;
@@ -154,17 +169,25 @@ export function useDragHandlers({
       // Delegated to unified handler in GameBoard - just pass through to stackDrop
       // The hasBase validation is now handled centrally in GameBoard.handleDropOnStack
       if (targetStack.owner !== playerNumber) {
+        // Play sound on successful drop
+        if (onTableCardDragDrop) {
+          onTableCardDragDrop();
+        }
         // Opponent's build - delegate to GameBoard's unified handler
         handleDragEnd('stack', 'success', targetStack.stackId);
         return;
+      }
+      // Play sound on successful drop
+      if (onTableCardDragDrop) {
+        onTableCardDragDrop();
       }
       handleDragEnd('stack', 'success', targetStack.stackId);
       return;
     }
 
-    // Missed
+    // Missed - no sound
     handleDragEnd(undefined, 'miss');
-  }, [dragOverlay, findCapturePileAtPoint, findCardAtPoint, findTempStackAtPoint, playerNumber, actions, handleDragEnd]);
+  }, [dragOverlay, findCapturePileAtPoint, findCardAtPoint, findTempStackAtPoint, playerNumber, actions, handleDragEnd, onTableCardDragDrop]);
 
   return {
     handleHandDragStart,

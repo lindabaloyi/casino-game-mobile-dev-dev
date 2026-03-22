@@ -56,6 +56,8 @@ interface CapturedCardsViewProps {
   onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
   /** Callback for capturing opponent's build with a captured card */
   onCaptureBuild?: (card: Card, stackId: string, cardSource: 'captured' | `captured_${number}`) => void;
+  /** Sound callback - called on ANY successful drop of opponent's captured card */
+  onCardPlayed?: () => void;
   /** Opponent's drag state - for hiding cards when opponent is dragging */
   opponentDrag?: OpponentDragState | null;
   /** Party mode flag - for team colors */
@@ -86,6 +88,7 @@ export function CapturedCardsView({
   onDragEnd,
   onExtendBuild,
   onCaptureBuild,
+  onCardPlayed,
   opponentDrag,
   isPartyMode: isPartyModeProp,
   currentPlayerIndex,
@@ -193,6 +196,7 @@ export function CapturedCardsView({
         findTempStackAtPoint={findTempStackAtPoint}
         onExtendBuild={onExtendBuild as any}
         onCaptureBuild={onCaptureBuild as any}
+        onCardPlayed={onCardPlayed}
         opponentDrag={opponentDrag}
         registerCapturePile={registerCapturePile}
         unregisterCapturePile={unregisterCapturePile}

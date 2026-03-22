@@ -7,6 +7,7 @@ interface StackOverlayProps {
   tempStacks: TempStack[];
   onAcceptTemp: (stackId: string) => void;
   onCancelTemp: (stackId: string) => void;
+  onPlayButtonSound?: () => void;
 }
 
 export function StackOverlay({
@@ -14,6 +15,7 @@ export function StackOverlay({
   tempStacks,
   onAcceptTemp,
   onCancelTemp,
+  onPlayButtonSound,
 }: StackOverlayProps) {
   if (!overlayStackId) return null;
   
@@ -26,6 +28,7 @@ export function StackOverlay({
       stackId={overlayStackId}
       onAccept={onAcceptTemp}
       onCancel={onCancelTemp}
+      onPlayButtonSound={onPlayButtonSound}
     />
   );
 }

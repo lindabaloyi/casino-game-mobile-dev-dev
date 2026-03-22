@@ -20,13 +20,31 @@ interface Props {
   stackId: string;
   onAccept: (stackId: string) => void;
   onCancel: (stackId: string) => void;
+  /** Optional callback for button click sound */
+  onPlayButtonSound?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function StackActionStrip({ stackType, stackId, onAccept, onCancel }: Props) {
+export function StackActionStrip({ stackType, stackId, onAccept, onCancel, onPlayButtonSound }: Props) {
   const config   = STACK_CONFIG[stackType];
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Handle button press with optional sound
+  const handleAccept = (id: string) => {
+    if (onPlayButtonSound) {
+      onPlayButtonSound();
+    }
+    onAccept(id);
+  };
+
+  // Handle button press with optional sound
+  const handleCancel = (id: string) => {
+    if (onPlayButtonSound) {
+      onPlayButtonSound();
+    }
+    onCancel(id);
+  };
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -44,7 +62,7 @@ export function StackActionStrip({ stackType, stackId, onAccept, onCancel }: Pro
           styles.btn,
           { backgroundColor: config.acceptTheme.bg, borderColor: config.acceptTheme.border },
         ]}
-        onPress={() => onAccept(stackId)}
+        onPress={() => handleAccept(stackId)}
         accessibilityLabel={config.acceptLabel}
       >
         <Text style={styles.btnText}>{config.acceptLabel}</Text>
@@ -56,7 +74,7 @@ export function StackActionStrip({ stackType, stackId, onAccept, onCancel }: Pro
           styles.btn,
           { backgroundColor: config.cancelTheme.bg, borderColor: config.cancelTheme.border },
         ]}
-        onPress={() => onCancel(stackId)}
+        onPress={() => handleCancel(stackId)}
         accessibilityLabel={config.cancelLabel}
       >
         <Text style={styles.btnText}>{config.cancelLabel}</Text>

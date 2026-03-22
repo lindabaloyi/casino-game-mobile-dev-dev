@@ -24,6 +24,8 @@ interface GameModalsProps {
   players?: { captures: Card[] }[];
   onConfirmPlay: (buildValue: number) => void;
   onCancelPlay: () => void;
+  /** Optional callback for button click sound */
+  onPlayButtonSound?: () => void;
   
   // Steal Build Modal (for stealing opponent builds)
   showStealModal: boolean;
@@ -55,6 +57,7 @@ export function GameModals({
   players,
   onConfirmPlay,
   onCancelPlay,
+  onPlayButtonSound,
   
   showStealModal,
   stealTargetCard,
@@ -93,6 +96,7 @@ export function GameModals({
           players={players}
           onConfirm={onConfirmPlay}
           onCancel={onCancelPlay}
+          onPlayButtonSound={onPlayButtonSound}
         />
       )}
 

@@ -30,6 +30,7 @@ import { SpectatorView, QualificationReviewModal } from '../components/tournamen
 import { Lobby } from '../components/lobby/Lobby';
 import { useLobbyMock } from '../hooks/useLobbyMock';
 import { MODE_CONFIG, GameMode } from '../utils/modeConfig';
+import { useSoundContext } from '../hooks/useSoundContext';
 
 export const options = {
   headerShown: false,
@@ -118,6 +119,19 @@ export default function OnlinePlayScreen() {
   // Tournament status
   const safePlayerNum = playerNumber ?? 0;
   const tournamentStatus = useTournamentStatus(gameState, safePlayerNum);
+  
+  // Set in-game mode for lower background music volume
+  const { setInGameMode } = useSoundContext();
+  
+  // Set in-game mode when game starts
+  useEffect(() => {
+    if (gameState != null) {
+      setInGameMode(true);
+    }
+    return () => {
+      setInGameMode(false);
+    };
+  }, [gameState, setInGameMode]);
   
   // Mock lobby data (replace with real data in production)
   const {

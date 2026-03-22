@@ -33,29 +33,50 @@ class FriendlyBuildHandler {
     const source = cardSource || this.getCardSource(state, playerIndex, card);
     console.log('[FriendlyBuildHandler] Card source:', source);
 
-    // Step 2: For hand cards, ALWAYS check for spare first - before any extension logic
-    // This ensures the spare check runs even when there's a pending extension
+    // Step 2: For hand cards, check for spare first
+    // If has spare, can extend the build. If no spare (last card), should capture instead.
     if (source === 'hand') {
       const playerHand = state.players[playerIndex]?.hand || [];
       const sameRankCards = playerHand.filter(c => c.rank === card.rank);
       const hasSpare = sameRankCards.length > 1; // includes the card being played
 
-      if (!hasSpare && stack.owner === playerIndex) {
-        // No spare – capture the whole build (even if there's a pending extension)
-        console.log('[FriendlyBuildHandler] No spare - capturing own build');
+      console.log('[FriendlyBuildHandler] Has spare:', hasSpare);
+      
+      // If NO spare (this is the last card of this rank), route to captureOwn
+      // This ensures the build gets captured automatically when player has no more cards
+      if (!hasSpare) {
+        console.log('[FriendlyBuildHandler] No spare cards - routing to captureOwn');
+        const CaptureOwnAction = require('../actions/captureOwn');
         return {
           type: 'captureOwn',
           payload: {
             card,
             targetType: 'build',
-            targetStackId: stack.stackId,
+            targetStackId: stackId
           }
         };
       }
+      
+      // Has spare - try to extend the build first
+      if (stack.pendingExtension?.looseCard || stack.pendingExtension?.cards) {
+        console.log('[FriendlyBuildHandler] Has pending extension - delegating to ExtendRouter');
+        return this.extendRouter.route(
+          { stackId, card, cardSource: source },
+          state,
+          playerIndex
+        );
+      }
+      
+      // Try to extend/build
+      console.log('[FriendlyBuildHandler] Trying to extend build first');
+      return this.extendRouter.route(
+        { stackId, card, cardSource: source },
+        state,
+        playerIndex
+      );
     }
 
-    // Step 3: Has spare (or card from table) – proceed with extension
-    // Check for pending extension first
+    // Step 3: Card from table - proceed with extension
     if (stack.pendingExtension?.looseCard || stack.pendingExtension?.cards) {
       console.log('[FriendlyBuildHandler] Has pending extension - delegating to ExtendRouter');
       return this.extendRouter.route(

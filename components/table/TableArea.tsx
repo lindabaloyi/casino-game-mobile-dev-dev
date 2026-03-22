@@ -127,6 +127,10 @@ interface Props {
   onBuildTap?: (stack: BuildStack | TempStack) => void;
   /** Callback when player attempts to recall from a capture pile (Shiya) */
   onRecallAttempt?: (targetPlayerIndex: number) => void;
+  /** Optional callback for button click sound */
+  onPlayButtonSound?: () => void;
+  /** Sound callback - called on ANY successful drop of opponent's captured card */
+  onCardPlayed?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -182,6 +186,8 @@ export function TableArea({
   gameMode,
   onBuildTap,
   onRecallAttempt,
+  onPlayButtonSound,
+  onCardPlayed,
 }: Props) {
   // Separate item types
   const tempStacks = tableCards.filter(isTempStack) as TempStack[];
@@ -268,6 +274,7 @@ export function TableArea({
           tempStacks={tempStacks}
           onAcceptTemp={onAcceptTemp}
           onCancelTemp={onCancelTemp}
+          onPlayButtonSound={onPlayButtonSound}
         />
       )}
 
@@ -290,6 +297,7 @@ export function TableArea({
         unregisterCapturePile={unregisterCapturePile}
         onExtendBuild={onExtendBuild}
         onCaptureBuild={onCaptureBuild}
+        onCardPlayed={onCardPlayed}
         opponentDrag={opponentDrag}
         isPartyMode={isPartyMode}
         currentPlayerIndex={currentPlayerIndex}
