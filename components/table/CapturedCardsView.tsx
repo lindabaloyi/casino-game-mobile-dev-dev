@@ -64,6 +64,8 @@ interface CapturedCardsViewProps {
   currentPlayerIndex?: number;
   /** Game mode type - for special rendering (two-hands for 3-player, freeforall for 4-player) */
   gameMode?: 'two-hands' | 'three-hands' | 'party' | 'four-hands' | 'freeforall' | 'tournament';
+  /** Callback when player attempts to recall from a capture pile (Shiya) */
+  onRecallAttempt?: (targetPlayerIndex: number) => void;
 }
 
 export function CapturedCardsView({
@@ -88,6 +90,7 @@ export function CapturedCardsView({
   isPartyMode: isPartyModeProp,
   currentPlayerIndex,
   gameMode,
+  onRecallAttempt,
 }: CapturedCardsViewProps) {
   // Debug logging
   console.log(`[CapturedCardsView] playerNumber=${playerNumber}, playerCount=${playerCount}, gameMode=${gameMode}`);
@@ -195,6 +198,7 @@ export function CapturedCardsView({
         unregisterCapturePile={unregisterCapturePile}
         getPlayerLabel={getPlayerLabel}
         getPlayerTeamColors={getPlayerTeamColors}
+        onRecallAttempt={onRecallAttempt}
       />
     );
   };

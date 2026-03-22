@@ -17,7 +17,7 @@
 const Router = require('./smart-router/Router');
 
 // Actions that don't require turn validation in party mode
-const OUT_OF_TURN_ACTIONS = ['shiya', 'recallBuild'];
+const OUT_OF_TURN_ACTIONS = ['shiya', 'recall'];
 
 /**
  * Creates an ActionRouter with the given handlers.

@@ -33,7 +33,6 @@ import { OpponentGhostCard } from './OpponentGhostCard';
 import { ErrorBanner } from '../shared/ErrorBanner';
 import { Card as TableCard } from '../../types';
 import { GameOverModal } from '../modals/GameOverModal';
-import { ShiyaRecallModal } from '../modals/ShiyaRecallModal';
 import { HomeMenuButton } from './HomeMenuButton';
 import { OpponentProfileModal } from '../modals/OpponentProfileModal';
 import { useOpponentInfo } from '../../hooks/useOpponentInfo';
@@ -97,9 +96,6 @@ export function GameBoard({
   const [dragVersion, setDragVersion] = useState(0);
   const [selectedBuildForShiya, setSelectedBuildForShiya] = useState<any>(null);
   
-  // Shiya recall modal state
-  const [shiyaRecallCandidate, setShiyaRecallCandidate] = useState<any>(null);
-  const recallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shiyaButtonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Track round transitions to prevent double triggers
@@ -186,61 +182,8 @@ export function GameBoard({
     }
   }, [roundInfo.isOver, roundInfo.roundNumber, startNextRound]);
 
-  // Shiya Recall Detection
-  // Watch shiyaRecalls in game state - when a recall offer appears for this player,
-  // show the recall modal. This is the proper separation: shiyaRecalls is ephemeral notification
-  // state, separate from persistent teamCapturedBuilds.
-  // 
-  // New structure: shiyaRecalls[playerIndex][stackId] = { buildCards, captureCards, ... }
-  useEffect(() => {
-    if (gameState.playerCount !== 4) return;
-    
-    // Check if there's a recall offer for this player (new nested structure)
-    const myRecalls = gameState.shiyaRecalls?.[playerNumber] as Record<string, any> | undefined;
-    
-    if (myRecalls && typeof myRecalls === 'object' && Object.keys(myRecalls).length > 0) {
-      // Get the first available recall (could be multiple)
-      const firstStackId = Object.keys(myRecalls)[0];
-      const myRecall = myRecalls[firstStackId];
-      
-      if (myRecall) {
-        // Clear any existing timer
-        if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
-        
-        // Set the recall candidate - pass the full recall object with stackId
-        setShiyaRecallCandidate({ ...myRecall, stackId: firstStackId });
-        
-        // Auto-dismiss after 4 seconds (matching expiresAt timestamp)
-        const timeUntilExpiry = myRecall.expiresAt - Date.now();
-        const autoCloseMs = Math.max(1000, Math.min(4000, timeUntilExpiry));
-        
-        recallTimerRef.current = setTimeout(() => {
-          setShiyaRecallCandidate(null);
-          recallTimerRef.current = null;
-        }, autoCloseMs);
-      }
-    } else {
-      // No recall for this player - clear if there's a stale candidate
-      // (only clear if the candidate's stackId doesn't match any active recall)
-      if (shiyaRecallCandidate) {
-        const candidateStackId = shiyaRecallCandidate.stackId;
-        const hasActiveRecall = myRecalls?.[candidateStackId];
-        if (!hasActiveRecall) {
-          setShiyaRecallCandidate(null);
-          if (recallTimerRef.current) {
-            clearTimeout(recallTimerRef.current);
-            recallTimerRef.current = null;
-          }
-        }
-      }
-    }
-    
-    // Cleanup timer on unmount
-    return () => {
-      if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
-      if (shiyaButtonTimerRef.current) clearTimeout(shiyaButtonTimerRef.current);
-    };
-  }, [gameState.shiyaRecalls, gameState.playerCount, playerNumber, shiyaRecallCandidate]);
+  // Note: Recall is now triggered via double-tap on teammate's capture pile
+  // No modal needed - handled by handleRecallAttempt callback
 
   // Drag end wrapper
   const handleDragEndWrapper = () => {
@@ -316,6 +259,55 @@ export function GameBoard({
       setSelectedBuildForShiya(null);
     }
   }, [gameState, playerNumber, modals]);
+
+  // Handle recall attempt from capture pile (Shiya post-capture)
+  const handleRecallAttempt = useCallback((targetPlayerIndex: number) => {
+    console.log('[handleRecallAttempt] Target player:', targetPlayerIndex);
+    
+    // Check party mode
+    if (gameState.playerCount !== 4) {
+      console.log('[handleRecallAttempt] Not party mode');
+      return;
+    }
+    
+    // Check if target is a teammate
+    if (!areTeammates(playerNumber, targetPlayerIndex)) {
+      console.log('[handleRecallAttempt] Not a teammate');
+      return;
+    }
+    
+    // Get target player's captures
+    const targetCaptures = gameState.players?.[targetPlayerIndex]?.captures ?? [];
+    
+    if (targetCaptures.length === 0) {
+      console.log('[handleRecallAttempt] Target has no captures');
+      return;
+    }
+    
+    // Get player's hand
+    const myHand = gameState.players?.[playerNumber]?.hand ?? [];
+    
+    // Check if player has any matching cards in hand
+    // For simplicity, we attempt to recall the most recent capture
+    // The server will validate if there's a match
+    const mostRecentCapture = targetCaptures[targetCaptures.length - 1];
+    const hasMatch = myHand.some((card: any) => card.rank === mostRecentCapture.rank);
+    
+    if (!hasMatch) {
+      console.log('[handleRecallAttempt] No matching card in hand');
+      // Could show feedback here
+      return;
+    }
+    
+    console.log('[handleRecallAttempt] Attempting recall from player', targetPlayerIndex);
+    // Use unified recall - the server will validate that this player is the activator
+    // Get the recall ID from shiyaRecalls
+    const myRecalls = gameState.shiyaRecalls?.[playerNumber] as Record<string, any> | undefined;
+    if (myRecalls && Object.keys(myRecalls).length > 0) {
+      const recallId = Object.keys(myRecalls)[0];
+      actions.recall(recallId);
+    }
+  }, [gameState, playerNumber, actions]);
 
   // Drag handlers
   const dragHandlers = useDragHandlers({
@@ -546,6 +538,7 @@ export function GameBoard({
         // ExtensionOverlay should still show when extendingBuildId is set
         disableOverlays={!!computed.overlayStackId}
         onBuildTap={handleBuildTap}
+        onRecallAttempt={handleRecallAttempt}
       />
 
       <PlayerHandArea
@@ -644,25 +637,7 @@ export function GameBoard({
         onCancelConfirmTempBuild={modals.closeConfirmTempBuildModal}
       />
 
-      {/* Shiya Recall Modal - appears when teammate captures your Shiya build */}
-      <ShiyaRecallModal
-        visible={!!shiyaRecallCandidate}
-        build={shiyaRecallCandidate}
-        onRecall={() => {
-          // Clear timer and call recallBuild with stackId
-          if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
-          const stackIdToRecall = shiyaRecallCandidate?.stackId;
-          setShiyaRecallCandidate(null);
-          if (stackIdToRecall) {
-            actions.recallBuild(stackIdToRecall);
-          }
-        }}
-        onClose={() => {
-          setShiyaRecallCandidate(null);
-          if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
-        }}
-        autoCloseMs={4000}
-      />
+      {/* Recall is triggered via double-tap on teammate's capture pile - no modal needed */}
 
     
       

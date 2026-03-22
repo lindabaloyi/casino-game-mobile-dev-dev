@@ -46,9 +46,8 @@ const actionHandlers = {
   playFromCaptures:    require('./playFromCaptures'),
   dropToCapture:       require('./dropToCapture'),
 
-  // ── Shiya (Party Mode) ───────────────────────────────────────────────────────
-  shiya:               require('./shiya'),
-  recallBuild:         require('./recallBuild'),
+  // ── Recall (Party Mode) ───────────────────────────────────────────────────────
+  recall:              require('./recall'),
 
   // ── Tournament (Knockout Mode) ─────────────────────────────────────────────────
   startTournament:         require('./startTournament'),

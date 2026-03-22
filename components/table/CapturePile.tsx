@@ -5,6 +5,7 @@
  */
 
 import React, { useRef, useCallback, useEffect } from 'react';
+import { TouchableOpacity } from 'react-native';
 import { StyleSheet, Text, View } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
 import { DraggableOpponentCard } from './DraggableOpponentCard';
@@ -51,6 +52,8 @@ interface CapturePileProps {
   /** Team utilities */
   getPlayerLabel: (idx: number) => string;
   getPlayerTeamColors: (idx: number) => TeamColors;
+  /** Callback for double-tap to recall captured items (Shiya) */
+  onRecallAttempt?: (targetPlayerIndex: number) => void;
 }
 
 export function CapturePile({
@@ -74,6 +77,7 @@ export function CapturePile({
   unregisterCapturePile,
   getPlayerLabel,
   getPlayerTeamColors,
+  onRecallAttempt,
 }: CapturePileProps) {
   // Debug logging
   console.log(`[CapturePile] Rendering pile for playerIndex=${playerIndex}, playerNumber=${playerNumber}, playerCount=${playerCount}, captures=${captures?.length || 0}`);
@@ -86,6 +90,22 @@ export function CapturePile({
   // Ref for measuring this pile
   const pileRef = useRef<View>(null);
   const hasRegisteredRef = useRef(false);
+  const lastTapRef = useRef<number>(0);
+
+  // Handle double-tap for Shiya recall
+  const handlePress = useCallback(() => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300; // ms
+    
+    if (onRecallAttempt && captures.length > 0) {
+      if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+        // Double tap detected - attempt recall
+        console.log('[CapturePile] Double-tap detected, attempting recall from player', playerIndex);
+        onRecallAttempt(playerIndex);
+      }
+    }
+    lastTapRef.current = now;
+  }, [playerIndex, captures.length, onRecallAttempt]);
 
   // Register pile bounds on mount
   useEffect(() => {
@@ -160,8 +180,10 @@ export function CapturePile({
   };
 
   return (
-    <View
+    <TouchableOpacity
       ref={pileRef}
+      onPress={handlePress}
+      activeOpacity={0.8}
       style={[
         styles.captureSection,
         {
@@ -177,7 +199,7 @@ export function CapturePile({
       <View style={[styles.cardContainer, isActive && styles.cardContainerActive]}>
         {renderCard()}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

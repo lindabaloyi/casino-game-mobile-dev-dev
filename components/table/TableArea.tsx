@@ -125,6 +125,8 @@ interface Props {
   
   /** Callback when a build is tapped - for Shiya selection or dual builds */
   onBuildTap?: (stack: BuildStack | TempStack) => void;
+  /** Callback when player attempts to recall from a capture pile (Shiya) */
+  onRecallAttempt?: (targetPlayerIndex: number) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -179,6 +181,7 @@ export function TableArea({
   currentPlayerIndex,
   gameMode,
   onBuildTap,
+  onRecallAttempt,
 }: Props) {
   // Separate item types
   const tempStacks = tableCards.filter(isTempStack) as TempStack[];
@@ -291,6 +294,7 @@ export function TableArea({
         isPartyMode={isPartyMode}
         currentPlayerIndex={currentPlayerIndex}
         gameMode={gameMode}
+        onRecallAttempt={onRecallAttempt}
       />
     </View>
   );
