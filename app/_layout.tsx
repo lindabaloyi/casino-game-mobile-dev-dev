@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
+import { SoundProvider } from '../hooks/useSoundContext';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -13,23 +14,27 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   useEffect(() => {
-    const hideNavigationBar = async () => {
+    const setupNavigationBar = async () => {
       if (Platform.OS === 'android') {
         try {
-          await NavigationBar.setVisibilityAsync('hidden');
-          await NavigationBar.setBehaviorAsync('inset-touch');
+          // Allow back button gestures to work - use overlay-swipe behavior
+          await NavigationBar.setBehaviorAsync('overlay-swipe');
         } catch {
-          // Removed console.log for production performance
+          // Fallback to inset-touch
+          try {
+            await NavigationBar.setBehaviorAsync('inset-touch');
+          } catch {
+            // Ignore
+          }
         }
       }
     };
 
-    hideNavigationBar();
+    setupNavigationBar();
 
-    // Listen for orientation changes and re-hide navigation bar
+    // Listen for orientation changes and re-setup navigation bar
     const orientationSubscription = ScreenOrientation.addOrientationChangeListener(() => {
-      console.log('[NAVBAR] Orientation changed, re-hiding navigation bar');
-      hideNavigationBar();
+      setupNavigationBar();
     });
 
     return () => {
@@ -39,6 +44,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+<<<<<<< HEAD
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="2-hands" options={{ headerShown: false }} />
@@ -51,6 +57,23 @@ export default function RootLayout() {
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar hidden />
+=======
+      <SoundProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="leaderboards" />
+          <Stack.Screen name="online-play" />
+          <Stack.Screen name="cpu-game" />
+
+          <Stack.Screen name="private-room" />
+          <Stack.Screen name="create-room" />
+          <Stack.Screen name="join-room" />
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack>
+        <StatusBar hidden />
+      </SoundProvider>
+>>>>>>> feat-multi
     </GestureHandlerRootView>
   );
 }

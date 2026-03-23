@@ -77,6 +77,26 @@ function findCardAtSource(state, card, source, playerIndex) {
   return { found: false };
 }
 
+/**
+ * Helper: Check if a card exists in any temp stack (optionally excluding a specific stack ID)
+ */
+function isCardInAnyTempStack(state, card, excludeStackId = null) {
+  for (const tc of state.tableCards) {
+    if (tc.type === 'temp_stack') {
+      if (excludeStackId !== null && tc.stackId === excludeStackId) continue;
+      if (tc.cards && tc.cards.some(c => c.rank === card.rank && c.suit === card.suit)) {
+        return true;
+      }
+      if (tc.pendingExtension && tc.pendingExtension.cards) {
+        if (tc.pendingExtension.cards.some(pc => pc.card.rank === card.rank && pc.card.suit === card.suit)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 function addToTemp(state, payload, playerIndex) {
   const card = payload.card || payload.tableCard || payload.handCard;
   const stackId = payload.stackId;
@@ -104,34 +124,34 @@ function addToTemp(state, payload, playerIndex) {
   const cardInfo = findCardAtSource(state, card, cardSource, playerIndex);
   
   if (!cardInfo.found) {
-    // Check if card already exists in a temp stack (action was already processed)
-    const existingTempStack = state.tableCards.find(
-      tc => tc.type === 'temp_stack' && tc.stackId !== stackId && tc.cards?.some(c => c.rank === card.rank && c.suit === card.suit)
-    );
-    if (existingTempStack) {
+    // 1. Check if card is already in the current stack (original state)
+    const inCurrentStackOriginal = stack.cards?.some(c => c.rank === card.rank && c.suit === card.suit) ||
+      (stack.pendingExtension?.cards?.some(pc => pc.card.rank === card.rank && pc.card.suit === card.suit));
+    if (inCurrentStackOriginal) {
+      console.log('[addToTemp] Card already in target stack (original state) - returning state unchanged');
       return state;
     }
-    
-    console.error('[addToTemp] ===== CARD NOT AT CLAIMED SOURCE =====');
-    console.error('[addToTemp] Client claimed card was from:', cardSource);
-    
-    // Log more details about what we searched
-    if (cardSource === 'captured' || (cardSource && cardSource.startsWith('captured_'))) {
-      let ownerIndex = playerIndex;
-      if (cardSource.startsWith('captured_')) {
-        ownerIndex = parseInt(cardSource.split('_')[1], 10);
-      }
-      console.error(`[addToTemp] Searched capture pile of player ${ownerIndex} (playerIndex=${playerIndex})`);
-      console.error('[addToTemp] Captures at that index:', state.players[ownerIndex]?.captures?.map(c => c.rank + c.suit) || 'EMPTY');
-      
-      // Also log all players' captures for debugging
-      console.error('[addToTemp] All players captures:');
-      state.players.forEach((p, idx) => {
-        console.error(`  Player ${idx}:`, p.captures?.map(c => c.rank + c.suit) || []);
-      });
+
+    // 2. Check if card is in any other temp stack in original state
+    if (isCardInAnyTempStack(state, card, stackId)) {
+      console.log('[addToTemp] Card already in another temp stack - returning state unchanged');
+      return state;
     }
-    
-    console.error('[addToTemp] This indicates a sync issue or client bug');
+
+    // 3. Check the new state (in case the card was added by a previous action in the batch)
+    const inCurrentStackNew = newState.tableCards[stackIdx]?.cards?.some(c => c.rank === card.rank && c.suit === card.suit) ||
+      (newState.tableCards[stackIdx]?.pendingExtension?.cards?.some(pc => pc.card.rank === card.rank && pc.card.suit === card.suit));
+    if (inCurrentStackNew) {
+      console.log('[addToTemp] Card already in target stack (new state) - returning state unchanged');
+      return newState;
+    }
+    if (isCardInAnyTempStack(newState, card, stackId)) {
+      console.log('[addToTemp] Card already in another temp stack (new state) - returning state unchanged');
+      return newState;
+    }
+
+    // If still not found, it's a genuine error
+    console.error('[addToTemp] Card not found at source and not in any temp stack');
     throw new Error(`addToTemp: card ${card.rank}${card.suit} not found at source ${cardSource}`);
   }
 

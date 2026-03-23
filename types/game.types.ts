@@ -144,6 +144,33 @@ export interface GameState {
       [stackId: string]: ShiyaRecall;
     };
   };
+
+  // === TOURNAMENT STATE ===
+  // Tournament mode and phase
+  tournamentMode?: 'knockout' | null;
+  tournamentPhase?: 'QUALIFYING' | 'QUALIFICATION_REVIEW' | 'SEMI_FINAL' | 'FINAL_SHOWDOWN' | 'COMPLETED' | null;
+  tournamentRound?: number;
+  playerStatuses?: { [playerIndex: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
+  tournamentScores?: { [playerIndex: string]: number };
+  eliminationOrder?: number[];
+  finalShowdownHandsPlayed?: number;
+  tournamentWinner?: number | null;
+  
+  // Qualification Review Phase
+  qualificationCountdown?: number;
+  qualifiedPlayers?: number[];
+  qualificationScores?: { 
+    [playerIndex: string]: {
+      totalPoints: number;
+      cardPoints: number;
+      tenDiamondPoints: number;
+      twoSpadePoints: number;
+      acePoints: number;
+      spadeBonus: number;
+      cardCountBonus: number;
+      rank?: number;
+    }
+  };
 }
 
 // ── Team helpers ─────────────────────────────────────────────────────────────

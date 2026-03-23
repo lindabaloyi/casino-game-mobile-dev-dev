@@ -73,6 +73,8 @@ interface Props {
   cardWidth?: number;
   /** Card height for responsive sizing - defaults to 84 */
   cardHeight?: number;
+  /** Callback for card contact sound - called when card contacts something */
+  onCardContact?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -95,6 +97,7 @@ export function DraggableHandCard({
   isHidden,
   cardWidth = DEFAULT_CARD_WIDTH,
   cardHeight = DEFAULT_CARD_HEIGHT,
+  onCardContact,
 }: Props) {
   const opacity = useSharedValue(1);
 
@@ -145,6 +148,9 @@ export function DraggableHandCard({
     if (stackHit) {
       opacity.value = withSpring(0);  // Hide card while action processes
       if (onDragEnd) onDragEnd();
+      // Play card contact sound when card hits a stack
+      console.log('[DraggableHandCard] Card dropped on stack, calling onCardContact');
+      if (onCardContact) onCardContact();
       onDropOnStack(card, stackHit.stackId, stackHit.owner, stackHit.stackType);
       return;
     }
@@ -154,6 +160,9 @@ export function DraggableHandCard({
     if (targetCardResult) {
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
+      // Play card contact sound when card hits another card
+      console.log('[DraggableHandCard] Card dropped on card, calling onCardContact');
+      if (onCardContact) onCardContact();
       onDropOnCard(card, targetCardResult.card);
       return;
     }
@@ -164,6 +173,9 @@ export function DraggableHandCard({
     if (inZone) {
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
+      // Play card contact sound when card hits the table
+      console.log('[DraggableHandCard] Card dropped on table, calling onCardContact');
+      if (onCardContact) onCardContact();
       onDropOnTable(card);
     } else {
       handleSnapBack();

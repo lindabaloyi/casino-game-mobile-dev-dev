@@ -3,48 +3,133 @@
  * 
  * Reusable player display card for lobby.
  * Shows avatar, name, ready status, and optional ping.
+ * 
+ * Updated to support both object-based and individual prop interfaces.
  */
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-interface PlayerCardProps {
-  avatar: string;
+interface PlayerData {
+  id: string;
   username: string;
+  avatar: string;
   isReady: boolean;
+  isConnected: boolean;
+  ping: number;
+}
+
+interface PlayerCardProps {
+  player?: PlayerData;
+  isOwn?: boolean;
+  slotIndex?: number;
+  avatarEmoji?: string;
+  pingColor?: (ping: number) => string;
+  pingIcon?: (ping: number) => any;
+  // Legacy props for backward compatibility
+  avatar?: string;
+  username?: string;
+  isReady?: boolean;
   ping?: number;
   isEmpty?: boolean;
   slotNumber?: number;
 }
 
+// Default ping color/icon functions
+const defaultGetPingColor = (ping: number): string => {
+  if (ping < 100) return '#4CAF50';
+  if (ping < 200) return '#FFC107';
+  return '#F44336';
+};
+
+const defaultGetPingIcon = (ping: number): 'wifi' | 'wifi-outline' => {
+  return ping < 200 ? 'wifi' : 'wifi-outline';
+};
+
+// Avatar emoji mapping
 const AVATAR_EMOJI_MAP: Record<string, string> = {
-  '🦊': '🦊', '🐼': '🐼', '🦁': '🦁', '🐯': '🐯',
-  '🐵': '🐵', '🐸': '🐸', '🦄': '🦄', '🐲': '🐲',
+  'lion': '🦁', 'tiger': '🐯', 'elephant': '🐘', 'monkey': '🐵',
+  'panda': '🐼', 'fox': '🦊', 'wolf': '🐺', 'bear': '🐻',
 };
 
 function getAvatarEmoji(avatarId: string): string {
   return AVATAR_EMOJI_MAP[avatarId] || '🎮';
 }
 
-function getPingColor(ping: number): string {
-  if (ping < 100) return '#4CAF50';
-  if (ping < 200) return '#FFC107';
-  return '#F44336';
-}
-
-function getPingIcon(ping: number): 'wifi' | 'wifi-outline' {
-  return ping < 200 ? 'wifi' : 'wifi-outline';
-}
-
 export function PlayerCard({ 
-  avatar, 
-  username, 
-  isReady, 
-  ping, 
-  isEmpty = false,
-  slotNumber 
+  player,
+  isOwn,
+  slotIndex,
+  avatarEmoji,
+  pingColor = defaultGetPingColor,
+  pingIcon = defaultGetPingIcon,
+  // Legacy props
+  avatar,
+  username: usernameProp,
+  isReady: isReady,
+  ping,
+  isEmpty,
+  slotNumber,
 }: PlayerCardProps) {
+  // Handle new object-based interface
+  if (player) {
+    const isPlayerReady = player.isReady;
+    const playerName = isOwn ? player.username || 'You' : player.username;
+    const emoji = avatarEmoji || getAvatarEmoji(player.avatar);
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{emoji}</Text>
+          <View style={[
+            styles.readyIndicator,
+            isPlayerReady ? styles.readyIndicatorReady : styles.readyIndicatorNotReady
+          ]}>
+            <Ionicons 
+              name={isPlayerReady ? "checkmark" : "time-outline"} 
+              size={12} 
+              color="white" 
+            />
+          </View>
+        </View>
+        <Text style={styles.name} numberOfLines={1}>{playerName}</Text>
+        
+        <View style={styles.status}>
+          <View style={styles.pingBadge}>
+            <Ionicons 
+              name={pingIcon(player.ping)} 
+              size={12} 
+              color={pingColor(player.ping)} 
+            />
+            <Text style={styles.pingText}>{player.ping}ms</Text>
+          </View>
+        </View>
+        
+        <Text style={[
+          styles.readyText,
+          isPlayerReady ? styles.readyTextReady : styles.readyTextNotReady
+        ]}>
+          {isPlayerReady ? 'READY' : 'NOT READY'}
+        </Text>
+      </View>
+    );
+  }
+
+  // Handle empty slot (new interface)
+  if (slotIndex !== undefined) {
+    return (
+      <View style={[styles.card, styles.cardEmpty]}>
+        <View style={[styles.avatar, styles.avatarEmpty]}>
+          <Ionicons name="person-outline" size={24} color="rgba(255,255,255,0.3)" />
+        </View>
+        <Text style={styles.nameEmpty}>Waiting...</Text>
+        <Text style={styles.slotText}>Player {slotIndex + 1}</Text>
+      </View>
+    );
+  }
+
+  // Handle legacy props for backward compatibility
   if (isEmpty) {
     return (
       <View style={[styles.card, styles.cardEmpty]}>
@@ -57,10 +142,15 @@ export function PlayerCard({
     );
   }
 
+  // Legacy filled slot
+  const finalUsername = usernameProp || 'Player';
+  const finalAvatarEmoji = avatar ? getAvatarEmoji(avatar) : '🎮';
+  const finalPing = ping ?? 0;
+
   return (
     <View style={styles.card}>
       <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{getAvatarEmoji(avatar)}</Text>
+        <Text style={styles.avatarText}>{finalAvatarEmoji}</Text>
         <View style={[
           styles.readyIndicator,
           isReady ? styles.readyIndicatorReady : styles.readyIndicatorNotReady
@@ -72,17 +162,17 @@ export function PlayerCard({
           />
         </View>
       </View>
-      <Text style={styles.name} numberOfLines={1}>{username}</Text>
+      <Text style={styles.name} numberOfLines={1}>{finalUsername}</Text>
       
       {ping !== undefined && (
         <View style={styles.status}>
           <View style={styles.pingBadge}>
             <Ionicons 
-              name={getPingIcon(ping)} 
+              name={defaultGetPingIcon(finalPing)} 
               size={12} 
-              color={getPingColor(ping)} 
+              color={defaultGetPingColor(finalPing)} 
             />
-            <Text style={styles.pingText}>{ping}ms</Text>
+            <Text style={styles.pingText}>{finalPing}ms</Text>
           </View>
         </View>
       )}

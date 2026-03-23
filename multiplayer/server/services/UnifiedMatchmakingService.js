@@ -26,14 +26,21 @@ class UnifiedMatchmakingService {
   }
 
   // Add player to specific game type queue
-  addToQueue(socket, gameType) {
+  addToQueue(socket, gameType, userId = null) {
     // Validation: not already in queue/game
     if (this.socketGameMap.has(socket.id)) {
       return null;
     }
 
-    this.waitingQueues[gameType].push(socket);
-    this.socketGameMap.set(socket.id, { gameId: null, gameType });
+    // Store socket with userId metadata
+    const socketEntry = { 
+      id: socket.id, 
+      socket: socket,
+      userId: userId 
+    };
+    
+    this.waitingQueues[gameType].push(socketEntry);
+    this.socketGameMap.set(socket.id, { gameId: null, gameType, userId });
 
     return this._tryCreateGame(gameType);
   }
@@ -53,16 +60,20 @@ class UnifiedMatchmakingService {
       return null;
     }
 
-    // Extract players
-    const players = queue.splice(0, config.minPlayers);
+    // Extract players (socketEntry objects)
+    const playerEntries = queue.splice(0, config.minPlayers);
 
     // Validate sockets
-    for (const socket of players) {
-      if (!socket || !socket.id) {
+    for (const entry of playerEntries) {
+      if (!entry || !entry.socket || !entry.socket.id) {
         console.error(`[UnifiedMatchmaking] Invalid socket in ${gameType} queue`);
         return null;
       }
     }
+
+    // Extract actual sockets and userIds
+    const players = playerEntries.map(e => e.socket);
+    const userIds = playerEntries.map(e => e.userId);
 
     // Create game
     const { gameId, gameState } = config.createGame(this.gameManager);
@@ -79,17 +90,22 @@ class UnifiedMatchmakingService {
 
     // Map sockets → gameId
     for (const socket of players) {
-      this.socketGameMap.set(socket.id, { gameId, gameType });
+      const userId = userIds[players.indexOf(socket)];
+      this.socketGameMap.set(socket.id, { gameId, gameType, userId });
     }
     this.gameSocketsMap.set(gameId, players.map(p => p.id));
 
-    // Register players
-    config.playerRegistration(gameId, players, this.gameManager);
+    // Register players (pass userIds)
+    config.playerRegistration(gameId, players, this.gameManager, userIds);
 
     return {
       gameId,
       gameState,
-      players: players.map((socket, index) => ({ socket, playerNumber: index }))
+      players: players.map((socket, index) => ({ 
+        socket, 
+        playerNumber: index,
+        userId: userIds[index] 
+      }))
     };
   }
 
@@ -171,10 +187,10 @@ const GAME_TYPES = {
     minPlayers: 2, 
     maxPlayers: 2,
     createGame: (gameManager) => gameManager.startGame(2, false),
-    playerRegistration: (gameId, players, gameManager) => {
+    playerRegistration: (gameId, players, gameManager, userIds = []) => {
       // Register players 0, 1
       for (let i = 0; i < 2; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i);
+        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
       }
     }
   },
@@ -182,10 +198,10 @@ const GAME_TYPES = {
     minPlayers: 3,
     maxPlayers: 3,
     createGame: (gameManager) => gameManager.startGame(3, false),
-    playerRegistration: (gameId, players, gameManager) => {
+    playerRegistration: (gameId, players, gameManager, userIds = []) => {
       // Register players 0, 1, 2
       for (let i = 0; i < 3; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i);
+        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
       }
     }
   },
@@ -193,10 +209,10 @@ const GAME_TYPES = {
     minPlayers: 4,
     maxPlayers: 4,
     createGame: (gameManager) => gameManager.startGame(4, false),
-    playerRegistration: (gameId, players, gameManager) => {
+    playerRegistration: (gameId, players, gameManager, userIds = []) => {
       // Register players 0, 1, 2, 3
       for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i);
+        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
       }
     }
   },
@@ -204,10 +220,10 @@ const GAME_TYPES = {
     minPlayers: 4,
     maxPlayers: 4,
     createGame: (gameManager) => gameManager.startGame(4, true),
-    playerRegistration: (gameId, players, gameManager) => {
+    playerRegistration: (gameId, players, gameManager, userIds = []) => {
       // Register players 0, 1, 2, 3
       for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i);
+        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
       }
     }
   },
@@ -216,10 +232,22 @@ const GAME_TYPES = {
     minPlayers: 4,
     maxPlayers: 4,
     createGame: (gameManager) => gameManager.startGame(4, false),
-    playerRegistration: (gameId, players, gameManager) => {
+    playerRegistration: (gameId, players, gameManager, userIds = []) => {
       // Register players 0, 1, 2, 3
       for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i);
+        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
+      }
+    }
+  },
+  // Tournament mode - 4-player knockout
+  tournament: {
+    minPlayers: 4,
+    maxPlayers: 4,
+    createGame: (gameManager) => gameManager.startTournamentGame(),
+    playerRegistration: (gameId, players, gameManager, userIds = []) => {
+      // Register players 0, 1, 2, 3
+      for (let i = 0; i < 4; i++) {
+        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
       }
     }
   }

@@ -7,7 +7,23 @@
 import { useMemo } from 'react';
 import { getBuildHint } from '../../../utils/buildCalculator';
 import { TempStack, Card } from '../types';
-import { PLAYER_1_GOLD, PLAYER_2_PURPLE, PLAYER_3_BLUE, PLAYER_4_BURGUNDY } from './useBuildTeamInfo';
+import { getTeamFromIndex } from '../../../shared/game/team';
+import { 
+  TEAM_A_COLORS, 
+  TEAM_B_COLORS,
+  PLAYER_1_GOLD, 
+  PLAYER_2_PURPLE, 
+  PLAYER_3_BLUE, 
+  PLAYER_4_BURGUNDY 
+} from '../../../constants/teamColors';
+
+// Re-export player colors for convenience
+export const COLORS = {
+  PLAYER_1_GOLD,
+  PLAYER_2_PURPLE,
+  PLAYER_3_BLUE,
+  PLAYER_4_BURGUNDY,
+};
 
 interface UseTempStackDisplayResult {
   /** Display value string for the badge */
@@ -20,7 +36,8 @@ export function useTempStackDisplay(
   stack: TempStack,
   pendingCards: Card[],
   isExtending: boolean,
-  playerCount: number = 2
+  playerCount: number = 2,
+  isPartyMode: boolean = false
 ): UseTempStackDisplayResult {
   // Compute build hint dynamically from card values
   const hint = useMemo(() => {
@@ -35,6 +52,13 @@ export function useTempStackDisplay(
       // Incomplete - show red for need
       return '#E53935';
     }
+    
+    // For party mode (4-player with teams), use team colors
+    if (isPartyMode && playerCount === 4) {
+      const team = getTeamFromIndex(stack.owner);
+      return team === 'A' ? TEAM_A_COLORS.primary : TEAM_B_COLORS.primary;
+    }
+    
     // Complete - use player-specific colors based on playerCount
     if (playerCount === 4) {
       // 4-player free-for-all: P0=purple, P1=gold, P2=blue, P3=burgundy
@@ -107,7 +131,7 @@ export function useTempStackDisplay(
     }
 
     return { displayValue: value, badgeColor: color };
-  }, [stack, pendingCards, isExtending, hint, getBadgeColor]);
+  }, [stack, pendingCards, isExtending, hint, getBadgeColor, isPartyMode]);
 
   return { displayValue, badgeColor };
 }

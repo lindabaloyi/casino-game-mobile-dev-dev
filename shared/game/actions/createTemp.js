@@ -167,9 +167,22 @@ function createTemp(state, payload, playerIndex) {
   const [tableCard] = newState.tableCards.splice(targetIdx, 1);
 
   // STEP 6: Create temp stack
-  const [bottom, top] = firstCard.value >= tableCard.value
-    ? [{ ...firstCard, source: cardSource }, { ...tableCard, source: 'table' }]
-    : [{ ...tableCard, source: 'table' }, { ...firstCard, source: cardSource }];
+  // Order by value (higher first), but if values are equal and hand card is used, put hand card on top (last)
+  let bottom, top;
+  
+  if (firstCard.value > tableCard.value) {
+    // Hand card has higher value - hand card at bottom, table card on top
+    bottom = { ...firstCard, source: cardSource };
+    top = { ...tableCard, source: 'table' };
+  } else if (firstCard.value < tableCard.value) {
+    // Table card has higher value - table card at bottom, hand card on top
+    bottom = { ...tableCard, source: 'table' };
+    top = { ...firstCard, source: cardSource };
+  } else {
+    // Values are equal - put table card at bottom, hand card on top (hand card captures)
+    bottom = { ...tableCard, source: 'table' };
+    top = { ...firstCard, source: cardSource };
+  }
 
   const cards = [bottom, top];
   

@@ -20,6 +20,16 @@ import { useUserSearch } from '../hooks/useUserSearch';
 import { FriendsList } from '../components/friends/FriendsList';
 import { PlayerSearch } from '../components/friends/PlayerSearch';
 
+// In-game color scheme - matching leaderboards.tsx
+const COLORS = {
+  background: '#0f4d0f',
+  headerBg: '#1a5c1a',
+  primary: '#FFD700',
+  text: '#FFFFFF',
+  textMuted: 'rgba(255, 255, 255, 0.6)',
+  border: 'rgba(255, 215, 0, 0.3)',
+};
+
 type TabType = 'friends' | 'requests' | 'search';
 
 export default function FriendsScreen() {
@@ -149,39 +159,36 @@ export default function FriendsScreen() {
         <TouchableOpacity 
           style={styles.backButton} 
           onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color="white" />
+          <Ionicons name="arrow-back" size={22} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Friends</Text>
-        <View style={styles.placeholder} />
+        <View style={styles.titleContainer}>
+          <Text style={styles.headerTitle}>FRIENDS</Text>
+          <Text style={styles.headerSub}>Card Game Connections</Text>
+        </View>
+        <View style={styles.liveIndicator}>
+          <View style={styles.liveDot} />
+        </View>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'friends' && styles.activeTab]}
-          onPress={() => setActiveTab('friends')}
-        >
-          <Text style={[styles.tabText, activeTab === 'friends' && styles.activeTabText]}>
-            Friends ({friends.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'requests' && styles.activeTab]}
-          onPress={() => setActiveTab('requests')}
-        >
-          <Text style={[styles.tabText, activeTab === 'requests' && styles.activeTabText]}>
-            Requests ({pendingRequests.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'search' && styles.activeTab]}
-          onPress={() => setActiveTab('search')}
-        >
-          <Text style={[styles.tabText, activeTab === 'search' && styles.activeTabText]}>
-            Find Players
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.tabsContent}>
+          {(['friends', 'requests', 'search'] as TabType[]).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.tabActive]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                {tab === 'friends' ? `Friends (${friends.length})` : 
+                 tab === 'requests' ? `Requests (${pendingRequests.length})` : 
+                 'Find Players'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {/* Content */}
@@ -202,51 +209,85 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f4d0f',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: '#1a5c1a',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: COLORS.headerBg,
+    borderBottomWidth: 1,
+    borderBottomColor: `${COLORS.primary}15`,
   },
   backButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     padding: 8,
+    borderRadius: 8,
+  },
+  titleContainer: {
+    alignItems: 'center',
   },
   headerTitle: {
-    color: '#FFD700',
-    fontSize: 20,
-    fontWeight: 'bold',
+    color: COLORS.primary,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  headerSub: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 1,
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary,
   },
   placeholder: {
     width: 40,
   },
   tabsContainer: {
+    backgroundColor: COLORS.headerBg,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+  },
+  tabsContent: {
     flexDirection: 'row',
-    backgroundColor: '#1a5c1a',
-    paddingHorizontal: 8,
-    paddingBottom: 8,
+    gap: 8,
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    borderWidth: 1,
+    borderColor: `${COLORS.primary}15`,
+    backgroundColor: `${COLORS.background}66`,
   },
-  activeTab: {
-    borderBottomColor: '#FFD700',
+  tabActive: {
+    backgroundColor: `${COLORS.primary}15`,
+    borderColor: COLORS.primary,
   },
   tabText: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 13,
+    color: COLORS.textMuted,
+    fontSize: 11,
     fontWeight: '600',
   },
-  activeTabText: {
-    color: '#FFD700',
+  tabTextActive: {
+    color: COLORS.primary,
   },
   contentContainer: {
     flex: 1,
@@ -256,45 +297,51 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   requestSection: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   sectionTitle: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 14,
+    color: COLORS.textMuted,
+    fontSize: 11,
     fontWeight: '600',
-    marginBottom: 12,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    paddingBottom: 8,
   },
   requestItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.08)',
   },
   requestAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: `${COLORS.primary}18`,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: `${COLORS.primary}35`,
   },
   requestEmoji: {
-    fontSize: 22,
+    fontSize: 20,
   },
   requestInfo: {
     flex: 1,
   },
   requestName: {
-    color: 'white',
-    fontSize: 16,
+    color: COLORS.text,
+    fontSize: 14,
     fontWeight: '600',
   },
   requestTime: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 12,
+    color: COLORS.textMuted,
+    fontSize: 11,
     marginTop: 2,
   },
   requestActions: {
@@ -323,7 +370,7 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyText: {
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: COLORS.textMuted,
     fontSize: 16,
     marginTop: 12,
   },

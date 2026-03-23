@@ -65,7 +65,11 @@ export default function JoinRoomScreen() {
   // Navigate to game when room game starts
   useEffect(() => {
     if (room.status === 'started' && gameSync.gameState) {
+<<<<<<< HEAD
       router.replace(gameMode === 'party' ? '/party-game' : '/2-hands');
+=======
+      router.replace('/online-play');
+>>>>>>> feat-multi
     }
   }, [room.status, gameSync.gameState]);
 

@@ -39,15 +39,14 @@ class GameState {
   static async save(gameData) {
     const database = await db.getDb();
     
-    const gameState = {
+    // Separate fields for update vs insert
+    const updateFields = {
       roomId: gameData.roomId,
       gameState: gameData.gameState,
       players: gameData.players || [],
       gameMode: gameData.gameMode || 'twoPlayer',
       round: gameData.round || 1,
       isActive: gameData.isActive !== false,
-      createdAt: new Date(),
-      lastUpdated: new Date(),
       completedAt: null,
       actions: gameData.actions || [],
     };
@@ -56,7 +55,7 @@ class GameState {
       { roomId: gameData.roomId },
       { 
         $set: {
-          ...gameState,
+          ...updateFields,
           lastUpdated: new Date()
         },
         $setOnInsert: {

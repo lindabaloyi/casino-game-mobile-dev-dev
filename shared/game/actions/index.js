@@ -29,8 +29,10 @@ const actionHandlers = {
   stealBuild:          require('./stealBuild'),
 
   // ── Build Extension actions ────────────────────────────────────────────────
-  startBuildExtension: require('./startBuildExtension'),
-  addToPendingExtension: require('./addToPendingExtension'),
+  // Unified action (already defined above at line 25)
+  // Backward compatibility aliases
+  startBuildExtension: require('./extendBuild'),
+  addToPendingExtension: require('./extendBuild'),
   acceptBuildExtension: require('./acceptBuildExtension'),
   declineBuildExtension: require('./declineBuildExtension'),
 
@@ -44,9 +46,16 @@ const actionHandlers = {
   playFromCaptures:    require('./playFromCaptures'),
   dropToCapture:       require('./dropToCapture'),
 
-  // ── Shiya (Party Mode) ───────────────────────────────────────────────────────
-  shiya:               require('./shiya'),
-  recallBuild:         require('./recallBuild'),
+  // ── Recall (Party Mode) ───────────────────────────────────────────────────────
+  recall:              require('./recall'),
+
+  // ── Tournament (Knockout Mode) ─────────────────────────────────────────────────
+  startTournament:         require('./startTournament'),
+  endTournamentRound:     require('./endTournamentRound'),
+  endFinalShowdown:        require('./endFinalShowdown'),
+  startQualificationReview: require('./startQualificationReview'),
+  startSemifinal:          require('./startQualificationReview'),
+  advanceFromQualificationReview: require('./advanceFromQualificationReview'),
 
   // ── Multi-Card Capture (Opponent) ───────────────────────────────────────────
   startBuildCapture:  require('./startBuildCapture'),

@@ -18,6 +18,15 @@ import { useRouter } from 'expo-router';
 import { useUserSearch, SearchResult } from '../../hooks/useUserSearch';
 import { AVATAR_OPTIONS } from '../../hooks/usePlayerProfile';
 
+// In-game color scheme - matching leaderboards.tsx
+const COLORS = {
+  primary: '#FFD700',
+  text: '#FFFFFF',
+  textMuted: 'rgba(255, 255, 255, 0.6)',
+  headerBg: '#1a5c1a',
+  border: 'rgba(255, 215, 0, 0.3)',
+};
+
 interface PlayerSearchProps {
   placeholder?: string;
   onResultPress?: (userId: string) => void;
@@ -78,7 +87,7 @@ export function PlayerSearch({ placeholder = 'Search players...', onResultPress,
         <Text style={styles.resultAvatarText}>{getAvatarEmoji(item.avatar)}</Text>
       </View>
       <Text style={styles.resultUsername}>{item.username}</Text>
-      <Ionicons name="chevron-forward" size={16} color="rgba(255, 255, 255, 0.5)" />
+      <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
     </TouchableOpacity>
   );
 
@@ -135,15 +144,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    borderRadius: 20,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.3)',
+    borderColor: COLORS.border,
   },
   input: {
     flex: 1,
-    color: 'white',
+    color: COLORS.text,
     fontSize: 14,
     marginLeft: 8,
     paddingVertical: 0,
@@ -153,42 +162,44 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
-    backgroundColor: '#1a5c1a',
-    borderRadius: 10,
-    marginTop: 4,
+    backgroundColor: COLORS.headerBg,
+    borderRadius: 12,
+    marginTop: 6,
     maxHeight: 250,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.3)',
+    borderColor: COLORS.border,
     overflow: 'hidden',
   },
   resultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   resultAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: `${COLORS.primary}18`,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
+    borderWidth: 1,
+    borderColor: `${COLORS.primary}35`,
   },
   resultAvatarText: {
-    fontSize: 18,
+    fontSize: 16,
   },
   resultUsername: {
     flex: 1,
-    color: 'white',
+    color: COLORS.text,
     fontSize: 14,
     fontWeight: '500',
   },
   noResults: {
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: COLORS.textMuted,
     fontSize: 14,
     textAlign: 'center',
     padding: 16,

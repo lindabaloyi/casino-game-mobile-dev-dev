@@ -1,3 +1,9 @@
+/**
+ * Profile Screen
+ * User profile with avatar, username, and statistics
+ * Uses in-game color scheme matching leaderboards/friends/stats
+ */
+
 import React, { useState } from 'react';
 import { 
   StyleSheet, 
@@ -11,7 +17,19 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { MusicToggleButton } from '../components/ui/MusicToggleButton';
 import { usePlayerProfile, AVATAR_OPTIONS, AvatarId } from '../hooks/usePlayerProfile';
+
+// In-game color scheme - matching leaderboards/stats/friends
+const COLORS = {
+  background: '#0f4d0f',
+  headerBg: '#1a5c1a',
+  primary: '#FFD700',  // Gold
+  text: '#FFFFFF',
+  textMuted: 'rgba(255, 255, 255, 0.6)',
+  cardBg: 'rgba(0, 0, 0, 0.4)',
+  border: 'rgba(255, 215, 0, 0.3)',
+};
 
 export const options = {
   headerShown: false,
@@ -62,15 +80,25 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
-        style={styles.backButton} 
-        onPress={() => router.back()}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Ionicons name="arrow-back" size={22} color="white" />
-      </TouchableOpacity>
-
-      <Text style={[styles.title, { fontSize: titleSize }]}>Profile</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={22} color={COLORS.text} />
+        </TouchableOpacity>
+        
+        <View style={styles.titleContainer}>
+          <Text style={styles.brandName}>PROFILE</Text>
+          <Text style={styles.brandSub}>Your Account</Text>
+        </View>
+        
+        <View style={styles.musicButtonContainer}>
+          <MusicToggleButton />
+        </View>
+      </View>
 
       <ScrollView 
         style={styles.scrollView}
@@ -97,7 +125,7 @@ export default function ProfileScreen() {
               styles.editBadge,
               { width: Math.round(20 * scaleFactor), height: Math.round(20 * scaleFactor) },
             ]}>
-              <Ionicons name="pencil" size={10} color="white" />
+              <Ionicons name="pencil" size={10} color={COLORS.background} />
             </View>
           </TouchableOpacity>
 
@@ -127,7 +155,7 @@ export default function ProfileScreen() {
               activeOpacity={0.7}
             >
               <Text style={[styles.username, { fontSize: nameSize }]}>{profile.username}</Text>
-              <Ionicons name="pencil" size={14} color="rgba(255, 255, 255, 0.5)" />
+              <Ionicons name="pencil" size={14} color={COLORS.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -137,30 +165,55 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Statistics</Text>
           
           <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { fontSize: statValueSize }]}>
+            <View style={styles.statBox}>
+              <Text style={styles.statBoxIcon}>🎮</Text>
+              <Text style={[styles.statBoxValue, { fontSize: statValueSize }]}>
                 {profile.totalGames}
               </Text>
-              <Text style={styles.statLabel}>Games</Text>
+              <Text style={styles.statBoxLabel}>Games</Text>
             </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { fontSize: statValueSize, color: '#4CAF50' }]}>
+            <View style={styles.statBox}>
+              <Text style={styles.statBoxIcon}>🏆</Text>
+              <Text style={[styles.statBoxValue, { fontSize: statValueSize, color: '#4CAF50' }]}>
                 {profile.wins}
               </Text>
-              <Text style={styles.statLabel}>Wins</Text>
+              <Text style={styles.statBoxLabel}>Wins</Text>
             </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { fontSize: statValueSize, color: '#F44336' }]}>
-                {profile.losses}
-              </Text>
-              <Text style={styles.statLabel}>Losses</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { fontSize: statValueSize, color: '#FFD700' }]}>
+            <View style={styles.statBox}>
+              <Text style={styles.statBoxIcon}>📊</Text>
+              <Text style={[styles.statBoxValueGold, { fontSize: statValueSize }]}>
                 {winRate}%
               </Text>
-              <Text style={styles.statLabel}>Win Rate</Text>
+              <Text style={styles.statBoxLabel}>Win Rate</Text>
             </View>
+          </View>
+        </View>
+
+        {/* Win/Loss Breakdown */}
+        <View style={styles.breakdownSection}>
+          <Text style={styles.sectionTitle}>Win/Loss Breakdown</Text>
+          <View style={styles.breakdownCard}>
+            <View style={styles.breakdownRow}>
+              <View style={styles.breakdownItem}>
+                <Text style={styles.breakdownValue}>{profile.wins}</Text>
+                <Text style={styles.breakdownLabel}>Wins</Text>
+              </View>
+              <View style={styles.breakdownDivider} />
+              <View style={styles.breakdownItem}>
+                <Text style={styles.breakdownValue}>{profile.losses}</Text>
+                <Text style={styles.breakdownLabel}>Losses</Text>
+              </View>
+            </View>
+            {/* Progress bar */}
+            <View style={styles.progressBar}>
+              <View 
+                style={[
+                  styles.progressFill, 
+                  { width: `${profile.totalGames > 0 ? (profile.wins / profile.totalGames * 100) : 0}%` }
+                ]} 
+              />
+            </View>
+            <Text style={styles.breakdownNote}>Win/Loss ratio</Text>
           </View>
         </View>
 
@@ -170,7 +223,7 @@ export default function ProfileScreen() {
           onPress={() => setShowResetConfirm(true)}
           activeOpacity={0.7}
         >
-          <Ionicons name="refresh" size={18} color="rgba(255, 255, 255, 0.6)" />
+          <Ionicons name="refresh" size={18} color={COLORS.textMuted} />
           <Text style={styles.resetButtonText}>Reset Statistics</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -251,60 +304,80 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f4d0f',
+    backgroundColor: COLORS.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: COLORS.headerBg,
+    borderBottomWidth: 1,
+    borderBottomColor: `${COLORS.primary}15`,
+  },
+  backButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    padding: 8,
+    borderRadius: 8,
+  },
+  titleContainer: {
+    alignItems: 'center',
+  },
+  brandName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.primary,
+    letterSpacing: 2,
+  },
+  brandSub: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 1,
+  },
+  musicButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 80,
+    paddingHorizontal: 14,
+    paddingVertical: 20,
   },
   scrollContentScrollable: {
     paddingVertical: 20,
   },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 16,
-    zIndex: 100,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 8,
-    borderRadius: 8,
-  },
-  title: {
-    fontWeight: 'bold',
-    color: '#FFD700',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
   profileCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: COLORS.cardBg,
     borderRadius: 18,
     padding: 20,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    marginBottom: 20,
-    width: '100%',
-    maxWidth: 320,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.08)',
+    marginBottom: 16,
   },
   avatarContainer: {
     position: 'relative',
     marginBottom: 10,
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    backgroundColor: `${COLORS.primary}18`,
     borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: `${COLORS.primary}35`,
   },
   editBadge: {
     position: 'absolute',
     bottom: 0,
     right: -3,
-    backgroundColor: '#FFD700',
+    backgroundColor: COLORS.primary,
     borderRadius: 100,
     padding: 3,
     justifyContent: 'center',
@@ -316,7 +389,7 @@ const styles = StyleSheet.create({
   },
   username: {
     fontWeight: 'bold',
-    color: 'white',
+    color: COLORS.text,
     marginRight: 6,
   },
   usernameEditContainer: {
@@ -325,43 +398,108 @@ const styles = StyleSheet.create({
   },
   usernameInput: {
     fontWeight: 'bold',
-    color: 'white',
+    color: COLORS.text,
     textAlign: 'center',
     borderBottomWidth: 2,
-    borderBottomColor: '#FFD700',
+    borderBottomColor: COLORS.primary,
     paddingVertical: 4,
     minWidth: 120,
   },
   statsSection: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 15,
-    width: '100%',
-    maxWidth: 320,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontWeight: 'bold',
-    color: '#FFD700',
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
     marginBottom: 12,
-    textAlign: 'center',
-    fontSize: 16,
   },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    gap: 8,
   },
-  statItem: {
+  statBox: {
+    flex: 1,
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.08)',
+  },
+  statBoxIcon: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  statBoxValue: {
+    fontWeight: 'bold',
+    color: COLORS.text,
+    fontSize: 22,
+  },
+  statBoxValueGold: {
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    fontSize: 22,
+  },
+  statBoxLabel: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  breakdownSection: {
+    marginBottom: 16,
+  },
+  breakdownCard: {
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.08)',
+  },
+  breakdownRow: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  statValue: {
-    fontWeight: 'bold',
-    color: 'white',
+  breakdownItem: {
+    flex: 1,
+    alignItems: 'center',
   },
-  statLabel: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 12,
-    marginTop: 3,
+  breakdownDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  breakdownValue: {
+    color: COLORS.text,
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  breakdownLabel: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 4,
+    marginTop: 14,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 4,
+  },
+  breakdownNote: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 8,
   },
   resetButton: {
     flexDirection: 'row',
@@ -369,9 +507,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 12,
     marginTop: 10,
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.08)',
   },
   resetButtonText: {
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: COLORS.textMuted,
     fontSize: 14,
     marginLeft: 8,
   },
@@ -382,23 +524,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#1a5c1a',
+    backgroundColor: COLORS.headerBg,
     borderRadius: 18,
     padding: 20,
     width: '85%',
     maxWidth: 320,
-    borderWidth: 2,
-    borderColor: '#FFD700',
+    borderWidth: 1,
+    borderColor: `${COLORS.primary}30`,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: COLORS.primary,
     textAlign: 'center',
     marginBottom: 15,
   },
   modalSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: COLORS.text,
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 15,
@@ -420,11 +562,11 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   avatarOptionSelected: {
-    borderColor: '#FFD700',
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    borderColor: COLORS.primary,
+    backgroundColor: `${COLORS.primary}18`,
   },
   avatarOptionLabel: {
-    color: 'white',
+    color: COLORS.text,
     fontSize: 10,
     marginTop: 3,
   },
@@ -433,7 +575,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalCloseText: {
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: COLORS.textMuted,
     fontSize: 14,
   },
   modalButtons: {
@@ -450,7 +592,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalCancelText: {
-    color: 'white',
+    color: COLORS.text,
     fontSize: 14,
   },
   modalConfirmButton: {
@@ -460,7 +602,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalConfirmText: {
-    color: 'white',
+    color: COLORS.text,
     fontSize: 14,
     fontWeight: 'bold',
   },

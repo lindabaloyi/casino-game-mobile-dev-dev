@@ -22,6 +22,7 @@ const BroadcasterService      = require('./services/BroadcasterService');
 const GameCoordinatorService = require('./services/GameCoordinatorService');
 const GameManager  = require('./game/GameManager');
 const ActionRouter = require('./game/ActionRouter');
+const PlayerProfile = require('./models/PlayerProfile');
 
 // ── HTTP + Socket.IO setup ──
 
@@ -70,11 +71,13 @@ let coordinator;
 // ── Connection handling ──
 
 io.on('connection', socket => {
-  // User authentication: join user-specific room for notifications
+  // User authentication: join user-specific room for notifications and store userId
   socket.on('authenticate', (userId) => {
+    console.log(`[Socket] authenticate received: userId = ${userId}, socket.id = ${socket.id}`);
     if (userId) {
+      socket.userId = userId; // Store userId on socket for matchmaking
       socket.join(`user:${userId}`);
-      console.log(`[Socket] User ${userId} joined notification room`);
+      console.log(`[Socket] User ${userId} joined notification room, socket.userId now = ${socket.userId}`);
     }
   });
 
@@ -88,18 +91,19 @@ io.on('connection', socket => {
   // The previous auto-add to 'two-hands' was causing issues with other game modes.
 
   // Two-Hands Matchmaking: add player to two-hands queue; start 2-player game when ready
-  socket.on('join-two-hands-queue', () => {
+  socket.on('join-two-hands-queue', async () => {
     // Remove from matchmaking queues if present
     unifiedMatchmaking.socketGameMap.delete(socket.id);
     unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.freeforall = unifiedMatchmaking.waitingQueues.freeforall.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.tournament = unifiedMatchmaking.waitingQueues.tournament?.filter(s => s.id !== socket.id) || [];
     
-    // Use unified matchmaking for 2-player games
-    const result = unifiedMatchmaking.addToQueue(socket, 'two-hands');
+    // Use unified matchmaking for 2-player games (pass userId if authenticated)
+    const result = unifiedMatchmaking.addToQueue(socket, 'two-hands', socket.userId);
     if (result) {
-      broadcaster.broadcastGameStart(result);
+      await broadcaster.broadcastGameStart(result);
     } else {
       // Broadcast to ALL waiting players
       broadcastTwoHandsWaiting(io);
@@ -107,15 +111,16 @@ io.on('connection', socket => {
   });
 
   // Party Matchmaking: add player to party queue; start 4-player game when ready
-  socket.on('join-party-queue', () => {
+  socket.on('join-party-queue', async () => {
     // Remove from matchmaking queues if present
     unifiedMatchmaking.socketGameMap.delete(socket.id);
     unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.tournament = unifiedMatchmaking.waitingQueues.tournament?.filter(s => s.id !== socket.id) || [];
     
-    const partyResult = unifiedMatchmaking.addToQueue(socket, 'party');
+    const partyResult = unifiedMatchmaking.addToQueue(socket, 'party', socket.userId);
     if (partyResult) {
-      broadcaster.broadcastPartyGameStart(partyResult);
+      await broadcaster.broadcastPartyGameStart(partyResult);
     } else {
       // Broadcast to ALL waiting players (not just the joining player)
       broadcastPartyWaiting(io);
@@ -123,17 +128,21 @@ io.on('connection', socket => {
   });
 
   // Three-Hands Matchmaking: add player to three-hands queue; start 3-player game when ready
-  socket.on('join-three-hands-queue', () => {
+  socket.on('join-three-hands-queue', async () => {
+    console.log(`[Socket] join-three-hands-queue: socket.userId = ${socket.userId}, socket.id = ${socket.id}`);
+    
     // Remove from matchmaking queues if present
     unifiedMatchmaking.socketGameMap.delete(socket.id);
     unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.tournament = unifiedMatchmaking.waitingQueues.tournament?.filter(s => s.id !== socket.id) || [];
     
     // Use unified matchmaking for 3-player games
-    const result = unifiedMatchmaking.addToQueue(socket, 'three-hands');
+    const result = unifiedMatchmaking.addToQueue(socket, 'three-hands', socket.userId);
+    console.log(`[Socket] addToQueue result:`, result ? 'game started' : 'waiting for more players');
     if (result) {
-      broadcaster.broadcastThreeHandsGameStart(result);
+      await broadcaster.broadcastThreeHandsGameStart(result);
     } else {
       // Broadcast to ALL waiting players
       broadcastThreeHandsWaiting(io);
@@ -141,18 +150,19 @@ io.on('connection', socket => {
   });
 
   // Four-Hands Matchmaking: add player to four-hands queue; start 4-player game when ready
-  socket.on('join-four-hands-queue', () => {
+  socket.on('join-four-hands-queue', async () => {
     // Remove from matchmaking queues if present
     unifiedMatchmaking.socketGameMap.delete(socket.id);
     unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.freeforall = unifiedMatchmaking.waitingQueues.freeforall.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.tournament = unifiedMatchmaking.waitingQueues.tournament?.filter(s => s.id !== socket.id) || [];
     
     // Use unified matchmaking for 4-player free-for-all games
-    const result = unifiedMatchmaking.addToQueue(socket, 'four-hands');
+    const result = unifiedMatchmaking.addToQueue(socket, 'four-hands', socket.userId);
     if (result) {
-      broadcaster.broadcastFourHandsGameStart(result);
+      await broadcaster.broadcastFourHandsGameStart(result);
     } else {
       // Broadcast to ALL waiting players
       broadcastFourHandsWaiting(io);
@@ -160,21 +170,51 @@ io.on('connection', socket => {
   });
 
   // Free-For-All Matchmaking: add player to freeforall queue; start 4-player game when ready
-  socket.on('join-freeforall-queue', () => {
+  socket.on('join-freeforall-queue', async () => {
     // Remove from matchmaking queues if present
     unifiedMatchmaking.socketGameMap.delete(socket.id);
     unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
     unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.tournament = unifiedMatchmaking.waitingQueues.tournament?.filter(s => s.id !== socket.id) || [];
     
     // Use unified matchmaking for free-for-all games
-    const result = unifiedMatchmaking.addToQueue(socket, 'freeforall');
+    const result = unifiedMatchmaking.addToQueue(socket, 'freeforall', socket.userId);
     if (result) {
-      broadcaster.broadcastFreeForAllGameStart(result);
+      await broadcaster.broadcastFreeForAllGameStart(result);
     } else {
       // Broadcast to ALL waiting players
       broadcastFreeForAllWaiting(io);
+    }
+  });
+
+  // Tournament Matchmaking: add player to tournament queue; start 4-player knockout game when ready
+  socket.on('join-tournament-queue', async () => {
+    console.log(`[Socket] join-tournament-queue received from socket ${socket.id}`);
+    
+    // Remove from matchmaking queues if present
+    unifiedMatchmaking.socketGameMap.delete(socket.id);
+    unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues['four-hands'] = unifiedMatchmaking.waitingQueues['four-hands'].filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.party = unifiedMatchmaking.waitingQueues.party.filter(s => s.id !== socket.id);
+    unifiedMatchmaking.waitingQueues.freeforall = unifiedMatchmaking.waitingQueues.freeforall.filter(s => s.id !== socket.id);
+    
+    // Ensure tournament queue exists
+    if (!unifiedMatchmaking.waitingQueues.tournament) {
+      unifiedMatchmaking.waitingQueues.tournament = [];
+    }
+    
+    // Use unified matchmaking for tournament games
+    const result = unifiedMatchmaking.addToQueue(socket, 'tournament', socket.userId);
+    if (result) {
+      console.log(`[Socket] Tournament game created with ${result.players.length} players`);
+      await broadcaster.broadcastTournamentGameStart(result);
+    } else {
+      // Broadcast to ALL waiting players
+      console.log(`[Socket] Not enough players for tournament, broadcasting wait status`);
+      broadcastTournamentWaiting(io);
     }
   });
 
@@ -332,33 +372,77 @@ io.on('connection', socket => {
   });
 
   // ── Lobby status request (for polling) ───────────────────────────────────────
-  socket.on('request-lobby-status', () => {
-    // Check all queues
-    const partyWaitingCount = unifiedMatchmaking.getWaitingCount('party');
-    socket.emit('party-waiting', { playersJoined: partyWaitingCount });
+  socket.on('request-lobby-status', async () => {
+    // Check all queues - include player info
     
-    // Also check three-hands matchmaking
-    const threeHandsWaitingCount = unifiedMatchmaking.getWaitingCount('three-hands');
+    // Party queue
+    const partyQueue = unifiedMatchmaking.waitingQueues.party || [];
+    const partyWaitingCount = partyQueue.length;
+    const partyUserIds = partyQueue.map(entry => entry.userId).filter(Boolean);
+    const partyPlayers = await PlayerProfile.getPlayerInfos(partyUserIds);
+    socket.emit('party-waiting', { 
+      playersJoined: partyWaitingCount,
+      players: partyPlayers
+    });
+    
+    // Three-hands queue
+    const threeHandsQueue = unifiedMatchmaking.waitingQueues['three-hands'] || [];
+    const threeHandsWaitingCount = threeHandsQueue.length;
     if (threeHandsWaitingCount > 0) {
-      socket.emit('three-hands-waiting', { playersJoined: threeHandsWaitingCount });
+      const threeHandsUserIds = threeHandsQueue.map(entry => entry.userId).filter(Boolean);
+      const threeHandsPlayers = await PlayerProfile.getPlayerInfos(threeHandsUserIds);
+      socket.emit('three-hands-waiting', { 
+        playersJoined: threeHandsWaitingCount,
+        players: threeHandsPlayers
+      });
     }
     
-    // Also check four-hands matchmaking
-    const fourHandsWaitingCount = unifiedMatchmaking.getWaitingCount('four-hands');
+    // Four-hands queue
+    const fourHandsQueue = unifiedMatchmaking.waitingQueues['four-hands'] || [];
+    const fourHandsWaitingCount = fourHandsQueue.length;
     if (fourHandsWaitingCount > 0) {
-      socket.emit('four-hands-waiting', { playersJoined: fourHandsWaitingCount });
+      const fourHandsUserIds = fourHandsQueue.map(entry => entry.userId).filter(Boolean);
+      const fourHandsPlayers = await PlayerProfile.getPlayerInfos(fourHandsUserIds);
+      socket.emit('four-hands-waiting', { 
+        playersJoined: fourHandsWaitingCount,
+        players: fourHandsPlayers
+      });
     }
     
-    // Also check free-for-all matchmaking
-    const freeForAllWaitingCount = unifiedMatchmaking.getWaitingCount('freeforall');
+    // Free-for-all queue
+    const freeForAllQueue = unifiedMatchmaking.waitingQueues.freeforall || [];
+    const freeForAllWaitingCount = freeForAllQueue.length;
     if (freeForAllWaitingCount > 0) {
-      socket.emit('freeforall-waiting', { playersJoined: freeForAllWaitingCount });
+      const freeForAllUserIds = freeForAllQueue.map(entry => entry.userId).filter(Boolean);
+      const freeForAllPlayers = await PlayerProfile.getPlayerInfos(freeForAllUserIds);
+      socket.emit('freeforall-waiting', { 
+        playersJoined: freeForAllWaitingCount,
+        players: freeForAllPlayers
+      });
     }
     
-    // Also check two-hands matchmaking
-    const twoHandsWaitingCount = unifiedMatchmaking.getWaitingCount('two-hands');
+    // Two-hands queue
+    const twoHandsQueue = unifiedMatchmaking.waitingQueues['two-hands'] || [];
+    const twoHandsWaitingCount = twoHandsQueue.length;
     if (twoHandsWaitingCount > 0) {
-      socket.emit('duel-waiting', { playersJoined: twoHandsWaitingCount });
+      const twoHandsUserIds = twoHandsQueue.map(entry => entry.userId).filter(Boolean);
+      const twoHandsPlayers = await PlayerProfile.getPlayerInfos(twoHandsUserIds);
+      socket.emit('duel-waiting', { 
+        playersJoined: twoHandsWaitingCount,
+        players: twoHandsPlayers
+      });
+    }
+    
+    // Tournament queue
+    const tournamentQueue = unifiedMatchmaking.waitingQueues.tournament || [];
+    const tournamentWaitingCount = tournamentQueue.length;
+    if (tournamentWaitingCount > 0) {
+      const tournamentUserIds = tournamentQueue.map(entry => entry.userId).filter(Boolean);
+      const tournamentPlayers = await PlayerProfile.getPlayerInfos(tournamentUserIds);
+      socket.emit('tournament-waiting', { 
+        playersJoined: tournamentWaitingCount,
+        players: tournamentPlayers
+      });
     }
   });
 
@@ -390,48 +474,113 @@ io.on('connection', socket => {
   });
 });
 
-// Helper functions for broadcasting waiting counts
-function broadcastTwoHandsWaiting(io) {
+// Helper functions for broadcasting waiting counts with player info
+async function broadcastTwoHandsWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('two-hands');
   console.log(`[UnifiedMatchmaking] Broadcasting two-hands-waiting: ${count} players`);
   
-  unifiedMatchmaking.waitingQueues['two-hands'].forEach(playerSocket => {
-    playerSocket.emit('duel-waiting', { playersJoined: count });
+  // Get player info for all waiting players
+  const queue = unifiedMatchmaking.waitingQueues['two-hands'];
+  const userIds = queue.map(entry => entry.userId).filter(Boolean);
+  const players = await PlayerProfile.getPlayerInfos(userIds);
+  
+  queue.forEach(entry => {
+    // Include player info for all players in the queue
+    entry.socket.emit('duel-waiting', { 
+      playersJoined: count,
+      players: players
+    });
   });
 }
 
-function broadcastPartyWaiting(io) {
+async function broadcastPartyWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('party');
   
-  unifiedMatchmaking.waitingQueues.party.forEach(playerSocket => {
-    playerSocket.emit('party-waiting', { playersJoined: count });
+  // Get player info for all waiting players
+  const queue = unifiedMatchmaking.waitingQueues.party;
+  const userIds = queue.map(entry => entry.userId).filter(Boolean);
+  const players = await PlayerProfile.getPlayerInfos(userIds);
+  
+  queue.forEach(entry => {
+    entry.socket.emit('party-waiting', { 
+      playersJoined: count,
+      players: players
+    });
   });
 }
 
-function broadcastThreeHandsWaiting(io) {
+async function broadcastThreeHandsWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('three-hands');
   console.log(`[UnifiedMatchmaking] Broadcasting three-hands-waiting: ${count} players`);
   
-  unifiedMatchmaking.waitingQueues['three-hands'].forEach(playerSocket => {
-    playerSocket.emit('three-hands-waiting', { playersJoined: count });
+  // Get player info for all waiting players
+  const queue = unifiedMatchmaking.waitingQueues['three-hands'];
+  const userIds = queue.map(entry => entry.userId).filter(Boolean);
+  console.log(`[UnifiedMatchmaking] UserIds in queue:`, userIds);
+  const players = await PlayerProfile.getPlayerInfos(userIds);
+  console.log(`[UnifiedMatchmaking] PlayerInfos:`, JSON.stringify(players));
+  
+  queue.forEach(entry => {
+    entry.socket.emit('three-hands-waiting', { 
+      playersJoined: count,
+      players: players
+    });
   });
 }
 
-function broadcastFourHandsWaiting(io) {
+async function broadcastFourHandsWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('four-hands');
   console.log(`[UnifiedMatchmaking] Broadcasting four-hands-waiting: ${count} players`);
   
-  unifiedMatchmaking.waitingQueues['four-hands'].forEach(playerSocket => {
-    playerSocket.emit('four-hands-waiting', { playersJoined: count });
+  // Get player info for all waiting players
+  const queue = unifiedMatchmaking.waitingQueues['four-hands'];
+  const userIds = queue.map(entry => entry.userId).filter(Boolean);
+  const players = await PlayerProfile.getPlayerInfos(userIds);
+  
+  queue.forEach(entry => {
+    entry.socket.emit('four-hands-waiting', { 
+      playersJoined: count,
+      players: players
+    });
   });
 }
 
-function broadcastFreeForAllWaiting(io) {
+async function broadcastFreeForAllWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('freeforall');
   console.log(`[UnifiedMatchmaking] Broadcasting free-for-all-waiting: ${count} players`);
   
-  unifiedMatchmaking.waitingQueues.freeforall.forEach(playerSocket => {
-    playerSocket.emit('freeforall-waiting', { playersJoined: count });
+  // Get player info for all waiting players
+  const queue = unifiedMatchmaking.waitingQueues.freeforall;
+  const userIds = queue.map(entry => entry.userId).filter(Boolean);
+  const players = await PlayerProfile.getPlayerInfos(userIds);
+  
+  queue.forEach(entry => {
+    entry.socket.emit('freeforall-waiting', { 
+      playersJoined: count,
+      players: players
+    });
+  });
+}
+
+async function broadcastTournamentWaiting(io) {
+  const count = unifiedMatchmaking.getWaitingCount('tournament');
+  console.log(`[UnifiedMatchmaking] Broadcasting tournament-waiting: ${count} players`);
+  
+  // Ensure tournament queue exists
+  if (!unifiedMatchmaking.waitingQueues.tournament) {
+    unifiedMatchmaking.waitingQueues.tournament = [];
+  }
+  
+  // Get player info for all waiting players
+  const queue = unifiedMatchmaking.waitingQueues.tournament;
+  const userIds = queue.map(entry => entry.userId).filter(Boolean);
+  const players = await PlayerProfile.getPlayerInfos(userIds);
+  
+  queue.forEach(entry => {
+    entry.socket.emit('tournament-waiting', { 
+      playersJoined: count,
+      players: players
+    });
   });
 }
 

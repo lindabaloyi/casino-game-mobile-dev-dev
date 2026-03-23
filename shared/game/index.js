@@ -50,6 +50,9 @@ const { finalizeGame } = require('./gameEnd');
 // Initialization
 const { initializeGame, initializeTestGame } = require('./initialization');
 
+// Scoring
+const { calculatePlayerScore, getScoreBreakdown } = require('./scoring');
+
 module.exports = {
   // Constants
   SUITS,
@@ -96,4 +99,8 @@ module.exports = {
   // Initialization
   initializeGame,
   initializeTestGame,
+
+  // Scoring
+  calculatePlayerScore,
+  getScoreBreakdown,
 };

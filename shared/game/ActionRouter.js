@@ -14,10 +14,10 @@
  * - Returns new state
  */
 
-const SmartRouter = require('./smart-router');
+const Router = require('./smart-router/Router');
 
 // Actions that don't require turn validation in party mode
-const OUT_OF_TURN_ACTIONS = ['shiya', 'recallBuild'];
+const OUT_OF_TURN_ACTIONS = ['shiya', 'recall'];
 
 /**
  * Creates an ActionRouter with the given handlers.
@@ -61,16 +61,16 @@ function createActionRouter(config) {
         throw new Error(`Not your turn (current: ${state.currentPlayer}, your: ${playerIndex})`);
       }
 
-      // 3. Smart routing: let SmartRouter decide what handler to call
-      const smartRouter = new SmartRouter();
-      const { type: finalType, payload: finalPayload } = smartRouter.route(
+      // 3. Smart routing: let Router decide what handler to call
+      const router = new Router();
+      const { type: finalType, payload: finalPayload } = router.route(
         actionType,
         payload || {},
         state,
         playerIndex
       );
 
-      console.log(`[ActionRouter] SmartRouter routed "${actionType}" → "${finalType}"`);
+      console.log(`[ActionRouter] Router routed "${actionType}" → "${finalType}"`);
 
       // 4. Check if handler exists
       const handler = handlers[finalType];
@@ -105,5 +105,5 @@ function createActionRouter(config) {
 
 module.exports = {
   createActionRouter,
-  SmartRouter
+  Router
 };

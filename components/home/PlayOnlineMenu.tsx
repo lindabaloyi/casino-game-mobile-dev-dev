@@ -33,7 +33,7 @@ interface GameModeInfo {
 const GAME_MODES: GameModeInfo[] = [
   {
     id: 'two-hands',
-    title: '⚔️ 2 Hands',
+    title: '2 Hands',
     subtitle: '1v1 Battle',
     description: 'Classic duel against one opponent',
     icon: 'people',
@@ -41,7 +41,7 @@ const GAME_MODES: GameModeInfo[] = [
   },
   {
     id: 'three-hands',
-    title: '🎴 3 Hands',
+    title: '3 Hands',
     subtitle: '3 Player Battle',
     description: 'Face off against two opponents',
     icon: 'people',
@@ -49,7 +49,7 @@ const GAME_MODES: GameModeInfo[] = [
   },
   {
     id: 'four-hands',
-    title: '🎯 4 Hands',
+    title: '4 Hands',
     subtitle: '4 Player Battle',
     description: 'Every player for themselves!',
     icon: 'trophy',
@@ -57,7 +57,7 @@ const GAME_MODES: GameModeInfo[] = [
   },
   {
     id: 'party',
-    title: '🎉 4 Hands Party',
+    title: '4 Hands Party',
     subtitle: '2v2 Team Battle',
     description: 'Team up with a friend for 2v2',
     icon: 'people',
@@ -116,7 +116,6 @@ export function PlayOnlineMenu({
                 <View style={styles.modeContent}>
                   <Text style={styles.modeTitle}>{mode.title}</Text>
                   <Text style={styles.modeSubtitle}>{mode.subtitle}</Text>
-                  <Text style={styles.modeDescription}>{mode.description}</Text>
                 </View>
                 
                 <View style={styles.playersBadge}>
@@ -159,12 +158,12 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   menuContainer: {
-    backgroundColor: '#1a5c1a', // Match main screen green theme
+    backgroundColor: '#0f4d0f',
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#FFD700',
-    width: '85%',
-    maxWidth: 340,
+    width: '90%',
+    maxWidth: 320,
     overflow: 'hidden',
     zIndex: 2001,
   },
@@ -172,9 +171,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 215, 0, 0.2)',
   },
@@ -182,23 +181,25 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#FFD700',
+    letterSpacing: 1,
   },
   closeButton: {
     padding: 4,
   },
   modesContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
     paddingVertical: 16,
   },
   modeCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Match main screen card style
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: 10,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: '#FFD700',
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   modeIconContainer: {
     width: 48,
@@ -213,16 +214,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modeTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
     color: 'white',
-    marginBottom: 2,
+    fontWeight: '600',
+    fontSize: 16,
   },
   modeSubtitle: {
     fontSize: 12,
     color: '#FFD700',
     fontWeight: '600',
-    marginBottom: 4,
   },
   modeDescription: {
     fontSize: 11,
@@ -244,8 +243,8 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   footerHint: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
     textAlign: 'center',
     paddingBottom: 16,
     paddingTop: 8,

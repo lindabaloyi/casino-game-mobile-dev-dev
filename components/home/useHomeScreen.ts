@@ -15,7 +15,9 @@ export interface HomeScreenHandlers {
   handlePlayOnline: () => void;
   navigateToGameMode: (mode: GameModeOption) => void;
   handlePrivateRoom: () => void;
+  handleTournament: () => void;
   handleProfile: () => void;
+  handleEditProfile: () => void;
   handleFriends: () => void;
   handleSearchPlayers: () => void;
   handleLogout: () => Promise<void>;
@@ -95,16 +97,23 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     router.push('/cpu-game' as any);
   };
   
-  // Unified Play Online handler - opens the game mode selection menu
+  // Unified Play Online handler - opens the game mode selection page
   const handlePlayOnline = () => {
     setMenuVisible(false);
 <<<<<<< HEAD
+<<<<<<< HEAD
     setPlayOnlineMenuVisible(true);
+=======
+    router.push('/game-modes' as any);
+>>>>>>> feat-multi
   };
   
   // Navigate to specific game mode from Play Online menu
+  // Route ALL modes to /online-play (the unified lobby)
+  // Use replace() to prevent back navigation which blocks game UI
   const navigateToGameMode = (mode: GameModeOption) => {
     setPlayOnlineMenuVisible(false);
+<<<<<<< HEAD
     switch (mode) {
       case 'two-hands':
         router.push('/multiplayer?mode=two-hands' as any);
@@ -125,6 +134,10 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
 =======
     router.push('/2-hands' as any);
 >>>>>>> sort-building
+=======
+    // Use replace instead of push to prevent back button from blocking game UI
+    router.replace(`/online-play?mode=${mode}` as any);
+>>>>>>> feat-multi
   };
   
   const handlePrivateRoom = () => {
@@ -132,7 +145,27 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     router.push('/private-room' as any);
   };
   
+  const handleTournament = () => {
+    setMenuVisible(false);
+    // Navigate to tournament mode using unified online-play screen
+    // Use replace to prevent back button from blocking game UI
+    router.replace('/online-play?mode=tournament' as any);
+  };
+  
   const handleProfile = () => {
+    setMenuVisible(false);
+    // Navigate to the current user's public profile page
+    const userId = user?._id;
+    if (userId) {
+      router.push(`/user/${userId}` as any);
+    } else {
+      // Fallback to old profile page if no user ID
+      router.push('/profile' as any);
+    }
+  };
+
+  // Navigate to editable profile page (for settings)
+  const handleEditProfile = () => {
     setMenuVisible(false);
     router.push('/profile' as any);
   };
@@ -207,7 +240,9 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
     handlePlayOnline,
     navigateToGameMode,
     handlePrivateRoom,
+    handleTournament,
     handleProfile,
+    handleEditProfile,
     handleFriends,
     handleSearchPlayers,
     handleLogout,

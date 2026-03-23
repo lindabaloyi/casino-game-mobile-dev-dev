@@ -241,12 +241,20 @@ class RoundValidator {
    * For 2-player mode: game ends after round 2
    * For 3-player mode: game ends after round 1 (single round game)
    * For 4-player party mode: game ends after round 1 (single round game)
+   * For tournament mode: continues until winner determined
    * @param {object} state - Game state
    * @returns {{ gameOver: boolean, winner?: number, finalScores: number[] }}
    */
   static checkGameOver(state) {
     const playerCount = state.playerCount || state.players?.length || 2;
-    console.log(`[RoundValidator] checkGameOver: playerCount=${playerCount}, round=${state.round}`);
+    const isTournamentMode = state.tournamentMode === 'knockout';
+    console.log(`[RoundValidator] checkGameOver: playerCount=${playerCount}, round=${state.round}, tournamentMode=${isTournamentMode}`);
+    
+    // For tournament mode: DON'T end game automatically - handled by tournament logic
+    if (isTournamentMode) {
+      console.log(`[RoundValidator] checkGameOver: Tournament mode active, game continues until tournament ends`);
+      return { gameOver: false };
+    }
     
     // For 3-player mode: game ends after round 1 (single round game like 4-player)
     if (playerCount === 3) {

@@ -204,12 +204,20 @@ function getNextPartyPlayer(currentPlayer) {
 }
 
 /**
- * Check if game should use party turn order (4 players)
- * @param {number} playerCount - Number of players
+ * Check if game should use party turn order
+ * @param {object} state - Game state (optional, for checking gameMode)
  * @returns {boolean} True if party turn order should be used
  */
-function isPartyGame(playerCount) {
-  return playerCount === 4;
+function isPartyGame(state) {
+  // Check if gameMode is 'party' - this applies to all party mode games
+  if (state && state.gameMode === 'party') {
+    return true;
+  }
+  // Also check for explicit isPartyMode flag in state
+  if (state && state.isPartyMode === true) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -223,7 +231,7 @@ function skipDisconnectedPlayer(state, disconnectedPlayerIndex) {
   const totalPlayers = state.players.length;
   let nextPlayer;
   
-  if (isPartyGame(totalPlayers)) {
+  if (isPartyGame(state)) {
     nextPlayer = getNextPartyPlayer(disconnectedPlayerIndex);
   } else {
     nextPlayer = (disconnectedPlayerIndex + 1) % totalPlayers;
@@ -242,7 +250,8 @@ function skipDisconnectedPlayer(state, disconnectedPlayerIndex) {
 /**
  * Advance turn to the next player
  * Also increments turnCounter to track total turns played
- * For 4-player party games, uses team-based turn order: Team A P1 → Team B P1 → Team A P2 → Team B P2
+ * For party mode (gameMode === 'party'), uses team-based turn order: Team A P1 → Team B P1 → Team A P2 → Team B P2
+ * For all other modes (freeforall, three-hands, tournament), uses simple sequential order: 0 → 1 → 2 → 3 (or 0 → 1 → 2 for 3 players)
  * @param {object} state - Game state
  * @returns {object} Updated state
  */
@@ -252,8 +261,9 @@ function nextTurn(state) {
   
   let newPlayer;
   
-  // Use party turn order for 4-player games
-  if (isPartyGame(totalPlayers)) {
+  // Use party turn order only for party mode (gameMode === 'party')
+  // For freeforall, three-hands, tournament - use simple sequential order
+  if (isPartyGame(state)) {
     newPlayer = getNextPartyPlayer(oldPlayer);
   } else {
     newPlayer = (state.currentPlayer + 1) % totalPlayers;

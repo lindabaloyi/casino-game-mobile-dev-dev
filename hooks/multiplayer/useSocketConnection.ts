@@ -18,12 +18,17 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Socket } from 'socket.io-client';
 import { io } from 'socket.io-client';
 import { getOptimalServerUrl } from '../../utils/serverUrl';
+import { useAuth } from '../useAuth';
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall';
 =======
 export type GameMode = '2-hands' | 'party';
 >>>>>>> sort-building
+=======
+export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament';
+>>>>>>> feat-multi
 
 export interface UseSocketConnectionOptions {
   mode: GameMode;
@@ -48,6 +53,9 @@ export function useSocketConnection(
   const { mode } = options;
   const isPartyMode = mode === 'party';
   const isTwoHandsMode = mode === 'two-hands';
+  
+  // Get user authentication info
+  const { user } = useAuth();
   
   const socketRef = useRef<Socket | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -84,6 +92,12 @@ export function useSocketConnection(
           setIsConnected(true);
           setError(null);
           
+          // Authenticate after connecting if user is logged in
+          if (user?._id) {
+            socket.emit('authenticate', user._id);
+            console.log(`[useSocketConnection] Authenticated with userId: ${user._id}`);
+          }
+          
           // Two-hands mode: join the two-hands queue when connected
           if (isTwoHandsMode) {
             socket.emit('join-two-hands-queue');
@@ -113,6 +127,12 @@ export function useSocketConnection(
             socket.emit('join-freeforall-queue');
             console.log('[useSocketConnection] Joined freeforall queue');
           }
+          
+          // Tournament mode: join the tournament queue when connected
+          if (mode === 'tournament') {
+            socket.emit('join-tournament-queue');
+            console.log('[useSocketConnection] Joined tournament queue');
+          }
         });
         
         socket.on('disconnect', () => {
@@ -129,7 +149,7 @@ export function useSocketConnection(
         console.error('[useSocketConnection] Failed to resolve URL:', err);
         setError(err.message);
       });
-  }, [mode, isPartyMode, isTwoHandsMode]);
+  }, [mode, isPartyMode, isTwoHandsMode, user]);
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {

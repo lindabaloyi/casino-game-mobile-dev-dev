@@ -102,6 +102,8 @@ interface Props {
   // Build extension handlers
   extendingBuildId?: string | null;
   onExtendBuild?: (card: Card, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}`) => void;
+  /** Callback for capturing opponent's build with a captured card */
+  onCaptureBuild?: (card: Card, stackId: string, cardSource: 'captured' | `captured_${number}`) => void;
   onAcceptExtend?: (stackId: string) => void;
   onDeclineExtend?: (stackId: string) => void;
   
@@ -119,10 +121,16 @@ interface Props {
   currentPlayerIndex?: number;
   
   /** Game mode type for special rendering (e.g., two-hands for 3-player, freeforall for 4-player) */
-  gameMode?: 'two-hands' | 'three-hands' | 'party' | 'freeforall';
+  gameMode?: 'two-hands' | 'three-hands' | 'party' | 'four-hands' | 'freeforall' | 'tournament';
   
   /** Callback when a build is tapped - for Shiya selection or dual builds */
   onBuildTap?: (stack: BuildStack | TempStack) => void;
+  /** Callback when player attempts to recall from a capture pile (Shiya) */
+  onRecallAttempt?: (targetPlayerIndex: number) => void;
+  /** Optional callback for button click sound */
+  onPlayButtonSound?: () => void;
+  /** Sound callback - called on ANY successful drop of opponent's captured card */
+  onCardPlayed?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -168,6 +176,7 @@ export function TableArea({
   onTempStackDragEnd,
   extendingBuildId,
   onExtendBuild,
+  onCaptureBuild,
   onAcceptExtend,
   onDeclineExtend,
   opponentDrag,
@@ -176,6 +185,9 @@ export function TableArea({
   currentPlayerIndex,
   gameMode,
   onBuildTap,
+  onRecallAttempt,
+  onPlayButtonSound,
+  onCardPlayed,
 }: Props) {
   // Separate item types
   const tempStacks = tableCards.filter(isTempStack) as TempStack[];
@@ -262,6 +274,7 @@ export function TableArea({
           tempStacks={tempStacks}
           onAcceptTemp={onAcceptTemp}
           onCancelTemp={onCancelTemp}
+          onPlayButtonSound={onPlayButtonSound}
         />
       )}
 
@@ -283,10 +296,13 @@ export function TableArea({
         registerCapturePile={registerCapturePile}
         unregisterCapturePile={unregisterCapturePile}
         onExtendBuild={onExtendBuild}
+        onCaptureBuild={onCaptureBuild}
+        onCardPlayed={onCardPlayed}
         opponentDrag={opponentDrag}
         isPartyMode={isPartyMode}
         currentPlayerIndex={currentPlayerIndex}
         gameMode={gameMode}
+        onRecallAttempt={onRecallAttempt}
       />
     </View>
   );

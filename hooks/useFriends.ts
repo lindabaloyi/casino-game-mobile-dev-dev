@@ -125,11 +125,14 @@ export function useFriends(): UseFriendsResult {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
       // Get the JWT token (not the user object)
       const token = await AsyncStorage.getItem('casino_auth_token');
+      if (!token) {
+        console.warn('[useFriends] No auth token found');
+      }
       return token;
     } catch (err) {
       console.error('[useFriends] Error getting token:', err);
+      return null;
     }
-    return null;
   };
 
   useEffect(() => {
@@ -140,7 +143,8 @@ export function useFriends(): UseFriendsResult {
     try {
       const token = await getAuthToken();
       if (!token) {
-        return { success: false, error: 'Not authenticated' };
+        console.warn('[useFriends] No auth token available');
+        return { success: false, error: 'Please log in to send friend requests' };
       }
 
       const response = await fetch(`${API_BASE}/api/friends/request/${userId}`, {
@@ -158,18 +162,22 @@ export function useFriends(): UseFriendsResult {
         await fetchFriends();
         return { success: true };
       } else {
+        console.warn('[useFriends] Send request failed:', data.error);
         return { success: false, error: data.error || 'Failed to send request' };
       }
     } catch (err) {
       console.error('[useFriends] Error sending request:', err);
-      return { success: false, error: 'Failed to send friend request' };
+      return { success: false, error: 'Failed to send friend request. Please try again.' };
     }
   }, [fetchFriends]);
 
   const acceptRequest = useCallback(async (requestId: string) => {
     try {
       const token = await getAuthToken();
-      if (!token) return;
+      if (!token) {
+        console.warn('[useFriends] No auth token for accepting request');
+        return;
+      }
 
       const response = await fetch(`${API_BASE}/api/friends/accept/${requestId}`, {
         method: 'POST',
@@ -180,6 +188,9 @@ export function useFriends(): UseFriendsResult {
 
       if (response.ok) {
         await fetchFriends();
+      } else {
+        const data = await response.json();
+        console.warn('[useFriends] Accept request failed:', data.error);
       }
     } catch (err) {
       console.error('[useFriends] Error accepting request:', err);
@@ -189,7 +200,10 @@ export function useFriends(): UseFriendsResult {
   const declineRequest = useCallback(async (requestId: string) => {
     try {
       const token = await getAuthToken();
-      if (!token) return;
+      if (!token) {
+        console.warn('[useFriends] No auth token for declining request');
+        return;
+      }
 
       const response = await fetch(`${API_BASE}/api/friends/decline/${requestId}`, {
         method: 'POST',
@@ -200,6 +214,9 @@ export function useFriends(): UseFriendsResult {
 
       if (response.ok) {
         await fetchFriends();
+      } else {
+        const data = await response.json();
+        console.warn('[useFriends] Decline request failed:', data.error);
       }
     } catch (err) {
       console.error('[useFriends] Error declining request:', err);

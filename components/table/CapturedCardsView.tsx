@@ -54,6 +54,10 @@ interface CapturedCardsViewProps {
   onDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string) => void;
   /** Extend build callback - for extending own build with captured card */
   onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured') => void;
+  /** Callback for capturing opponent's build with a captured card */
+  onCaptureBuild?: (card: Card, stackId: string, cardSource: 'captured' | `captured_${number}`) => void;
+  /** Sound callback - called on ANY successful drop of opponent's captured card */
+  onCardPlayed?: () => void;
   /** Opponent's drag state - for hiding cards when opponent is dragging */
   opponentDrag?: OpponentDragState | null;
   /** Party mode flag - for team colors */
@@ -61,7 +65,9 @@ interface CapturedCardsViewProps {
   /** Current player index - for highlighting current turn */
   currentPlayerIndex?: number;
   /** Game mode type - for special rendering (two-hands for 3-player, freeforall for 4-player) */
-  gameMode?: 'two-hands' | 'three-hands' | 'party' | 'freeforall';
+  gameMode?: 'two-hands' | 'three-hands' | 'party' | 'four-hands' | 'freeforall' | 'tournament';
+  /** Callback when player attempts to recall from a capture pile (Shiya) */
+  onRecallAttempt?: (targetPlayerIndex: number) => void;
 }
 
 export function CapturedCardsView({
@@ -81,11 +87,17 @@ export function CapturedCardsView({
   onDragMove,
   onDragEnd,
   onExtendBuild,
+  onCaptureBuild,
+  onCardPlayed,
   opponentDrag,
   isPartyMode: isPartyModeProp,
   currentPlayerIndex,
   gameMode,
+  onRecallAttempt,
 }: CapturedCardsViewProps) {
+  // Debug logging
+  console.log(`[CapturedCardsView] playerNumber=${playerNumber}, playerCount=${playerCount}, gameMode=${gameMode}`);
+  console.log(`[CapturedCardsView] allPlayerCaptures:`, allPlayerCaptures?.map((c, i) => `[P${i}]: ${c?.length || 0} cards`) || 'undefined');
   // Use the team utilities hook
   const {
     isPartyMode,
@@ -93,7 +105,7 @@ export function CapturedCardsView({
     opponentIndices,
     getPlayerLabel,
     getPlayerTeamColors,
-  } = usePlayerTeam(playerNumber, playerCount);
+  } = usePlayerTeam(playerNumber, playerCount, gameMode);
 
   // Override isPartyMode if explicitly provided
   const finalIsPartyMode = isPartyModeProp ?? isPartyMode;
@@ -183,11 +195,14 @@ export function CapturedCardsView({
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
         onExtendBuild={onExtendBuild as any}
+        onCaptureBuild={onCaptureBuild as any}
+        onCardPlayed={onCardPlayed}
         opponentDrag={opponentDrag}
         registerCapturePile={registerCapturePile}
         unregisterCapturePile={unregisterCapturePile}
         getPlayerLabel={getPlayerLabel}
         getPlayerTeamColors={getPlayerTeamColors}
+        onRecallAttempt={onRecallAttempt}
       />
     );
   };

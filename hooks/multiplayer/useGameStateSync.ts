@@ -46,6 +46,7 @@ export interface ShiyaRecall {
 
 export interface GameState {
   deck: Card[];
+  gameMode?: 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament';
   players: {
     id: number;
     name: string;
@@ -98,6 +99,17 @@ export interface GameState {
       [stackId: string]: ShiyaRecall;
     };
   };
+  // Tournament mode (knockout)
+  tournamentMode?: 'knockout' | null;
+  tournamentPhase?: 'QUALIFYING' | 'SEMI_FINAL' | 'FINAL_SHOWDOWN' | 'COMPLETED' | null;
+  tournamentRound?: number;
+  playerStatuses?: { [playerIndex: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
+  tournamentScores?: { [playerIndex: string]: number };
+  eliminationOrder?: number[];
+  finalShowdownHandsPlayed?: number;
+  finalShowdownScores?: { [playerIndex: string]: number };
+  qualifiedPlayers?: number[];
+  qualificationScores?: { [playerIndex: string]: { totalPoints: number; cardPoints: number; tenDiamondPoints: number; twoSpadePoints: number; acePoints: number; spadeBonus: number; cardCountBonus: number; rank?: number } };
 }
 
 export interface GameOverData {
@@ -107,6 +119,12 @@ export interface GameOverData {
   tableCardsRemaining?: number;
   deckRemaining?: number;
   isPartyMode?: boolean; // NEW: tells frontend if party mode (teams) or free-for-all
+  // Tournament-specific data
+  isTournamentMode?: boolean;
+  playerStatuses?: { [playerIndex: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
+  qualifiedPlayers?: number[];
+  qualificationScores?: { [playerIndex: string]: { totalPoints: number; cardPoints: number; tenDiamondPoints: number; twoSpadePoints: number; acePoints: number; spadeBonus: number; cardCountBonus: number; rank?: number } };
+
   scoreBreakdowns?: Array<{
     totalCards: number;
     spadeCount: number;

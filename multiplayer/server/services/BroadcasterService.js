@@ -5,6 +5,8 @@
  * Updated to work with UnifiedMatchmakingService
  */
 
+const PlayerProfile = require('../models/PlayerProfile');
+
 class BroadcasterService {
   constructor(matchmakingService, gameManager, io) {
     this.matchmaking = matchmakingService;
@@ -13,16 +15,35 @@ class BroadcasterService {
   }
 
   /**
+   * Helper: Get player info for all players in a game
+   */
+  async _getPlayerInfos(players) {
+    const userIds = players
+      .map(p => p.userId)
+      .filter(Boolean);
+    
+    if (userIds.length === 0) {
+      return [];
+    }
+    
+    return PlayerProfile.getPlayerInfos(userIds);
+  }
+
+  /**
    * Broadcast game start to all players in a new game
    */
-  broadcastGameStart(gameResult) {
+  async broadcastGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
+
+    // Fetch player profile info
+    const playerInfos = await this._getPlayerInfos(players);
 
     players.forEach(({ socket, playerNumber }) => {
       socket.emit("game-start", {
         gameId,
         gameState,
         playerNumber,
+        playerInfos,
       });
     });
   }
@@ -30,14 +51,18 @@ class BroadcasterService {
   /**
    * Broadcast party game start to all 4 players in a new party game
    */
-  broadcastPartyGameStart(gameResult) {
+  async broadcastPartyGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
+
+    // Fetch player profile info
+    const playerInfos = await this._getPlayerInfos(players);
 
     players.forEach(({ socket, playerNumber }) => {
       socket.emit("game-start", {
         gameId,
         gameState,
         playerNumber,
+        playerInfos,
         isPartyGame: true,
       });
     });
@@ -46,15 +71,19 @@ class BroadcasterService {
   /**
    * Broadcast three-hands game start to all 3 players in a new three-hands game
    */
-  broadcastThreeHandsGameStart(gameResult) {
+  async broadcastThreeHandsGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
     console.log(`[Broadcaster] Broadcasting three-hands game start to ${players.length} players`);
+
+    // Fetch player profile info
+    const playerInfos = await this._getPlayerInfos(players);
 
     players.forEach(({ socket, playerNumber }) => {
       socket.emit("game-start", {
         gameId,
         gameState,
         playerNumber,
+        playerInfos,
         isThreeHandsGame: true,
       });
     });
@@ -63,15 +92,19 @@ class BroadcasterService {
   /**
    * Broadcast free-for-all game start to all 4 players in a new free-for-all game
    */
-  broadcastFreeForAllGameStart(gameResult) {
+  async broadcastFreeForAllGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
     console.log(`[Broadcaster] Broadcasting free-for-all game start to ${players.length} players`);
+
+    // Fetch player profile info
+    const playerInfos = await this._getPlayerInfos(players);
 
     players.forEach(({ socket, playerNumber }) => {
       socket.emit("game-start", {
         gameId,
         gameState,
         playerNumber,
+        playerInfos,
         gameMode: 'freeforall',
       });
     });
@@ -80,16 +113,41 @@ class BroadcasterService {
   /**
    * Broadcast four-hands game start to all 4 players in a new four-hands game
    */
-  broadcastFourHandsGameStart(gameResult) {
+  async broadcastFourHandsGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
     console.log(`[Broadcaster] Broadcasting four-hands game start to ${players.length} players`);
+
+    // Fetch player profile info
+    const playerInfos = await this._getPlayerInfos(players);
 
     players.forEach(({ socket, playerNumber }) => {
       socket.emit("game-start", {
         gameId,
         gameState,
         playerNumber,
+        playerInfos,
         gameMode: 'four-hands',
+      });
+    });
+  }
+
+  /**
+   * Broadcast tournament game start to all 4 players in a new tournament game
+   */
+  async broadcastTournamentGameStart(gameResult) {
+    const { gameId, gameState, players } = gameResult;
+    console.log(`[Broadcaster] Broadcasting tournament game start to ${players.length} players`);
+
+    // Fetch player profile info
+    const playerInfos = await this._getPlayerInfos(players);
+
+    players.forEach(({ socket, playerNumber }) => {
+      socket.emit("game-start", {
+        gameId,
+        gameState,
+        playerNumber,
+        playerInfos,
+        gameMode: 'tournament',
       });
     });
   }

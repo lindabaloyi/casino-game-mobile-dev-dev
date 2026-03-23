@@ -17,12 +17,28 @@ const PARTY_TURN_SEQUENCE = [0, 2, 1, 3];
 const THREE_HANDS_TURN_SEQUENCE = [0, 1, 2];
 
 /**
- * Check if player count indicates party mode (4 players)
- * @param {number} playerCount - Number of players
+ * Check if game is party mode
+ * @param {number|object} playerCountOrState - Number of players or game state object
  * @returns {boolean} True if party mode
  */
-function isPartyGame(playerCount) {
-  return playerCount === 4;
+function isPartyGame(playerCountOrState) {
+  // If it's a number, check if it's 4 players
+  if (typeof playerCountOrState === 'number') {
+    return playerCountOrState === 4;
+  }
+  // If it's an object (game state), check gameMode
+  if (playerCountOrState && typeof playerCountOrState === 'object') {
+    const state = playerCountOrState;
+    // Check gameMode === 'party'
+    if (state.gameMode === 'party') {
+      return true;
+    }
+    // Also check explicit isPartyMode flag
+    if (state.isPartyMode === true) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -75,12 +91,9 @@ function isFirstInSequence(playerIndex) {
  * @returns {string} Team ('A', 'B', or 'C')
  */
 function getTeamFromIndex(playerIndex) {
-  if (playerIndex === 3) return 'B';
-  if (playerIndex >= 0 && playerIndex <= 2) {
-    // For 3-player: 0='A', 1='B', 2='C'
-    return String.fromCharCode(65 + playerIndex);
-  }
-  return 'A';
+  // FIXED: Correct party mode team assignment
+  // Players 0,1 = Team A ; Players 2,3 = Team B
+  return playerIndex < 2 ? 'A' : 'B';
 }
 
 /**
@@ -137,7 +150,9 @@ function getPlayerTag(playerIndex) {
  * @returns {boolean} True if teammates
  */
 function areTeammates(player1, player2) {
-  return getTeamFromIndex(player1) === getTeamFromIndex(player2);
+  const team1 = player1 < 2 ? 'A' : 'B';
+  const team2 = player2 < 2 ? 'A' : 'B';
+  return team1 === team2;
 }
 
 module.exports = {

@@ -7,6 +7,7 @@ interface ExtensionOverlayProps {
   stacks: (TempStack | BuildStack)[];
   onAcceptExtend?: (stackId: string) => void;
   onDeclineExtend?: (stackId: string) => void;
+  onPlayButtonSound?: () => void;
 }
 
 export function ExtensionOverlay({
@@ -14,6 +15,7 @@ export function ExtensionOverlay({
   stacks,
   onAcceptExtend,
   onDeclineExtend,
+  onPlayButtonSound,
 }: ExtensionOverlayProps) {
   if (!extendingBuildId || !onAcceptExtend || !onDeclineExtend) return null;
   
@@ -26,6 +28,7 @@ export function ExtensionOverlay({
       stackId={extendingBuildId}
       onAccept={onAcceptExtend}
       onCancel={onDeclineExtend}
+      onPlayButtonSound={onPlayButtonSound}
     />
   );
 }

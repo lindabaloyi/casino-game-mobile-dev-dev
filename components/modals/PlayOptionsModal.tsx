@@ -22,6 +22,8 @@ interface PlayOptionsModalProps {
   players?: { captures: Card[] }[];
   onConfirm: (buildValue: number, originalOwner?: number) => void;
   onCancel: () => void;
+  /** Optional callback for button click sound */
+  onPlayButtonSound?: () => void;
 }
 
 export function PlayOptionsModal({
@@ -33,7 +35,23 @@ export function PlayOptionsModal({
   players,
   onConfirm,
   onCancel,
+  onPlayButtonSound,
 }: PlayOptionsModalProps) {
+  // Handle confirm with optional sound
+  const handleConfirm = (buildValue: number, originalOwner?: number) => {
+    if (onPlayButtonSound) {
+      onPlayButtonSound();
+    }
+    onConfirm(buildValue, originalOwner);
+  };
+
+  // Handle cancel with optional sound
+  const handleCancel = () => {
+    if (onPlayButtonSound) {
+      onPlayButtonSound();
+    }
+    onCancel();
+  };
   // Calculate card values first (for use in hooks)
   const cardValues = cards?.map(c => c.value) ?? [];
   const totalSum = cards?.reduce((sum, c) => sum + c.value, 0) ?? 0;
@@ -107,13 +125,6 @@ export function PlayOptionsModal({
     };
   }, [hint, totalSum, cards]);
   
-  // Check which build values have matching cards in hand
-  const matchingOptions = useMemo(() => {
-    return possibleBuildValues.filter(val => 
-      (playerHand ?? []).some(card => card.value === val)
-    );
-  }, [possibleBuildValues, playerHand]);
-  
   // Get team captured builds (for party mode 2v2 cooperative rebuild)
   // Uses player-specific builds: teamCapturedBuilds[playerNumber] = builds THIS PLAYER can rebuild
   // SIMPLIFIED: Trust the teamCapturedBuilds list - just filter by possible values and add guardrails
@@ -139,6 +150,18 @@ export function PlayOptionsModal({
     
     return matchingTeamBuilds;
   }, [teamCapturedBuilds, playerNumber, possibleBuildValues]);
+  
+  // Check which build values have matching cards in hand
+  const matchingOptions = useMemo(() => {
+    // If team build options exist, DON'T show own options - team builds take priority
+    if (teamBuildOptions.length > 0) {
+      return [];
+    }
+    
+    return possibleBuildValues.filter(val => 
+      (playerHand ?? []).some(card => card.value === val)
+    );
+  }, [possibleBuildValues, playerHand, teamBuildOptions]);
   
   // Determine build type for display
   const buildType = totalSum <= 10 ? 'sum' : 'diff';
@@ -205,7 +228,7 @@ export function PlayOptionsModal({
             {hasTotalMatch && (
               <TouchableOpacity 
                 style={styles.optionButton} 
-                onPress={() => onConfirm(totalSum)}
+                onPress={() => handleConfirm(totalSum)}
               >
                 <Text style={styles.optionText}>Build {totalSum} (sum)</Text>
               </TouchableOpacity>
@@ -214,7 +237,7 @@ export function PlayOptionsModal({
             {hasDiffMatch && (
               <TouchableOpacity 
                 style={[styles.optionButton, styles.diffOption]} 
-                onPress={() => onConfirm(buildValue)}
+                onPress={() => handleConfirm(buildValue)}
               >
                 <Text style={styles.optionText}>Build {buildValue} (base)</Text>
               </TouchableOpacity>
@@ -223,7 +246,7 @@ export function PlayOptionsModal({
             {hasSingleMatch && singleValue !== totalSum && singleValue !== buildValue && (
               <TouchableOpacity 
                 style={styles.optionButton} 
-                onPress={() => onConfirm(singleValue!)}
+                onPress={() => handleConfirm(singleValue!)}
               >
                 <Text style={styles.optionText}>Build {singleValue}</Text>
               </TouchableOpacity>
@@ -234,7 +257,7 @@ export function PlayOptionsModal({
               <TouchableOpacity 
                 key={`team-${index}`}
                 style={[styles.optionButton, styles.teamOption]} 
-                onPress={() => onConfirm(build.value, build.originalOwner)}
+                onPress={() => handleConfirm(build.value, build.originalOwner)}
               >
                 <Text style={styles.optionText}>Build {build.value} (Team Build)</Text>
               </TouchableOpacity>
@@ -248,7 +271,7 @@ export function PlayOptionsModal({
           </View>
           
           {/* Cancel button */}
-          <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
         </View>

@@ -74,6 +74,9 @@ class TempStackDropHandler {
     }
 
     // Check 2: Incomplete build - card matches the "need" value
+    // REMOVED: Don't auto-capture incomplete builds - let player choose to extend or capture
+    // Players should be able to add cards to incomplete builds without forced capture
+    /*
     if (buildInfo && buildInfo.need > 0) {
       if (card.value === buildInfo.need) {
         const matchingCards = playerHand.filter(c => c.value === buildInfo.need);
@@ -90,6 +93,7 @@ class TempStackDropHandler {
         }
       }
     }
+    */
 
     // Check 3: Same-rank capture (all cards same rank)
     const allSameRank = stack.cards.length > 0 &&

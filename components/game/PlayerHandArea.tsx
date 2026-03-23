@@ -10,15 +10,17 @@
  *  - Shows action strip (Accept/Cancel) when there's a pending stack
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useCallback } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions, TouchableOpacity, Text } from 'react-native';
 import { DraggableHandCard } from '../cards/DraggableHandCard';
+import { AnimatedCard } from '../cards/AnimatedCard';
 import { DropBounds } from '../../hooks/useDrag';
 import { TableItem } from '../table/types';
 import { OpponentDragState } from '../../hooks/useGameState';
 import { StackActionStrip } from '../table/StackActionStrip';
 import { areTeammates } from '../../shared/game/team';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
+import { useDealingAnimation } from '../../hooks/useDealingAnimation';
 
 interface Card {
   rank: string;
@@ -101,6 +103,12 @@ interface Props {
   pendingDropCard?: Card | null;
   /** Pending drop source - 'hand' | 'captured' | 'table' | null */
   pendingDropSource?: 'hand' | 'captured' | 'table' | null;
+  /** Callback for card contact sound - passed from GameBoard to persist across drags */
+  onCardContact?: () => void;
+  /** Callback for trail sound - passed from GameBoard */
+  onTrailSound?: () => void;
+  /** Callback for button click sound - passed from GameBoard */
+  onPlayButtonSound?: () => void;
 }
 
 // Default card dimensions - matching capture pile (56x84)
@@ -139,14 +147,39 @@ export function PlayerHandArea({
   onShiya,
   pendingDropCard,
   pendingDropSource,
+  onCardContact,
+  onTrailSound,
+  onPlayButtonSound,
 }: Props) {
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  
+  // Sort hand by card value (ascending - smallest on left, largest on right)
+  const sortedHand = useMemo(() => {
+    return [...hand].sort((a, b) => a.value - b.value);
+  }, [hand]);
+  
+  // Track dealing animations for the local player's hand
+  const { animatingCardIds, getCardDelay, onAnimationComplete } = useDealingAnimation(sortedHand);
+  
+  // Debug log for initial render
+  console.log('[PlayerHandArea] 🎮 useDealingAnimation initialized, hand length:', sortedHand.length);
+  
+  // Note: Card contact sound is now passed via onCardContact prop from GameBoard
+  // This ensures sounds persist across drags (PlayerHandArea remounts on drag)
+  
+  // Wrapper for onDropOnTable that plays trail sound
+  const handleDropOnTable = useCallback((card: Card) => {
+    if (onTrailSound) {
+      onTrailSound();
+    }
+    onDropOnTable(card);
+  }, [onDropOnTable, onTrailSound]);
   
   // Calculate responsive card dimensions based on screen width
   // Show only top half of card (half height for container)
   // Always use standard DEFAULT dimensions - no conditional scaling
   const { cardOverlap, handWidth, containerHeight, responsiveCardWidth, responsiveCardHeight, centerOffset, shouldCenterCards, containerPaddingHorizontal } = useMemo(() => {
-    const numCards = hand.length;
+    const numCards = sortedHand.length;
     
     // Always use default dimensions - no scaling based on card count
     const cw = DEFAULT_CARD_WIDTH;
@@ -178,14 +211,17 @@ export function PlayerHandArea({
     }
     
     if (numCards <= 1) {
+      // Calculate centering offset for single card - center it on screen
+      const singleCardWidth = responsiveCw + 16;
+      const offset = Math.max(0, (screenWidth - singleCardWidth - 32) / 2);
       return { 
         cardOverlap: 0, 
-        handWidth: responsiveCw + 16,
+        handWidth: singleCardWidth,
         containerHeight: halfHeight + 8,
         responsiveCardWidth: responsiveCw,
         responsiveCardHeight: responsiveCh,
-        centerOffset: 0,
-        shouldCenterCards: false,
+        centerOffset: offset,
+        shouldCenterCards: true,  // Enable centering for single card
         containerPaddingHorizontal: 16
       };
     }
@@ -213,7 +249,7 @@ export function PlayerHandArea({
       shouldCenterCards: false,
       containerPaddingHorizontal: 16
     };
-  }, [hand.length, screenWidth]);
+  }, [sortedHand.length, screenWidth]);
 
   // Check if Shiya action is available for selected build
   // The button appears when player taps on a qualifying build (before/during turn)
@@ -243,7 +279,7 @@ export function PlayerHandArea({
         contentContainerStyle={cardRowStyle}
         scrollEnabled={!isMyTurn}
       >
-        {hand.map((card, index) => {
+        {sortedHand.map((card, index) => {
           const cardId = `${card.rank}${card.suit}`;
           // Hide card if:
           // 1. Opponent is actively dragging this card, OR
@@ -268,39 +304,61 @@ export function PlayerHandArea({
             isPendingDrop
           );
           
+          // Check if card should animate (new card being dealt)
+          const animatingCardId = `${card.rank}${card.suit}`;
+          const shouldAnimate = animatingCardIds.has(animatingCardId);
+          const delayMs = shouldAnimate ? getCardDelay(card) : 0;
+          
+          if (index < 3) {
+            console.log('[PlayerHandArea] Card:', animatingCardId, 'shouldAnimate:', shouldAnimate, 'delayMs:', delayMs, 'animatingCardIds.size:', animatingCardIds.size);
+          }
+          
+          // Calculate final position within the hand for proper slide-in
+          // Each card's position = index * (cardWidth - overlap)
+          const cardSpacing = responsiveCardWidth - cardOverlap;
+          const finalPosition = index * cardSpacing;
+          
           return (
-            <View
+            <AnimatedCard
               key={cardId}
-              style={[
-                { 
+              card={card}
+              shouldAnimate={shouldAnimate}
+              delayMs={delayMs}
+              onAnimationComplete={onAnimationComplete}
+              finalPosition={finalPosition}
+              cardWidth={responsiveCardWidth}
+            >
+              <View
+                style={{
                   width: responsiveCardWidth,
                   height: responsiveCardHeight,
-                  marginRight: index === hand.length - 1 ? 0 : -cardOverlap,
+                  marginRight: index === sortedHand.length - 1 ? 0 : -cardOverlap,
                   zIndex: index + 1,
                   overflow: 'hidden', // Clip to show only top half
-                }
-              ]}
-            >
-              <DraggableHandCard
-                card={card}
-                dropBounds={dropBounds}
-                findCardAtPoint={findCardAtPoint}
-                findTempStackAtPoint={findTempStackAtPoint}
-                isMyTurn={isMyTurn}
-                playerNumber={playerNumber}
-                playerHand={hand}
-                tableCards={tableCards}
-                onDropOnStack={onDropOnStack}
-                onDropOnCard={onDropOnCard}
-                onDropOnTable={onDropOnTable}
-                onDragStart={onDragStart}
-                onDragMove={onDragMove}
-                onDragEnd={onDragEnd}
-                isHidden={isHidden}
-                cardWidth={responsiveCardWidth}
-                cardHeight={responsiveCardHeight}
-              />
-            </View>
+                }}
+              >
+                <DraggableHandCard
+                  card={card}
+                  dropBounds={dropBounds}
+                  findCardAtPoint={findCardAtPoint}
+                  findTempStackAtPoint={findTempStackAtPoint}
+                  isMyTurn={isMyTurn}
+                  playerNumber={playerNumber}
+                  playerHand={hand}
+                  tableCards={tableCards}
+                  onDropOnStack={onDropOnStack}
+                  onDropOnCard={onDropOnCard}
+                  onDropOnTable={handleDropOnTable}
+                  onDragStart={onDragStart}
+                  onDragMove={onDragMove}
+                  onDragEnd={onDragEnd}
+                  isHidden={isHidden}
+                  cardWidth={responsiveCardWidth}
+                  cardHeight={responsiveCardHeight}
+                  onCardContact={onCardContact}
+                />
+              </View>
+            </AnimatedCard>
           );
         })}
       </ScrollView>
@@ -313,7 +371,10 @@ export function PlayerHandArea({
               <>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.acceptButton]}
-                  onPress={() => onAcceptStack && activeStackId && onAcceptStack(activeStackId)}
+                  onPress={() => {
+                    if (onPlayButtonSound) onPlayButtonSound();
+                    onAcceptStack && activeStackId && onAcceptStack(activeStackId);
+                  }}
                   accessibilityLabel={activeStackType === 'extend_build' ? 'Extend' : 'Accept'}
                 >
                   <Text style={styles.actionButtonText}>
@@ -322,7 +383,10 @@ export function PlayerHandArea({
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.cancelButton]}
-                  onPress={() => onCancelStack && activeStackId && onCancelStack(activeStackId)}
+                  onPress={() => {
+                    if (onPlayButtonSound) onPlayButtonSound();
+                    onCancelStack && activeStackId && onCancelStack(activeStackId);
+                  }}
                   accessibilityLabel="Cancel"
                 >
                   <Text style={styles.actionButtonText}>Cancel</Text>
@@ -333,6 +397,7 @@ export function PlayerHandArea({
               <TouchableOpacity
                 style={[styles.actionButton, styles.shiyaButton]}
                 onPress={() => {
+                  if (onPlayButtonSound) onPlayButtonSound();
                   if (selectedBuild && onShiya) {
                     // Use the actual stackId from the selected build
                     onShiya(selectedBuild.stackId);
@@ -352,7 +417,10 @@ export function PlayerHandArea({
         <View style={styles.endTurnContainer}>
           <TouchableOpacity
             style={styles.endTurnButton}
-            onPress={onEndTurn}
+            onPress={() => {
+              if (onPlayButtonSound) onPlayButtonSound();
+              onEndTurn();
+            }}
             accessibilityLabel="End Turn"
           >
             <Text style={styles.endTurnText}>End Turn</Text>

@@ -95,6 +95,19 @@ class OpponentBuildHandler {
     // Table or captured card adding to pending
     console.log('[OpponentBuildHandler] 📥 Adding table/captured card to pending');
     
+    // Captured cards can exceed the build value (no limits like extendBuild)
+    const isCaptured = source === 'captured' || (typeof source === 'string' && source.startsWith('captured_'));
+    
+    if (isCaptured) {
+      // Captured cards have no limits - can add any value
+      console.log('[OpponentBuildHandler] ✅ Adding captured card without limit check');
+      return {
+        type: 'addToCapture',
+        payload: { stackId, card, cardSource: source }
+      };
+    }
+    
+    // Table cards still have the limit check
     if (currentSum + card.value < stack.value) {
       // Add to existing pending capture
       console.log('[OpponentBuildHandler] ✅ Adding to pending capture (need more)');
@@ -126,8 +139,21 @@ class OpponentBuildHandler {
 
     console.log('[OpponentBuildHandler] 📦 Table/captured card dropped');
 
+    // Captured cards can exceed the build value (no limits like extendBuild)
+    const isCaptured = source === 'captured' || (typeof source === 'string' && source.startsWith('captured_'));
+    
+    if (isCaptured) {
+      // Captured cards can start a multi-card capture even if value > build
+      console.log('[OpponentBuildHandler] ✅ Starting multi-card capture with captured card (no limit)');
+      return {
+        type: 'startBuildCapture',
+        payload: { stackId, card, cardSource: source }
+      };
+    }
+    
+    // Table cards still have the limit check
     if (card.value < stack.value) {
-      // Start multi-card capture with table/captured card
+      // Start multi-card capture with table card
       console.log('[OpponentBuildHandler] ✅ Starting multi-card capture (startBuildCapture)');
       return {
         type: 'startBuildCapture',

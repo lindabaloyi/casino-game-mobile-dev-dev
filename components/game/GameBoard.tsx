@@ -23,6 +23,8 @@ import { useDragHandlers } from '../../hooks/game/useDragHandlers';
 import { useActionHandlers } from '../../hooks/game/useActionHandlers';
 import { useTableBounds } from '../../hooks/game/useTableBounds';
 import { useTurnTimer } from '../../hooks/game/useTurnTimer';
+import { useCaptureSound } from '../../hooks/useCaptureSound';
+import { useSound } from '../../hooks/useSound';
 
 import { GameStatusBar } from './GameStatusBar';
 import { TableArea } from '../table/TableArea';
@@ -33,7 +35,9 @@ import { OpponentGhostCard } from './OpponentGhostCard';
 import { ErrorBanner } from '../shared/ErrorBanner';
 import { Card as TableCard } from '../../types';
 import { GameOverModal } from '../modals/GameOverModal';
-import { ShiyaRecallModal } from '../modals/ShiyaRecallModal';
+import { HomeMenuButton } from './HomeMenuButton';
+import { OpponentProfileModal } from '../modals/OpponentProfileModal';
+import { useOpponentInfo } from '../../hooks/useOpponentInfo';
 import { areTeammates } from '../../shared/game/team';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -50,6 +54,10 @@ interface GameBoardProps {
     scoreBreakdowns?: any[];
     teamScoreBreakdowns?: any;
     isPartyMode?: boolean;
+    // Tournament-specific props
+    isTournamentMode?: boolean;
+    playerStatuses?: { [playerIndex: string]: string };
+    qualifiedPlayers?: number[];
   } | null;
   playerNumber: number;
   sendAction: (action: { type: string; payload?: Record<string, unknown> }) => void;
@@ -90,9 +98,6 @@ export function GameBoard({
   const [dragVersion, setDragVersion] = useState(0);
   const [selectedBuildForShiya, setSelectedBuildForShiya] = useState<any>(null);
   
-  // Shiya recall modal state
-  const [shiyaRecallCandidate, setShiyaRecallCandidate] = useState<any>(null);
-  const recallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shiyaButtonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Track round transitions to prevent double triggers
@@ -111,6 +116,9 @@ export function GameBoard({
   const modals = useModalManager();
   const actions = useGameActions(sendAction);
   
+  // Opponent info hook for profile modal
+  const opponentInfo = useOpponentInfo();
+
   // Computed values
   const computed = useGameComputed(gameState, playerNumber);
   const { getTableBounds } = useTableBounds(drag.dropBounds);
@@ -129,6 +137,12 @@ export function GameBoard({
       actions.endTurn();
     },
   });
+
+  // Capture sound detection - plays sound when player captures cards
+  useCaptureSound(gameState, playerNumber);
+
+  // Sound effects for card contact (moved here to persist across drags)
+  const { playCardContact, playTrail, playTableCardDrag, playButton, playCapture } = useSound();
 
   // Debug logging disabled for cleaner console
 
@@ -176,61 +190,8 @@ export function GameBoard({
     }
   }, [roundInfo.isOver, roundInfo.roundNumber, startNextRound]);
 
-  // Shiya Recall Detection
-  // Watch shiyaRecalls in game state - when a recall offer appears for this player,
-  // show the recall modal. This is the proper separation: shiyaRecalls is ephemeral notification
-  // state, separate from persistent teamCapturedBuilds.
-  // 
-  // New structure: shiyaRecalls[playerIndex][stackId] = { buildCards, captureCards, ... }
-  useEffect(() => {
-    if (gameState.playerCount !== 4) return;
-    
-    // Check if there's a recall offer for this player (new nested structure)
-    const myRecalls = gameState.shiyaRecalls?.[playerNumber] as Record<string, any> | undefined;
-    
-    if (myRecalls && typeof myRecalls === 'object' && Object.keys(myRecalls).length > 0) {
-      // Get the first available recall (could be multiple)
-      const firstStackId = Object.keys(myRecalls)[0];
-      const myRecall = myRecalls[firstStackId];
-      
-      if (myRecall) {
-        // Clear any existing timer
-        if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
-        
-        // Set the recall candidate - pass the full recall object with stackId
-        setShiyaRecallCandidate({ ...myRecall, stackId: firstStackId });
-        
-        // Auto-dismiss after 4 seconds (matching expiresAt timestamp)
-        const timeUntilExpiry = myRecall.expiresAt - Date.now();
-        const autoCloseMs = Math.max(1000, Math.min(4000, timeUntilExpiry));
-        
-        recallTimerRef.current = setTimeout(() => {
-          setShiyaRecallCandidate(null);
-          recallTimerRef.current = null;
-        }, autoCloseMs);
-      }
-    } else {
-      // No recall for this player - clear if there's a stale candidate
-      // (only clear if the candidate's stackId doesn't match any active recall)
-      if (shiyaRecallCandidate) {
-        const candidateStackId = shiyaRecallCandidate.stackId;
-        const hasActiveRecall = myRecalls?.[candidateStackId];
-        if (!hasActiveRecall) {
-          setShiyaRecallCandidate(null);
-          if (recallTimerRef.current) {
-            clearTimeout(recallTimerRef.current);
-            recallTimerRef.current = null;
-          }
-        }
-      }
-    }
-    
-    // Cleanup timer on unmount
-    return () => {
-      if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
-      if (shiyaButtonTimerRef.current) clearTimeout(shiyaButtonTimerRef.current);
-    };
-  }, [gameState.shiyaRecalls, gameState.playerCount, playerNumber, shiyaRecallCandidate]);
+  // Note: Recall is now triggered via double-tap on teammate's capture pile
+  // No modal needed - handled by handleRecallAttempt callback
 
   // Drag end wrapper
   const handleDragEndWrapper = () => {
@@ -241,34 +202,36 @@ export function GameBoard({
   const handleBuildTap = useCallback((stack: any) => {
     console.log('[handleBuildTap] Tapped stack:', stack?.type, 'owner:', stack?.owner, 'value:', stack?.value);
     
-    // Check if this is a temp stack (dual builds feature)
-    if (stack.type === 'temp_stack') {
-      // For temp stacks, show confirmation modal on double-click
-      console.log('[GameBoard] Temp stack double-tapped, showing confirm modal');
-      modals.openConfirmTempBuildModal(stack);
-      return;
-    }
-    
-    // Handle BuildStack for Shiya selection
-    // Only set as selected if it's a teammate's build (NOT own build) and we have a matching card
+    // Check if party mode (required for Shiya)
     if (!stack || gameState.playerCount !== 4) {
+      // Not party mode - only handle confirm modal for own temp stacks (dual builds feature)
+      if (stack?.type === 'temp_stack' && stack.owner === playerNumber) {
+        console.log('[GameBoard] Temp stack tapped in non-party mode, showing confirm modal');
+        modals.openConfirmTempBuildModal(stack);
+      }
       console.log('[handleBuildTap] Not party mode or no stack');
       setSelectedBuildForShiya(null);
       return;
     }
     
-    // Check if it's NOT own build (must be teammate's build, not own)
+    // === SHIYA ELIGIBILITY CHECK (for BOTH build_stack and temp_stack) ===
+    
+    // Check if it's own stack - no Shiya on own stacks
     if (stack.owner === playerNumber) {
-      console.log('[handleBuildTap] Own build - no Shiya');
+      console.log('[handleBuildTap] Own stack - showing confirm modal for temp stacks');
+      // For own temp stacks, show confirm modal (dual builds feature)
+      if (stack.type === 'temp_stack') {
+        modals.openConfirmTempBuildModal(stack);
+      }
       setSelectedBuildForShiya(null);
       return;
     }
     
-    // Check if it's a teammate's build
+    // Check if it's a teammate's stack
     const isTeammate = areTeammates(playerNumber, stack.owner);
     console.log('[handleBuildTap] Player:', playerNumber, 'Stack owner:', stack.owner, 'Are teammates:', isTeammate);
     if (!isTeammate) {
-      console.log('[handleBuildTap] Not a teammate build');
+      console.log('[handleBuildTap] Not a teammate stack');
       setSelectedBuildForShiya(null);
       return;
     }
@@ -280,13 +243,14 @@ export function GameBoard({
       return;
     }
     
-    // Check if we have a matching card
+    // Check if we have a matching card (matches stack value - works for both builds and temp stacks)
     const myHand = gameState.players?.[playerNumber]?.hand ?? [];
     const hasMatch = myHand.some((card: any) => card.value === stack.value);
     console.log('[handleBuildTap] Stack value:', stack.value, 'Has matching card:', hasMatch, 'Hand:', myHand.map((c: any) => c.value));
     
     if (hasMatch) {
-      console.log('[handleBuildTap] Setting selected build for Shiya');
+      // Eligible for Shiya - set selected for Shiya button (works for both builds and temp stacks)
+      console.log('[handleBuildTap] Setting selected stack for Shiya');
       setSelectedBuildForShiya(stack);
       
       // Auto-hide Shiya button after 5 seconds if not clicked
@@ -296,9 +260,62 @@ export function GameBoard({
         shiyaButtonTimerRef.current = null;
       }, 5000);
     } else {
+      // Not eligible for Shiya - show confirm modal for own temp stacks only
+      if (stack.type === 'temp_stack' && stack.owner === playerNumber) {
+        modals.openConfirmTempBuildModal(stack);
+      }
       setSelectedBuildForShiya(null);
     }
   }, [gameState, playerNumber, modals]);
+
+  // Handle recall attempt from capture pile (Shiya post-capture)
+  const handleRecallAttempt = useCallback((targetPlayerIndex: number) => {
+    console.log('[handleRecallAttempt] Target player:', targetPlayerIndex);
+    
+    // Check party mode
+    if (gameState.playerCount !== 4) {
+      console.log('[handleRecallAttempt] Not party mode');
+      return;
+    }
+    
+    // Check if target is a teammate
+    if (!areTeammates(playerNumber, targetPlayerIndex)) {
+      console.log('[handleRecallAttempt] Not a teammate');
+      return;
+    }
+    
+    // Get target player's captures
+    const targetCaptures = gameState.players?.[targetPlayerIndex]?.captures ?? [];
+    
+    if (targetCaptures.length === 0) {
+      console.log('[handleRecallAttempt] Target has no captures');
+      return;
+    }
+    
+    // Get player's hand
+    const myHand = gameState.players?.[playerNumber]?.hand ?? [];
+    
+    // Check if player has any matching cards in hand
+    // For simplicity, we attempt to recall the most recent capture
+    // The server will validate if there's a match
+    const mostRecentCapture = targetCaptures[targetCaptures.length - 1];
+    const hasMatch = myHand.some((card: any) => card.rank === mostRecentCapture.rank);
+    
+    if (!hasMatch) {
+      console.log('[handleRecallAttempt] No matching card in hand');
+      // Could show feedback here
+      return;
+    }
+    
+    console.log('[handleRecallAttempt] Attempting recall from player', targetPlayerIndex);
+    // Use unified recall - the server will validate that this player is the activator
+    // Get the recall ID from shiyaRecalls
+    const myRecalls = gameState.shiyaRecalls?.[playerNumber] as Record<string, any> | undefined;
+    if (myRecalls && Object.keys(myRecalls).length > 0) {
+      const recallId = Object.keys(myRecalls)[0];
+      actions.recall(recallId);
+    }
+  }, [gameState, playerNumber, actions]);
 
   // Drag handlers
   const dragHandlers = useDragHandlers({
@@ -315,6 +332,7 @@ export function GameBoard({
     onDragEndWrapper: handleDragEndWrapper,
     openStealModal: modals.openStealModal,
     table: computed.table,
+    onTableCardDragDrop: playTableCardDrag,
   });
 
   // Action handlers
@@ -423,7 +441,8 @@ export function GameBoard({
         isPartyMode={gameState.playerCount === 4 && gameState.gameMode === 'party'}
         currentPlayerIndex={gameState.currentPlayer}
         // Use gameMode from gameState if available, otherwise detect from playerCount
-        gameMode={gameState.gameMode || (gameState.playerCount === 3 ? 'two-hands' : (gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team) ? 'party' : 'freeforall'))}
+        // Fix: 2-player mode should default to 'two-hands', not 'freeforall'
+        gameMode={gameState.gameMode || (gameState.playerCount === 2 ? 'two-hands' : (gameState.playerCount === 3 ? 'two-hands' : (gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team) ? 'party' : 'freeforall')))}
         tableRef={drag.tableRef}
         onTableLayout={drag.onTableLayout}
         registerCard={drag.registerCard}
@@ -452,6 +471,10 @@ export function GameBoard({
         onCapturedCardDragStart={dragHandlers.handleCapturedDragStart}
         onCapturedCardDragMove={dragOverlay.moveDrag}
         onCapturedCardDragEnd={(card, targetCard, targetStackId, source) => {
+          // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
+          // This prevents seeing the card "drag back" to the pile
+          dragOverlay.markPendingDrop(card, 'captured');
+          
           // Emit drag-end to server so opponents can clean up ghost cards
           if (emitDragEnd) {
             const absX = dragOverlay.overlayX.value + 28;
@@ -477,6 +500,36 @@ export function GameBoard({
           }
           dragOverlay.endDrag();
         }}
+        onCaptureBuild={(card, stackId, cardSource) => {
+          console.log('[GameBoard] onCaptureBuild called:', card?.rank, card?.suit, 'stackId:', stackId, 'source:', cardSource);
+          // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
+          // This prevents seeing the card "drag back" to the pile
+          dragOverlay.markPendingDrop(card, 'captured');
+          
+          // Emit drag-end to server so opponents can clean up ghost cards
+          if (emitDragEnd) {
+            const absX = dragOverlay.overlayX.value + 28;
+            const absY = dragOverlay.overlayY.value + 42;
+            const tableBounds = drag.dropBounds.current;
+            const normX = Math.max(0, Math.min(1, absX / (tableBounds.width || 400)));
+            const normY = Math.max(0, Math.min(1, absY / (tableBounds.height || 300)));
+            emitDragEnd(card, { x: normX, y: normY }, 'success', 'build_stack', stackId);
+          }
+          
+          // Find the build stack to get owner - use smart router via stackDrop
+          // This ensures proper handling of pending captures (addToCapture vs startBuildCapture)
+          const buildStack = computed.table.find(
+            (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
+          ) as any;
+          const stackOwner = buildStack?.owner ?? 0;
+          
+          // Use stackDrop which goes through smart router to handle pending captures correctly
+          // cardSource is 'captured_<playerIndex>' - e.g., 'captured_3' means card from player 3's pile
+          // We need to pass this through so server knows which player's captures to search
+          const source = cardSource || 'captured';
+          actions.stackDrop(card, stackId, stackOwner, 'build_stack', source as any);
+          dragOverlay.endDrag();
+        }}
         findCapturePileAtPoint={drag.findCapturePileAtPoint}
         registerCapturePile={drag.registerCapturePile}
         unregisterCapturePile={drag.unregisterCapturePile}
@@ -494,6 +547,9 @@ export function GameBoard({
         // ExtensionOverlay should still show when extendingBuildId is set
         disableOverlays={!!computed.overlayStackId}
         onBuildTap={handleBuildTap}
+        onRecallAttempt={handleRecallAttempt}
+        onPlayButtonSound={playButton}
+        onCardPlayed={playCardContact}
       />
 
       <PlayerHandArea
@@ -531,6 +587,12 @@ export function GameBoard({
           modals.hideEndTurnButton();
           actions.endTurn();
         }}
+        // Sound effect for card contact
+        onCardContact={playCardContact}
+        // Sound effect for trail
+        onTrailSound={playTrail}
+        // Sound effect for button clicks
+        onPlayButtonSound={playButton}
         // Shiya props - party mode build capture
         gameState={gameState}
         currentPlayer={gameState.currentPlayer}
@@ -573,6 +635,7 @@ export function GameBoard({
         players={gameState.players}
         onConfirmPlay={actionHandlers.handleConfirmPlay}
         onCancelPlay={modals.closePlayModal}
+        onPlayButtonSound={playButton}
         showStealModal={modals.showStealModal}
         stealTargetCard={modals.stealTargetCard}
         stealTargetStack={modals.stealTargetStack}
@@ -592,25 +655,7 @@ export function GameBoard({
         onCancelConfirmTempBuild={modals.closeConfirmTempBuildModal}
       />
 
-      {/* Shiya Recall Modal - appears when teammate captures your Shiya build */}
-      <ShiyaRecallModal
-        visible={!!shiyaRecallCandidate}
-        build={shiyaRecallCandidate}
-        onRecall={() => {
-          // Clear timer and call recallBuild with stackId
-          if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
-          const stackIdToRecall = shiyaRecallCandidate?.stackId;
-          setShiyaRecallCandidate(null);
-          if (stackIdToRecall) {
-            actions.recallBuild(stackIdToRecall);
-          }
-        }}
-        onClose={() => {
-          setShiyaRecallCandidate(null);
-          if (recallTimerRef.current) clearTimeout(recallTimerRef.current);
-        }}
-        autoCloseMs={4000}
-      />
+      {/* Recall is triggered via double-tap on teammate's capture pile - no modal needed */}
 
     
       
@@ -631,6 +676,38 @@ export function GameBoard({
           }
         } : undefined}
         onBackToMenu={onBackToMenu}
+      />
+
+      {/* Home Menu Button - Bottom left corner */}
+      <HomeMenuButton
+        playerNumber={playerNumber}
+        players={gameState.players || []}
+        onQuitGame={() => {
+          console.log('[GameBoard] Quit Game button clicked');
+          if (onBackToMenu) {
+            console.log('[GameBoard] Calling onBackToMenu callback');
+            onBackToMenu();
+          }
+        }}
+        onOpponentPress={(playerIndex) => {
+          opponentInfo.selectOpponent(playerIndex, gameState.players || []);
+        }}
+      />
+
+      {/* Opponent Profile Modal */}
+      <OpponentProfileModal
+        visible={opponentInfo.isModalVisible}
+        opponent={opponentInfo.selectedOpponent}
+        isFriend={opponentInfo.isFriend(opponentInfo.selectedOpponent?.userId)}
+        isPendingRequest={opponentInfo.isPendingRequest(opponentInfo.selectedOpponent?.userId)}
+        isLoading={opponentInfo.isLoadingFriendRequest}
+        onClose={opponentInfo.closeModal}
+        onSendFriendRequest={async () => {
+          const result = await opponentInfo.sendFriendRequest();
+          if (!result.success) {
+            console.log('[GameBoard] Failed to send friend request:', result.error);
+          }
+        }}
       />
     </View>
   );

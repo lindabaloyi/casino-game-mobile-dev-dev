@@ -45,6 +45,23 @@ function trail(state, payload, playerIndex) {
     }
   }
 
+  // NEW VALIDATION: Check if there's an existing build on the table with the same value
+  // as the card being trailed. This prevents players from trailing a card that matches
+  // an active build value on the table.
+  // This applies to ALL game modes (not just party mode)
+  const buildsOnTable = state.tableCards.filter(tc => tc.type === 'temp_stack' || tc.type === 'build_stack');
+  const matchingBuild = buildsOnTable.find(build => {
+    // Check if the build value matches the card's value
+    return build.value === card.value;
+  });
+
+  if (matchingBuild) {
+    throw new Error(
+      `trail: Cannot play ${card.rank}${card.suit} (value ${card.value}) - ` +
+      `there's an active build with value ${matchingBuild.value} on the table`
+    );
+  }
+
   // Clone state for pure function
   const newState = cloneState(state);
   const hand = newState.players[playerIndex].hand;

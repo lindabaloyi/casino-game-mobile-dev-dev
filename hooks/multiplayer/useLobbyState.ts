@@ -16,6 +16,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 
+export interface LobbyPlayerInfo {
+  userId: string;
+  username: string;
+  avatar: string;
+  displayName: string;
+}
+
 export interface UseLobbyStateResult {
   /** Whether we're waiting in the lobby */
   isInLobby: boolean;
@@ -29,6 +36,8 @@ export interface UseLobbyStateResult {
   allPlayersReady: boolean;
   /** Toggle ready status */
   toggleReady: () => void;
+  /** Player info from server (when available) */
+  lobbyPlayers: LobbyPlayerInfo[];
 }
 
 export function useLobbyState(
@@ -38,6 +47,7 @@ export function useLobbyState(
   const [isInLobby, setIsInLobby] = useState(false);
   const [playersInLobby, setPlayersInLobby] = useState(0);
   const [isReady, setIsReady] = useState(false);
+  const [lobbyPlayers, setLobbyPlayers] = useState<LobbyPlayerInfo[]>([]);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Use ref to track if game has started (avoids stale closure in event handlers)
@@ -72,7 +82,7 @@ export function useLobbyState(
     }
 
     // Handle party-waiting (4-player mode)
-    const handlePartyWaiting = (data: { playersJoined: number }) => {
+    const handlePartyWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
       // Ignore lobby updates after game has started
       if (gameStartedRef.current) {
         return;
@@ -80,10 +90,13 @@ export function useLobbyState(
       console.log('[useLobbyState] party-waiting received:', data);
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
+      if (data.players) {
+        setLobbyPlayers(data.players);
+      }
     };
 
     // Handle three-hands-waiting (3-player mode)
-    const handleThreeHandsWaiting = (data: { playersJoined: number }) => {
+    const handleThreeHandsWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
       // Ignore lobby updates after game has started
       // This prevents stale 0-player counts from overwriting game state
       if (gameStartedRef.current) {
@@ -91,12 +104,16 @@ export function useLobbyState(
         return;
       }
       console.log('[useLobbyState] three-hands-waiting received:', data);
+      console.log('[useLobbyState] Players data received:', JSON.stringify(data.players));
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
+      if (data.players) {
+        setLobbyPlayers(data.players);
+      }
     };
 
     // Handle freeforall-waiting (4-player free-for-all mode)
-    const handleFreeForAllWaiting = (data: { playersJoined: number }) => {
+    const handleFreeForAllWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
       // Ignore lobby updates after game has started
       if (gameStartedRef.current) {
         return;
@@ -104,10 +121,46 @@ export function useLobbyState(
       console.log('[useLobbyState] freeforall-waiting received:', data);
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
+      if (data.players) {
+        setLobbyPlayers(data.players);
+      }
     };
 
+    // Handle tournament-waiting (4-player tournament mode)
+    // NOTE: Server may also send party-waiting for tournament mode, so we handle both
+    const handleTournamentWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
+      // Ignore lobby updates after game has started
+      if (gameStartedRef.current) {
+        return;
+      }
+      console.log('[useLobbyState] tournament-waiting received:', data);
+      setIsInLobby(true);
+      setPlayersInLobby(data.playersJoined);
+      if (data.players) {
+        setLobbyPlayers(data.players);
+      }
+    };
+
+    // Also handle party-waiting for tournament mode (server sends this for all 4-player modes)
+    const handleTournamentPartyWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
+      // Ignore lobby updates after game has started
+      if (gameStartedRef.current) {
+        return;
+      }
+      console.log('[useLobbyState] tournament-mode party-waiting received:', data);
+      setIsInLobby(true);
+      setPlayersInLobby(data.playersJoined);
+      if (data.players) {
+        setLobbyPlayers(data.players);
+      }
+    };
+
+    // Track which mode we're in based on requiredPlayers and add appropriate listeners
+    const isFourPlayerMode = requiredPlayers === 4;
+    const isTournamentMode = playerCount === 4; // This is a bit redundant but needed for listener registration
+
     // Handle two-hands-waiting (2-player mode)
-    const handleTwoHandsWaiting = (data: { playersJoined: number }) => {
+    const handleTwoHandsWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
       // Ignore lobby updates after game has started
       if (gameStartedRef.current) {
         return;
@@ -115,6 +168,9 @@ export function useLobbyState(
       console.log('[useLobbyState] two-hands-waiting received:', data);
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
+      if (data.players) {
+        setLobbyPlayers(data.players);
+      }
     };
 
     const handleGameStart = () => {
@@ -133,10 +189,15 @@ export function useLobbyState(
     };
 
     // Listen to appropriate events based on player count
-    // For 4-player games, listen to both party-waiting and freeforall-waiting
+    // For 4-player games, listen to party-waiting, freeforall-waiting, AND tournament-waiting
+    // CRITICAL: For tournament mode, we MUST also listen to party-waiting because
+    // the server sends party-waiting for ALL 4-player modes including tournament
     if (requiredPlayers === 4) {
       socket.on('party-waiting', handlePartyWaiting);
       socket.on('freeforall-waiting', handleFreeForAllWaiting);
+      socket.on('tournament-waiting', handleTournamentWaiting);
+      // Make tournament mode also respond to party-waiting messages
+      // This handles the case where server sends party-waiting for tournament queues
     } else if (requiredPlayers === 3) {
       socket.on('three-hands-waiting', handleThreeHandsWaiting);
     } else if (requiredPlayers === 2) {
@@ -161,6 +222,7 @@ export function useLobbyState(
       socket.off('three-hands-waiting', handleThreeHandsWaiting);
       socket.off('two-hands-waiting', handleTwoHandsWaiting);
       socket.off('freeforall-waiting', handleFreeForAllWaiting);
+      socket.off('tournament-waiting', handleTournamentWaiting);
       socket.off('game-start', handleGameStart);
       // Clean up polling interval
       if (pollingIntervalRef.current) {
@@ -177,6 +239,7 @@ export function useLobbyState(
     isReady,
     allPlayersReady,
     toggleReady,
+    lobbyPlayers,
   };
 }
 

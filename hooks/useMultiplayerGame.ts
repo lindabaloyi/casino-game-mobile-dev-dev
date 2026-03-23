@@ -28,10 +28,14 @@ export type { Card, GameState, GameOverData, OpponentDragState };
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall';
 =======
 export type GameMode = '2-hands' | 'party';
 >>>>>>> sort-building
+=======
+export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament';
+>>>>>>> feat-multi
 
 export interface UseMultiplayerGameOptions {
   mode: GameMode;
@@ -58,6 +62,8 @@ export interface UseMultiplayerGameResult {
   allPlayersReady: boolean;
   /** Toggle ready status */
   toggleReady: () => void;
+  /** Player info from server lobby (when available) */
+  lobbyPlayers: ReturnType<typeof useLobbyState>['lobbyPlayers'];
   /** Whether the opponent disconnected */
   opponentDisconnected: boolean;
   /** Whether a player disconnected (party mode) */
@@ -90,6 +96,7 @@ export function getPlayerCount(mode: GameMode): number {
     case 'party':
     case 'freeforall':
     case 'four-hands':
+    case 'tournament':
       return 4;
     case 'three-hands':
       return 3;
@@ -102,7 +109,7 @@ export function getPlayerCount(mode: GameMode): number {
 export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMultiplayerGameResult {
   const { mode } = options;
   const isPartyMode = mode === 'party';
-  const isFreeForAllMode = mode === 'freeforall' || mode === 'four-hands';
+  const isFreeForAllMode = mode === 'freeforall' || mode === 'four-hands' || mode === 'tournament';
   const playerCount = getPlayerCount(mode);
 
   // Compose smaller, focused hooks
@@ -142,6 +149,7 @@ export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMulti
     isReady: lobby.isReady,
     allPlayersReady: lobby.allPlayersReady,
     toggleReady: lobby.toggleReady,
+    lobbyPlayers: lobby.lobbyPlayers,
     playerDisconnected: false, // TODO: Add to gameSync if needed
     
     // Actions

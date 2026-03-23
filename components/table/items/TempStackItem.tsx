@@ -12,6 +12,8 @@ interface TempStackItemProps {
   playerNumber: number;
   /** Total player count for color determination (2, 3, or 4) */
   playerCount?: number;
+  /** Party mode flag for team colors */
+  isPartyMode?: boolean;
   findCapturePileAtPoint?: (x: number, y: number) => CapturePileBounds | null;
   onDragStart?: (stack: TempStack) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
@@ -29,6 +31,7 @@ export function TempStackItem({
   isMyTurn,
   playerNumber,
   playerCount,
+  isPartyMode = false,
   findCapturePileAtPoint,
   onDragStart,
   onDragMove,
@@ -46,6 +49,7 @@ export function TempStackItem({
       isMyTurn={isMyTurn}
       playerNumber={playerNumber}
       playerCount={playerCount}
+      isPartyMode={isPartyMode}
       findCapturePileAtPoint={findCapturePileAtPoint}
       onDragStart={onDragStart}
       onDragMove={onDragMove}

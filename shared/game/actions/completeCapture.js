@@ -6,6 +6,7 @@
  */
 
 const { cloneState, nextTurn, startPlayerTurn, triggerAction, finalizeGame } = require('../');
+const { createRecallEntries } = require('../recallHelpers');
 
 function completeCapture(state, payload, playerIndex) {
   const { stackId, captureCard, captureCardSource } = payload;
@@ -14,7 +15,7 @@ function completeCapture(state, payload, playerIndex) {
 
   if (!stackId) throw new Error('completeCapture: missing stackId');
 
-  const newState = cloneState(state);
+  let newState = cloneState(state);
 
   // Remove capture card from player's hand if it came from hand
   if (captureCard && captureCardSource === 'hand') {
@@ -78,6 +79,23 @@ function completeCapture(state, payload, playerIndex) {
 
   // Clear pending capture (already gone with build)
   delete buildStack.pendingCapture;
+
+  // --- Recall: Create recall entries for capturer's teammates ---
+  // NEW BEHAVIOR: Always create recall entries for teammates of the capturer
+  // No Shiya activation required. The recall stores the exact captured item.
+  // Create a combined item representing what was captured (build cards + pending cards)
+  const capturedItem = {
+    stackId: buildStack.stackId,
+    type: 'build_stack',
+    value: buildStack.value,
+    owner: buildStack.owner,
+    cards: [
+      ...capturedBuildCards.map(c => ({ ...c })),
+      ...capturedPendingCards.map(c => ({ ...c }))
+    ],
+  };
+  
+  newState = createRecallEntries(newState, playerIndex, capturedItem);
 
   console.log('[completeCapture] Success – captured build', stackId);
 

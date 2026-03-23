@@ -157,12 +157,12 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
-  // Recall build - party mode only, retrieve teammate's captured build
-  // Now requires stackId to identify which recall to use (supports multiple per player)
-  const recallBuild = useCallback((stackId: string) => {
+  // Unified recall action - party mode only, only Shiya activator can recall
+  // Uses recallId to identify which recall to use (supports multiple per player)
+  const recall = useCallback((recallId: string) => {
     sendAction({ 
-      type: 'recallBuild', 
-      payload: { stackId } as unknown as Record<string, unknown> 
+      type: 'recall', 
+      payload: { recallId } as unknown as Record<string, unknown> 
     });
   }, [sendAction]);
 
@@ -171,6 +171,15 @@ export function useGameActions(sendAction: SendAction) {
     sendAction({ 
       type: 'setTempBuildValue', 
       payload: { stackId, value } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
+  // Start build capture - for capturing opponent's build with a captured card
+  // cardSource: 'captured' (own captures) or 'captured_<playerIndex>' (specific opponent's captures)
+  const startBuildCapture = useCallback((card: any, stackId: string, cardSource: CardSource = 'captured') => {
+    sendAction({ 
+      type: 'startBuildCapture', 
+      payload: { card, stackId, cardSource } as unknown as Record<string, unknown> 
     });
   }, [sendAction]);
 
@@ -191,8 +200,9 @@ export function useGameActions(sendAction: SendAction) {
     endTurn,
     stackDrop,
     shiya,
-    recallBuild,
+    recall,
     setTempBuildValue,
+    startBuildCapture,
   };
 }
 

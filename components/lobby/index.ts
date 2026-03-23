@@ -9,3 +9,4 @@ export { ReadyButton } from './ReadyButton';
 export { StatusSection } from './StatusSection';
 export { NotificationBanner } from './NotificationBanner';
 export { DuelCard } from './DuelCard';
+export { Lobby } from './Lobby';

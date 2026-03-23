@@ -64,13 +64,16 @@ export default function HomeScreen() {
     handlePlayOnline,
     navigateToGameMode,
     handlePrivateRoom,
+    handleTournament,
     handleProfile,
+    handleEditProfile,
     handleFriends,
     handleSearchPlayers,
     handleLogout,
     handleLogoutConfirm,
     handleLogoutCancel,
     handleSignIn,
+    handleMenuItem,
   } = useHomeScreen();
 
   // Responsive calculations
@@ -82,11 +85,14 @@ export default function HomeScreen() {
 
   // Build menu items for the drawer
   const menuItems = [
-    { label: 'Search Players', icon: 'search', onPress: handleSearchPlayers },
+    { label: 'Profile', icon: 'person', onPress: handleEditProfile },
+    { label: 'Stats', icon: 'stats-chart', onPress: () => handleMenuItem('/stats') },
+    { label: 'Tournaments', icon: 'trophy', onPress: handleTournament },
     { label: 'Friends', icon: 'people', onPress: handleFriends },
-    { label: 'Vs AI', icon: 'person', onPress: handleCpuGame },
-    { label: 'Play Online', icon: 'globe', onPress: handlePlayOnline },
-    { label: 'Private Room', icon: 'key', onPress: handlePrivateRoom },
+    { label: 'Leaderboards', icon: 'medal', onPress: () => handleMenuItem('/leaderboards') },
+    { label: 'Learn', icon: 'school', onPress: () => handleMenuItem('/learn') },
+    { label: 'Rules', icon: 'book', onPress: () => handleMenuItem('/rules') },
+    { label: 'Search', icon: 'search', onPress: handleSearchPlayers },
   ];
 
   if (!profile) {
@@ -169,6 +175,7 @@ export default function HomeScreen() {
           onCpuGame={handleCpuGame}
           onPlayOnline={handlePlayOnline}
           onPrivateRoom={handlePrivateRoom}
+          onTournament={handleTournament}
         />
       </ScrollView>
     </View>

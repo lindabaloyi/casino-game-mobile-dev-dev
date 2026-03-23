@@ -4,6 +4,73 @@
  */
 
 const { cloneState, nextTurn, finalizeGame } = require('../');
+const { createRecallEntries } = require('../recallHelpers');
+
+/**
+ * Validates that a capture drop follows correct sum rules.
+ * 
+ * REVISED LOGIC: The target is derived from the LAST CARD's value.
+ * The last card (from hand) defines the target for the entire capture.
+ * 
+ * Rules:
+ * 1. At least 2 cards required
+ * 2. Last card MUST have source='hand' (capture card from player)
+ * 3. Target = lastCard.value (the card you play determines what you capture)
+ * 4. All preceding cards must form groups that sum to target
+ * 5. No partial sums can exceed target
+ * 
+ * Examples:
+ * - [4,4] with last=4(hand): target=4, 4=4 ✓
+ * - [1,1] with last=2(hand): target=2, 1+1=2 ✓
+ * - [2,2] with last=4(hand): target=4, 2+2=4 ✓
+ * - [3,1] with last=4(hand): target=4, 3+1=4 ✓
+ * 
+ * @param {Array} cards - Array of card objects with value and source properties
+ * @returns {Object} - { valid: boolean, reason: string }
+ */
+function validateCaptureDrop(cards) {
+  // Must have at least 2 cards
+  if (!cards || cards.length < 2) {
+    return { valid: false, reason: 'Need at least 2 cards to capture' };
+  }
+
+  // Last card is the capture card from hand - its value becomes the target
+  const lastCard = cards[cards.length - 1];
+  const target = lastCard.value || lastCard;
+  
+  // Check: last card must be from hand
+  if (lastCard.source !== 'hand') {
+    return { valid: false, reason: 'Capture card must be from hand, not from table' };
+  }
+
+  // Process cards left to right (excluding last), accumulating sums
+  let currentSum = 0;
+  
+  for (let i = 0; i < cards.length - 1; i++) {
+    const card = cards[i];
+    const value = card.value || card;
+    
+    // Add card value to current sum
+    currentSum += value;
+    
+    // If we exceed target, invalid
+    if (currentSum > target) {
+      return { valid: false, reason: `Sum ${currentSum} exceeds target ${target}` };
+    }
+    
+    // If we hit exactly target, valid capture group complete, reset
+    if (currentSum === target) {
+      currentSum = 0;
+    }
+  }
+
+  // At the end, currentSum must be 0 (all cards used in valid captures)
+  if (currentSum !== 0) {
+    return { valid: false, reason: `Incomplete capture group: sum is ${currentSum}` };
+  }
+
+  return { valid: true, reason: 'Valid capture' };
+}
 
 /**
  * Checks if a set of cards forms a valid capture.
@@ -77,7 +144,7 @@ function dropToCapture(state, payload, playerIndex) {
     throw new Error('dropToCapture: missing stackId');
   }
 
-  const newState = cloneState(state);
+  let newState = cloneState(state);
 
   // Handle temp_stack
   if (!stackType || stackType === 'temp_stack') {
@@ -91,45 +158,35 @@ function dropToCapture(state, payload, playerIndex) {
 
     const stack = newState.tableCards[stackIdx];
 
-    // Skip all validations - just accept the drop
+    // Validate capture drop - target is derived from last card's value
+    const validation = validateCaptureDrop(stack.cards);
+    
+    console.log(`[dropToCapture] Validating temp stack capture:`, { 
+      cardValues: stack.cards.map(c => c.value), 
+      sources: stack.cards.map(c => c.source),
+      target: stack.cards[stack.cards.length - 1]?.value,
+      validation 
+    });
+    
+    if (!validation.valid) {
+      throw new Error(`Invalid capture: ${validation.reason}`);
+    }
 
     newState.tableCards.splice(stackIdx, 1);
     const capturedCards = [...stack.cards];
     
-    // ==== SHIYA RECALL CHECK FOR TEMP_STACK ====
-    // When player drops their own temp stack (with Shiya activated by teammate) to capture,
-    // create a recall offer for the teammate who activated Shiya
-    if (stack.shiyaActive && stack.shiyaPlayer !== undefined) {
-      const activator = stack.shiyaPlayer;
-      
-      console.log(`[dropToCapture] ✅ Shiya active on temp stack! Creating recall for player ${activator}`);
-      
-      // Ensure shiyaRecalls exists
-      if (!newState.shiyaRecalls) {
-        newState.shiyaRecalls = {};
-      }
-      
-      // Support multiple recalls per player by using stackId as key
-      if (!newState.shiyaRecalls[activator]) {
-        newState.shiyaRecalls[activator] = {};
-      }
-      
-      // Store recall info
-      newState.shiyaRecalls[activator][stack.stackId] = {
-        stackId: stack.stackId,
-        value: stack.value,
-        base: stack.base,
-        need: stack.need,
-        buildType: stack.buildType,
-        capturedBy: playerIndex,  // The player who dropped the stack
-        originalOwner: stack.owner,  // The original owner of the stack
-        buildCards: capturedCards.map(c => ({ ...c })),  // Copy captured cards
-        captureCards: [],  // Empty for dropToCapture (no single capture card)
-        expiresAt: Date.now() + 4000, // 4 second window
-      };
-      
-      console.log(`[dropToCapture] ✅ Created Shiya recall:`, JSON.stringify(newState.shiyaRecalls[activator][stack.stackId]));
-    }
+    // --- Recall: Create recall entries for capturer's teammates ---
+    // NEW BEHAVIOR: Always create recall entries for teammates of the capturer
+    // No Shiya activation required. The recall stores the exact captured item.
+    const capturedItem = {
+      stackId: stack.stackId,
+      type: 'temp_stack',
+      value: stack.value,
+      owner: stack.owner,
+      cards: capturedCards.map(c => ({ ...c })),
+    };
+    
+    newState = createRecallEntries(newState, playerIndex, capturedItem);
     
     newState.players[playerIndex].captures.push(...capturedCards);
 
@@ -161,8 +218,6 @@ function dropToCapture(state, payload, playerIndex) {
 
     const stack = newState.tableCards[stackIdx];
 
-    // Skip all validations - just accept the drop
-
     // Collect all cards from the build (base cards + pending extension)
     const buildCards = [...stack.cards];
     
@@ -173,42 +228,32 @@ function dropToCapture(state, payload, playerIndex) {
       buildCards.push(stack.pendingExtension.looseCard);
     }
 
-    // Skip validation - allow all drops to capture
-
-    // ==== SHIYA RECALL CHECK FOR BUILD_STACK ====
-    // When player drops their own build (with Shiya activated by teammate) to capture,
-    // create a recall offer for the teammate who activated Shiya
-    if (stack.shiyaActive && stack.shiyaPlayer !== undefined) {
-      const activator = stack.shiyaPlayer;
-      
-      console.log(`[dropToCapture] ✅ Shiya active on build stack! Creating recall for player ${activator}`);
-      
-      // Ensure shiyaRecalls exists
-      if (!newState.shiyaRecalls) {
-        newState.shiyaRecalls = {};
-      }
-      
-      // Support multiple recalls per player by using stackId as key
-      if (!newState.shiyaRecalls[activator]) {
-        newState.shiyaRecalls[activator] = {};
-      }
-      
-      // Store recall info
-      newState.shiyaRecalls[activator][stack.stackId] = {
-        stackId: stack.stackId,
-        value: stack.value,
-        base: stack.base,
-        need: stack.need,
-        buildType: stack.buildType,
-        capturedBy: playerIndex,  // The player who dropped the build
-        originalOwner: stack.owner,  // The original owner of the build
-        buildCards: buildCards.map(c => ({ ...c })),  // Copy build cards
-        captureCards: [],  // Empty for dropToCapture (no single capture card)
-        expiresAt: Date.now() + 4000, // 4 second window
-      };
-      
-      console.log(`[dropToCapture] ✅ Created Shiya recall:`, JSON.stringify(newState.shiyaRecalls[activator][stack.stackId]));
+    // Validate capture drop - target is derived from last card's value
+    const validation = validateCaptureDrop(buildCards);
+    
+    console.log(`[dropToCapture] Validating build stack capture:`, { 
+      cardValues: buildCards.map(c => c.value),
+      sources: buildCards.map(c => c.source),
+      target: buildCards[buildCards.length - 1]?.value,
+      validation 
+    });
+    
+    if (!validation.valid) {
+      throw new Error(`Invalid capture: ${validation.reason}`);
     }
+
+    // --- Recall: Create recall entries for capturer's teammates ---
+    // NEW BEHAVIOR: Always create recall entries for teammates of the capturer
+    // No Shiya activation required. The recall stores the exact captured item.
+    const capturedItem = {
+      stackId: stack.stackId,
+      type: 'build_stack',
+      value: stack.value,
+      owner: stack.owner,
+      cards: buildCards.map(c => ({ ...c })),
+    };
+    
+    newState = createRecallEntries(newState, playerIndex, capturedItem);
 
     // Remove the build from table
     newState.tableCards.splice(stackIdx, 1);

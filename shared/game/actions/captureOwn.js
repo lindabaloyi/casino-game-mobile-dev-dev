@@ -4,6 +4,7 @@
  */
 
 const { cloneState, nextTurn, startPlayerTurn, triggerAction, finalizeGame } = require('../');
+const { createRecallEntries } = require('../recallHelpers');
 
 function getPossibleCaptureValues(cards) {
   if (cards.length === 0) return [];
@@ -30,7 +31,7 @@ function captureOwn(state, payload, playerIndex) {
     throw new Error('captureOwn: invalid card payload');
   }
 
-  const newState = cloneState(state);
+  let newState = cloneState(state);
   const hand = newState.players[playerIndex].hand;
 
   const handIdx = hand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
@@ -89,38 +90,22 @@ function captureOwn(state, payload, playerIndex) {
     newState.tableCards.splice(stackIdx, 1);
     capturedCards.push(...buildStack.cards);
     
-    // --- Shiya Recall: If build has Shiya active, create recall offer for the activator ---
-    // This handles: P1 activates Shiya on P2's build → P2 captures their own build → P1 gets recall option
-    // The recall stores both build cards AND capture cards (the card used to capture)
-    if (buildStack.shiyaActive && buildStack.shiyaPlayer !== undefined) {
-      const activator = buildStack.shiyaPlayer;
-      
-      // Ensure shiyaRecalls exists
-      if (!newState.shiyaRecalls) {
-        newState.shiyaRecalls = {};
-      }
-      
-      // Support multiple recalls per player by using stackId as key
-      if (!newState.shiyaRecalls[activator]) {
-        newState.shiyaRecalls[activator] = {};
-      }
-      
-      // Store build info and capture cards
-      newState.shiyaRecalls[activator][buildStack.stackId] = {
-        stackId: buildStack.stackId,
-        value: buildStack.value,
-        base: buildStack.base,
-        need: buildStack.need,
-        buildType: buildStack.buildType,
-        capturedBy: playerIndex,
-        originalOwner: buildStack.owner,
-        buildCards: buildStack.cards.map(c => ({ ...c })),      // copy build cards
-        captureCards: [capturingCard].map(c => ({ ...c })),    // copy capture card(s)
-        expiresAt: Date.now() + 4000, // 4 second window
-      };
-      
-      console.log(`[captureOwn] Created recall for player ${activator}: stackId=${buildStack.stackId}, buildCards=${buildStack.cards.length}, captureCards=1`);
-    }
+    // --- Recall: Create recall entries for capturer's teammates ---
+    // NEW BEHAVIOR: Always create recall entries for teammates of the capturer
+    // No Shiya activation required. The recall stores the exact captured item.
+    // Create a combined item representing what was captured (build cards + capture card)
+    const capturedItem = {
+      stackId: buildStack.stackId,
+      type: buildStack.type || 'build_stack',
+      value: buildStack.value,
+      owner: buildStack.owner,
+      cards: [
+        ...buildStack.cards.map(c => ({ ...c })),
+        { ...capturingCard }
+      ],
+    };
+    
+    newState = createRecallEntries(newState, playerIndex, capturedItem);
     
     // --- DYNAMIC: Remove teamCapturedBuilds when original owner captures their own build ---
     // If the player who captured is the originalOwner of any build in teamCapturedBuilds,

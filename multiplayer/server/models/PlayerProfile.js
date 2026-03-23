@@ -78,6 +78,72 @@ class PlayerProfile {
   }
 
   /**
+   * Find multiple profiles by user IDs
+   * @param {Array<string>} userIds - Array of user IDs
+   * @returns {Promise<Array>} Array of profile objects
+   */
+  static async findByUserIds(userIds) {
+    if (!userIds || userIds.length === 0) return [];
+    
+    const database = await db.getDb();
+    try {
+      const objectIds = userIds.map(id => new ObjectId(id));
+      return database.collection(COLLECTION_NAME)
+        .find({ userId: { $in: objectIds } })
+        .toArray();
+    } catch (error) {
+      console.error('[PlayerProfile] findByUserIds error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get player info for lobby display (combines User + Profile data)
+   * @param {Array<string>} userIds - Array of user IDs
+   * @returns {Promise<Array>} Array of player info objects with username, avatar, displayName
+   */
+  static async getPlayerInfos(userIds) {
+    if (!userIds || userIds.length === 0) return [];
+    
+    const database = await db.getDb();
+    try {
+      const objectIds = userIds.map(id => new ObjectId(id));
+      
+      // Get user data (username)
+      const users = await database.collection('users')
+        .find({ _id: { $in: objectIds } })
+        .project({ passwordHash: 0 })
+        .toArray();
+      
+      // Get profile data (avatar, displayName)
+      const profiles = await database.collection(COLLECTION_NAME)
+        .find({ userId: { $in: objectIds } })
+        .toArray();
+      
+      // Combine into player info
+      return userIds.map(userId => {
+        const user = users.find(u => u._id.toString() === userId);
+        const profile = profiles.find(p => p.userId.toString() === userId);
+        
+        return {
+          userId,
+          username: user?.username || 'Player',
+          avatar: profile?.avatar || user?.avatar || 'lion',
+          displayName: profile?.displayName || user?.username || 'Player'
+        };
+      });
+    } catch (error) {
+      console.error('[PlayerProfile] getPlayerInfos error:', error);
+      return userIds.map(userId => ({
+        userId,
+        username: 'Player',
+        avatar: 'lion',
+        displayName: 'Player'
+      }));
+    }
+  }
+
+  /**
    * Update profile
    * @param {string} userId - User ID
    * @param {Object} updates - Fields to update

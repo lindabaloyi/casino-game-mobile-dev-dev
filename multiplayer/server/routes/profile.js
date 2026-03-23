@@ -94,9 +94,7 @@ router.get('/:userId', async (req, res) => {
       stats: {
         totalGames: stats?.totalGames || 0,
         wins: stats?.wins || 0,
-        losses: stats?.losses || 0,
-        highestScore: stats?.highestScore || 0,
-        achievements: stats?.achievements || []
+        losses: stats?.losses || 0
       },
       rank
     });
@@ -200,7 +198,6 @@ router.get('/leaderboard', async (req, res) => {
           userId: stat.userId,
           username: user?.username || 'Unknown',
           avatar: user?.avatar || '',
-          totalScore: stat.totalScore,
           wins: stat.wins,
           totalGames: stat.totalGames,
           winRate: stat.totalGames > 0 
