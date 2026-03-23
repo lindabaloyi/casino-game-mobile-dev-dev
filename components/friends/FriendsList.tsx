@@ -16,6 +16,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFriends, Friend } from '../../hooks/useFriends';
 import { AVATAR_OPTIONS } from '../../hooks/usePlayerProfile';
 
+// In-game color scheme - matching leaderboards.tsx
+const COLORS = {
+  background: '#0f4d0f',
+  headerBg: '#1a5c1a',
+  primary: '#FFD700',
+  text: '#FFFFFF',
+  textMuted: 'rgba(255, 255, 255, 0.6)',
+  cardBg: 'rgba(0, 0, 0, 0.4)',
+  border: 'rgba(255, 215, 0, 0.3)',
+};
+
 interface FriendsListProps {
   onFriendPress?: (friendId: string) => void;
 }
@@ -42,7 +53,7 @@ export function FriendsList({ onFriendPress }: FriendsListProps) {
     await removeFriend(friendId);
   };
 
-  const renderFriend = ({ item }: { item: Friend }) => {
+  const renderFriend = ({ item, index }: { item: Friend; index: number }) => {
     const winRate = item.stats?.totalGames > 0
       ? Math.round((item.stats.wins / item.stats.totalGames) * 100)
       : 0;
@@ -53,6 +64,10 @@ export function FriendsList({ onFriendPress }: FriendsListProps) {
         onPress={() => handleFriendPress(item)}
         activeOpacity={0.7}
       >
+        <View style={styles.rankBadge}>
+          <Text style={styles.rankText}>#{index + 1}</Text>
+        </View>
+        
         <View style={styles.avatarContainer}>
           <Text style={styles.avatarEmoji}>{getAvatarEmoji(item.avatar)}</Text>
         </View>
@@ -61,7 +76,7 @@ export function FriendsList({ onFriendPress }: FriendsListProps) {
           <Text style={styles.friendName} numberOfLines={1}>{item.username}</Text>
           <View style={styles.friendStats}>
             <Text style={styles.friendStatText}>
-              {item.stats?.totalGames || 0} games • {winRate}% wins
+              {item.stats?.totalGames || 0} games · {winRate}% wins
             </Text>
             {item.stats?.rank && (
               <Text style={styles.friendRank}>#{item.stats.rank}</Text>
@@ -73,7 +88,7 @@ export function FriendsList({ onFriendPress }: FriendsListProps) {
           style={styles.removeButton}
           onPress={(e) => handleRemoveFriend(item._id, e)}
         >
-          <Ionicons name="close-circle" size={24} color="rgba(255, 255, 255, 0.4)" />
+          <Ionicons name="close-circle" size={22} color={COLORS.textMuted} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -82,7 +97,9 @@ export function FriendsList({ onFriendPress }: FriendsListProps) {
   if (friends.length === 0 && !isLoading) {
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="people-outline" size={48} color="rgba(255, 255, 255, 0.3)" />
+        <View style={styles.emptyIcon}>
+          <Ionicons name="people-outline" size={40} color={COLORS.primary} />
+        </View>
         <Text style={styles.emptyText}>No friends yet</Text>
         <Text style={styles.emptySubtext}>
           Search for players to add friends!
@@ -109,43 +126,61 @@ const styles = StyleSheet.create({
   friendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.08)',
   },
-  avatarContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+  rankBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: `${COLORS.primary}15`,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 8,
+  },
+  rankText: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  avatarContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: `${COLORS.primary}18`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: `${COLORS.primary}35`,
   },
   avatarEmoji: {
-    fontSize: 24,
+    fontSize: 18,
   },
   friendInfo: {
     flex: 1,
   },
   friendName: {
-    color: 'white',
-    fontSize: 16,
+    color: COLORS.text,
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   friendStats: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   friendStatText: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 12,
+    color: COLORS.textMuted,
+    fontSize: 11,
   },
   friendRank: {
-    color: '#FFD700',
-    fontSize: 12,
+    color: COLORS.primary,
+    fontSize: 11,
     fontWeight: '600',
     marginLeft: 8,
   },
@@ -155,16 +190,27 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
+    paddingVertical: 60,
+  },
+  emptyIcon: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: `${COLORS.primary}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: `${COLORS.primary}30`,
   },
   emptyText: {
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: COLORS.text,
     fontSize: 16,
     fontWeight: '600',
-    marginTop: 12,
+    marginTop: 4,
   },
   emptySubtext: {
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: COLORS.textMuted,
     fontSize: 13,
     marginTop: 4,
   },
