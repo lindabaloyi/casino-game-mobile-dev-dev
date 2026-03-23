@@ -253,6 +253,14 @@ class PlayerProfile {
     const User = require('./User');
     const GameStats = require('./GameStats');
     
+    // Get player profiles for all friends (to get local avatars)
+    const friendProfiles = await database.collection('playerProfiles')
+      .find({ userId: { $in: profile.friends } })
+      .toArray();
+    
+    // Create a map for quick lookup
+    const profileMap = new Map(friendProfiles.map(p => [p.userId.toString(), p]));
+    
     // Get user data for all friends
     const friendUsers = await database.collection('users')
       .find({ _id: { $in: profile.friends } })
@@ -268,13 +276,18 @@ class PlayerProfile {
       })
     );
     
-    // Combine data
+    // Combine data - use local avatar from profile if available
     const friendsWithInfo = friendUsers.map(user => {
       const statData = friendStats.find(s => s.userId === user._id.toString());
+      const friendProfile = profileMap.get(user._id.toString());
+      // Use local avatar from profile if available and not an external URL
+      const userAvatar = friendProfile?.avatar && !friendProfile.avatar.startsWith('http')
+        ? friendProfile.avatar
+        : user.avatar;
       return {
         _id: user._id,
         username: user.username,
-        avatar: user.avatar,
+        avatar: userAvatar,
         createdAt: user.createdAt,
         stats: {
           totalGames: statData?.stats?.totalGames || 0,

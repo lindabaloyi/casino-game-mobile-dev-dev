@@ -57,18 +57,24 @@ router.get('/requests', authenticate, async (req, res) => {
     const enrichRequest = async (request, isIncoming) => {
       const otherUserId = isIncoming ? request.fromUserId : request.toUserId;
       const otherUser = await User.findById(otherUserId.toString());
+      const profile = await PlayerProfile.findByUserId(otherUserId.toString());
+      
+      // Use local avatar from profile if available
+      const userAvatar = profile?.avatar && !profile.avatar.startsWith('http') 
+        ? profile.avatar 
+        : otherUser.avatar;
       
       return {
         _id: request._id,
         fromUser: isIncoming ? {
           _id: otherUser._id,
           username: otherUser.username,
-          avatar: otherUser.avatar
+          avatar: userAvatar
         } : undefined,
         toUser: !isIncoming ? {
           _id: otherUser._id,
           username: otherUser.username,
-          avatar: otherUser.avatar
+          avatar: userAvatar
         } : undefined,
         status: request.status,
         createdAt: request.createdAt,

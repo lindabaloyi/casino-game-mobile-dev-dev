@@ -124,7 +124,7 @@ export function SearchPlayersModal({ visible, onClose }: SearchPlayersModalProps
                 >
                   <View style={styles.resultAvatar}>
                     <Text style={styles.resultEmoji}>
-                      {AVATAR_OPTIONS.find(a => a.id === result.avatar)?.emoji || '👤'}
+                      {AVATAR_OPTIONS.find(a => a.id === result.avatar)?.emoji}
                     </Text>
                   </View>
                   <View style={styles.resultInfo}>

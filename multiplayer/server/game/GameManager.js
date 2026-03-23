@@ -173,6 +173,14 @@ class GameManager {
     return map ? Array.from(map.values()).filter(Boolean) : [];
   }
 
+  setPlayerUserId(gameId, playerIndex, userId) {
+    const gameState = this.activeGames.get(gameId);
+    if (gameState && gameState.players && gameState.players[playerIndex]) {
+      gameState.players[playerIndex].userId = userId;
+      console.log(`[GameManager] Set player ${playerIndex} userId to ${userId}`);
+    }
+  }
+
   removePlayerFromGame(gameId, socketId) {
     const map = this.socketPlayerMap.get(gameId);
     if (map) map.delete(socketId);

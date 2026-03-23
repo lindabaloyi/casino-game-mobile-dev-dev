@@ -97,6 +97,13 @@ class UnifiedMatchmakingService {
 
     // Register players (pass userIds)
     config.playerRegistration(gameId, players, this.gameManager, userIds);
+    
+    // Also set userId on gameState players directly (for persistence)
+    for (let i = 0; i < players.length; i++) {
+      if (userIds[i]) {
+        this.gameManager.setPlayerUserId(gameId, i, userIds[i]);
+      }
+    }
 
     return {
       gameId,

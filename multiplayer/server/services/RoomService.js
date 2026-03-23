@@ -285,9 +285,14 @@ class RoomService {
 
       // Register players
       for (let i = 0; i < 4; i++) {
-        this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
-        this.unifiedMatchmaking.socketGameMap.set(sockets[i].id, gameId);
+        const socket = sockets[i];
+        this.gameManager.addPlayerToGame(gameId, socket.id, i, socket.userId || null);
+        this.unifiedMatchmaking.socketGameMap.set(socket.id, gameId);
         this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
+        // Set userId on gameState players for persistence
+        if (socket.userId) {
+          this.gameManager.setPlayerUserId(gameId, i, socket.userId);
+        }
       }
 
       gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
@@ -304,9 +309,14 @@ class RoomService {
 
       // Register players
       for (let i = 0; i < playerCount; i++) {
-        this.gameManager.addPlayerToGame(gameId, sockets[i].id, i);
-        this.unifiedMatchmaking.socketGameMap.set(sockets[i].id, gameId);
+        const socket = sockets[i];
+        this.gameManager.addPlayerToGame(gameId, socket.id, i, socket.userId || null);
+        this.unifiedMatchmaking.socketGameMap.set(socket.id, gameId);
         this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
+        // Set userId on gameState players for persistence
+        if (socket.userId) {
+          this.gameManager.setPlayerUserId(gameId, i, socket.userId);
+        }
       }
 
       gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };

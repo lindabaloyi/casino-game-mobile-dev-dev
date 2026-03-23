@@ -88,6 +88,9 @@ export default function UserProfilePage() {
 
       const data = await response.json();
       console.log('[UserProfilePage] Fetched profile data:', JSON.stringify(data));
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to load profile');
+      }
       setProfileData(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load profile');

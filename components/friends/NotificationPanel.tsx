@@ -44,7 +44,7 @@ export function NotificationPanel({ visible, onClose }: NotificationPanelProps) 
 
   const getAvatarEmoji = (avatarId: string) => {
     const avatar = AVATAR_OPTIONS.find(a => a.id === avatarId);
-    return avatar?.emoji || '👤';
+    return avatar?.emoji;
   };
 
   const handleAccept = async (requestId: string) => {

@@ -389,6 +389,8 @@ class GameCoordinatorService {
     finalizedState.gameOver = true;
     this.gameManager.saveGameState(gameId, finalizedState);
     
+    console.log(`[Coordinator] 🎮 Game over detected for game ${gameId}! Calling persistence service...`);
+    
     // Save to MongoDB using persistence service
     this.persistence.saveGame(gameId, finalizedState, isPartyGame);
     

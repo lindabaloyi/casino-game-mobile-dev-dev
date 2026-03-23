@@ -41,7 +41,12 @@ router.get('/', authenticate, async (req, res) => {
     }
 
     const profile = await PlayerProfile.findByUserId(req.userId);
-    const stats = await GameStats.findByUserId(req.userId);
+    let stats = await GameStats.findByUserId(req.userId);
+    
+    // Auto-create stats if they don't exist (for legacy users)
+    if (!stats) {
+      stats = await GameStats.create(req.userId);
+    }
 
     const { password: _, ...userWithoutPassword } = user;
     
@@ -70,13 +75,24 @@ router.get('/:userId', async (req, res) => {
     }
 
     const user = await User.findById(userId);
+    console.log('[Profile] User lookup:', userId, 'Result:', user ? 'found' : 'not found');
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     const profile = await PlayerProfile.findByUserId(userId);
-    const stats = await GameStats.findByUserId(userId);
+    console.log('[Profile] PlayerProfile lookup:', userId, 'Result:', profile ? 'found' : 'not found', profile);
+    let stats = await GameStats.findByUserId(userId);
+    console.log('[Profile] GameStats lookup:', userId, 'Result:', stats ? 'found' : 'not found', stats);
+    
+    // Auto-create stats if they don't exist (for legacy users)
+    if (!stats) {
+      console.log('[Profile] Creating stats for user:', userId);
+      stats = await GameStats.create(userId);
+    }
+    
     const rank = await GameStats.getPlayerRank(userId);
+    console.log('[Profile] Rank lookup:', userId, 'Result:', rank);
 
     // Return only public information
     // Use local avatar from PlayerProfile if available, otherwise fall back to user's avatar
@@ -199,12 +215,17 @@ router.get('/leaderboard', async (req, res) => {
     const enrichedLeaderboard = await Promise.all(
       leaderboard.map(async (stat) => {
         const user = await User.findById(stat.userId.toString());
+        const profile = await PlayerProfile.findByUserId(stat.userId.toString());
         const rank = await GameStats.getPlayerRank(stat.userId.toString());
+        // Use local avatar from profile if available
+        const userAvatar = profile?.avatar && !profile.avatar.startsWith('http') 
+          ? profile.avatar 
+          : user?.avatar || '';
         return {
           rank,
           userId: stat.userId,
           username: user?.username || 'Unknown',
-          avatar: user?.avatar || '',
+          avatar: userAvatar,
           wins: stat.wins,
           totalGames: stat.totalGames,
           winRate: stat.totalGames > 0 

@@ -108,7 +108,7 @@ export function usePlayerProfile(): UsePlayerProfileResult {
     
     // Sync to server
     try {
-      const token = await AsyncStorage.getItem('auth_token');
+      const token = await AsyncStorage.getItem('casino_auth_token');
       if (token) {
         await fetch(`${process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:3001'}/api/profile`, {
           method: 'PUT',

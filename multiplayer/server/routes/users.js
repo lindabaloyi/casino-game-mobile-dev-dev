@@ -33,10 +33,14 @@ router.get('/search', async (req, res) => {
     const usersWithStats = await Promise.all(
       users.map(async (user) => {
         const profile = await PlayerProfile.findByUserId(user._id.toString());
+        // Use local avatar from profile if available, otherwise fall back to user's avatar
+        const userAvatar = profile?.avatar && !profile.avatar.startsWith('http') 
+          ? profile.avatar 
+          : user.avatar;
         return {
           _id: user._id,
           username: user.username,
-          avatar: user.avatar || '',
+          avatar: userAvatar,
           createdAt: user.createdAt,
           stats: profile ? {
             totalGames: profile.totalGames || 0,

@@ -250,7 +250,7 @@ class User {
    */
   static generateToken(userId) {
     const JWT_SECRET = process.env.JWT_SECRET || 'casino-game-secret-key-change-in-production';
-    return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+    return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
   }
 
   /**

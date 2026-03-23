@@ -147,6 +147,9 @@ export function useFriends(): UseFriendsResult {
         return { success: false, error: 'Please log in to send friend requests' };
       }
 
+      console.log('[useFriends] 📤 Sending friend request to:', userId);
+      console.log('[useFriends] 🔑 Token being used:', token?.substring(0, 20) + '...');
+
       const response = await fetch(`${API_BASE}/api/friends/request/${userId}`, {
         method: 'POST',
         headers: {
@@ -155,7 +158,20 @@ export function useFriends(): UseFriendsResult {
         }
       });
 
+      console.log('[useFriends] 📥 Response status:', response.status);
+
       const data = await response.json();
+
+      if (response.status === 401) {
+        console.warn('[useFriends] ⚠️ Token expired or invalid - clearing auth');
+        // Token expired - clear storage and return specific error
+        try {
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          await AsyncStorage.removeItem('casino_auth_token');
+          await AsyncStorage.removeItem('casino_auth_user');
+        } catch (e) { /* ignore */ }
+        return { success: false, error: 'Session expired. Please log in again.' };
+      }
 
       if (data.success) {
         // Refresh to show the new pending request

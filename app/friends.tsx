@@ -19,6 +19,14 @@ import { useFriends } from '../hooks/useFriends';
 import { useUserSearch } from '../hooks/useUserSearch';
 import { FriendsList } from '../components/friends/FriendsList';
 import { PlayerSearch } from '../components/friends/PlayerSearch';
+import { AVATAR_OPTIONS } from '../hooks/usePlayerProfile';
+
+// Helper to get avatar emoji from local avatar ID
+const getAvatarEmoji = (avatarId: string | undefined) => {
+  if (!avatarId) return null;
+  const avatar = AVATAR_OPTIONS.find(a => a.id === avatarId);
+  return avatar?.emoji || null;
+};
 
 // In-game color scheme - matching leaderboards.tsx
 const COLORS = {
@@ -79,8 +87,7 @@ export default function FriendsScreen() {
                   <View key={request._id} style={styles.requestItem}>
                     <View style={styles.requestAvatar}>
                       <Text style={styles.requestEmoji}>
-                        {request.fromUser?.avatar ? 
-                          request.fromUser.avatar : '👤'}
+                        {getAvatarEmoji(request.fromUser?.avatar)}
                       </Text>
                     </View>
                     <View style={styles.requestInfo}>
@@ -116,8 +123,7 @@ export default function FriendsScreen() {
                   <View key={request._id} style={styles.requestItem}>
                     <View style={styles.requestAvatar}>
                       <Text style={styles.requestEmoji}>
-                        {request.toUser?.avatar ? 
-                          request.toUser.avatar : '👤'}
+                        {getAvatarEmoji(request.toUser?.avatar)}
                       </Text>
                     </View>
                     <View style={styles.requestInfo}>

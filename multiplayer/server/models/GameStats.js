@@ -78,10 +78,25 @@ class GameStats {
    */
   static async updateAfterGame(userId, gameResult) {
     const database = await db.getDb();
-    const { won = false, lost = false } = gameResult;
+    const { won = false, lost = false, draw = false } = gameResult;
+
+    console.log(`[GameStats] 📝 updateAfterGame called for userId: ${userId}`);
+    console.log(`[GameStats] 📝 gameResult:`, JSON.stringify(gameResult));
 
     try {
-      const stats = await this.getOrCreate(userId);
+      // Ensure stats exist (auto-create for legacy users)
+      let stats = await this.findByUserId(userId);
+      if (!stats) {
+        console.log(`[GameStats] ⚠️ No stats found for ${userId}, auto-creating...`);
+        stats = await this.create(userId);
+        console.log(`[GameStats] ✅ Auto-created stats:`, stats);
+      }
+      
+      console.log(`[GameStats] 📊 Current stats before update:`, {
+        totalGames: stats.totalGames,
+        wins: stats.wins,
+        losses: stats.losses
+      });
       
       // Build update fields
       const updateFields = {
@@ -91,12 +106,20 @@ class GameStats {
         updatedAt: new Date(),
       };
 
-      // Update wins or losses
+      // Update wins, losses, or draws
       if (won) {
         updateFields.wins = stats.wins + 1;
+        console.log(`[GameStats] 🎉 Player WON, incrementing wins`);
       } else if (lost) {
         updateFields.losses = stats.losses + 1;
+        console.log(`[GameStats] 📉 Player LOST, incrementing losses`);
+      } else if (draw) {
+        console.log(`[GameStats] 🤝 Game is a DRAW, no win/loss change`);
+      } else {
+        console.log(`[GameStats] ⚠️ No win/loss/draw detected, won=${won}, lost=${lost}, draw=${draw}`);
       }
+
+      console.log(`[GameStats] 📊 Update fields:`, updateFields);
 
       const result = await database.collection(COLLECTION_NAME).findOneAndUpdate(
         { userId: new ObjectId(userId) },
@@ -111,9 +134,16 @@ class GameStats {
         { returnDocument: 'after' }
       );
 
+      console.log(`[GameStats] ✅ Stats updated successfully, result:`, {
+        totalGames: result?.totalGames,
+        wins: result?.wins,
+        losses: result?.losses
+      });
+
       return result;
     } catch (error) {
-      console.error('[GameStats] Update error:', error);
+      console.error(`[GameStats] ❌ Update error:`, error.message);
+      console.error(`[GameStats] ❌ Stack trace:`, error.stack);
       return null;
     }
   }
