@@ -46,7 +46,7 @@ class FriendlyBuildHandler {
       // This ensures the build gets captured automatically when player has no more cards
       if (!hasSpare) {
         console.log('[FriendlyBuildHandler] No spare cards - routing to captureOwn');
-        const CaptureOwnAction = require('../actions/captureOwn');
+        const CaptureOwnAction = require('../../actions/captureOwn');
         return {
           type: 'captureOwn',
           payload: {

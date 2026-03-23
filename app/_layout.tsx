@@ -45,15 +45,16 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SoundProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="online-play" options={{ headerShown: false }} />
-          <Stack.Screen name="cpu-game" options={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="leaderboards" />
+          <Stack.Screen name="online-play" />
+          <Stack.Screen name="cpu-game" />
 
-          <Stack.Screen name="private-room" options={{ headerShown: false }} />
-          <Stack.Screen name="create-room" options={{ headerShown: false }} />
-          <Stack.Screen name="join-room" options={{ headerShown: false }} />
-          <Stack.Screen name="profile" options={{ headerShown: false }} />
+          <Stack.Screen name="private-room" />
+          <Stack.Screen name="create-room" />
+          <Stack.Screen name="join-room" />
+          <Stack.Screen name="profile" />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar hidden />
