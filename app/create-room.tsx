@@ -14,15 +14,9 @@ export default function CreateRoomScreen() {
   const params = useLocalSearchParams<{ mode?: GameMode }>();
   
   // Determine game mode from params
-<<<<<<< HEAD
   const gameMode: GameMode = params.mode === 'party' ? 'party' : (params.mode === 'three-hands' ? 'three-hands' : 'two-hands');
   const maxPlayers = gameMode === 'party' ? 4 : (gameMode === 'three-hands' ? 3 : 2);
   const modeLabel = gameMode === 'party' ? 'Party Mode (4 Players)' : (gameMode === 'three-hands' ? 'Three Hands (3 Players)' : 'Two Hands (2 Players)');
-=======
-  const gameMode: GameMode = params.mode === 'party' ? 'party' : '2-hands';
-  const maxPlayers = gameMode === 'party' ? 4 : 2;
-  const modeLabel = gameMode === 'party' ? 'Party Mode (4 Players)' : '2 Hands (2 Players)';
->>>>>>> sort-building
 
   // Connect to server
   const { socket, isConnected, error: connectionError } = useSocketConnection({ mode: gameMode });
@@ -43,11 +37,7 @@ export default function CreateRoomScreen() {
   // Navigate to game when room game starts
   useEffect(() => {
     if (room.status === 'started' && gameSync.gameState) {
-<<<<<<< HEAD
-      router.replace(gameMode === 'party' ? '/party-game' : '/2-hands');
-=======
       router.replace('/online-play');
->>>>>>> feat-multi
     }
   }, [room.status, gameSync.gameState]);
 
@@ -79,12 +69,7 @@ export default function CreateRoomScreen() {
   const handleStartGame = () => {
     // For 2-hands mode, can start with 2 players
     // For party mode, need 4 players
-<<<<<<< HEAD
-    // For three-hands mode, need 3 players
     if (gameMode === 'two-hands' && room.playerCount < 2) {
-=======
-    if (gameMode === '2-hands' && room.playerCount < 2) {
->>>>>>> sort-building
       Alert.alert('Cannot Start', 'Need at least 2 players to start');
       return;
     }

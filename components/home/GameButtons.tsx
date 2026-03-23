@@ -48,15 +48,10 @@ export function GameButtons({
         onPress={onPlayOnline}
         activeOpacity={0.7}
       >
-<<<<<<< HEAD
         <Ionicons name="globe" size={iconSize + 4} color="#0f4d0f" />
         <Text style={[styles.playOnlineButtonText, { fontSize: buttonFontSize + 2 }]}>
           Play Online
         </Text>
-=======
-        <Ionicons name="people" size={iconSize} color="white" />
-        <Text style={[styles.buttonText, { fontSize: buttonFontSize }]}>2 Hands</Text>
->>>>>>> sort-building
       </TouchableOpacity>
       
       <TouchableOpacity 

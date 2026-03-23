@@ -51,8 +51,18 @@ export function useUserSearch(): UseUserSearchResult {
     setError(null);
 
     try {
+      // Get auth token
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const token = await AsyncStorage.getItem('casino_auth_token');
+      
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(
-        `${API_BASE}/api/users/search?q=${encodeURIComponent(query.trim())}&limit=10`
+        `${API_BASE}/api/users/search?q=${encodeURIComponent(query.trim())}&limit=10`,
+        { headers }
       );
 
       if (!response.ok) {

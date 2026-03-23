@@ -79,12 +79,17 @@ router.get('/:userId', async (req, res) => {
     const rank = await GameStats.getPlayerRank(userId);
 
     // Return only public information
+    // Use local avatar from PlayerProfile if available, otherwise fall back to user's avatar
+    const userAvatar = profile?.avatar && !profile.avatar.startsWith('http') 
+      ? profile.avatar 
+      : user.avatar;
+    
     res.json({
       success: true,
       user: {
         _id: user._id,
         username: user.username,
-        avatar: user.avatar,
+        avatar: userAvatar,
         createdAt: user.createdAt
       },
       profile: {
@@ -122,7 +127,9 @@ router.put('/', authenticate, async (req, res) => {
     }
 
     if (avatar) {
+      // Save avatar to both User and PlayerProfile for consistency
       await User.update(req.userId, { avatar });
+      await PlayerProfile.update(req.userId, { avatar });
     }
 
     // Update profile

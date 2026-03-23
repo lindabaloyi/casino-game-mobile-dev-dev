@@ -20,15 +20,7 @@ import { io } from 'socket.io-client';
 import { getOptimalServerUrl } from '../../utils/serverUrl';
 import { useAuth } from '../useAuth';
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall';
-=======
-export type GameMode = '2-hands' | 'party';
->>>>>>> sort-building
-=======
 export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament';
->>>>>>> feat-multi
 
 export interface UseSocketConnectionOptions {
   mode: GameMode;

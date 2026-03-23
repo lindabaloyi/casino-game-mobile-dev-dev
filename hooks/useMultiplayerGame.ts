@@ -27,15 +27,7 @@ export type { Card, GameState, GameOverData, OpponentDragState };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall';
-=======
-export type GameMode = '2-hands' | 'party';
->>>>>>> sort-building
-=======
 export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament';
->>>>>>> feat-multi
 
 export interface UseMultiplayerGameOptions {
   mode: GameMode;

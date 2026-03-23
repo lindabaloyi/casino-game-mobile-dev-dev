@@ -87,6 +87,7 @@ export default function UserProfilePage() {
       }
 
       const data = await response.json();
+      console.log('[UserProfilePage] Fetched profile data:', JSON.stringify(data));
       setProfileData(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load profile');
@@ -131,8 +132,19 @@ export default function UserProfilePage() {
     }
   };
 
+  // Debug: log avatar options
+  console.log('[UserProfilePage] AVATAR_OPTIONS:', JSON.stringify(AVATAR_OPTIONS));
+  
   const getAvatarEmoji = (avatarId: string) => {
+    console.log('[UserProfilePage] getAvatarEmoji called with avatarId:', avatarId);
+    // Handle external avatar URLs (e.g., from ui-avatars.com)
+    if (avatarId && avatarId.startsWith('http')) {
+      console.log('[UserProfilePage] External avatar URL detected, using default');
+      return '👤';
+    }
+    // Handle local avatar IDs
     const avatar = AVATAR_OPTIONS.find(a => a.id === avatarId);
+    console.log('[UserProfilePage] Found avatar:', avatar);
     return avatar?.emoji || '👤';
   };
 

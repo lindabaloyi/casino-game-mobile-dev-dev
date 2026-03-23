@@ -90,12 +90,8 @@ function stealBuild(state, payload, playerIndex) {
   console.log(`[stealBuild] AFTER: buildStack.buildType: ${buildStack.buildType}, hasBase: ${buildStack.hasBase} (buildType !== 'sum' is ${buildStack.hasBase})`);
   
   // --- VALIDATION: Check opponent(s) don't have build with same value ---
-<<<<<<< HEAD
   // In party mode: check both opponents (not teammates); in freeforall: check all other players
   // In three-hands mode: check the other two players
-=======
-  // In party mode: check both opponents; in 2-hands mode: check single opponent
->>>>>>> sort-building
   let opponentHasSameValue = false;
   
   if (isPartyMode) {

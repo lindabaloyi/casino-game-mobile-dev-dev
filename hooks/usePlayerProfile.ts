@@ -105,6 +105,23 @@ export function usePlayerProfile(): UsePlayerProfileResult {
     const newProfile = { ...profile, avatar };
     setProfile(newProfile);
     await saveProfile(newProfile);
+    
+    // Sync to server
+    try {
+      const token = await AsyncStorage.getItem('auth_token');
+      if (token) {
+        await fetch(`${process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:3001'}/api/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ avatar })
+        });
+      }
+    } catch (error) {
+      console.log('[usePlayerProfile] Error syncing avatar to server:', error);
+    }
   }, [profile]);
 
   const recordWin = useCallback(async () => {

@@ -44,20 +44,6 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-<<<<<<< HEAD
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="2-hands" options={{ headerShown: false }} />
-        <Stack.Screen name="cpu-game" options={{ headerShown: false }} />
-        <Stack.Screen name="party-game" options={{ headerShown: false }} />
-        <Stack.Screen name="private-room" options={{ headerShown: false }} />
-        <Stack.Screen name="create-room" options={{ headerShown: false }} />
-        <Stack.Screen name="join-room" options={{ headerShown: false }} />
-        <Stack.Screen name="profile" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar hidden />
-=======
       <SoundProvider>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
@@ -73,7 +59,6 @@ export default function RootLayout() {
         </Stack>
         <StatusBar hidden />
       </SoundProvider>
->>>>>>> feat-multi
     </GestureHandlerRootView>
   );
 }

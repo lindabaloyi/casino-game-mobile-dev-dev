@@ -100,12 +100,7 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
   // Unified Play Online handler - opens the game mode selection page
   const handlePlayOnline = () => {
     setMenuVisible(false);
-<<<<<<< HEAD
-<<<<<<< HEAD
-    setPlayOnlineMenuVisible(true);
-=======
     router.push('/game-modes' as any);
->>>>>>> feat-multi
   };
   
   // Navigate to specific game mode from Play Online menu
@@ -113,31 +108,8 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
   // Use replace() to prevent back navigation which blocks game UI
   const navigateToGameMode = (mode: GameModeOption) => {
     setPlayOnlineMenuVisible(false);
-<<<<<<< HEAD
-    switch (mode) {
-      case 'two-hands':
-        router.push('/multiplayer?mode=two-hands' as any);
-        break;
-      case 'three-hands':
-        router.push('/multiplayer?mode=three-hands' as any);
-        break;
-      case 'four-hands':
-        router.push('/multiplayer?mode=four-hands' as any);
-        break;
-      case 'party':
-        router.push('/multiplayer?mode=party' as any);
-        break;
-      case 'freeforall':
-        router.push('/multiplayer?mode=freeforall' as any);
-        break;
-    }
-=======
-    router.push('/2-hands' as any);
->>>>>>> sort-building
-=======
     // Use replace instead of push to prevent back button from blocking game UI
     router.replace(`/online-play?mode=${mode}` as any);
->>>>>>> feat-multi
   };
   
   const handlePrivateRoom = () => {
