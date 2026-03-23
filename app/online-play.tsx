@@ -46,6 +46,7 @@ export default function OnlinePlayScreen() {
   // Handle hardware back button (Android)
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      console.log('[OnlinePlay] Hardware back button pressed');
       if (router.canGoBack()) {
         router.back();
         return true;
@@ -56,42 +57,9 @@ export default function OnlinePlayScreen() {
     return () => backHandler.remove();
   }, [router]);
 
-  // Handle web/browser back button - push state on mount so back works properly
-  useEffect(() => {
-    // For web: Add a history state on mount so browser back goes to previous page
-    if (typeof window !== 'undefined') {
-      // Push a state so there's somewhere to go back to
-      window.history.pushState({ fromGame: true }, '', window.location.href);
-    }
-
-    // Handle popstate for web browser back button
-    const handlePopState = () => {
-      // If we can go back in the navigation stack, use React Navigation
-      if (router.canGoBack()) {
-        router.back();
-      }
-      // If we can't go back, the browser will naturally go back in history
-    };
-
-    // Add popstate listener for web browser back button
-    window.addEventListener('popstate', handlePopState);
-
-    // Also handle beforeRemove for in-app navigation attempts
-    const handleBeforeRemove = (e: any) => {
-      // Only prevent default if we can go back
-      if (router.canGoBack()) {
-        e.preventDefault();
-        router.back();
-      }
-    };
-
-    const unsubscribe = navigation.addListener('beforeRemove', handleBeforeRemove);
-    
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      unsubscribe();
-    };
-  }, [navigation, router]);
+  // NOTE: Web back button and beforeRemove handlers were removed because they
+  // were causing infinite loops. Calling router.back() triggers more navigation
+  // events which call router.back() again, creating an infinite loop.
 
   // Multiplayer game state
   const multiplayerResult = useMultiplayerGame({ mode });
@@ -270,7 +238,10 @@ export default function OnlinePlayScreen() {
           onRestart={() => {
             requestSync();
           }}
-          onBackToMenu={() => router.back()}
+          onBackToMenu={() => {
+            console.log('[OnlinePlay] onBackToMenu called - navigating to /(tabs)');
+            router.replace('/(tabs)');
+          }}
           serverError={serverErrorObj}
           onServerErrorClose={clearError}
           opponentDrag={opponentDrag}

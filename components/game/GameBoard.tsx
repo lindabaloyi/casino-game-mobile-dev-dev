@@ -683,7 +683,9 @@ export function GameBoard({
         playerNumber={playerNumber}
         players={gameState.players || []}
         onQuitGame={() => {
+          console.log('[GameBoard] Quit Game button clicked');
           if (onBackToMenu) {
+            console.log('[GameBoard] Calling onBackToMenu callback');
             onBackToMenu();
           }
         }}
