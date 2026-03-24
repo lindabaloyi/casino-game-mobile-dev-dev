@@ -7,6 +7,7 @@ import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SoundProvider } from '../hooks/useSoundContext';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -14,19 +15,20 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   useEffect(() => {
+    console.log('[SafeAreaDebug] Root layout mounted');
+    
     const setupNavigationBar = async () => {
       if (Platform.OS === 'android') {
+        console.log('[SafeAreaDebug] Setting up navigation bar for Android');
+        // Only set visibility - behavior control not supported with edge-to-edge
         try {
-          // Allow back button gestures to work - use overlay-swipe behavior
-          await NavigationBar.setBehaviorAsync('overlay-swipe');
-        } catch {
-          // Fallback to inset-touch
-          try {
-            await NavigationBar.setBehaviorAsync('inset-touch');
-          } catch {
-            // Ignore
-          }
+          await NavigationBar.setVisibilityAsync('hidden');
+          console.log('[SafeAreaDebug] Navigation bar hidden');
+        } catch (error: any) {
+          console.log('[SafeAreaDebug] Error hiding nav bar:', error?.message);
         }
+      } else {
+        console.log('[SafeAreaDebug] Not Android, skipping navigation bar setup');
       }
     };
 
@@ -44,21 +46,23 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SoundProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="leaderboards" />
-          <Stack.Screen name="online-play" />
-          <Stack.Screen name="cpu-game" />
+      <SafeAreaProvider>
+        <SoundProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="leaderboards" />
+            <Stack.Screen name="online-play" />
+            <Stack.Screen name="cpu-game" />
 
-          <Stack.Screen name="private-room" />
-          <Stack.Screen name="create-room" />
-          <Stack.Screen name="join-room" />
-          <Stack.Screen name="profile" />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        </Stack>
-        <StatusBar hidden />
-      </SoundProvider>
+            <Stack.Screen name="private-room" />
+            <Stack.Screen name="create-room" />
+            <Stack.Screen name="join-room" />
+            <Stack.Screen name="profile" />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          </Stack>
+          <StatusBar hidden />
+        </SoundProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

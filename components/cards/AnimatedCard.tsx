@@ -43,6 +43,8 @@ export function AnimatedCard({
   cardWidth = 56,
   children,
 }: AnimatedCardProps) {
+  // Provide a default no-op function to prevent "onAnimationComplete is not a function" errors
+  const handleAnimationComplete = onAnimationComplete || (() => {});
   // If not animating, start at final position (0) - no slide effect
   // If animating, start off-screen to the left relative to final position
   const startPosition = shouldAnimate ? (finalPosition - screenWidth) : 0;
@@ -63,14 +65,19 @@ export function AnimatedCard({
             animationCompleted.current = true;
             const cardId = `${card.rank}${card.suit}`;
             console.log('[AnimatedCard] Animation complete for:', cardId);
-            onAnimationComplete(cardId);
+            // Safety check: ensure onAnimationComplete is a function before calling
+            if (typeof handleAnimationComplete === 'function') {
+              handleAnimationComplete(cardId);
+            } else {
+              console.warn('[AnimatedCard] handleAnimationComplete is not a function:', typeof handleAnimationComplete);
+            }
           }
         });
       }, delayMs);
 
       return () => clearTimeout(timer);
     }
-  }, [shouldAnimate, delayMs, translateX, card, onAnimationComplete]);
+  }, [shouldAnimate, delayMs, translateX, card, handleAnimationComplete]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],

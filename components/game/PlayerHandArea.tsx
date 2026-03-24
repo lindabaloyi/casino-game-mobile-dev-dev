@@ -13,14 +13,12 @@
 import React, { useMemo, useRef, useCallback } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions, TouchableOpacity, Text } from 'react-native';
 import { DraggableHandCard } from '../cards/DraggableHandCard';
-import { AnimatedCard } from '../cards/AnimatedCard';
 import { DropBounds } from '../../hooks/useDrag';
 import { TableItem } from '../table/types';
 import { OpponentDragState } from '../../hooks/useGameState';
 import { StackActionStrip } from '../table/StackActionStrip';
 import { areTeammates } from '../../shared/game/team';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
-import { useDealingAnimation } from '../../hooks/useDealingAnimation';
 
 interface Card {
   rank: string;
@@ -157,12 +155,6 @@ export function PlayerHandArea({
   const sortedHand = useMemo(() => {
     return [...hand].sort((a, b) => a.value - b.value);
   }, [hand]);
-  
-  // Track dealing animations for the local player's hand
-  const { animatingCardIds, getCardDelay, onAnimationComplete } = useDealingAnimation(sortedHand);
-  
-  // Debug log for initial render
-  console.log('[PlayerHandArea] 🎮 useDealingAnimation initialized, hand length:', sortedHand.length);
   
   // Note: Card contact sound is now passed via onCardContact prop from GameBoard
   // This ensures sounds persist across drags (PlayerHandArea remounts on drag)
@@ -304,40 +296,18 @@ export function PlayerHandArea({
             isPendingDrop
           );
           
-          // Check if card should animate (new card being dealt)
-          const animatingCardId = `${card.rank}${card.suit}`;
-          const shouldAnimate = animatingCardIds.has(animatingCardId);
-          const delayMs = shouldAnimate ? getCardDelay(card) : 0;
-          
-          if (index < 3) {
-            console.log('[PlayerHandArea] Card:', animatingCardId, 'shouldAnimate:', shouldAnimate, 'delayMs:', delayMs, 'animatingCardIds.size:', animatingCardIds.size);
-          }
-          
-          // Calculate final position within the hand for proper slide-in
-          // Each card's position = index * (cardWidth - overlap)
-          const cardSpacing = responsiveCardWidth - cardOverlap;
-          const finalPosition = index * cardSpacing;
-          
           return (
-            <AnimatedCard
+            <View
               key={cardId}
-              card={card}
-              shouldAnimate={shouldAnimate}
-              delayMs={delayMs}
-              onAnimationComplete={onAnimationComplete}
-              finalPosition={finalPosition}
-              cardWidth={responsiveCardWidth}
+              style={{
+                width: responsiveCardWidth,
+                height: responsiveCardHeight,
+                marginRight: index === sortedHand.length - 1 ? 0 : -cardOverlap,
+                zIndex: index + 1,
+                overflow: 'hidden', // Clip to show only top half
+              }}
             >
-              <View
-                style={{
-                  width: responsiveCardWidth,
-                  height: responsiveCardHeight,
-                  marginRight: index === sortedHand.length - 1 ? 0 : -cardOverlap,
-                  zIndex: index + 1,
-                  overflow: 'hidden', // Clip to show only top half
-                }}
-              >
-                <DraggableHandCard
+              <DraggableHandCard
                   card={card}
                   dropBounds={dropBounds}
                   findCardAtPoint={findCardAtPoint}
@@ -358,8 +328,7 @@ export function PlayerHandArea({
                   onCardContact={onCardContact}
                 />
               </View>
-            </AnimatedCard>
-          );
+            );
         })}
       </ScrollView>
       

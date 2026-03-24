@@ -48,7 +48,22 @@ scripts\adb-reverse.bat
 - Sets up port forwarding so the emulator can reach your localhost server
 - You'll see "SUCCESS! Port 3001 is now reversed to your emulator"
 
-### Step 4: Start the Game Server
+### Step 4: Prebuild Android Native Project (CRITICAL - Read First!)
+
+**This step is needed when you change app.json** (like `edgeToEdgeEnabled` or navigation bar settings).
+
+Run this command to regenerate the native Android project with your new settings:
+
+```bash
+npx expo prebuild --clean
+```
+
+This will:
+- Regenerate android/ folder with updated native code
+- Apply your new `edgeToEdgeEnabled: false` and navigation bar settings
+- You may need to restart the emulator after this
+
+### Step 5: Start the Game Server
 
 In a **new** terminal window, run:
 
@@ -64,7 +79,7 @@ You should see:
 [Server] LAN IP:  http://192.168.18.14:3001
 ```
 
-### Step 5: Start Expo Development Server
+### Step 6: Start Expo Development Server
 
 In **another new** terminal window, run:
 
@@ -78,7 +93,7 @@ Wait for it to start. You'll see:
 Waiting on http://localhost:8081
 ```
 
-### Step 6: Run on Android Emulator
+### Step 7: Run on Android Emulator
 
 Press **`a`** in the Expo terminal to launch on Android emulator.
 
@@ -93,15 +108,19 @@ The app will open in your emulator and should connect to the server automaticall
 cd "c:\Users\LB\Desktop\Linda Baloyi\MadGames\dev\casino-game"
 powershell -ExecutionPolicy Bypass -File scripts\adb-reverse.ps1
 
-# Terminal 2: Start server
+# Terminal 2: Prebuild (after app.json changes)
+cd "c:\Users\LB\Desktop\Linda Baloyi\MadGames\dev\casino-game"
+npx expo prebuild --clean
+
+# Terminal 3: Start server
 cd "c:\Users\LB\Desktop\Linda Baloyi\MadGames\dev\casino-game"
 npm run server
 
-# Terminal 3: Start Expo
+# Terminal 4: Start Expo
 cd "c:\Users\LB\Desktop\Linda Baloyi\MadGames\dev\casino-game"
 npm start
 
-# Then press 'a' in Terminal 3 to run on Android
+# Then press 'a' in Terminal 4 to run on Android
 ```
 
 ---
@@ -114,11 +133,15 @@ npm start
 
 ### Connection refused error
 - Make sure you ran the adb-reverse script (Step 3)
-- Make sure the server is running (Step 4)
+- Make sure the server is running (Step 5)
 
 ### Emulator not detected
 - Restart your emulator in Android Studio AVD Manager
 - Make sure the emulator is fully booted before running the script
+
+### Navigation bar still visible after making changes to app.json
+- Did you run `npx expo prebuild --clean` to regenerate native project?
+- Check the log for: `[SafeAreaDebug] Navigation bar behavior set to: overlay-swipe`
 
 ---
 

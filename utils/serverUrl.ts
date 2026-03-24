@@ -44,7 +44,7 @@ function isAndroidEmulator(): boolean {
  */
 function isPhysicalAndroidDevice(): boolean {
   if (Platform.OS !== 'android') return false;
-  return Constants.isDevice;
+  return isDevice;
 }
 
 /**

@@ -31,6 +31,8 @@ function getCardId(card: Card): string {
 export function useDealingAnimation(hand: Card[]): UseDealingAnimationResult {
   const initialDealCompleteRef = useRef(false);
   const wasCalledRef = useRef(false);
+  // DISABLED: Set to always return empty set to disable dealing animation
+  // To re-enable, change to: const [animatingCardIds, setAnimatingCardIds] = useState<Set<string>>(new Set());
   const [animatingCardIds, setAnimatingCardIds] = useState<Set<string>>(new Set());
 
   // Track when useDealingAnimation is called

@@ -13,7 +13,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "casinomobile",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true
     },
@@ -24,9 +24,10 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.casinomobile"
+      "package": "com.anonymous.casinomobile",
+      "versionCode": 1
     },
     "web": {
       "output": "static",
@@ -53,8 +54,7 @@
           "borderColor": "#0f4d0f",
           "position": "absolute",
           "visibility": "hidden",
-          "barStyle": "dark-content",
-          "behavior": "overlay"
+          "barStyle": "dark-content"
         }
       ],
       "expo-web-browser"

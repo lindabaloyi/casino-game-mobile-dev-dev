@@ -12,6 +12,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as NavigationBar from 'expo-navigation-bar';
 import { GameState, OpponentDragState } from '../../hooks/useGameState';
 import { useDrag } from '../../hooks/useDrag';
 import { useDragOverlay } from '../../hooks/drag/useDragOverlay';
@@ -103,12 +105,38 @@ export function GameBoard({
   // Track round transitions to prevent double triggers
   const lastProcessedRound = useRef<number>(0);
 
+  // Safe area insets for debugging
+  const insets = useSafeAreaInsets();
+  console.log('[SafeAreaDebug] Safe area insets - top:', insets.top, 'bottom:', insets.bottom, 'left:', insets.left, 'right:', insets.right);
+
   // Effects
   useEffect(() => {
     if (serverError) {
       setErrorVersion(v => v + 1);
     }
   }, [serverError]);
+
+  // Hide navigation bar for full-screen game experience
+  useEffect(() => {
+    console.log('[SafeAreaDebug] Component mounted - setting up navigation bar');
+    
+    const setupNavBar = async () => {
+      try {
+        // Only set visibility - behavior control not supported reliably
+        await NavigationBar.setVisibilityAsync('hidden');
+        console.log('[SafeAreaDebug] Navigation bar hidden successfully');
+      } catch (error) {
+        console.error('[SafeAreaDebug] Error hiding navigation bar:', error);
+      }
+    };
+    
+    setupNavBar();
+    
+    return () => {
+      console.log('[SafeAreaDebug] Component unmounting - restoring navigation bar');
+      NavigationBar.setVisibilityAsync('visible').catch(e => console.log('[SafeAreaDebug] Error restoring nav:', e));
+    };
+  }, []);
 
   // Core hooks
   const drag = useDrag();
@@ -410,7 +438,7 @@ export function GameBoard({
 
   // Render
   return (
-    <View style={styles.root}>
+    <SafeAreaView style={styles.root}>
       {serverError && (
         <ErrorBanner 
           message={serverError.message} 
@@ -709,7 +737,7 @@ export function GameBoard({
           }
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
