@@ -180,8 +180,18 @@ class PlayerProfile {
    * @returns {Promise<boolean>} Success status
    */
   static async addFriend(userId, friendId) {
+    console.log('[PlayerProfile] addFriend called:', { userId, friendId });
     const database = await db.getDb();
     try {
+      // First check if profile exists
+      const profile = await database.collection(COLLECTION_NAME).findOne({ userId: new ObjectId(userId) });
+      console.log('[PlayerProfile] Found profile:', !!profile);
+      
+      if (!profile) {
+        console.log('[PlayerProfile] ❌ Profile not found for userId:', userId);
+        return false;
+      }
+
       const result = await database.collection(COLLECTION_NAME).updateOne(
         { userId: new ObjectId(userId) },
         { 
@@ -189,6 +199,7 @@ class PlayerProfile {
           $set: { updatedAt: new Date() }
         }
       );
+      console.log('[PlayerProfile] Update result:', { modifiedCount: result.modifiedCount, matchedCount: result.matchedCount });
       return result.modifiedCount > 0;
     } catch (error) {
       console.error('[PlayerProfile] Add friend error:', error);

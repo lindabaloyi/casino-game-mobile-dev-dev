@@ -51,7 +51,7 @@ export default function UserProfilePage() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const { user: currentUser } = useAuth();
-  const { friends, sendRequest, pendingRequests, sentRequests } = useFriends();
+  const { friends, sendRequest, acceptRequest, declineRequest, pendingRequests, sentRequests, refresh } = useFriends();
 
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,7 +71,7 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     checkFriendStatus();
-  }, [userId, friends, pendingRequests]);
+  }, [userId, friends, pendingRequests, sentRequests]);
 
   const fetchUserProfile = async () => {
     if (!userId) return;
@@ -123,6 +123,9 @@ export default function UserProfilePage() {
     }
   };
 
+  // Check if there's an incoming request from this user (to accept/decline)
+  const isIncomingRequest = pendingRequests.some((r: any) => r.fromUser?._id === userId);
+
   const handleAddFriend = async () => {
     if (!userId) return;
 
@@ -133,6 +136,40 @@ export default function UserProfilePage() {
     if (result.success) {
       setFriendStatus('pending');
     }
+  };
+
+  const handleAcceptRequest = async () => {
+    if (!userId) return;
+
+    setActionLoading(true);
+    // Find the request from this user
+    const request = pendingRequests.find((r: any) => r.fromUser?._id === userId);
+    console.log('[UserProfilePage] Accepting request:', request?._id);
+    if (request) {
+      await acceptRequest(request._id);
+      console.log('[UserProfilePage] Request accepted, setting status to friends');
+      setFriendStatus('friends');
+      // Refresh friends list
+      refresh && refresh();
+    }
+    setActionLoading(false);
+  };
+
+  const handleDeclineRequest = async () => {
+    if (!userId) return;
+
+    setActionLoading(true);
+    // Find the request from this user
+    const request = pendingRequests.find((r: any) => r.fromUser?._id === userId);
+    console.log('[UserProfilePage] Declining request:', request?._id);
+    if (request) {
+      await declineRequest(request._id);
+      console.log('[UserProfilePage] Request declined, setting status to none');
+      setFriendStatus('none');
+      // Refresh requests list
+      refresh && refresh();
+    }
+    setActionLoading(false);
   };
 
   // Debug: log avatar options
@@ -287,8 +324,29 @@ export default function UserProfilePage() {
 
             {friendStatus === 'pending' && (
               <View style={styles.pendingContainer}>
-                <Ionicons name="time" size={20} color="rgba(255, 255, 255, 0.6)" />
-                <Text style={styles.pendingText}>Request Pending</Text>
+                {isIncomingRequest ? (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.requestButton, styles.acceptButton]}
+                      onPress={handleAcceptRequest}
+                      disabled={actionLoading}
+                    >
+                      <Ionicons name="checkmark" size={18} color="white" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.requestButton, styles.declineButton]}
+                      onPress={handleDeclineRequest}
+                      disabled={actionLoading}
+                    >
+                      <Ionicons name="close" size={18} color="white" />
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="time" size={20} color="rgba(255, 255, 255, 0.6)" />
+                    <Text style={styles.pendingText}>Request Pending</Text>
+                  </>
+                )}
               </View>
             )}
 
@@ -458,6 +516,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  requestButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  acceptButton: {
+    backgroundColor: '#4CAF50',
+  },
+  declineButton: {
+    backgroundColor: '#F44336',
   },
   errorText: {
     color: 'white',

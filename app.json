@@ -3,6 +3,7 @@
     "name": "casino-mobile",
     "slug": "casino-mobile",
     "version": "1.0.0",
+    "jsEngine": "hermes",
     "orientation": "landscape",
     "platforms": [
       "ios",

@@ -100,16 +100,24 @@ export function useFriends(): UseFriendsResult {
       setFriends(friendsData.friends || []);
 
       // Fetch pending requests
+      console.log('[useFriends] 📥 Fetching requests from API...');
       const requestsResponse = await fetch(`${API_BASE}/api/friends/requests`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
+      console.log('[useFriends] 📥 Requests response status:', requestsResponse.status);
+      
       if (requestsResponse.ok) {
         const requestsData = await requestsResponse.json();
+        console.log('[useFriends] 📥 Requests data:', JSON.stringify(requestsData));
         setPendingRequests(requestsData.requests?.incoming || []);
         setSentRequests(requestsData.requests?.outgoing || []);
+        console.log('[useFriends] 📥 Set pendingRequests:', requestsData.requests?.incoming?.length || 0);
+        console.log('[useFriends] 📥 Set sentRequests:', requestsData.requests?.outgoing?.length || 0);
+      } else {
+        console.log('[useFriends] ❌ Failed to fetch requests, status:', requestsResponse.status);
       }
     } catch (err) {
       console.error('[useFriends] Error fetching friends:', err);

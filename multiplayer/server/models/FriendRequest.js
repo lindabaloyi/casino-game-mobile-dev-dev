@@ -29,6 +29,9 @@ class FriendRequest {
    */
   static async create(fromUserId, toUserId) {
     const database = await db.getDb();
+    console.log('[FriendRequest.create] Creating request:', { fromUserId, toUserId });
+    console.log('[FriendRequest.create] fromUserId type:', typeof fromUserId, fromUserId);
+    console.log('[FriendRequest.create] toUserId type:', typeof toUserId, toUserId);
 
     // Check if request already exists
     const existing = await database.collection(COLLECTION_NAME).findOne({
@@ -59,8 +62,10 @@ class FriendRequest {
       createdAt: new Date(),
       updatedAt: new Date()
     };
+    console.log('[FriendRequest.create] Inserting request:', request);
 
     const result = await database.collection(COLLECTION_NAME).insertOne(request);
+    console.log('[FriendRequest.create] Insert result:', result.insertedId);
     return await database.collection(COLLECTION_NAME).findOne({ _id: result.insertedId });
   }
 
@@ -70,14 +75,29 @@ class FriendRequest {
    * @returns {Promise<Array>} Array of pending requests
    */
   static async getPendingRequests(userId) {
+    console.log('[FriendRequest] getPendingRequests called for userId:', userId);
     const database = await db.getDb();
-    return database.collection(COLLECTION_NAME)
+    
+    // Debug: Log all pending requests in DB
+    const allPending = await database.collection(COLLECTION_NAME).find({ status: 'pending' }).toArray();
+    console.log('[FriendRequest] DEBUG - All pending requests in DB:', allPending.length);
+    allPending.forEach((req, i) => {
+      console.log(`[FriendRequest] DEBUG - Request ${i}: from=${req.fromUserId}, to=${req.toUserId}, status=${req.status}`);
+    });
+    
+    // Debug: Check if userId matches toUserId
+    const userObjId = new ObjectId(userId);
+    console.log('[FriendRequest] DEBUG - Looking for toUserId:', userObjId.toString());
+    
+    const requests = await database.collection(COLLECTION_NAME)
       .find({
         toUserId: new ObjectId(userId),
         status: 'pending'
       })
       .sort({ createdAt: -1 })
       .toArray();
+    console.log('[FriendRequest] getPendingRequests found:', requests.length);
+    return requests;
   }
 
   /**
@@ -86,14 +106,17 @@ class FriendRequest {
    * @returns {Promise<Array>} Array of sent requests
    */
   static async getSentRequests(userId) {
+    console.log('[FriendRequest] getSentRequests called for userId:', userId);
     const database = await db.getDb();
-    return database.collection(COLLECTION_NAME)
+    const requests = await database.collection(COLLECTION_NAME)
       .find({
         fromUserId: new ObjectId(userId),
         status: 'pending'
       })
       .sort({ createdAt: -1 })
       .toArray();
+    console.log('[FriendRequest] getSentRequests found:', requests.length);
+    return requests;
   }
 
   /**
@@ -102,11 +125,12 @@ class FriendRequest {
    * @returns {Promise<Object>} Object with incoming and outgoing requests
    */
   static async getAllRequests(userId) {
+    console.log('[FriendRequest] getAllRequests called for userId:', userId);
     const [incoming, outgoing] = await Promise.all([
       this.getPendingRequests(userId),
       this.getSentRequests(userId)
     ]);
-
+    console.log('[FriendRequest] getAllRequests result - incoming:', incoming.length, 'outgoing:', outgoing.length);
     return { incoming, outgoing };
   }
 
@@ -118,13 +142,20 @@ class FriendRequest {
    */
   static async acceptRequest(requestId, acceptorId) {
     const database = await db.getDb();
+    console.log('[FriendRequest] acceptRequest called:', { requestId, acceptorId });
+    
     const request = await database.collection(COLLECTION_NAME).findOne({ _id: new ObjectId(requestId) });
+    console.log('[FriendRequest] Found request:', request);
 
     if (!request) {
       throw new Error('Request not found');
     }
 
     if (request.toUserId.toString() !== acceptorId) {
+      console.log('[FriendRequest] ❌ Authorization failed:', {
+        requestToUser: request.toUserId.toString(),
+        acceptorId
+      });
       throw new Error('Not authorized to accept this request');
     }
 
@@ -137,11 +168,17 @@ class FriendRequest {
       { _id: new ObjectId(requestId) },
       { $set: { status: 'accepted', updatedAt: new Date() } }
     );
+    console.log('[FriendRequest] ✅ Request status updated to accepted');
 
     // Add both users to each other's friends list
     const PlayerProfile = require('./PlayerProfile');
+    console.log('[FriendRequest] Adding friends:', {
+      user1: request.fromUserId.toString(),
+      user2: request.toUserId.toString()
+    });
     await PlayerProfile.addFriend(request.fromUserId.toString(), request.toUserId.toString());
     await PlayerProfile.addFriend(request.toUserId.toString(), request.fromUserId.toString());
+    console.log('[FriendRequest] ✅ Friends added successfully');
 
     return await database.collection(COLLECTION_NAME).findOne({ _id: new ObjectId(requestId) });
   }

@@ -60,26 +60,37 @@ export function useSocketConnection(
   const connect = useCallback(() => {
     // Prevent multiple simultaneous connections
     if (socketRef.current?.connected) {
+      console.log('[useSocketConnection] Already connected, skipping...');
       return;
     }
+    
+    console.log('[useSocketConnection] Starting connection process...');
     
     getOptimalServerUrl()
       .then(socketUrl => {
         if (!isMounted.current) return;
         
-        console.log(`[useSocketConnection] Connecting to: ${socketUrl} (mode: ${mode})`);
+        console.log(`[useSocketConnection] ==========================================`);
+        console.log(`[useSocketConnection] >>>>>> CONNECTING TO: ${socketUrl} <<<<<<`);
+        console.log(`[useSocketConnection] ==========================================`);
+        console.log(`[useSocketConnection] If on mobile/physical device, this should be your computer's LAN IP (e.g., 192.168.x.x:3001)`);
+        console.log(`[useSocketConnection] NOT localhost (that only works in web/simulator)`);
         
         const socket = io(socketUrl, {
-          transports: ['websocket', 'polling'], // Polling as fallback
+          // Try WebSocket first, fall back to polling if needed
+          transports: ['websocket'],
           reconnection: true,
           reconnectionAttempts: 5,
           reconnectionDelay: 1000,
+          reconnectionAttemptsMax: 5,
+          timeout: 15000,
+          forceNew: true,
         });
         
         socketRef.current = socket;
         
         socket.on('connect', () => {
-          console.log('[useSocketConnection] Connected');
+          console.log('[useSocketConnection] Connected successfully!');
           setSocket(socket); // Set socket as state to trigger re-render
           setIsConnected(true);
           setError(null);
@@ -134,12 +145,21 @@ export function useSocketConnection(
         
         socket.on('connect_error', (err) => {
           console.error('[useSocketConnection] Connection error:', err.message);
+          console.error('[useSocketConnection] This usually means:');
+          console.error('  1. Server is not running - start it with: npm run server');
+          console.error('  2. Wrong IP address - check your network configuration');
+          console.error('  3. Firewall blocking port 3001');
           setError(err.message);
+        });
+        
+        // If WebSocket fails, log it and let Socket.IO handle fallback
+        socket.io.on('reconnect_attempt', (attempt) => {
+          console.log(`[useSocketConnection] Reconnection attempt ${attempt}`);
         });
       })
       .catch(err => {
         console.error('[useSocketConnection] Failed to resolve URL:', err);
-        setError(err.message);
+        setError('Failed to resolve server URL. Please check network configuration.');
       });
   }, [mode, isPartyMode, isTwoHandsMode, user]);
 

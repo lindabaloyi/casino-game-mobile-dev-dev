@@ -1,7 +1,16 @@
 /**
  * Environment-based Smart Server URL Resolver
  * Automatically detects the best server URL based on network context
+ * 
+ * Platform Detection:
+ * - Android Emulator (with adb reverse): http://localhost:3001
+ * - Android Emulator (without adb reverse): http://10.0.2.2:3001
+ * - Physical Android Device: http://<LAN_IP>:3001
+ * - Web/Expo Go: http://localhost:3001
  */
+
+import { Platform } from 'react-native';
+import { isDevice } from 'expo-device';
 
 // Types for different network contexts
 export type NetworkMode = 'local' | 'lan' | 'production' | 'fallback';
@@ -22,6 +31,23 @@ export interface UriTestResult {
 }
 
 /**
+ * Check if running on Android emulator
+ */
+function isAndroidEmulator(): boolean {
+  if (Platform.OS !== 'android') return false;
+  // isDevice is false when running on emulator
+  return !isDevice;
+}
+
+/**
+ * Check if running on physical Android device
+ */
+function isPhysicalAndroidDevice(): boolean {
+  if (Platform.OS !== 'android') return false;
+  return Constants.isDevice;
+}
+
+/**
  * Smart Server URL Resolver
  * Automatically detects the best server URL based on network context
  */
@@ -29,32 +55,58 @@ export class ServerUrlResolver {
   private config: ServerConfig;
 
   constructor(config?: Partial<ServerConfig>) {
+    // Get LAN IP from environment or use default
+    const lanIp = process.env.EXPO_PUBLIC_LAN_IP || process.env.LAN_IP || '';
+    
     this.config = {
+      // localhost works for: Web, Expo Go, Android Emulator with adb reverse
       localUrl: process.env.EXPO_PUBLIC_SOCKET_URL_LOCAL || process.env.SOCKET_URL_LOCAL || 'http://localhost:3001',
-      lanUrl: process.env.EXPO_PUBLIC_SOCKET_URL_LAN || process.env.SOCKET_URL_LAN || 'http://192.168.18.14:3001',
+      // Android emulator uses 10.0.2.2 to connect to host localhost
+      // Physical devices on same network use the LAN IP
+      lanUrl: process.env.EXPO_PUBLIC_SOCKET_URL_LAN || process.env.SOCKET_URL_LAN || (lanIp ? `http://${lanIp}:3001` : 'http://10.0.2.2:3001'),
       productionUrl: process.env.EXPO_PUBLIC_SOCKET_URL_PRODUCTION || process.env.SOCKET_URL_PRODUCTION,
-      enableAutoDetect: process.env.EXPO_PUBLIC_AUTODETECT_ENABLED === 'true' || process.env.AUTODETECT_ENABLED === 'true' ? true : false,
-      fallbackUrl: 'http://localhost:3001',
+      enableAutoDetect: process.env.EXPO_PUBLIC_AUTODETECT_ENABLED === 'true' || process.env.AUTODETECT_ENABLED === 'true' ? true : true,
+      // Default fallback depends on platform
+      fallbackUrl: isAndroidEmulator() ? 'http://10.0.2.2:3001' : 'http://localhost:3001',
       ...config
     };
   }
 
   /**
    * Get the optimal server URL based on current context
-   * Priority: Manual Override > Auto-detection > Fallback
+   * Priority: Platform Detection > Manual Override > Auto-detection > Fallback
    */
   async getOptimalUrl(): Promise<string> {
-    // Check for manual override in environment
+    // Priority 1: Platform-specific URLs (no network test needed)
+    if (isAndroidEmulator()) {
+      // Android emulator - prefer localhost if using adb reverse
+      console.log('[ServerUrl] Running on Android Emulator');
+      console.log('[ServerUrl] Using localhost (works with adb reverse)');
+      return this.config.localUrl; // http://localhost:3001
+    }
+    
+    if (isPhysicalAndroidDevice()) {
+      // Physical Android device - must use LAN IP
+      console.log('[ServerUrl] Running on Physical Android Device');
+      const lanUrl = this.config.lanUrl;
+      console.log('[ServerUrl] Using LAN URL:', lanUrl);
+      return lanUrl;
+    }
+    
+    // Priority 2: Manual override in environment
     const manualUrl = this.getManualOverrideUrl();
     if (manualUrl) {
+      console.log('[ServerUrl] Using manual override URL:', manualUrl);
       return manualUrl;
     }
 
     if (!this.config.enableAutoDetect) {
+      console.log('[ServerUrl] Auto-detect disabled, using localUrl:', this.config.localUrl);
+      console.log('[ServerUrl] LAN URL (may need updating):', this.config.lanUrl);
       return this.config.localUrl;
     }
 
-    // Run auto-detection
+    // Priority 3: Auto-detection (web only)
     return this.detectBestUrl();
   }
 
