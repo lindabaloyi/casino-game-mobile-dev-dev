@@ -10,9 +10,9 @@
  *   PlayerHandArea  — scrollable draggable hand
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as NavigationBar from 'expo-navigation-bar';
 import { GameState, OpponentDragState } from '../../hooks/useGameState';
 import { useDrag } from '../../hooks/useDrag';
@@ -105,10 +105,6 @@ export function GameBoard({
   // Track round transitions to prevent double triggers
   const lastProcessedRound = useRef<number>(0);
 
-  // Safe area insets for debugging
-  const insets = useSafeAreaInsets();
-  console.log('[SafeAreaDebug] Safe area insets - top:', insets.top, 'bottom:', insets.bottom, 'left:', insets.left, 'right:', insets.right);
-
   // Effects
   useEffect(() => {
     if (serverError) {
@@ -118,23 +114,19 @@ export function GameBoard({
 
   // Hide navigation bar for full-screen game experience
   useEffect(() => {
-    console.log('[SafeAreaDebug] Component mounted - setting up navigation bar');
-    
     const setupNavBar = async () => {
       try {
         // Only set visibility - behavior control not supported reliably
         await NavigationBar.setVisibilityAsync('hidden');
-        console.log('[SafeAreaDebug] Navigation bar hidden successfully');
       } catch (error) {
-        console.error('[SafeAreaDebug] Error hiding navigation bar:', error);
+        console.error('[GameBoard] Error hiding navigation bar:', error);
       }
     };
     
     setupNavBar();
     
     return () => {
-      console.log('[SafeAreaDebug] Component unmounting - restoring navigation bar');
-      NavigationBar.setVisibilityAsync('visible').catch(e => console.log('[SafeAreaDebug] Error restoring nav:', e));
+      NavigationBar.setVisibilityAsync('visible').catch(() => {});
     };
   }, []);
 
@@ -151,6 +143,40 @@ export function GameBoard({
   const computed = useGameComputed(gameState, playerNumber);
   const { getTableBounds } = useTableBounds(drag.dropBounds);
   const roundInfo = useGameRound(gameState);
+  
+  // Memoized computed values for performance
+  const gameMode = useMemo(() => {
+    return gameState.gameMode || (
+      gameState.playerCount === 2 ? 'two-hands' :
+      gameState.playerCount === 3 ? 'two-hands' :
+      (gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team)) ? 'party' : 'freeforall'
+    );
+  }, [gameState.gameMode, gameState.playerCount, gameState.players]);
+
+  const isPartyMode = useMemo(() => 
+    gameState.playerCount === 4 && gameState.gameMode === 'party',
+    [gameState.playerCount, gameState.gameMode]
+  );
+
+  const buildStacks = useMemo(() => 
+    computed.table.filter((tc: any) => tc.type === 'build_stack') as any[],
+    [computed.table]
+  );
+
+  const showTimer = useMemo(() => 
+    computed.isMyTurn && !(gameState.gameOver || !!gameOverData) && !roundInfo.isOver,
+    [computed.isMyTurn, gameState.gameOver, gameOverData, roundInfo.isOver]
+  );
+
+  const capturedCardCounts = useMemo(() => 
+    gameState.players?.map(p => p.captures?.length || 0) || [],
+    [gameState.players]
+  );
+
+  const isGameOver = useMemo(() => 
+    (gameState.gameOver || !!gameOverData) || false,
+    [gameState.gameOver, gameOverData]
+  );
   
   // Turn timer - 20 second countdown
   const turnTimer = useTurnTimer({
@@ -373,7 +399,7 @@ export function GameBoard({
     gameState.playerCount === 4,
     roundInfo.roundNumber,
     computed.myHand as TableCard[],
-    computed.table.filter((tc: any) => tc.type === 'build_stack') as any[]
+    buildStacks
   );
 
   // ── Unified Drop Handler ─────────────────────────────────────────────────
@@ -436,6 +462,134 @@ export function GameBoard({
     actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
   }, [modals, actions, computed.table, gameState.playerCount, playerNumber]);
 
+  // ── Memoized Callbacks for Inline Handlers ─────────────────────────────────
+  
+  const handleTableCardDropOnCard = useCallback((card: any, targetCard: any) => {
+    actions.createTemp(card, targetCard, 'table');
+  }, [actions]);
+
+  const handleCapturedCardDragEnd = useCallback((
+    card: any,
+    targetCard: any,
+    targetStackId: string | undefined,
+    source: string | undefined
+  ) => {
+    // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
+    dragOverlay.markPendingDrop(card, 'captured');
+    
+    // Emit drag-end to server so opponents can clean up ghost cards
+    if (emitDragEnd) {
+      const absX = dragOverlay.overlayX.value + 28;
+      const absY = dragOverlay.overlayY.value + 42;
+      const tableBounds = drag.dropBounds.current;
+      const normX = Math.max(0, Math.min(1, absX / (tableBounds.width || 400)));
+      const normY = Math.max(0, Math.min(1, absY / (tableBounds.height || 300)));
+      
+      if (targetCard) {
+        const cardId = `${targetCard.rank}${targetCard.suit}`;
+        emitDragEnd(card, { x: normX, y: normY }, 'success', 'card', cardId);
+      } else if (targetStackId) {
+        emitDragEnd(card, { x: normX, y: normY }, 'success', 'temp_stack', targetStackId);
+      } else {
+        emitDragEnd(card, { x: normX, y: normY }, 'miss');
+      }
+    }
+    
+    if (targetCard) {
+      actions.createTemp(card, targetCard, source || 'captured');
+    } else if (targetStackId) {
+      actions.addToTemp(card, targetStackId, source || 'captured');
+    }
+    dragOverlay.endDrag();
+  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions]);
+
+  const handleCaptureBuild = useCallback((
+    card: any,
+    stackId: string,
+    cardSource: string | undefined
+  ) => {
+    // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
+    dragOverlay.markPendingDrop(card, 'captured');
+    
+    // Emit drag-end to server so opponents can clean up ghost cards
+    if (emitDragEnd) {
+      const absX = dragOverlay.overlayX.value + 28;
+      const absY = dragOverlay.overlayY.value + 42;
+      const tableBounds = drag.dropBounds.current;
+      const normX = Math.max(0, Math.min(1, absX / (tableBounds.width || 400)));
+      const normY = Math.max(0, Math.min(1, absY / (tableBounds.height || 300)));
+      emitDragEnd(card, { x: normX, y: normY }, 'success', 'build_stack', stackId);
+    }
+    
+    // Find the build stack to get owner
+    const buildStack = computed.table.find(
+      (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
+    ) as any;
+    const stackOwner = buildStack?.owner ?? 0;
+    
+    const source = cardSource || 'captured';
+    actions.stackDrop(card, stackId, stackOwner, 'build_stack', source as any);
+    dragOverlay.endDrag();
+  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions, computed.table]);
+
+  const handleDropBuildToCapture = useCallback((stack: any) => {
+    actions.dropToCapture({ stackId: stack.stackId, stackType: 'build_stack' });
+  }, [actions]);
+
+  const handleDropOnCard = useCallback((card: any, targetCard: any) => {
+    modals.hideEndTurnButton();
+    actions.createTemp(card, targetCard, 'hand');
+  }, [modals, actions]);
+
+  const handleDropOnTable = useCallback((card: any) => {
+    modals.hideEndTurnButton();
+    actionHandlers.handleTrail(card);
+  }, [modals, actionHandlers]);
+
+  const handleEndTurn = useCallback(() => {
+    modals.hideEndTurnButton();
+    actions.endTurn();
+  }, [modals, actions]);
+
+  const handleShiyaAction = useCallback((stackId: string) => {
+    if (shiyaButtonTimerRef.current) {
+      clearTimeout(shiyaButtonTimerRef.current);
+      shiyaButtonTimerRef.current = null;
+    }
+    setSelectedBuildForShiya(null);
+    actions.shiya(stackId);
+  }, [actions]);
+
+  const handleConfirmTempBuild = useCallback((value: number) => {
+    if (modals.confirmTempBuildStack) {
+      actions.setTempBuildValue(modals.confirmTempBuildStack.stackId, value);
+      modals.closeConfirmTempBuildModal();
+    }
+  }, [modals, actions]);
+
+  const handlePlayAgain = useCallback(() => {
+    if (gameState.playerCount === 2 && onRestart) {
+      onRestart();
+    }
+  }, [gameState.playerCount, onRestart]);
+
+  const handleQuitGame = useCallback(() => {
+    if (onBackToMenu) {
+      onBackToMenu();
+    }
+  }, [onBackToMenu]);
+
+  const handleOpponentPress = useCallback((playerIndex: number) => {
+    opponentInfo.selectOpponent(playerIndex, gameState.players || []);
+  }, [opponentInfo, gameState.players]);
+
+  const handleSendFriendRequest = useCallback(async () => {
+    const result = await opponentInfo.sendFriendRequest();
+    if (!result.success) {
+      console.log('[GameBoard] Failed to send friend request:', result.error);
+    }
+  }, [opponentInfo]);
+
   // Render
   return (
     <SafeAreaView style={styles.root}>
@@ -455,7 +609,7 @@ export function GameBoard({
         cardsRemaining={roundInfo.cardsRemaining as [number, number]}
         // Timer props
         timeRemaining={turnTimer.timeRemaining}
-        showTimer={computed.isMyTurn && !(gameState.gameOver || !!gameOverData) && !roundInfo.isOver}
+        showTimer={showTimer}
         isLowTime={turnTimer.isLowTime}
       />
 
@@ -466,11 +620,10 @@ export function GameBoard({
         playerNumber={playerNumber}
         // Party mode for team colors - determine from gameMode
         // For 4-player: pass isPartyMode to determine team rendering
-        isPartyMode={gameState.playerCount === 4 && gameState.gameMode === 'party'}
+        isPartyMode={isPartyMode}
         currentPlayerIndex={gameState.currentPlayer}
-        // Use gameMode from gameState if available, otherwise detect from playerCount
-        // Fix: 2-player mode should default to 'two-hands', not 'freeforall'
-        gameMode={gameState.gameMode || (gameState.playerCount === 2 ? 'two-hands' : (gameState.playerCount === 3 ? 'two-hands' : (gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team) ? 'party' : 'freeforall')))}
+        // Use gameMode from useMemo
+        gameMode={gameMode}
         tableRef={drag.tableRef}
         onTableLayout={drag.onTableLayout}
         registerCard={drag.registerCard}
@@ -479,9 +632,7 @@ export function GameBoard({
         unregisterTempStack={drag.unregisterTempStack}
         findCardAtPoint={drag.findCardAtPoint}
         findTempStackAtPoint={drag.findTempStackAtPoint}
-        onTableCardDropOnCard={(card, targetCard) => {
-          actions.createTemp(card, targetCard, 'table');
-        }}
+        onTableCardDropOnCard={handleTableCardDropOnCard}
         onStackDrop={(card, stackId, owner, stackType) => handleDropOnStack(card, stackId, owner, stackType, 'table')}
         onTableDragStart={dragHandlers.handleTableDragStart}
         onTableDragMove={dragHandlers.handleDragMove}
@@ -498,73 +649,13 @@ export function GameBoard({
         unregisterCapturedCard={drag.unregisterCapturedCard}
         onCapturedCardDragStart={dragHandlers.handleCapturedDragStart}
         onCapturedCardDragMove={dragOverlay.moveDrag}
-        onCapturedCardDragEnd={(card, targetCard, targetStackId, source) => {
-          // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
-          // This prevents seeing the card "drag back" to the pile
-          dragOverlay.markPendingDrop(card, 'captured');
-          
-          // Emit drag-end to server so opponents can clean up ghost cards
-          if (emitDragEnd) {
-            const absX = dragOverlay.overlayX.value + 28;
-            const absY = dragOverlay.overlayY.value + 42;
-            const tableBounds = drag.dropBounds.current;
-            const normX = Math.max(0, Math.min(1, absX / (tableBounds.width || 400)));
-            const normY = Math.max(0, Math.min(1, absY / (tableBounds.height || 300)));
-            
-            if (targetCard) {
-              const cardId = `${targetCard.rank}${targetCard.suit}`;
-              emitDragEnd(card, { x: normX, y: normY }, 'success', 'card', cardId);
-            } else if (targetStackId) {
-              emitDragEnd(card, { x: normX, y: normY }, 'success', 'temp_stack', targetStackId);
-            } else {
-              emitDragEnd(card, { x: normX, y: normY }, 'miss');
-            }
-          }
-          
-          if (targetCard) {
-            actions.createTemp(card, targetCard, source || 'captured');
-          } else if (targetStackId) {
-            actions.addToTemp(card, targetStackId, source || 'captured');
-          }
-          dragOverlay.endDrag();
-        }}
-        onCaptureBuild={(card, stackId, cardSource) => {
-          console.log('[GameBoard] onCaptureBuild called:', card?.rank, card?.suit, 'stackId:', stackId, 'source:', cardSource);
-          // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
-          // This prevents seeing the card "drag back" to the pile
-          dragOverlay.markPendingDrop(card, 'captured');
-          
-          // Emit drag-end to server so opponents can clean up ghost cards
-          if (emitDragEnd) {
-            const absX = dragOverlay.overlayX.value + 28;
-            const absY = dragOverlay.overlayY.value + 42;
-            const tableBounds = drag.dropBounds.current;
-            const normX = Math.max(0, Math.min(1, absX / (tableBounds.width || 400)));
-            const normY = Math.max(0, Math.min(1, absY / (tableBounds.height || 300)));
-            emitDragEnd(card, { x: normX, y: normY }, 'success', 'build_stack', stackId);
-          }
-          
-          // Find the build stack to get owner - use smart router via stackDrop
-          // This ensures proper handling of pending captures (addToCapture vs startBuildCapture)
-          const buildStack = computed.table.find(
-            (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
-          ) as any;
-          const stackOwner = buildStack?.owner ?? 0;
-          
-          // Use stackDrop which goes through smart router to handle pending captures correctly
-          // cardSource is 'captured_<playerIndex>' - e.g., 'captured_3' means card from player 3's pile
-          // We need to pass this through so server knows which player's captures to search
-          const source = cardSource || 'captured';
-          actions.stackDrop(card, stackId, stackOwner, 'build_stack', source as any);
-          dragOverlay.endDrag();
-        }}
+        onCapturedCardDragEnd={handleCapturedCardDragEnd}
+        onCaptureBuild={handleCaptureBuild}
         findCapturePileAtPoint={drag.findCapturePileAtPoint}
         registerCapturePile={drag.registerCapturePile}
         unregisterCapturePile={drag.unregisterCapturePile}
         onDropToCapture={actions.dropToCapture}
-        onDropBuildToCapture={(stack) => {
-          actions.dropToCapture({ stackId: stack.stackId, stackType: 'build_stack' });
-        }}
+        onDropBuildToCapture={handleDropBuildToCapture}
         extendingBuildId={computed.extendingBuildId}
         onExtendBuild={actionHandlers.handleExtendBuild}
         onAcceptExtend={actionHandlers.handleExtendAcceptClick}
@@ -590,14 +681,8 @@ export function GameBoard({
         findTempStackAtPoint={drag.findTempStackAtPoint}
         tableCards={computed.table}
         onDropOnStack={(card, stackId, stackOwner, stackType) => handleDropOnStack(card, stackId, stackOwner, stackType, 'hand')}
-        onDropOnCard={(card, targetCard) => {
-          modals.hideEndTurnButton();
-          actions.createTemp(card, targetCard, 'hand');
-        }}
-        onDropOnTable={(card) => {
-          modals.hideEndTurnButton();
-          actionHandlers.handleTrail(card);
-        }}
+        onDropOnCard={handleDropOnCard}
+        onDropOnTable={handleDropOnTable}
         onDragStart={dragHandlers.handleHandDragStart}
         onDragMove={dragHandlers.handleDragMove}
         onDragEnd={dragHandlers.handleDragEnd}
@@ -611,10 +696,7 @@ export function GameBoard({
         onAcceptStack={computed.overlayStackId ? actionHandlers.handleAcceptClick : (computed.extendingBuildId ? actionHandlers.handleExtendAcceptClick : undefined)}
         onCancelStack={computed.overlayStackId ? actions.cancelTemp : (computed.extendingBuildId ? actionHandlers.handleDeclineExtend : undefined)}
         showEndTurnButton={modals.showEndTurnButton}
-        onEndTurn={() => {
-          modals.hideEndTurnButton();
-          actions.endTurn();
-        }}
+        onEndTurn={handleEndTurn}
         // Sound effect for card contact
         onCardContact={playCardContact}
         // Sound effect for trail
@@ -625,15 +707,7 @@ export function GameBoard({
         gameState={gameState}
         currentPlayer={gameState.currentPlayer}
         selectedBuild={selectedBuildForShiya}
-        onShiya={(stackId) => {
-          // Clear the Shiya button immediately when clicked
-          if (shiyaButtonTimerRef.current) {
-            clearTimeout(shiyaButtonTimerRef.current);
-            shiyaButtonTimerRef.current = null;
-          }
-          setSelectedBuildForShiya(null);
-          actions.shiya(stackId);
-        }}
+        onShiya={handleShiyaAction}
       />
 
       <DragGhost 
@@ -673,13 +747,7 @@ export function GameBoard({
         // Confirm temp build modal (double-click)
         showConfirmTempBuild={modals.showConfirmTempBuild}
         confirmTempBuildStack={modals.confirmTempBuildStack}
-        onConfirmTempBuild={(value) => {
-          if (modals.confirmTempBuildStack) {
-            console.log('[GameBoard] Confirming temp build value:', value);
-            actions.setTempBuildValue(modals.confirmTempBuildStack.stackId, value);
-            modals.closeConfirmTempBuildModal();
-          }
-        }}
+        onConfirmTempBuild={handleConfirmTempBuild}
         onCancelConfirmTempBuild={modals.closeConfirmTempBuildModal}
       />
 
@@ -688,21 +756,16 @@ export function GameBoard({
     
       
       <GameOverModal
-        visible={(gameState.gameOver || !!gameOverData) || false}
+        visible={isGameOver}
         scores={gameOverData?.finalScores || gameState.scores as number[]}
         playerCount={gameState.playerCount}
-        capturedCards={gameOverData?.capturedCards || gameState.players?.map(p => p.captures?.length || 0) || []}
+        capturedCards={gameOverData?.capturedCards || capturedCardCounts}
         tableCardsRemaining={gameOverData?.tableCardsRemaining ?? gameState.tableCards?.length ?? 0}
         deckRemaining={gameOverData?.deckRemaining ?? gameState.deck?.length ?? 0}
         scoreBreakdowns={gameOverData?.scoreBreakdowns}
         teamScoreBreakdowns={gameOverData?.teamScoreBreakdowns}
         isPartyMode={gameOverData?.isPartyMode}
-        onPlayAgain={onRestart ? () => {
-          console.log('[GameBoard] Play Again clicked');
-          if (gameState.playerCount === 2) {
-            onRestart();
-          }
-        } : undefined}
+        onPlayAgain={onRestart ? handlePlayAgain : undefined}
         onBackToMenu={onBackToMenu}
       />
 
@@ -710,16 +773,8 @@ export function GameBoard({
       <HomeMenuButton
         playerNumber={playerNumber}
         players={gameState.players || []}
-        onQuitGame={() => {
-          console.log('[GameBoard] Quit Game button clicked');
-          if (onBackToMenu) {
-            console.log('[GameBoard] Calling onBackToMenu callback');
-            onBackToMenu();
-          }
-        }}
-        onOpponentPress={(playerIndex) => {
-          opponentInfo.selectOpponent(playerIndex, gameState.players || []);
-        }}
+        onQuitGame={handleQuitGame}
+        onOpponentPress={handleOpponentPress}
       />
 
       {/* Opponent Profile Modal */}
@@ -730,12 +785,7 @@ export function GameBoard({
         isPendingRequest={opponentInfo.isPendingRequest(opponentInfo.selectedOpponent?.userId)}
         isLoading={opponentInfo.isLoadingFriendRequest}
         onClose={opponentInfo.closeModal}
-        onSendFriendRequest={async () => {
-          const result = await opponentInfo.sendFriendRequest();
-          if (!result.success) {
-            console.log('[GameBoard] Failed to send friend request:', result.error);
-          }
-        }}
+        onSendFriendRequest={handleSendFriendRequest}
       />
     </SafeAreaView>
   );

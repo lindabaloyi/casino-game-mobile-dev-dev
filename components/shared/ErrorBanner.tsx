@@ -6,7 +6,7 @@ interface ErrorBannerProps {
   onClose?: () => void;
 }
 
-export function ErrorBanner({ message, onClose }: ErrorBannerProps) {
+export const ErrorBanner = React.memo(function ErrorBanner({ message, onClose }: ErrorBannerProps) {
   return (
     <View style={styles.errorBanner}>
       <Text style={styles.errorText}>{message}</Text>
@@ -15,7 +15,7 @@ export function ErrorBanner({ message, onClose }: ErrorBannerProps) {
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   errorBanner: {

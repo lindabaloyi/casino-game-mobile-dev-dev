@@ -24,7 +24,7 @@ interface Props {
   isLowTime?: boolean;
 }
 
-export function GameStatusBar({ 
+export const GameStatusBar = React.memo(function GameStatusBar({ 
   round, 
   currentPlayer, 
   playerNumber,
@@ -66,7 +66,7 @@ export function GameStatusBar({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   bar: {

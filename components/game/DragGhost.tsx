@@ -7,7 +7,7 @@ interface DragGhostProps {
   ghostStyle: any;
 }
 
-export function DragGhost({ draggingCard, ghostStyle }: DragGhostProps) {
+export const DragGhost = React.memo(function DragGhost({ draggingCard, ghostStyle }: DragGhostProps) {
   if (!draggingCard) return null;
   
   return (
@@ -18,4 +18,4 @@ export function DragGhost({ draggingCard, ghostStyle }: DragGhostProps) {
       />
     </Animated.View>
   );
-}
+});

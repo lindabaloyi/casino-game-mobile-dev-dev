@@ -42,7 +42,7 @@ import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 const SPRING_FINAL_CONFIG = { damping: 15, stiffness: 150 };
 const SPRING_DRAG_CONFIG = { damping: 20, stiffness: 200 };
 
-export function OpponentGhostCard({ 
+export const OpponentGhostCard = React.memo(function OpponentGhostCard({ 
   card, 
   position, 
   tableBounds, 
@@ -164,7 +164,7 @@ export function OpponentGhostCard({
       </View>
     </Animated.View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   ghost: {

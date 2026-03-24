@@ -28,7 +28,7 @@ interface HomeMenuButtonProps {
   onOpponentPress: (playerIndex: number) => void;
 }
 
-export function HomeMenuButton({
+export const HomeMenuButton = React.memo(function HomeMenuButton({
   playerNumber,
   players,
   onQuitGame,
@@ -112,7 +112,7 @@ export function HomeMenuButton({
       )}
     </>
   );
-}
+});
 
 const styles = StyleSheet.create({
   menuButton: {
