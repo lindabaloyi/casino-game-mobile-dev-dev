@@ -60,22 +60,37 @@ class FriendlyBuildHandler {
       canCapture = true;
       console.log('[FriendlyBuildHandler] Card matches build rank → both actions possible');
     } else {
-      // Sum/diff build – arithmetic only
-      if (card.value === stack.value) {
-        canCapture = true;
-        console.log('[FriendlyBuildHandler] Capture possible (card value matches build value)');
-      }
-      if (card.value + currentTotal === target) {
-        canExtend = true;
-        console.log('[FriendlyBuildHandler] Extend possible (card + current = target)');
-      }
-      if (!canExtend && !canCapture) {
-        if (currentTotal === target) {
-          throw new Error(`Build already complete (total ${target}). Only capture with ${target}.`);
+        // Sum/diff – check for spares when card value matches build value
+        // If player has a spare card of same rank, they can extend instead of capture
+        const playerHand = state.players[playerIndex]?.hand || [];
+        const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
+        const hasSpare = sameRankCount > 1;
+        
+        console.log('[FriendlyBuildHandler] Sum/diff: player has ' + sameRankCount + 'x ' + card.rank + ', spare exists: ' + hasSpare);
+        
+        // Rule: if card value equals build value and player has spare, allow extend
+        if (card.value === target && hasSpare) {
+          canExtend = true;
+          canCapture = false;  // Override capture when spare exists
+          console.log('[FriendlyBuildHandler] Sum/diff, has spare → EXTEND');
+        } else if (card.value === stack.value) {
+          // No spare - can only capture
+          canCapture = true;
+          console.log('[FriendlyBuildHandler] Capture possible (card value matches build value, no spare)');
         }
-        throw new Error(`Cannot extend or capture: ${card.rank}${card.suit} (${card.value}) on build (value=${stack.value}, total=${currentTotal}/${target})`);
+        // Allow extension if card value is less than target (build value)
+        // This is the user's rule: "any card less than our build is extension"
+        if (card.value < target) {
+          canExtend = true;
+          console.log('[FriendlyBuildHandler] Extend possible (card value ' + card.value + ' < target ' + target + ')');
+        }
+        if (!canExtend && !canCapture) {
+          if (currentTotal === target) {
+            throw new Error(`Build already complete (total ${target}). Only capture with ${target}.`);
+          }
+          throw new Error(`Cannot extend or capture: ${card.rank}${card.suit} (${card.value}) on build (value=${stack.value}, total=${currentTotal}/${target})`);
+        }
       }
-    }
 
     // Decide action
     if (source === 'hand') {
