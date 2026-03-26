@@ -35,9 +35,11 @@ export function useModalManager() {
 
   // Steal modal
   const openStealModal = useCallback((card: Card, stack: BuildStack) => {
+    console.log('[useModalManager.openStealModal] 📥 Called with:', { card: card?.rank, stackId: stack?.stackId, stackValue: stack?.value });
     setStealTargetCard(card);
     setStealTargetStack(stack);
     setShowStealModal(true);
+    console.log('[useModalManager.openStealModal] ✅ Modal state updated, showStealModal should be true');
   }, []);
 
   const closeStealModal = useCallback(() => {

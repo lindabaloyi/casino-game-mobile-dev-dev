@@ -416,13 +416,70 @@ export function GameBoard({
     stackType: string,
     source: 'hand' | 'table' | 'captured'
   ) => {
+    console.log('[GameBoard.handleDropOnStack] 📥 Input:', { card: card?.rank, stackId, stackOwner, stackType, source, playerNumber });
+    
     // Hide end turn button when player makes a new action
     modals.hideEndTurnButton();
 
+    // PRE-CHECK: If dropping on opponent's build with hand card, check if we should show steal modal
+    console.log('[GameBoard.handleDropOnStack] 🔍 Check conditions:', {
+      isHandCard: source === 'hand',
+      isBuildStack: stackType === 'build_stack',
+      isOpponentBuild: stackOwner !== playerNumber,
+    });
+    
+    if (source === 'hand' && stackType === 'build_stack' && stackOwner !== playerNumber) {
+      console.log('[GameBoard.handleDropOnStack] ✅ Conditions met for steal check');
+      
+      // Find the build stack in the table
+      const targetBuild = computed.table.find(
+        (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
+      ) as any;
+
+      console.log('[GameBoard.handleDropOnStack] 🎯 Target build found:', targetBuild ? {
+        stackId: targetBuild.stackId,
+        value: targetBuild.value,
+        hasBase: targetBuild.hasBase,
+        owner: targetBuild.owner
+      } : 'NOT FOUND');
+
+      if (targetBuild) {
+        // Check if this would be a steal (not a capture, not a base build, value < 10)
+        const isCapture = card.value === targetBuild.value;
+        const isBaseBuild = targetBuild.hasBase === true;
+        const isValue10 = targetBuild.value === 10;
+        const isSteal = !isCapture && !isBaseBuild && !isValue10;
+
+        console.log('[GameBoard.handleDropOnStack] 💰 Steal check results:', {
+          cardValue: card.value,
+          buildValue: targetBuild.value,
+          isCapture,
+          isBaseBuild,
+          isValue10,
+          isSteal,
+          hasBaseValue: targetBuild.hasBase
+        });
+
+        if (isSteal) {
+          // Show steal modal instead of directly sending action
+          console.log('[GameBoard.handleDropOnStack] 🎉 Calling openStealModal with:', { card: card?.rank, buildValue: targetBuild.value });
+          modals.openStealModal(card, targetBuild);
+          console.log('[GameBoard.handleDropOnStack] ✅ openStealModal called, returning early');
+          return;
+        } else {
+          console.log('[GameBoard.handleDropOnStack] ⚠️ Not a steal, proceeding to server');
+        }
+      } else {
+        console.log('[GameBoard.handleDropOnStack] ❌ Target build not found, proceeding to server');
+      }
+    } else {
+      console.log('[GameBoard.handleDropOnStack] ⚠️ Conditions NOT met for steal modal, proceeding to server');
+    }
+
     // Forward to server - router decides action (capture, steal, extend, etc.)
-    console.log('[GameBoard.handleDropOnStack] Forwarding to server - smart router will decide action');
+    console.log('[GameBoard.handleDropOnStack] 📤 Forwarding to server');
     actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
-  }, [modals, actions]);
+  }, [modals, actions, computed.table, playerNumber]);
 
   // ── Memoized Callbacks for Inline Handlers ─────────────────────────────────
   

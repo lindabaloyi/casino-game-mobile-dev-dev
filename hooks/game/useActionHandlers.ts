@@ -72,6 +72,8 @@ export function useActionHandlers(
     console.log('[handleConfirmSteal] Confirming steal with card:', modals.stealTargetCard.rank, modals.stealTargetCard.suit);
     actions.stealBuild(modals.stealTargetCard, modals.stealTargetStack.stackId);
     modals.closeStealModal();
+    // Show end turn button after successful steal
+    modals.onStealCompleted();
   }, [modals, actions]);
 
   const handleExtendBuild = useCallback((card: any, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}` = 'table') => {
