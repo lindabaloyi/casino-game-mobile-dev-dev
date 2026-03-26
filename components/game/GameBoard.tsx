@@ -403,8 +403,12 @@ export function GameBoard({
   );
 
   // ── Unified Drop Handler ─────────────────────────────────────────────────
-  // For opponent builds: check if steal modal should be shown before executing
-  // For friendly builds and temp stacks: delegate directly to server
+  // All stack drops are forwarded to the server's smart router.
+  // The router handles all business logic including:
+  // - Steal validation (vs capture vs extend)
+  // - Build value validation
+  // - Ownership changes
+  // This ensures the server has full authority over game rules.
   const handleDropOnStack = useCallback((
     card: any,
     stackId: string,
@@ -415,52 +419,10 @@ export function GameBoard({
     // Hide end turn button when player makes a new action
     modals.hideEndTurnButton();
 
-    // Only check for steal modal when dropping from HAND onto opponent's BUILD
-    if (source === 'hand' && stackType === 'build_stack') {
-      // Check if this is an opponent's build (not friendly)
-      const isPartyMode = gameState.playerCount === 4;
-      const isFriendlyBuild = stackOwner === playerNumber || 
-        (isPartyMode && areTeammates(playerNumber, stackOwner));
-      
-      console.log('[handleDropOnStack] DEBUG: source=', source, 'stackType=', stackType, 'stackOwner=', stackOwner, 'playerNumber=', playerNumber, 'isFriendlyBuild=', isFriendlyBuild);
-      
-      if (!isFriendlyBuild) {
-        // Find the build stack
-        const buildStack = computed.table.find(
-          (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
-        );
-        
-        if (buildStack) {
-          const fullStack = buildStack as any;
-          
-          console.log('[handleDropOnStack] DEBUG: card.value=', card.value, 'fullStack.value=', fullStack.value, 'fullStack.hasBase=', fullStack.hasBase);
-          
-          // Check if this is a steal scenario (card value > build value)
-          // AND it's not a base build (base builds can't be stolen)
-          const isSteal = card.value > fullStack.value && fullStack.hasBase !== true;
-          
-          // Check if this is a valid extension (total <= 10)
-          // This applies when adding to opponent's build would be legal
-          const isValidExtension = (card.value + fullStack.value) <= 10;
-          
-          console.log('[handleDropOnStack] DEBUG: isSteal=', isSteal, 'isValidExtension=', isValidExtension);
-          
-          // Show modal for:
-          // 1. Steals (card.value > build.value) - taking ownership
-          // 2. Valid extensions (card + build <= 10) - adding to opponent's build
-          if (isSteal || isValidExtension) {
-            console.log('[GameBoard.handleDropOnStack] Steal/Extension scenario detected - showing modal');
-            modals.openStealModal(card, fullStack);
-            return; // Don't execute - wait for modal confirmation
-          }
-        }
-      }
-    }
-    
-    // Default: Forward to stackDrop - server's smart router decides the action
+    // Forward to server - router decides action (capture, steal, extend, etc.)
     console.log('[GameBoard.handleDropOnStack] Forwarding to server - smart router will decide action');
     actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
-  }, [modals, actions, computed.table, gameState.playerCount, playerNumber]);
+  }, [modals, actions]);
 
   // ── Memoized Callbacks for Inline Handlers ─────────────────────────────────
   

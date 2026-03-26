@@ -5,7 +5,8 @@
  * Rules:
  *  - Player must have the card in their hand
  *  - Card is removed from hand and added to tableCards
- *  - Player CANNOT play a card whose rank already exists on the table
+ *  - Player CANNOT play a card whose rank already exists on the table (as a loose card)
+ *  - Player CANNOT play a card whose value matches an existing build on the table
  *  - Turn advances to the other player
  *
  * Contract: (state, payload, playerIndex) => newState  (pure, no side effects)
@@ -27,33 +28,24 @@ function trail(state, payload, playerIndex) {
     throw new Error('trail: invalid card payload');
   }
 
-  // Check if a card with the same rank already exists on the table as a LOOSE card only
-  // (temp_stack and build_stack objects don't block trailing - they have cards inside)
-  // NOTE: This rule does NOT apply in free-for-all mode - any card can be played
-  const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
-  if (isPartyMode) {
-    const looseCards = state.tableCards.filter(tc => !tc.type);
-    const existingCardOfSameRank = looseCards.some(
-      looseCard => looseCard.rank === card.rank
+  // --- UNIVERSAL RANK VALIDATION ---
+  // Prevent trailing a card whose rank already exists as a loose card on the table
+  const looseCards = state.tableCards.filter(tc => !tc.type);
+  const existingCardOfSameRank = looseCards.some(
+    looseCard => looseCard.rank === card.rank
+  );
+
+  if (existingCardOfSameRank) {
+    throw new Error(
+      `trail: Cannot play ${card.rank}${card.suit} - ` +
+      `there's already a ${card.rank} on the table`
     );
-    
-    if (existingCardOfSameRank) {
-      throw new Error(
-        `trail: Cannot play ${card.rank}${card.suit} - ` +
-        `there's already a ${card.rank} on the table`
-      );
-    }
   }
 
-  // NEW VALIDATION: Check if there's an existing build on the table with the same value
-  // as the card being trailed. This prevents players from trailing a card that matches
-  // an active build value on the table.
-  // This applies to ALL game modes (not just party mode)
+  // --- BUILD VALUE VALIDATION ---
+  // Prevent trailing a card that matches an existing build's value
   const buildsOnTable = state.tableCards.filter(tc => tc.type === 'temp_stack' || tc.type === 'build_stack');
-  const matchingBuild = buildsOnTable.find(build => {
-    // Check if the build value matches the card's value
-    return build.value === card.value;
-  });
+  const matchingBuild = buildsOnTable.find(build => build.value === card.value);
 
   if (matchingBuild) {
     throw new Error(
