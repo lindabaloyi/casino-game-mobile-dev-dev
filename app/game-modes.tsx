@@ -2,15 +2,15 @@
  * Game Modes Screen
  * Full page for selecting multiplayer game modes (landscape)
  * 
- * Replaces the PlayOnlineMenu modal with a proper screen flow
+ * Upgraded design matching the HTML mockup with mobile responsiveness
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   StyleSheet, 
   Text, 
-  TouchableOpacity, 
   View,
+  Pressable,
   ScrollView,
   useWindowDimensions,
 } from 'react-native';
@@ -24,7 +24,6 @@ interface GameModeInfo {
   title: string;
   subtitle: string;
   description: string;
-  icon: string;
   players: string;
 }
 
@@ -34,34 +33,171 @@ const GAME_MODES: GameModeInfo[] = [
     title: '2 Hands',
     subtitle: '1v1 Battle',
     description: 'Classic duel against one opponent',
-    icon: 'people',
     players: '2 Players',
   },
   {
     id: 'three-hands',
     title: '3 Hands',
-    subtitle: '3 Player Battle',
+    subtitle: '3 Player battle',
     description: 'Face off against two opponents',
-    icon: 'people',
     players: '3 Players',
   },
   {
     id: 'four-hands',
     title: '4 Hands',
-    subtitle: '4 Player Battle',
+    subtitle: '4 Player battle',
     description: 'Every player for themselves!',
-    icon: 'trophy',
     players: '4 Players',
   },
   {
     id: 'party',
     title: '4 Hands Party',
-    subtitle: '2v2 Team Battle',
+    subtitle: '2v2 Team battle',
     description: 'Team up with a friend for 2v2',
-    icon: 'people',
     players: '4 Players',
   },
 ];
+
+// Simple icon components using Views and Ionicons
+const TwoHandsIcon = () => (
+  <View style={iconStyles.container}>
+    <View style={iconStyles.row}>
+      <View style={[iconStyles.circle, { backgroundColor: '#f5c842' }]} />
+      <View style={[iconStyles.circle, { backgroundColor: '#c9a030', marginLeft: 12 }]} />
+    </View>
+    <View style={iconStyles.curve}>
+      <View style={[iconStyles.curveLine, { backgroundColor: '#f5c842' }]} />
+      <View style={[iconStyles.curveLine, { backgroundColor: '#c9a030', marginTop: 4 }]} />
+    </View>
+  </View>
+);
+
+const ThreeHandsIcon = () => (
+  <View style={iconStyles.container}>
+    <View style={iconStyles.row}>
+      <View style={[iconStyles.circleSmall, { backgroundColor: '#f5c842' }]} />
+      <View style={[iconStyles.circleSmall, { backgroundColor: '#f5c842', marginLeft: 8 }]} />
+      <View style={[iconStyles.circleSmall, { backgroundColor: '#c9a030', marginLeft: 8 }]} />
+    </View>
+    <View style={iconStyles.curve}>
+      <View style={[iconStyles.curveLine, { backgroundColor: '#f5c842' }]} />
+      <View style={[iconStyles.curveLineSmall, { backgroundColor: '#f5c842', marginTop: 3 }]} />
+      <View style={[iconStyles.curveLine, { backgroundColor: '#c9a030', marginTop: 4 }]} />
+    </View>
+  </View>
+);
+
+const FourHandsIcon = () => (
+  <View style={iconStyles.container}>
+    <View style={iconStyles.card}>
+      <View style={iconStyles.cardInner}>
+        <View style={[iconStyles.line, { backgroundColor: '#f5c842' }]} />
+        <View style={[iconStyles.lineHorizontal, { backgroundColor: '#f5c842' }]} />
+      </View>
+      <View style={[iconStyles.circleBadge, { backgroundColor: '#f5c842' }]} />
+    </View>
+    <View style={[iconStyles.curveLine, { backgroundColor: '#f5c842', marginTop: 2 }]} />
+  </View>
+);
+
+const PartyIcon = () => (
+  <View style={iconStyles.container}>
+    <View style={iconStyles.starContainer}>
+      <Ionicons name="star" size={40} color="#f5c842" />
+    </View>
+  </View>
+);
+
+const iconStyles = StyleSheet.create({
+  container: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  circle: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  circleSmall: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  curve: {
+    marginTop: 6,
+    alignItems: 'center',
+  },
+  curveLine: {
+    width: 20,
+    height: 3,
+    borderRadius: 2,
+  },
+  curveLineSmall: {
+    width: 14,
+    height: 2,
+    borderRadius: 1,
+  },
+  card: {
+    width: 24,
+    height: 30,
+    borderRadius: 3,
+    backgroundColor: '#2a6632',
+    borderWidth: 1.5,
+    borderColor: '#f5c842',
+    overflow: 'hidden',
+  },
+  cardInner: {
+    flex: 1,
+    backgroundColor: '#0f3318',
+    margin: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  line: {
+    width: 2,
+    height: 14,
+    borderRadius: 1,
+  },
+  lineHorizontal: {
+    position: 'absolute',
+    width: 10,
+    height: 2,
+    borderRadius: 1,
+  },
+  circleBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  starContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
+
+const getIconComponent = (modeId: GameModeOption) => {
+  switch (modeId) {
+    case 'two-hands':
+      return TwoHandsIcon;
+    case 'three-hands':
+      return ThreeHandsIcon;
+    case 'four-hands':
+      return FourHandsIcon;
+    case 'party':
+      return PartyIcon;
+    default:
+      return TwoHandsIcon;
+  }
+};
 
 export const options = {
   headerShown: false,
@@ -70,64 +206,86 @@ export const options = {
 export default function GameModesScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
-  
-  // In landscape, width > height
-  const isLandscape = width > height;
-  
-  // Calculate responsive values for landscape
-  const scaleFactor = isLandscape ? height / 400 : 1;
-  const buttonHeight = Math.round(70 * scaleFactor);
-  const iconSize = Math.round(32 * scaleFactor);
-  const titleSize = Math.round(20 * scaleFactor);
-  const subtitleSize = Math.round(14 * scaleFactor);
-  
+  const [selectedMode, setSelectedMode] = useState<GameModeOption | null>('two-hands');
+
+  // Responsive calculations
+  const isPortrait = height > width;
+  const isSmallScreen = width < 400;
+  const horizontalPadding = isSmallScreen ? 16 : isPortrait ? 20 : 40;
+  const maxContentWidth = Math.min(width - horizontalPadding * 2, 480);
+
   const handleSelectMode = (mode: GameModeOption) => {
-    // Navigate to online-play with the selected mode
-    router.push(`/online-play?mode=${mode}`);
+    setSelectedMode(mode);
+  };
+
+  const handleStartGame = () => {
+    if (selectedMode) {
+      router.push(`/online-play?mode=${selectedMode}`);
+    }
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingHorizontal: horizontalPadding }]}>
       {/* Title */}
-      <Text style={styles.title}>Select Game Mode</Text>
+      <Text style={[styles.title, isSmallScreen && styles.titleSmall]}>Select game mode</Text>
       
       {/* Mode Options - Scrollable */}
       <ScrollView 
-        style={styles.modesScrollView}
-        contentContainerStyle={styles.modesContentContainer}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={true}
       >
-        {GAME_MODES.map((mode, index) => (
-          <TouchableOpacity 
-            key={mode.id}
-            style={[
-              styles.modeCard,
-              index === 0 && styles.firstModeCard,
-            ]}
-            onPress={() => handleSelectMode(mode.id)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.modeIconContainer}>
-              <Ionicons name={mode.icon as any} size={iconSize} color="#FFD700" />
-            </View>
+        <View style={[styles.modesContainer, { maxWidth: maxContentWidth }]}>
+          {GAME_MODES.map((mode) => {
+            const IconComponent = getIconComponent(mode.id);
+            const isSelected = selectedMode === mode.id;
             
-            <View style={styles.modeContent}>
-              <Text style={[styles.modeTitle, { fontSize: titleSize }]}>{mode.title}</Text>
-              <Text style={[styles.modeSubtitle, { fontSize: subtitleSize }]}>{mode.subtitle}</Text>
-            </View>
-            
-            <View style={styles.playersBadge}>
-              <Text style={styles.playersText}>{mode.players}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-        
-        {/* Footer hint */}
-        <Text style={styles.footerHint}>
-          Matchmaking will find opponents automatically
-        </Text>
+            return (
+              <Pressable
+                key={mode.id}
+                style={({ pressed }) => [
+                  styles.modeCard,
+                  isSelected && styles.modeCardSelected,
+                  pressed && styles.modeCardPressed,
+                ]}
+                onPress={() => handleSelectMode(mode.id)}
+              >
+                {/* Selected indicator */}
+                {isSelected && <View style={styles.selectedIndicator} />}
+                
+                {/* Icon */}
+                <View style={styles.iconWrap}>
+                  <IconComponent />
+                </View>
+                
+                {/* Text Content */}
+                <View style={styles.textCol}>
+                  <Text style={styles.modeName}>{mode.title}</Text>
+                  <Text style={styles.modeSub}>{mode.subtitle}</Text>
+                </View>
+                
+                {/* Badge */}
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{mode.players}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
       </ScrollView>
+
+      {/* Start Button */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.startButton,
+          { maxWidth: maxContentWidth },
+          pressed && styles.startButtonPressed,
+        ]}
+        onPress={handleStartGame}
+      >
+        <Text style={styles.startButtonText}>Start game</Text>
+      </Pressable>
     </View>
   );
 }
@@ -135,79 +293,114 @@ export default function GameModesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f4d0f',
+    backgroundColor: '#1a4a1a',
+    paddingTop: 40,
+    paddingBottom: 20,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    textAlign: 'center',
-    marginTop: 50,
-    marginBottom: 20,
-  },
-  modesScrollView: {
+  scrollView: {
     flex: 1,
   },
-  modesContentContainer: {
+  scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 40,
-    gap: 16,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#f5c842',
+    letterSpacing: 0.02,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  titleSmall: {
+    fontSize: 18,
+  },
+  modesContainer: {
+    width: '100%',
+    alignSelf: 'center',
+    gap: 12,
   },
   modeCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#FFD700',
+    backgroundColor: '#0f3318',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#2a6632',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 18,
+    paddingVertical: 16,
     paddingHorizontal: 20,
-    minHeight: 80,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  firstModeCard: {
-    marginTop: 0,
+  modeCardSelected: {
+    borderColor: '#f5c842',
+    backgroundColor: '#143d1e',
   },
-  modeIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    justifyContent: 'center',
+  modeCardPressed: {
+    transform: [{ scale: 0.98 }],
+  },
+  selectedIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: '#f5c842',
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
+  },
+  iconWrap: {
+    width: 52,
+    height: 52,
+    flexShrink: 0,
+    display: 'flex',
     alignItems: 'center',
-    marginRight: 16,
+    justifyContent: 'center',
   },
-  modeContent: {
+  textCol: {
     flex: 1,
+    marginLeft: 18,
   },
-  modeTitle: {
-    color: 'white',
+  modeName: {
+    fontSize: 20,
     fontWeight: '600',
+    color: '#f5c842',
+    lineHeight: 24,
   },
-  modeSubtitle: {
-    color: '#FFD700',
-    fontWeight: '600',
+  modeSub: {
+    fontSize: 13,
+    color: '#8fba6a',
     marginTop: 2,
   },
-  playersBadge: {
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    marginRight: 12,
+  badge: {
+    backgroundColor: '#2a5c20',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+    borderWidth: 0.5,
+    borderColor: '#3a7a2a',
   },
-  playersText: {
-    fontSize: 12,
-    color: '#FFD700',
-    fontWeight: '600',
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#a8d87a',
   },
-  footerHint: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.5)',
-    textAlign: 'center',
+  startButton: {
     marginTop: 20,
-    paddingBottom: 20,
+    width: '100%',
+    paddingVertical: 14,
+    backgroundColor: '#f5c842',
+    borderRadius: 12,
+    alignItems: 'center',
+    alignSelf: 'center',
+  },
+  startButtonPressed: {
+    backgroundColor: '#fad84a',
+  },
+  startButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0f3318',
+    letterSpacing: 0.02,
   },
 });

@@ -8,9 +8,31 @@ const { cloneState } = require('../');
 function stealBuild(state, payload, playerIndex) {
   const card = payload.card || payload.handCard;
   const stackId = payload.stackId;
+  const cardSource = payload.cardSource || 'hand';
 
   if (!card || !stackId) {
     throw new Error('stealBuild: missing card or stackId');
+  }
+
+  // ========== DEFENSE-IN-DEPTH VALIDATION ==========
+  // This validation exists as a safeguard in case the action is called
+  // directly without going through CaptureRouter.
+  // CaptureRouter already validates that cardSource === 'hand' before
+  // routing to stealBuild.
+  // ========================================================
+  
+  // Validate that the card comes from hand (defense in depth)
+  if (cardSource !== 'hand') {
+    throw new Error(`stealBuild: card source must be 'hand', got '${cardSource}'`);
+  }
+
+  // Additional validation: verify the card actually exists in the player's hand
+  const handCheck = state.players[playerIndex].hand;
+  const handIdxCheck = handCheck.findIndex(
+    c => c.rank === card.rank && c.suit === card.suit,
+  );
+  if (handIdxCheck === -1) {
+    throw new Error(`stealBuild: card ${card.rank}${card.suit} not in hand`);
   }
 
   const newState = cloneState(state);
@@ -42,6 +64,7 @@ function stealBuild(state, payload, playerIndex) {
 
   const opponentOriginalValue = buildStack.value;
 
+  // Remove card from player's hand
   const hand = newState.players[playerIndex].hand;
   const handIdx = hand.findIndex(
     c => c.rank === card.rank && c.suit === card.suit,

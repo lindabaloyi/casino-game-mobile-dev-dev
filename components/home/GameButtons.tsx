@@ -1,10 +1,11 @@
 /**
  * GameButtons Component
  * Game mode selection buttons for HomeScreen
+ * Updated design matching the new HTML mockup
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface GameButtonsProps {
@@ -20,50 +21,59 @@ export function GameButtons({
   onPrivateRoom, 
   onTournament, 
 }: GameButtonsProps) {
-  const iconSize = 20;
-  const buttonFontSize = 16;
-  
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
-        style={styles.button} 
+      {/* Vs AI Button */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.button,
+          styles.vsAiButton,
+          pressed && styles.buttonPressed,
+        ]}
         onPress={onCpuGame}
-        activeOpacity={0.7}
       >
-        <Ionicons name="person" size={iconSize} color="white" />
-        <Text style={[styles.buttonText, { fontSize: buttonFontSize }]}>Vs AI</Text>
-      </TouchableOpacity>
+        <Ionicons name="person" size={20} color="#f5f5f5" style={styles.icon} />
+        <Text style={styles.vsAiButtonText}>Vs AI</Text>
+      </Pressable>
       
-      <TouchableOpacity 
-        style={styles.tournamentButton} 
+      {/* Tournament Button */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.button,
+          styles.tournamentButton,
+          pressed && styles.buttonPressed,
+        ]}
         onPress={onTournament}
-        activeOpacity={0.7}
       >
-        <Ionicons name="trophy" size={iconSize} color="#FFD700" />
-        <Text style={[styles.tournamentButtonText, { fontSize: buttonFontSize }]}>Tournament</Text>
-      </TouchableOpacity>
+        <Ionicons name="trophy" size={20} color="#f5c842" style={styles.icon} />
+        <Text style={styles.tournamentButtonText}>Tournament</Text>
+      </Pressable>
       
-      <TouchableOpacity 
-        style={styles.playOnlineButton} 
+      {/* Play Online Button */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.button,
+          styles.onlineButton,
+          pressed && styles.onlineButtonPressed,
+        ]}
         onPress={onPlayOnline}
-        activeOpacity={0.7}
       >
-        <Ionicons name="globe" size={iconSize + 4} color="#0f4d0f" />
-        <Text style={[styles.playOnlineButtonText, { fontSize: buttonFontSize + 2 }]}>
-          Play Online
-        </Text>
-      </TouchableOpacity>
+        <Ionicons name="globe" size={20} color="#0f3318" style={styles.icon} />
+        <Text style={styles.onlineButtonText}>Play Online</Text>
+      </Pressable>
       
-      <TouchableOpacity 
-        style={styles.privateRoomButton} 
+      {/* Private Room Button */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.button,
+          styles.privateButton,
+          pressed && styles.onlineButtonPressed,
+        ]}
         onPress={onPrivateRoom}
-        activeOpacity={0.7}
       >
-        <Ionicons name="key" size={iconSize + 2} color="#0f4d0f" />
-        <Text style={[styles.privateRoomButtonText, { fontSize: buttonFontSize + 2 }]}>
-          Private Room
-        </Text>
-      </TouchableOpacity>
+        <Ionicons name="key" size={20} color="#0f3318" style={styles.icon} />
+        <Text style={styles.onlineButtonText}>Private Room</Text>
+      </Pressable>
     </View>
   );
 }
@@ -71,86 +81,66 @@ export function GameButtons({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    maxWidth: 300,
-    paddingHorizontal: 10,
+    maxWidth: 340,
+    gap: 12,
   },
   button: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderRadius: 10,
-    marginBottom: 10,
-    borderWidth: 2,
-    borderColor: '#FFD700',
+    width: '100%',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    gap: 10,
   },
-  buttonText: {
-    color: 'white',
+  buttonPressed: {
+    transform: [{ scale: 0.97 }],
+  },
+  // Vs AI - Dark with green border
+  vsAiButton: {
+    backgroundColor: '#0f3318',
+    borderWidth: 1.5,
+    borderColor: '#2a6632',
+  },
+  vsAiButtonText: {
+    color: '#f5f5f5',
+    fontSize: 16,
     fontWeight: '600',
-    marginLeft: 10,
   },
+  icon: {
+    flexShrink: 0,
+  },
+  // Tournament - Dark with gold border
   tournamentButton: {
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    borderRadius: 10,
-    marginBottom: 10,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    backgroundColor: '#0f3318',
+    borderWidth: 1.5,
+    borderColor: '#f5c842',
   },
   tournamentButtonText: {
-    color: '#FFD700',
+    color: '#f5c842',
+    fontSize: 16,
     fontWeight: '600',
-    marginLeft: 10,
   },
-  playOnlineButton: {
-    backgroundColor: '#FFD700',
-    borderRadius: 10,
-    marginBottom: 10,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 16,
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+  // Play Online - Gold filled
+  onlineButton: {
+    backgroundColor: '#f5c842',
+    borderWidth: 0,
+    borderColor: '#f5c842',
   },
-  playOnlineButtonText: {
-    color: '#0f4d0f',
-    fontWeight: 'bold',
-    marginLeft: 10,
+  onlineButtonPressed: {
+    backgroundColor: '#fad84a',
   },
-  privateRoomButton: {
-    backgroundColor: '#FFD700',
-    borderRadius: 10,
-    marginBottom: 10,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 16,
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+  onlineButtonText: {
+    color: '#0f3318',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  privateRoomButtonText: {
-    color: '#0f4d0f',
-    fontWeight: 'bold',
-    marginLeft: 10,
+  // Private Room - Gold filled
+  privateButton: {
+    backgroundColor: '#f5c842',
+    borderWidth: 0,
+    borderColor: '#f5c842',
   },
 });
 

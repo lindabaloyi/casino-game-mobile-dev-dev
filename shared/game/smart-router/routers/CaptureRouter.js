@@ -84,9 +84,19 @@ class CaptureRouter {
    * Route capture of opponent's build (unchanged)
    */
   routeOpponentBuild(payload, stack, playerIndex) {
+    const { card, cardSource } = payload;
+    
     // Card value matches build value = capture (not steal)
     if (payload.card.value === stack.value) {
       return { type: 'captureOpponent', payload };
+    }
+    
+    // CRITICAL: Steal can ONLY be initiated with a card from player's hand
+    // Table cards and captured cards cannot be used to steal
+    const source = cardSource || 'hand';
+    if (source !== 'hand') {
+      console.log(`[CaptureRouter] Invalid steal attempt - card source is '${source}', only 'hand' allowed for steal`);
+      throw new Error(`Cannot steal build - card must be from hand, not from ${source}`);
     }
     
     // Validate steal attempt
@@ -96,7 +106,7 @@ class CaptureRouter {
     
     return { 
       type: 'stealBuild', 
-      payload: { card: payload.card, stackId: payload.targetStackId } 
+      payload: { card: payload.card, stackId: payload.targetStackId, cardSource: source } 
     };
   }
 }

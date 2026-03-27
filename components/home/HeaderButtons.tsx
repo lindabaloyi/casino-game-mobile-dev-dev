@@ -1,7 +1,7 @@
 /**
  * HeaderButtons Component
  * Burger menu button and notification bell for HomeScreen
- * Now with responsive sizing for Android devices
+ * Updated design matching the new HTML mockup
  */
 
 import React from 'react';
@@ -21,79 +21,42 @@ export function HeaderButtons({
 }: HeaderButtonsProps) {
   const { width, height } = useWindowDimensions();
   
-  // Debug logging for Android device validation
-  if (__DEV__) {
-    console.log('[HeaderButtons] Screen dimensions:', { width, height });
-  }
-  
-  // Responsive calculations based on screen width
-  // Scale factor: smaller screens get smaller icons, larger screens get larger icons
+  // Responsive scale factor
   const scaleFactor = width < 380 ? 0.85 : width < 480 ? 0.95 : 1.0;
   
-  // Responsive icon sizes
-  const menuIconSize = Math.round(26 * scaleFactor);
-  const notificationIconSize = Math.round(24 * scaleFactor);
-  
-  // Responsive button padding
-  const buttonPadding = Math.round(10 * scaleFactor);
-  
-  // Top positioning - use percentage-based safe area for Android
-  // Use 5% of height as base, with min/max constraints
-  const topPosition = Math.max(40, Math.min(height * 0.06, 60));
-  
-  // Responsive badge positioning
-  const badgeOffset = Math.round(-4 * scaleFactor);
-  const badgeSize = Math.round(20 * scaleFactor);
-  const badgeFontSize = Math.round(10 * scaleFactor);
-  
-  if (__DEV__) {
-    console.log('[HeaderButtons] Responsive values:', {
-      scaleFactor,
-      menuIconSize,
-      notificationIconSize,
-      buttonPadding,
-      topPosition,
-      badgeOffset,
-      badgeSize,
-    });
-  }
+  // Responsive sizes
+  const buttonSize = Math.round(44 * scaleFactor);
+  const iconSize = Math.round(24 * scaleFactor);
+  const badgeSize = Math.round(7 * scaleFactor);
+  const topPosition = Math.max(40, Math.min(height * 0.05, 50));
 
   return (
     <View style={[styles.container, { top: topPosition }]}>
-      {/* Burger Menu Button */}
+      {/* Burger Menu Button - 3 lines */}
       <TouchableOpacity 
-        style={[styles.menuButton, { padding: buttonPadding }]} 
+        style={[styles.menuButton, { width: buttonSize, height: buttonSize }]} 
         onPress={onMenuPress}
       >
-        <Ionicons name="menu" size={menuIconSize} color="white" />
+        <View style={styles.menuLines}>
+          <View style={styles.menuLine} />
+          <View style={styles.menuLine} />
+          <View style={styles.menuLine} />
+        </View>
       </TouchableOpacity>
 
-      {/* Notification Bell */}
-      <TouchableOpacity 
-        style={[styles.notificationButton, { padding: buttonPadding }]} 
-        onPress={onNotificationPress}
-      >
-        <Ionicons name="notifications" size={notificationIconSize} color="white" />
-        {unreadCount > 0 && (
-          <View style={[
-            styles.notificationBadge, 
-            { 
-              top: badgeOffset, 
-              right: badgeOffset,
-              minWidth: badgeSize,
-              height: badgeSize,
-            }
-          ]}>
-            <Ionicons 
-              name={unreadCount > 9 ? "notifications" : undefined}
-              size={badgeFontSize}
-              color="white"
-            >
-              {unreadCount > 9 ? undefined : unreadCount}
-            </Ionicons>
-          </View>
-        )}
-      </TouchableOpacity>
+      {/* Right side: Profile + Notification */}
+      <View style={styles.rightContainer}>
+        {/* Notification Bell */}
+        <TouchableOpacity 
+          style={[styles.notifButton, { width: buttonSize, height: buttonSize }]} 
+          onPress={onNotificationPress}
+        >
+          <Ionicons name="notifications" size={iconSize} color="#f5c842" />
+          {unreadCount > 0 && (
+            <View style={[styles.notifDot, { width: badgeSize, height: badgeSize }]} />
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -101,35 +64,49 @@ export function HeaderButtons({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 50,
-    left: 16,
-    right: 16,
+    top: 45,
+    left: 18,
+    right: 18,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     zIndex: 100,
   },
   menuButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    padding: 10,
+    backgroundColor: '#0f3318',
     borderRadius: 10,
-  },
-  notificationButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    padding: 10,
-    borderRadius: 10,
-    position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#ff4444',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
+  },
+  menuLines: {
+    gap: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuLine: {
+    width: 18,
+    height: 2,
+    backgroundColor: '#f5c842',
+    borderRadius: 2,
+  },
+  rightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  notifButton: {
+    backgroundColor: '#0f3318',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  notifDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#f5c842',
+    borderRadius: 3.5,
   },
 });
 

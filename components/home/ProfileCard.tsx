@@ -1,17 +1,12 @@
 /**
  * ProfileCard Component
  * Compact profile preview shown on HomeScreen
+ * Updated design matching the new HTML mockup
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-// Debug logging for diagnosing stretching issues
-const DEBUG = __DEV__;
-if (DEBUG) {
-  console.log('[ProfileCard] Component loaded - Platform:', Platform.OS);
-}
 
 interface ProfileCardProps {
   profile: {
@@ -35,59 +30,41 @@ export function ProfileCard({
 }: ProfileCardProps) {
   const { width: screenWidth } = useWindowDimensions();
   
-  // Debug: Log screen dimensions for diagnosing stretch issues
-  if (DEBUG) {
-    console.log('[ProfileCard] Screen width:', screenWidth, 'Platform:', Platform.OS);
-  }
-  
-  // Calculate max width to prevent stretching on wide Android screens
-  // Use 60% of screen width, but cap at 280px for tablets and 220px for phones
-  const cardMaxWidth = Math.min(screenWidth * 0.6, screenWidth > 400 ? 280 : 220);
-  
-  // Calculate responsive values based on screen width
-  const fontSizeScale = screenWidth / 400; // Base scale on 400px width
-  const responsiveFontSize = Math.max(10, Math.min(15, 12 * fontSizeScale));
-  const responsiveNameSize = Math.max(13, Math.min(18, 15 * fontSizeScale));
-  const responsiveIconSize = Math.max(16, Math.min(24, 20 * fontSizeScale));
-  const avatarSize = Math.max(32, Math.min(44, 38 * fontSizeScale));
-  const horizontalPadding = Math.max(4, Math.min(8, 6 * fontSizeScale));
-  
-  if (DEBUG) {
-    console.log('[ProfileCard] Calculated maxWidth:', cardMaxWidth);
-    console.log('[ProfileCard] Responsive fontSize:', responsiveFontSize, 'iconSize:', responsiveIconSize);
-  }
+  // Calculate responsive values
+  const cardMaxWidth = Math.min(screenWidth * 0.55, screenWidth > 400 ? 260 : 220);
+  const fontSizeScale = screenWidth / 400;
+  const responsiveNameSize = Math.max(12, Math.min(16, 14 * fontSizeScale));
+  const responsiveStatSize = Math.max(10, Math.min(12, 11 * fontSizeScale));
+  const avatarSize = Math.max(32, Math.min(40, 36 * fontSizeScale));
   
   return (
     <TouchableOpacity 
-      style={[styles.container, { width: cardMaxWidth, padding: horizontalPadding }]} 
+      style={[styles.container, { width: cardMaxWidth }]} 
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <View style={styles.profileLeft}>
-        <View style={[
-          styles.avatarContainer,
-          { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
-        ]}>
-          <Text style={{ fontSize: avatarSize * 0.55 }}>{currentAvatar.emoji}</Text>
-        </View>
-        <View style={styles.profileInfo}>
-          <Text style={[styles.profileName, { fontSize: responsiveNameSize }]} numberOfLines={1}>
-            {profile.username}
-          </Text>
-          <View style={styles.statsRow}>
-            <View style={[styles.statBadge, { paddingHorizontal: horizontalPadding }]}>
-              <Text style={[styles.statBadgeText, { fontSize: responsiveFontSize }]}>W: {profile.wins}</Text>
-            </View>
-            <View style={[styles.statBadge, styles.lossBadge, { paddingHorizontal: horizontalPadding }]}>
-              <Text style={[styles.statBadgeText, { fontSize: responsiveFontSize }]}>L: {profile.losses}</Text>
-            </View>
-            <View style={[styles.statBadge, styles.winRateBadge, { paddingHorizontal: horizontalPadding }]}>
-              <Text style={[styles.statBadgeText, { fontSize: responsiveFontSize }]}>{winRate}%</Text>
-            </View>
+      {/* Avatar */}
+      <View style={[styles.avatar, { width: avatarSize, height: avatarSize }]}>
+        <Text style={{ fontSize: avatarSize * 0.5 }}>{currentAvatar.emoji}</Text>
+      </View>
+      
+      {/* Name & Stats */}
+      <View style={styles.profileInfo}>
+        <Text style={[styles.profileName, { fontSize: responsiveNameSize }]} numberOfLines={1}>
+          {profile.username}
+        </Text>
+        <View style={styles.statsRow}>
+          <View style={[styles.statPill, styles.statW]}>
+            <Text style={[styles.statText, { fontSize: responsiveStatSize }]}>W: {profile.wins}</Text>
+          </View>
+          <View style={[styles.statPill, styles.statL]}>
+            <Text style={[styles.statText, { fontSize: responsiveStatSize }]}>L: {profile.losses}</Text>
+          </View>
+          <View style={[styles.statPill, styles.statPct]}>
+            <Text style={[styles.statText, { fontSize: responsiveStatSize }]}>{winRate}%</Text>
           </View>
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={responsiveIconSize} color="rgba(255, 255, 255, 0.5)" />
     </TouchableOpacity>
   );
 }
@@ -95,64 +72,56 @@ export function ProfileCard({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 50,
-    right: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    top: 45,
+    right: 62, // Make room for notification button
+    backgroundColor: '#0f3318',
     borderRadius: 12,
-    padding: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.3)',
+    borderColor: '#2a6632',
     zIndex: 10,
-    // Ensure proper aspect ratio and prevent stretching
-    maxWidth: 280,
-    minWidth: 180,
   },
-  profileLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  avatarContainer: {
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+  avatar: {
+    backgroundColor: '#2a6632',
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    overflow: 'hidden',
   },
   profileInfo: {
     flex: 1,
-    justifyContent: 'center',
   },
   profileName: {
-    color: 'white',
-    fontSize: 15,
-    fontWeight: 'bold',
-    marginBottom: 3,
+    color: '#f5c842',
+    fontWeight: '600',
+    lineHeight: 17,
   },
   statsRow: {
     flexDirection: 'row',
-    // Use margin instead of gap for Android compatibility
-    // gap: 5 is not supported on older Android versions
+    gap: 5,
+    marginTop: 3,
   },
-  statBadge: {
-    backgroundColor: 'rgba(76, 175, 80, 0.3)',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+  statPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
     borderRadius: 6,
-    marginRight: 5, // Fallback for gap - last item will have margin handled by parent
   },
-  lossBadge: {
-    backgroundColor: 'rgba(244, 67, 54, 0.3)',
+  statW: {
+    backgroundColor: '#2a5c20',
   },
-  winRateBadge: {
-    backgroundColor: 'rgba(255, 215, 0, 0.3)',
+  statL: {
+    backgroundColor: '#3a1a1a',
   },
-  statBadgeText: {
-    color: 'white',
-    fontSize: 10,
+  statPct: {
+    backgroundColor: '#2a4a20',
+  },
+  statText: {
     fontWeight: '600',
+    color: '#a8d87a',
   },
 });
 

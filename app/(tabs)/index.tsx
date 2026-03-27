@@ -76,13 +76,6 @@ export default function HomeScreen() {
     handleMenuItem,
   } = useHomeScreen();
 
-  // Responsive calculations
-  const screenHeight = height;
-  const needsScroll = screenHeight < 600;
-  const scaleFactor = width < 380 ? 0.8 : width < 480 ? 0.95 : 1.05;
-  const titleSize = Math.round(42 * scaleFactor);
-  const subtitleSize = Math.round(24 * scaleFactor);
-
   // Build menu items for the drawer
   const menuItems = [
     { label: 'Profile', icon: 'person', onPress: handleEditProfile },
@@ -94,6 +87,14 @@ export default function HomeScreen() {
     { label: 'Rules', icon: 'book', onPress: () => handleMenuItem('/rules') },
     { label: 'Search', icon: 'search', onPress: handleSearchPlayers },
   ];
+
+  // Responsive calculations
+  const screenHeight = height;
+  const needsScroll = screenHeight < 600;
+  
+  // Responsive title sizing
+  const isSmallScreen = width < 380;
+  const titleSize = isSmallScreen ? 42 : 52;
 
   if (!profile) {
     return (
@@ -157,17 +158,14 @@ export default function HomeScreen() {
       {/* Main Content */}
       <ScrollView 
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          needsScroll && styles.scrollContentScrollable,
-        ]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={true}
       >
         {/* Title */}
         <View style={styles.titleContainer}>
           <Text style={[styles.title, { fontSize: titleSize }]}>Casino</Text>
-          <Text style={[styles.subtitle, { fontSize: subtitleSize }]}>Card Game</Text>
+          <Text style={styles.subtitle}>Card Game</Text>
         </View>
 
         {/* Game Buttons */}
@@ -185,7 +183,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f4d0f',
+    backgroundColor: '#1a4a1a',
   },
   scrollView: {
     flex: 1,
@@ -214,11 +212,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: 'bold',
-    color: '#FFD700',
-    letterSpacing: 2,
+    color: '#f5c842',
+    fontSize: 52,
+    letterSpacing: -0.01,
   },
   subtitle: {
-    fontWeight: '300',
-    color: 'white',
+    fontWeight: '400',
+    color: '#8fba6a',
+    fontSize: 18,
+    marginTop: 6,
   },
 });
