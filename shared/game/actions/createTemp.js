@@ -95,6 +95,9 @@ function findCardAtSource(state, card, source, playerIndex) {
 function createTemp(state, payload, playerIndex) {
   const { card, targetCard, source } = payload;
 
+  console.log('[createTemp] Called with card:', card?.rank, card?.suit, 'targetCard:', targetCard?.rank, targetCard?.suit);
+  console.log('[createTemp] source:', source, 'playerIndex:', playerIndex);
+
   const cardSource = source || 'hand';
 
   if (!card?.rank || !card?.suit || card?.value === undefined) {
@@ -130,19 +133,28 @@ function createTemp(state, payload, playerIndex) {
   const newState = cloneState(state);
 
   // Remove card from the source location in cloned state
+  // Track original index and owner for proper restoration on cancel
   let firstCard = null;
   let firstCardFoundOnTable = false;
+  let firstCardOriginalIndex = -1;
+  let firstCardOriginalOwner = playerIndex;
   
   if (cardSource === 'table') {
+    firstCardOriginalIndex = cardInfo.index;
     [firstCard] = newState.tableCards.splice(cardInfo.index, 1);
     firstCardFoundOnTable = true;
   } else if (cardSource === 'hand') {
+    firstCardOriginalIndex = cardInfo.index;
     const hand = newState.players[playerIndex].hand;
     [firstCard] = hand.splice(cardInfo.index, 1);
   } else if (cardSource === 'captured' || (cardSource && cardSource.startsWith('captured_'))) {
     const ownerIndex = cardInfo.ownerIndex !== undefined ? cardInfo.ownerIndex : playerIndex;
+    firstCardOriginalOwner = ownerIndex;
+    firstCardOriginalIndex = cardInfo.index;
     [firstCard] = newState.players[ownerIndex].captures.splice(cardInfo.index, 1);
   }
+
+  console.log('[createTemp] Removed first card from source:', cardSource, 'at index:', firstCardOriginalIndex, 'originalOwner:', firstCardOriginalOwner);
 
   if (!firstCard) {
     throw new Error('createTemp: failed to remove card after validation');
@@ -172,16 +184,16 @@ function createTemp(state, payload, playerIndex) {
   
   if (firstCard.value > tableCard.value) {
     // Hand card has higher value - hand card at bottom, table card on top
-    bottom = { ...firstCard, source: cardSource };
-    top = { ...tableCard, source: 'table' };
+    bottom = { ...firstCard, source: cardSource, originalIndex: firstCardOriginalIndex, originalOwner: firstCardOriginalOwner };
+    top = { ...tableCard, source: 'table', originalIndex: targetInfo.index, originalOwner: undefined };
   } else if (firstCard.value < tableCard.value) {
     // Table card has higher value - table card at bottom, hand card on top
-    bottom = { ...tableCard, source: 'table' };
-    top = { ...firstCard, source: cardSource };
+    bottom = { ...tableCard, source: 'table', originalIndex: targetInfo.index, originalOwner: undefined };
+    top = { ...firstCard, source: cardSource, originalIndex: firstCardOriginalIndex, originalOwner: firstCardOriginalOwner };
   } else {
     // Values are equal - put table card at bottom, hand card on top (hand card captures)
-    bottom = { ...tableCard, source: 'table' };
-    top = { ...firstCard, source: cardSource };
+    bottom = { ...tableCard, source: 'table', originalIndex: targetInfo.index, originalOwner: undefined };
+    top = { ...firstCard, source: cardSource, originalIndex: firstCardOriginalIndex, originalOwner: firstCardOriginalOwner };
   }
 
   const cards = [bottom, top];
@@ -200,6 +212,9 @@ function createTemp(state, payload, playerIndex) {
     need: buildInfo.need,
     buildType: buildInfo.buildType,
   };
+  
+  console.log('[createTemp] Created temp stack:', newTempStack.stackId);
+  console.log('[createTemp] Cards with sources:', newTempStack.cards.map(c => `${c.rank}${c.suit} (source: ${c.source})`).join(', '));
   
   newState.tableCards.splice(insertIdx, 0, newTempStack);
 

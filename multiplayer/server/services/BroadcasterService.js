@@ -161,8 +161,12 @@ class BroadcasterService {
     const gameSockets = mm.getGameSockets(gameId, this.io);
 
     if (gameSockets.length === 0) {
+      console.log(`[Broadcaster] broadcastGameUpdate: No sockets found for game ${gameId}`);
       return;
     }
+
+    // Log state summary before broadcasting
+    console.log(`[Broadcaster] broadcastGameUpdate: gameId=${gameId}, tableCards=${gameState.tableCards?.length}, players captures: ${gameState.players?.map(p => p.captures?.length || 0).join(',')}`);
 
     // Deep clone to avoid serializing internal references
     const stateToSend = JSON.parse(JSON.stringify(gameState));

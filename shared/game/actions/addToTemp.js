@@ -157,21 +157,36 @@ function addToTemp(state, payload, playerIndex) {
 
   // Remove card from the source location in cloned state
   let firstCard = null;
+  let originalIndex = -1;
+  let originalOwner = playerIndex;
   
   if (cardSource === 'table') {
+    originalIndex = cardInfo.index;
     [firstCard] = newState.tableCards.splice(cardInfo.index, 1);
   } else if (cardSource === 'hand') {
+    originalIndex = cardInfo.index;
     const hand = newState.players[playerIndex].hand;
     [firstCard] = hand.splice(cardInfo.index, 1);
   } else if (cardSource === 'captured' || (cardSource && cardSource.startsWith('captured_'))) {
     // Use the ownerIndex from cardInfo if available, otherwise fall back to playerIndex
-    const ownerIndex = cardInfo.ownerIndex !== undefined ? cardInfo.ownerIndex : playerIndex;
-    [firstCard] = newState.players[ownerIndex].captures.splice(cardInfo.index, 1);
+    originalOwner = cardInfo.ownerIndex !== undefined ? cardInfo.ownerIndex : playerIndex;
+    originalIndex = cardInfo.index;
+    [firstCard] = newState.players[originalOwner].captures.splice(cardInfo.index, 1);
   }
+
+  console.log('[addToTemp] Removed card from source:', cardSource, 'at index:', originalIndex, 'originalOwner:', originalOwner);
 
   if (!firstCard) {
     throw new Error('addToTemp: failed to remove card after validation');
   }
+
+  // Store card with original index and owner for proper restoration on cancel
+  const storedCard = {
+    ...firstCard,
+    source: cardSource,
+    originalIndex: originalIndex,
+    originalOwner: originalOwner
+  };
 
   // LIMIT: Max 2 cards from player's hand per temp stack per turn
   // Cards from table or captures don't count toward this limit
@@ -186,6 +201,7 @@ function addToTemp(state, payload, playerIndex) {
   if (stack.baseFixed) {
     console.log('[addToTemp] Dual build - baseFixed is true');
     console.log('[addToTemp] Stack value:', stack.value, ', Card rank:', card.rank, '=', card.value);
+    console.log('[addToTemp] Current pendingExtension:', JSON.stringify(stack.pendingExtension));
     
     // Validate card rank <= stack value (like build extension)
     if (card.value > stack.value) {
@@ -197,14 +213,15 @@ function addToTemp(state, payload, playerIndex) {
     if (!stack.pendingExtension) {
       stack.pendingExtension = { cards: [] };
     }
-    stack.pendingExtension.cards.push({ card: { ...firstCard, source: cardSource }, source: cardSource });
+    stack.pendingExtension.cards.push({ card: storedCard, source: cardSource });
     
     console.log('[addToTemp] Added to pendingExtension:', stack.pendingExtension.cards.map(p => `${p.card.rank}${p.card.suit}`).join(', '));
+    console.log('[addToTemp] FULL pendingExtension after push:', JSON.stringify(stack.pendingExtension));
     
     return newState;
   }
 
-  stack.cards.push({ ...firstCard, source: cardSource });
+  stack.cards.push(storedCard);
 
   // Use the shared build calculator to compute value for multi-card builds
   const values = stack.cards.map(c => c.value);

@@ -74,7 +74,10 @@ class GameCoordinatorService {
     const { gameId, playerIndex, isPartyGame } = ctx;
 
     try {
+      console.log(`[Coordinator] handleGameAction - action: ${data.type}, playerIndex: ${playerIndex}`);
       const newState = this.actionRouter.executeAction(gameId, playerIndex, data);
+      
+      console.log(`[Coordinator] After action ${data.type} - tableCards: ${newState.tableCards?.length}, players[0].captures: ${newState.players[0]?.captures?.length}, players[1].captures: ${newState.players[1]?.captures?.length}, players[2].captures: ${newState.players[2]?.captures?.length}`);
       
       // Check if all players have ended their turn (trick complete)
       if (allPlayersTurnEnded(newState)) {
