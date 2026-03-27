@@ -345,6 +345,15 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     if (!socket) return;
 
     const handleGameUpdate = (state: GameState) => {
+      // DEBUG: Log build stacks with pending extension
+      const buildStacks = state.tableCards?.filter((tc: any) => tc.type === 'build_stack');
+      const pendingExtStacks = buildStacks?.filter((tc: any) => tc.pendingExtension);
+      if (pendingExtStacks?.length > 0) {
+        console.log('[useGameStateSync] game-update received with pending extensions:');
+        pendingExtStacks.forEach((tc: any) => {
+          console.log('  Stack:', tc.stackId, 'pendingExt cards:', tc.pendingExtension?.cards?.map((p: any) => p.card?.value));
+        });
+      }
       setGameState(state);
     };
 

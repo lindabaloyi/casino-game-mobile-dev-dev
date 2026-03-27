@@ -183,6 +183,8 @@ function areTeammates(playerA, playerB) {
 function extendBuild(state, payload, playerIndex) {
   const { stackId, card, cardSource } = payload;
 
+  console.log('[extendBuild] Input:', { stackId, card, cardSource });
+
   // ----- Input validation -----
   if (!stackId) throw new Error('extendBuild: missing stackId');
   if (!card?.rank || !card?.suit) throw new Error('extendBuild: invalid card');
@@ -215,6 +217,7 @@ function extendBuild(state, payload, playerIndex) {
 
   try {
     // ----- Validate rank against build value (always) -----
+    console.log('[extendBuild] Validating:', { cardRank: card.rank, cardValue: removedCard.value, buildValue: buildStack.value });
     validateRankAgainstBuild(removedCard, buildStack.value);
 
     // ----- Determine if we are starting or adding to a pending extension -----
@@ -222,6 +225,13 @@ function extendBuild(state, payload, playerIndex) {
 
     // Track whether a hand card is being used (for turn ending logic)
     const isHandCard = cardSource === 'hand';
+
+    console.log('[extendBuild] Before extension:', {
+      hasPending,
+      isHandCard,
+      buildStackValue: buildStack.value,
+      pendingExtensionBefore: buildStack.pendingExtension?.cards?.map(p => p.card?.value)
+    });
 
     if (!hasPending) {
       // Start a new pending extension
@@ -242,6 +252,11 @@ function extendBuild(state, payload, playerIndex) {
       }
       buildStack.pendingExtension.cards.push({ card: removedCard, source: cardSource });
     }
+
+    console.log('[extendBuild] After extension:', {
+      pendingExtensionCards: buildStack.pendingExtension?.cards?.map(p => p.card?.value),
+      buildStackValue: buildStack.value
+    });
 
     return newState;
   } catch (error) {

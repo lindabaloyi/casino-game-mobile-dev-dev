@@ -111,11 +111,11 @@ function addToCapture(state, payload, playerIndex) {
     throw new Error(`addToCapture: card ${card.rank}${card.suit} not found at source ${cardSource}`);
   }
 
-  // Optional: prevent adding if sum would exceed build value (user-friendly)
-  const currentSum = buildStack.pendingCapture.cards.reduce((sum, item) => sum + item.card.value, 0);
-  if (currentSum + card.value > buildStack.value) {
-    throw new Error(`addToCapture: adding ${card.value} would exceed build value ${buildStack.value}`);
-  }
+  // Optional: prevent adding if sum would exceed build value (DISABLED - players need freedom)
+  // const currentSum = buildStack.pendingCapture.cards.reduce((sum, item) => sum + item.card.value, 0);
+  // if (currentSum + card.value > buildStack.value) {
+  //   throw new Error(`addToCapture: adding ${card.value} would exceed build value ${buildStack.value}`);
+  // }
 
   // Remove card from source
   let usedCard;

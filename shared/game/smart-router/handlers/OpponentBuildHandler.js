@@ -107,28 +107,13 @@ class OpponentBuildHandler {
       };
     }
     
-    // Table cards still have the limit check
-    if (currentSum + card.value < stack.value) {
-      // Add to existing pending capture
-      console.log('[OpponentBuildHandler] ✅ Adding to pending capture (need more)');
-      return {
-        type: 'addToCapture',
-        payload: { stackId, card, cardSource: source }
-      };
-    } else if (currentSum + card.value === stack.value) {
-      // Would exactly equal - but need hand card to complete
-      console.log('[OpponentBuildHandler] ✅ Adding card (need hand card to complete)');
-      return {
-        type: 'addToCapture',
-        payload: { stackId, card, cardSource: source }
-      };
-    } else {
-      // Would exceed build value
-      console.log('[OpponentBuildHandler] ❌ Would exceed build value');
-      throw new Error(
-        `Cannot add ${card.value} - sum would exceed build value ${stack.value}`
-      );
-    }
+    // Table cards - NO LIMIT CHECK (players need freedom to add any amount)
+    // Removed the check to allow players to add cards that exceed the build value
+    console.log('[OpponentBuildHandler] ✅ Adding to pending capture (no limit check)');
+    return {
+      type: 'addToCapture',
+      payload: { stackId, card, cardSource: source }
+    };
   }
 
   /**
@@ -151,31 +136,13 @@ class OpponentBuildHandler {
       };
     }
     
-    // Table cards still have the limit check
-    if (card.value < stack.value) {
-      // Start multi-card capture with table card
-      console.log('[OpponentBuildHandler] ✅ Starting multi-card capture (startBuildCapture)');
-      return {
-        type: 'startBuildCapture',
-        payload: { stackId, card, cardSource: source }
-      };
-    } else if (card.value === stack.value) {
-      // Single card capture - use existing logic
-      console.log('[OpponentBuildHandler] Single card capture - delegating to CaptureRouter');
-      return this.captureRouter.route(
-        { card, targetType: 'build', targetStackId: stackId },
-        state,
-        playerIndex
-      );
-    } else {
-      // card.value > stack.value - use steal logic
-      console.log('[OpponentBuildHandler] Steal - delegating to CaptureRouter');
-      return this.captureRouter.route(
-        { card, targetType: 'build', targetStackId: stackId },
-        state,
-        playerIndex
-      );
-    }
+    // Table cards - NO LIMIT CHECK (players need freedom to add any amount)
+    // Removed the check to allow players to add cards that exceed the build value
+    console.log('[OpponentBuildHandler] ✅ Starting multi-card capture (no limit check)');
+    return {
+      type: 'startBuildCapture',
+      payload: { stackId, card, cardSource: source }
+    };
   }
 
   /**

@@ -40,7 +40,9 @@ function completeCapture(state, payload, playerIndex) {
   const pending = buildStack.pendingCapture;
   const totalPending = pending.cards.reduce((sum, item) => sum + item.card.value, 0);
 
-  if (totalPending !== buildStack.value) {
+  // Allow capture when total pending >= build value (removed strict equality check)
+  // Players can now capture with cards that exceed the build value
+  if (totalPending < buildStack.value) {
     // Restore all cards and throw
     for (const item of pending.cards) {
       const card = item.card;
@@ -53,7 +55,7 @@ function completeCapture(state, payload, playerIndex) {
       // Note: captured cards are not restored here since capture only supports hand and table
     }
     delete buildStack.pendingCapture;
-    throw new Error(`completeCapture: pending cards sum to ${totalPending}, but build value is ${buildStack.value}`);
+    throw new Error(`completeCapture: pending cards sum to ${totalPending}, but build value is ${buildStack.value} (need more)`);
   }
 
   // Move build cards and pending cards to capturing player's captures
