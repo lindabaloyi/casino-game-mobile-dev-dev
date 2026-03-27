@@ -54,7 +54,7 @@ function stealBuild(state, payload, playerIndex) {
   buildStack.cards.push({ ...playedCard, source: 'hand' });
 
   // Sort cards: big cards at bottom (index 0), small cards at top (last index)
-  // Descending order by value
+  // Descending order by value - keeps stolen build's cards in proper order
   buildStack.cards.sort((a, b) => b.value - a.value);
 
   // DEBUG: Log card order after sorting
@@ -209,125 +209,176 @@ function stealBuild(state, payload, playerIndex) {
 
   let finalDisplayValue;
   
+  // REVERSED MERGE: If player has matching build, merge stolen build INTO player's build
+  // This puts player's cards first, then stolen cards appended
+  
   // Party mode: Check for merge with MY build OR TEAMMATE'S build
   // Free-for-all: merge with MY builds only (no teammates)
   // Three-hands mode: Only merge with MY builds (no teams)
   if (isPartyMode) {
     const teammateIndex = playerIndex ^ 1;
     
-    // First try to merge with MY builds
-    if (hasExistingBuild) {
-      let currentValue = recalculatedValue;
-      let mergedWithMyBuild = false;
-      
-      while (true) {
-        const myBuildIdx = newState.tableCards.findIndex(
-          tc => tc.type === 'build_stack' && tc.owner === playerIndex && tc.stackId !== stackId && tc.value === currentValue
-        );
-        if (myBuildIdx === -1) break;
-
-        const myBuild = newState.tableCards[myBuildIdx];
-        finalDisplayValue = myBuild.value;
-        buildStack.cards.push(...myBuild.cards);
-        newState.tableCards.splice(myBuildIdx, 1);
-        // Sort after merge: big cards at bottom, small cards at top
-        buildStack.cards.sort((a, b) => b.value - a.value);
-        recalcBuild(buildStack);
-        const newRecalcValue = buildStack.value;
-        currentValue = newRecalcValue;
-        mergedWithMyBuild = true;
-      }
-
-      if (mergedWithMyBuild) {
-        buildStack.value = finalDisplayValue;
-      } else {
-        // Try to merge with TEAMMATE'S builds
-        let currentValue = recalculatedValue;
-        let mergedWithTeammate = false;
-        
-        while (true) {
-          const teammateBuildIdx = newState.tableCards.findIndex(
-            tc => tc.type === 'build_stack' && tc.owner === teammateIndex && tc.stackId !== stackId && tc.value === currentValue
-          );
-          if (teammateBuildIdx === -1) break;
-
-          const teammateBuild = newState.tableCards[teammateBuildIdx];
-          finalDisplayValue = teammateBuild.value;
-          buildStack.cards.push(...teammateBuild.cards);
-          newState.tableCards.splice(teammateBuildIdx, 1);
-          // Sort after merge: big cards at bottom, small cards at top
-          buildStack.cards.sort((a, b) => b.value - a.value);
-          recalcBuild(buildStack);
-          const newRecalcValue = buildStack.value;
-          currentValue = newRecalcValue;
-          mergedWithTeammate = true;
-        }
-
-        if (mergedWithTeammate) {
-          buildStack.value = finalDisplayValue;
-        } else {
-          buildStack.value = recalculatedValue;
-        }
-      }
+    // Try to find target build: player's own first, then teammate's
+    let targetBuild = null;
+    let targetOwner = null;
+    
+    // Check player's own builds for matching value
+    const myBuildIdx = newState.tableCards.findIndex(
+      tc => tc.type === 'build_stack' && tc.owner === playerIndex && tc.stackId !== stackId && tc.value === recalculatedValue
+    );
+    if (myBuildIdx !== -1) {
+      targetBuild = newState.tableCards[myBuildIdx];
+      targetOwner = playerIndex;
+      console.log(`[stealBuild] Found player's own matching build at index ${myBuildIdx}`);
     } else {
-      // No existing build - try to merge with teammate
-      let currentValue = recalculatedValue;
-      let mergedWithTeammate = false;
-      
-      while (true) {
-        const teammateBuildIdx = newState.tableCards.findIndex(
-          tc => tc.type === 'build_stack' && tc.owner === teammateIndex && tc.stackId !== stackId && tc.value === currentValue
-        );
-        if (teammateBuildIdx === -1) break;
-
-        const teammateBuild = newState.tableCards[teammateBuildIdx];
-        finalDisplayValue = teammateBuild.value;
-        buildStack.cards.push(...teammateBuild.cards);
-        newState.tableCards.splice(teammateBuildIdx, 1);
-        // Sort after merge: big cards at bottom, small cards at top
-        buildStack.cards.sort((a, b) => b.value - a.value);
-        recalcBuild(buildStack);
-        const newRecalcValue = buildStack.value;
-        currentValue = newRecalcValue;
-        mergedWithTeammate = true;
-      }
-
-      if (mergedWithTeammate) {
-        buildStack.value = finalDisplayValue;
-      } else {
-        buildStack.value = recalculatedValue;
+      // Check teammate's builds
+      const teammateBuildIdx = newState.tableCards.findIndex(
+        tc => tc.type === 'build_stack' && tc.owner === teammateIndex && tc.stackId !== stackId && tc.value === recalculatedValue
+      );
+      if (teammateBuildIdx !== -1) {
+        targetBuild = newState.tableCards[teammateBuildIdx];
+        targetOwner = teammateIndex;
+        console.log(`[stealBuild] Found teammate's matching build at index ${teammateBuildIdx}`);
       }
     }
-  } else {
-    // Duel mode (2 players) or Three-hands mode (3 players): merge with MY builds only
-    if (hasExistingBuild) {
+    
+    if (targetBuild) {
+      // Merge stolen build INTO target build (reversed direction)
+      // No recalc - keep target build's original value and type
+      targetBuild.cards.push(...buildStack.cards);
+      
+      // Remove the stolen build from table
+      newState.tableCards.splice(stackIdx, 1);
+      
+      // Update ownership to target owner
+      targetBuild.owner = targetOwner;
+      targetBuild.pendingExtension = null;
+      
+      // Continue merging more builds that have the SAME VALUE as target's original
+      const targetValue = targetBuild.value;  // original value, unchanged
+      while (true) {
+        // Look for player's builds with matching value
+        const nextMyBuildIdx = newState.tableCards.findIndex(
+          tc => tc.type === 'build_stack' && tc.owner === playerIndex && tc.stackId !== targetBuild.stackId && tc.value === targetValue
+        );
+        if (nextMyBuildIdx !== -1) {
+          const nextBuild = newState.tableCards[nextMyBuildIdx];
+          targetBuild.cards.push(...nextBuild.cards);
+          newState.tableCards.splice(nextMyBuildIdx, 1);
+          // No recalc - keep target build's value unchanged
+          continue;
+        }
+        
+        // Look for teammate's builds with matching value
+        const nextTeammateIdx = newState.tableCards.findIndex(
+          tc => tc.type === 'build_stack' && tc.owner === teammateIndex && tc.stackId !== targetBuild.stackId && tc.value === targetValue
+        );
+        if (nextTeammateIdx !== -1) {
+          const nextBuild = newState.tableCards[nextTeammateIdx];
+          targetBuild.cards.push(...nextBuild.cards);
+          newState.tableCards.splice(nextTeammateIdx, 1);
+          // No recalc - keep target build's value unchanged
+          continue;
+        }
+        
+        break;
+      }
+      
+      console.log(`[stealBuild] Final merged build value (unchanged): ${targetBuild.value}, cards: ${targetBuild.cards.map(c => c.value).join(', ')}`);
+      return newState;
+    } else {
+      // No matching build - keep stolen build as target, update ownership
+      buildStack.owner = newOwner;
+      buildStack.pendingExtension = null;
+      finalDisplayValue = recalculatedValue;
+      buildStack.value = recalculatedValue;
+      buildStack.hasBase = (buildStack.buildType !== 'sum');
+      
+      // Still try to absorb other builds of same value (into stolen build)
       let currentValue = recalculatedValue;
-      let mergedWithAny = false;
       while (true) {
         const otherIdx = newState.tableCards.findIndex(
           tc => tc.type === 'build_stack' && tc.owner === playerIndex && tc.stackId !== stackId && tc.value === currentValue
         );
         if (otherIdx === -1) break;
-
         const otherBuild = newState.tableCards[otherIdx];
-        finalDisplayValue = otherBuild.value;
         buildStack.cards.push(...otherBuild.cards);
         newState.tableCards.splice(otherIdx, 1);
-        // Sort after merge: big cards at bottom, small cards at top
-        buildStack.cards.sort((a, b) => b.value - a.value);
         recalcBuild(buildStack);
-        const newRecalcValue = buildStack.value;
-        currentValue = newRecalcValue;
-        mergedWithAny = true;
+        currentValue = buildStack.value;
       }
-
-      if (mergedWithAny) {
-        buildStack.value = finalDisplayValue;
+      
+      console.log(`[stealBuild] No matching target - stolen build final value: ${buildStack.value}, cards: ${buildStack.cards.map(c => c.value).join(', ')}`);
+      return newState;
+    }
+  } else {
+    // Duel mode (2 players) or Three-hands mode (3 players) or Free-for-all: merge with MY builds only
+    if (hasExistingBuild) {
+      // Check if player has a build with matching value
+      const myBuildIdx = newState.tableCards.findIndex(
+        tc => tc.type === 'build_stack' && tc.owner === playerIndex && tc.stackId !== stackId && tc.value === recalculatedValue
+      );
+      
+      if (myBuildIdx !== -1) {
+        // Merge stolen build INTO player's build (reversed direction)
+        // No recalc - keep target build's original value
+        const targetBuild = newState.tableCards[myBuildIdx];
+        targetBuild.cards.push(...buildStack.cards);
+        
+        // Remove the stolen build from table
+        newState.tableCards.splice(stackIdx, 1);
+        
+        // Update ownership
+        targetBuild.owner = playerIndex;
+        targetBuild.pendingExtension = null;
+        
+        // Continue merging more builds with the SAME VALUE as target's original
+        const targetValue = targetBuild.value;  // original value, unchanged
+        while (true) {
+          const nextIdx = newState.tableCards.findIndex(
+            tc => tc.type === 'build_stack' && tc.owner === playerIndex && tc.stackId !== targetBuild.stackId && tc.value === targetValue
+          );
+          if (nextIdx === -1) break;
+          const nextBuild = newState.tableCards[nextIdx];
+          targetBuild.cards.push(...nextBuild.cards);
+          newState.tableCards.splice(nextIdx, 1);
+          // No recalc - keep target build's value unchanged
+        }
+        
+        console.log(`[stealBuild] Merged into player build - final value (unchanged): ${targetBuild.value}, cards: ${targetBuild.cards.map(c => c.value).join(', ')}`);
+        return newState;
       } else {
+        // No matching build - keep stolen build, absorb other builds
+        buildStack.owner = playerIndex;
+        buildStack.pendingExtension = null;
+        finalDisplayValue = recalculatedValue;
         buildStack.value = recalculatedValue;
+        buildStack.hasBase = (buildStack.buildType !== 'sum');
+        
+        let currentValue = recalculatedValue;
+        while (true) {
+          const otherIdx = newState.tableCards.findIndex(
+            tc => tc.type === 'build_stack' && tc.owner === playerIndex && tc.stackId !== stackId && tc.value === currentValue
+          );
+          if (otherIdx === -1) break;
+          const otherBuild = newState.tableCards[otherIdx];
+          buildStack.cards.push(...otherBuild.cards);
+          newState.tableCards.splice(otherIdx, 1);
+          recalcBuild(buildStack);
+          currentValue = buildStack.value;
+        }
+        
+        console.log(`[stealBuild] No matching target - final value: ${buildStack.value}, cards: ${buildStack.cards.map(c => c.value).join(', ')}`);
+        return newState;
       }
     } else {
+      // No existing build - keep stolen build
+      buildStack.owner = playerIndex;
+      buildStack.pendingExtension = null;
       buildStack.value = recalculatedValue;
+      buildStack.hasBase = (buildStack.buildType !== 'sum');
+      console.log(`[stealBuild] No existing builds - final value: ${buildStack.value}, cards: ${buildStack.cards.map(c => c.value).join(', ')}`);
+      return newState;
     }
   }
 

@@ -46,7 +46,7 @@ export function SoundProvider({ children }: SoundProviderProps) {
   const backgroundMusicRef = useRef<Audio.Sound | null>(null);
   const isLoadedRef = useRef(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
-  const [isMusicMuted, setIsMusicMuted] = useState(false);
+  const [isMusicMuted, setIsMusicMuted] = useState(true);  // Muted by default
   const [isInGame, setIsInGame] = useState(false);
 
   // Calculate current volume based on game mode
@@ -66,7 +66,7 @@ export function SoundProvider({ children }: SoundProviderProps) {
       const { sound } = await Audio.Sound.createAsync(
         BACKGROUND_MUSIC,
         { 
-          volume: 0.3, 
+          volume: 0,  // Start muted - user can unmute via toggle
           isLooping: true,
           shouldPlay: true
         }
@@ -74,7 +74,7 @@ export function SoundProvider({ children }: SoundProviderProps) {
       backgroundMusicRef.current = sound;
       isLoadedRef.current = true;
       setIsMusicPlaying(true);
-      console.log('[SoundContext] Background music started');
+      console.log('[SoundContext] Background music started (muted)');
     } catch (error) {
       console.error('[SoundContext] Error loading background music:', error);
     }
