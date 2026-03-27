@@ -82,6 +82,7 @@ function acceptTemp(state, payload, playerIndex) {
   }
   
   stack.value = finalValue;
+  stack.need = finalValue;  // Fix: ensure need matches value for proper capture validation
   stack.type = 'build_stack';
   
   // Debug: Log before and after hasBase assignment

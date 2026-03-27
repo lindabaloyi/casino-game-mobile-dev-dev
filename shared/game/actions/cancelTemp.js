@@ -39,13 +39,32 @@ function cancelTemp(state, payload, playerIndex) {
   }
 
   // Helper function to restore a single card to its original position
+  // Handles both regular cards and cards from pendingExtension (which may have different structure)
   const restoreCard = (cardData) => {
-    const { source, originalIndex, originalOwner } = cardData;
+    // Handle wrapped card format from pendingExtension: { card: {...}, source: 'hand' }
+    let card;
+    let source;
+    let originalIndex;
+    let originalOwner;
+    
+    if (cardData.card) {
+      // Wrapped format from pendingExtension
+      card = cardData.card;
+      source = cardData.source;
+      originalIndex = card.originalIndex;
+      originalOwner = card.originalOwner;
+    } else {
+      // Direct format from stack.cards
+      card = cardData;
+      source = cardData.source;
+      originalIndex = cardData.originalIndex;
+      originalOwner = cardData.originalOwner;
+    }
     
     // Create a clean card object for restoration (preserve value for card processing)
-    const pureCard = { rank: cardData.rank, suit: cardData.suit, value: cardData.value };
+    const pureCard = { rank: card.rank, suit: card.suit, value: card.value };
     
-    console.log('[cancelTemp] restoreCard - rank:', cardData.rank, 'suit:', cardData.suit, 'source:', source, 'originalIndex:', originalIndex, 'originalOwner:', originalOwner);
+    console.log('[cancelTemp] restoreCard - rank:', card.rank, 'suit:', card.suit, 'source:', source, 'originalIndex:', originalIndex, 'originalOwner:', originalOwner);
     console.log('[cancelTemp] source check - is captured?:', source && source.startsWith('captured'), '- source type:', typeof source);
     
     if (source === 'hand') {
@@ -96,9 +115,19 @@ function cancelTemp(state, payload, playerIndex) {
   
   // Now restore ALL cards - first captured, then hand, then table
   // We restore in reverse order to preserve original indices
-  if (stack.cards && stack.cards.length) {
+  
+  // Helper to collect all cards from stack (including pendingExtension)
+  const allStackCards = [...(stack.cards || [])];
+  
+  // Also collect cards from pendingExtension (dual builds)
+  if (stack.pendingExtension && stack.pendingExtension.cards) {
+    console.log('[cancelTemp] Found', stack.pendingExtension.cards.length, 'cards in pendingExtension');
+    allStackCards.push(...stack.pendingExtension.cards.map(p => p.card));
+  }
+  
+  if (allStackCards.length) {
     // First, restore captured cards
-    const capturedCardRestorations = stack.cards.filter(c => c.source && c.source.startsWith('captured'));
+    const capturedCardRestorations = allStackCards.filter(c => c.source && c.source.startsWith('captured'));
     console.log('[cancelTemp] Now restoring', capturedCardRestorations.length, 'captured cards after stack removal');
     for (let i = capturedCardRestorations.length - 1; i >= 0; i--) {
       console.log('[cancelTemp] Processing captured card:', capturedCardRestorations[i].rank, capturedCardRestorations[i].suit);
@@ -106,7 +135,7 @@ function cancelTemp(state, payload, playerIndex) {
     }
     
     // Then restore hand cards
-    const handCardRestorations = stack.cards.filter(c => c.source === 'hand');
+    const handCardRestorations = allStackCards.filter(c => c.source === 'hand');
     console.log('[cancelTemp] Now restoring', handCardRestorations.length, 'hand cards after stack removal');
     for (let i = handCardRestorations.length - 1; i >= 0; i--) {
       console.log('[cancelTemp] Processing hand card:', handCardRestorations[i].rank, handCardRestorations[i].suit);
@@ -114,7 +143,7 @@ function cancelTemp(state, payload, playerIndex) {
     }
     
     // Finally restore table cards
-    const tableCardRestorations = stack.cards.filter(c => c.source === 'table');
+    const tableCardRestorations = allStackCards.filter(c => c.source === 'table');
     console.log('[cancelTemp] Now restoring', tableCardRestorations.length, 'table cards after stack removal');
     for (let i = tableCardRestorations.length - 1; i >= 0; i--) {
       console.log('[cancelTemp] Processing table card:', tableCardRestorations[i].rank, tableCardRestorations[i].suit);
