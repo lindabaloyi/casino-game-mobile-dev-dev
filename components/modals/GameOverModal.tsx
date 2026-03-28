@@ -3,10 +3,22 @@
  * Modal displayed when the game ends.
  * Shows a minimal point breakdown: only positive contributions, no totals.
  * Always displays total cards and total spades below a separator.
+ * 
+ * Uses centralized styling from shared/config/gameOverStyles.ts
  */
 
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, Animated } from 'react-native';
+
+import {
+  GAME_OVER_COLORS,
+  GAME_OVER_SIZES,
+  GAME_OVER_LAYOUT,
+  GAME_OVER_ANIMATION,
+  SCORING_LABELS,
+  getWinnerText,
+  hasBonusPoints,
+} from '../../shared/config/gameOverStyles';
 
 interface PlayerBreakdown {
   totalCards: number;
@@ -471,36 +483,40 @@ export function GameOverModal({
 }
 
 const styles = StyleSheet.create({
+  // ========================================
+  // UNIFIED STYLES - Using centralized config
+  // ========================================
+  
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: GAME_OVER_COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modal: {
-    backgroundColor: '#1B5E20',
-    padding: 20,
-    borderRadius: 12,
-    width: '92%',
-    maxWidth: 560,
-    maxHeight: '90%',
+    backgroundColor: GAME_OVER_COLORS.background,
+    padding: GAME_OVER_LAYOUT.modalPadding,
+    borderRadius: GAME_OVER_SIZES.modalRadius,
+    width: GAME_OVER_LAYOUT.modalWidth,
+    maxWidth: GAME_OVER_LAYOUT.modalMaxWidth,
+    maxHeight: GAME_OVER_LAYOUT.modalMaxHeight,
     alignItems: 'center',
   },
   title: {
-    fontSize: 28,
+    fontSize: GAME_OVER_SIZES.titleSize,
     fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#FFFFFF',
+    marginBottom: GAME_OVER_LAYOUT.sectionMarginBottom,
+    color: GAME_OVER_COLORS.textPrimary,
   },
   scoresSection: {
     width: '100%',
-    marginVertical: 10,
+    marginVertical: GAME_OVER_LAYOUT.sectionMarginVertical,
   },
   scoresTitle: {
-    fontSize: 13,
+    fontSize: GAME_OVER_SIZES.scoresTitleSize,
     fontWeight: '600',
     marginBottom: 10,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: GAME_OVER_COLORS.textSecondary,
     textAlign: 'center',
   },
   playersRow: {
@@ -521,109 +537,109 @@ const styles = StyleSheet.create({
   },
   playerPanel: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 8,
-    padding: 10,
-    marginHorizontal: 3,
+    backgroundColor: GAME_OVER_COLORS.panelBackground,
+    borderRadius: GAME_OVER_SIZES.panelRadius,
+    padding: GAME_OVER_LAYOUT.panelPadding,
+    marginHorizontal: GAME_OVER_LAYOUT.panelMarginHorizontal,
   },
   playerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.15)',
+    marginBottom: GAME_OVER_LAYOUT.playerHeaderMarginBottom,
+    paddingBottom: GAME_OVER_LAYOUT.playerHeaderPaddingBottom,
+    borderBottomWidth: GAME_OVER_LAYOUT.playerHeaderBorderWidth,
+    borderBottomColor: GAME_OVER_COLORS.borderLight,
   },
   playerName: {
-    fontSize: 15,
+    fontSize: GAME_OVER_SIZES.playerNameSize,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: GAME_OVER_COLORS.textPrimary,
   },
   playerScore: {
-    fontSize: 22,
+    fontSize: GAME_OVER_SIZES.playerScoreSize,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: GAME_OVER_COLORS.gold,
   },
   pointsContainer: {
-    marginBottom: 4,
+    marginBottom: GAME_OVER_LAYOUT.pointsContainerMarginBottom,
   },
   breakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 2,
+    paddingVertical: GAME_OVER_LAYOUT.breakdownRowPaddingVertical,
   },
   breakdownLabel: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.75)',
+    fontSize: GAME_OVER_SIZES.labelSize,
+    color: GAME_OVER_COLORS.textTertiary,
   },
   breakdownValue: {
-    fontSize: 11,
+    fontSize: GAME_OVER_SIZES.breakdownValueSize,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: GAME_OVER_COLORS.textPrimary,
   },
   activeBonus: {
-    color: '#FFD700',
+    color: GAME_OVER_COLORS.activeBonus,
     fontWeight: '600',
   },
   separator: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginVertical: 6,
+    backgroundColor: GAME_OVER_COLORS.separator,
+    marginVertical: GAME_OVER_LAYOUT.separatorMarginVertical,
   },
   statsContainer: {
-    marginTop: 4,
+    marginTop: GAME_OVER_LAYOUT.statsContainerMarginTop,
   },
   statsLabel: {
-    fontSize: 11,
+    fontSize: GAME_OVER_SIZES.statsLabelSize,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: GAME_OVER_COLORS.textPrimary,
   },
   statsValue: {
-    fontSize: 11,
+    fontSize: GAME_OVER_SIZES.statsValueSize,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: GAME_OVER_COLORS.textPrimary,
   },
   // Team styles
   teamsContainer: {
     width: '100%',
   },
   teamPanel: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: GAME_OVER_COLORS.panelBackground,
+    borderRadius: GAME_OVER_SIZES.panelRadius,
+    padding: GAME_OVER_LAYOUT.teamPanelPadding,
+    marginBottom: GAME_OVER_LAYOUT.teamPanelMarginBottom,
   },
   teamHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.15)',
+    marginBottom: GAME_OVER_LAYOUT.teamHeaderMarginBottom,
+    paddingBottom: GAME_OVER_LAYOUT.teamHeaderPaddingBottom,
+    borderBottomWidth: GAME_OVER_LAYOUT.teamHeaderBorderWidth,
+    borderBottomColor: GAME_OVER_COLORS.borderLight,
   },
   teamName: {
-    fontSize: 16,
+    fontSize: GAME_OVER_SIZES.teamNameSize,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: GAME_OVER_COLORS.textPrimary,
   },
   teamScore: {
-    fontSize: 20,
+    fontSize: GAME_OVER_SIZES.teamScoreSize,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: GAME_OVER_COLORS.gold,
   },
   breakdownTitle: {
-    fontSize: 10,
+    fontSize: GAME_OVER_SIZES.breakdownTitleSize,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: GAME_OVER_COLORS.textSecondary,
     marginBottom: 4,
   },
   playersSection: {
-    paddingTop: 8,
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    paddingTop: GAME_OVER_LAYOUT.playersSectionPaddingTop,
+    marginTop: GAME_OVER_LAYOUT.playersSectionMarginTop,
+    borderTopWidth: GAME_OVER_LAYOUT.playersSectionBorderTopWidth,
+    borderTopColor: GAME_OVER_COLORS.separator,
   },
   playerContribution: {
     flexDirection: 'row',
@@ -631,81 +647,81 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   playerLabel: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: GAME_OVER_SIZES.contributionLabelSize,
+    color: GAME_OVER_COLORS.textSecondary,
   },
   playerPoints: {
-    fontSize: 11,
+    fontSize: GAME_OVER_SIZES.contributionValueSize,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: GAME_OVER_COLORS.textPrimary,
   },
   teamRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginVertical: 4,
+    paddingHorizontal: GAME_OVER_LAYOUT.teamRowPaddingHorizontal,
+    marginVertical: GAME_OVER_LAYOUT.teamRowMarginVertical,
   },
   teamLabel: {
-    fontSize: 16,
+    fontSize: GAME_OVER_SIZES.teamNameSize,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: GAME_OVER_COLORS.textPrimary,
   },
   winnerText: {
-    fontSize: 20,
+    fontSize: GAME_OVER_SIZES.winnerTextSize,
     fontWeight: 'bold',
-    marginVertical: 14,
+    marginVertical: GAME_OVER_LAYOUT.winnerTextMarginVertical,
     textAlign: 'center',
-    color: '#FFD700',
+    color: GAME_OVER_COLORS.winnerText,
   },
   buttons: {
     width: '100%',
     gap: 8,
-    marginTop: 6,
+    marginTop: GAME_OVER_LAYOUT.buttonMarginTop,
   },
   button: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    paddingVertical: GAME_OVER_LAYOUT.buttonPaddingVertical,
+    paddingHorizontal: GAME_OVER_LAYOUT.buttonPaddingHorizontal,
+    borderRadius: GAME_OVER_SIZES.panelRadius,
     alignItems: 'center',
     width: '100%',
-    backgroundColor: '#FFD700',
+    backgroundColor: GAME_OVER_COLORS.buttonBackground,
   },
   buttonText: {
-    color: '#1B5E20',
-    fontSize: 16,
+    color: GAME_OVER_COLORS.buttonText,
+    fontSize: GAME_OVER_SIZES.buttonTextSize,
     fontWeight: 'bold',
   },
   backButtonText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 14,
+    color: GAME_OVER_COLORS.backButtonText,
+    fontSize: GAME_OVER_SIZES.backButtonSize,
     textAlign: 'center',
-    marginTop: 2,
+    marginTop: GAME_OVER_LAYOUT.backButtonMarginTop,
   },
   // Tournament-specific styles
   qualifiedBadge: {
-    backgroundColor: 'rgba(76, 175, 80, 0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: GAME_OVER_COLORS.qualifiedBadge,
+    paddingHorizontal: GAME_OVER_LAYOUT.badgePaddingHorizontal,
+    paddingVertical: GAME_OVER_LAYOUT.badgePaddingVertical,
     borderRadius: 4,
-    alignSelf: 'center',
-    marginBottom: 8,
+    alignSelf: GAME_OVER_LAYOUT.badgeAlignSelf,
+    marginBottom: GAME_OVER_LAYOUT.badgeMarginBottom,
   },
   qualifiedBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
+    color: GAME_OVER_COLORS.textPrimary,
+    fontSize: GAME_OVER_SIZES.badgeFontSize,
     fontWeight: '700',
   },
   knockedOutBadge: {
-    backgroundColor: 'rgba(244, 67, 54, 0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: GAME_OVER_COLORS.knockedOutBadge,
+    paddingHorizontal: GAME_OVER_LAYOUT.badgePaddingHorizontal,
+    paddingVertical: GAME_OVER_LAYOUT.badgePaddingVertical,
     borderRadius: 4,
-    alignSelf: 'center',
-    marginBottom: 8,
+    alignSelf: GAME_OVER_LAYOUT.badgeAlignSelf,
+    marginBottom: GAME_OVER_LAYOUT.badgeMarginBottom,
   },
   knockedOutBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
+    color: GAME_OVER_COLORS.textPrimary,
+    fontSize: GAME_OVER_SIZES.badgeFontSize,
     fontWeight: '700',
   },
 });
