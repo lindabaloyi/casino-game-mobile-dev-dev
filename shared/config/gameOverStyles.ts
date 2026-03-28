@@ -39,6 +39,14 @@ export const GAME_OVER_COLORS = {
   buttonBackground: '#FFD700',
   buttonText: '#1B5E20',
   backButtonText: 'rgba(255, 255, 255, 0.7)',
+  
+  // Team colors for party mode
+  teamABackground: 'rgba(220, 38, 38, 0.25)',
+  teamABorder: '#DC2626',
+  teamAText: '#FCA5A5',
+  teamBBackground: 'rgba(37, 99, 235, 0.25)',
+  teamBBorder: '#2563EB',
+  teamBText: '#93C5FD',
 };
 
 // ============================================================================
@@ -80,6 +88,13 @@ export const GAME_OVER_SIZES = {
   // Buttons
   buttonTextSize: 16,
   backButtonSize: 14,
+  
+  // Party mode team tiles (larger for visibility)
+  partyTeamTileMinHeight: 90,
+  partyTeamTilePadding: 16,
+  partyTeamTileMarginHorizontal: 6,
+  partyTeamScoreSize: 26,
+  partyTeamNameSize: 18,
 };
 
 // ============================================================================
@@ -144,6 +159,9 @@ export const GAME_OVER_LAYOUT: {
   playersSectionPaddingTop: number;
   playersSectionMarginTop: number;
   playersSectionBorderTopWidth: number;
+  
+  // Party mode team tiles
+  partyTeamTileMarginHorizontal: number;
 } = {
   // Modal padding
   modalPadding: 20,
@@ -202,6 +220,9 @@ export const GAME_OVER_LAYOUT: {
   playersSectionPaddingTop: 8,
   playersSectionMarginTop: 8,
   playersSectionBorderTopWidth: 1,
+  
+  // Party mode team tiles
+  partyTeamTileMarginHorizontal: 6,
 };
 
 // ============================================================================

@@ -392,6 +392,8 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
 
     const handleGameOver = (data: GameOverData) => {
       console.log('[useGameStateSync] Received game-over event:', JSON.stringify(data, null, 2));
+      console.log('[useGameStateSync] Final scores from server:', data.finalScores);
+      console.log('[useGameStateSync] Score breakdowns from server:', JSON.stringify(data.scoreBreakdowns, null, 2));
       setGameOverData(data);
       
       // Record win/loss for player

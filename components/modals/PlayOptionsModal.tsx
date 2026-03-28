@@ -204,9 +204,9 @@ export function PlayOptionsModal({
           <Text style={styles.title}>Build Options</Text>
           
           {/* Description */}
-          <Text style={styles.subtitle}>Use stack to build the following:</Text>
+          <Text style={styles.subtitle}>Choose a build value</Text>
           
-          {/* Combined card preview */}
+          {/* Cards Section - only cards displayed, no jargon */}
           <View style={styles.cardsSection}>
             <View style={styles.cardsRow}>
               {cards.map((card, index) => (
@@ -216,11 +216,6 @@ export function PlayOptionsModal({
               ))}
               <Text style={styles.plusSign}>+</Text>
             </View>
-            <Text style={styles.buildValue}>
-              {buildType === 'sum' 
-                ? `Total: ${totalSum}` 
-                : `Base: ${buildValue} (need ${totalSum - buildValue})`}
-            </Text>
           </View>
           
           {/* Options */}
@@ -230,7 +225,7 @@ export function PlayOptionsModal({
                 style={styles.optionButton} 
                 onPress={() => handleConfirm(totalSum)}
               >
-                <Text style={styles.optionText}>Build {totalSum} (sum)</Text>
+                <Text style={styles.optionText}>Build {totalSum}</Text>
               </TouchableOpacity>
             )}
             
@@ -239,7 +234,7 @@ export function PlayOptionsModal({
                 style={[styles.optionButton, styles.diffOption]} 
                 onPress={() => handleConfirm(buildValue)}
               >
-                <Text style={styles.optionText}>Build {buildValue} (base)</Text>
+                <Text style={styles.optionText}>Build {buildValue}</Text>
               </TouchableOpacity>
             )}
             
@@ -259,7 +254,7 @@ export function PlayOptionsModal({
                 style={[styles.optionButton, styles.teamOption]} 
                 onPress={() => handleConfirm(build.value, build.originalOwner)}
               >
-                <Text style={styles.optionText}>Build {build.value} (Team Build)</Text>
+                <Text style={styles.optionText}>Build {build.value} (Team)</Text>
               </TouchableOpacity>
             ))}
             
@@ -337,12 +332,6 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
     fontWeight: 'bold',
     marginHorizontal: 4,
-  },
-  buildValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fbbf24',
-    marginTop: 8,
   },
   optionsSection: {
     width: '100%',

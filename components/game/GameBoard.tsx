@@ -793,7 +793,7 @@ export function GameBoard({
         deckRemaining={gameOverData?.deckRemaining ?? gameState.deck?.length ?? 0}
         scoreBreakdowns={gameOverData?.scoreBreakdowns}
         teamScoreBreakdowns={gameOverData?.teamScoreBreakdowns}
-        isPartyMode={gameOverData?.isPartyMode}
+        isPartyMode={gameOverData?.isPartyMode ?? isPartyMode}
         onPlayAgain={onRestart ? handlePlayAgain : undefined}
         onBackToMenu={onBackToMenu}
       />

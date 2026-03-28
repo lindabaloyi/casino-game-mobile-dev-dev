@@ -143,6 +143,10 @@ class GameCoordinatorService {
       summary,
     }, this.unifiedMatchmaking);
 
+    // CRITICAL: Calculate proper scores before checking game over
+    // This ensures finalScores contains actual points, not just card counts
+    scoring.updateScores(newState);
+    
     // Check game over
     const gameOverCheck = RoundValidator.checkGameOver(newState);
     
@@ -363,6 +367,11 @@ class GameCoordinatorService {
    */
   _handleGameOver(gameId, finalState, isPartyGame, forceFinalize) {
     const finalizedState = forceFinalize ? finalizeGame(finalState) : finalState;
+    
+    // CRITICAL: Ensure scores are calculated before broadcasting game-over
+    // This handles edge cases where scores might not have been calculated yet
+    scoring.updateScores(finalizedState);
+    
     const finalScores = finalizedState.scores || [0, 0];
     const playerCount = finalizedState.playerCount || 2;
     
@@ -398,6 +407,8 @@ class GameCoordinatorService {
     this.persistence.saveGame(gameId, finalizedState, isPartyGame);
     
     console.log(`[Coordinator] Broadcasting game-over for ${playerCount}-player mode, winner: ${RoundValidator.determineRoundWinner(finalizedState)}`);
+    console.log(`[Coordinator] Final scores being sent:`, finalScores);
+    console.log(`[Coordinator] Score breakdowns being sent:`, JSON.stringify(scoreBreakdowns, null, 2));
     
     this.broadcaster.broadcastToGame(gameId, 'game-over', {
       winner: RoundValidator.determineRoundWinner(finalizedState),

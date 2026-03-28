@@ -8,16 +8,12 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, Animated } from 'react-native';
+import { View, Text, StyleSheet, Modal, Animated, ViewStyle, TextStyle } from 'react-native';
 
 import {
   GAME_OVER_COLORS,
   GAME_OVER_SIZES,
   GAME_OVER_LAYOUT,
-  GAME_OVER_ANIMATION,
-  SCORING_LABELS,
-  getWinnerText,
-  hasBonusPoints,
 } from '../../shared/config/gameOverStyles';
 
 interface PlayerBreakdown {
@@ -149,6 +145,7 @@ export function GameOverModal({
   // New minimal player breakdown: only positive points & bonuses, then separator, then cards/spades
   const renderPlayerBreakdown = (playerIndex: number, playerName: string, score: number) => {
     const bd = scoreBreakdowns?.[playerIndex];
+    
     if (!bd) {
       return (
         <View style={styles.playerPanel}>
@@ -229,7 +226,12 @@ export function GameOverModal({
   };
 
   // Similar style for team breakdown
-  const renderTeamBreakdown = (teamName: string, team: TeamBreakdown, teamScore: number) => {
+  const renderTeamBreakdown = (teamName: string, team: TeamBreakdown | null, teamScore: number) => {
+    // If no team data, return null so caller can use simple card instead
+    if (!team) {
+      return null;
+    }
+
     const hasPoints =
       team.tenDiamondPoints > 0 ||
       team.twoSpadePoints > 0 ||
@@ -428,7 +430,7 @@ export function GameOverModal({
             )}
 
             {playerCount === 4 && isPartyMode && (
-              <View style={styles.teamsContainer}>
+              <View style={styles.partyTeamsRow}>
                 {teamScoreBreakdowns ? (
                   <>
                     {renderTeamBreakdown('Team A', teamScoreBreakdowns.teamA, score1 + score2)}
@@ -436,13 +438,13 @@ export function GameOverModal({
                   </>
                 ) : (
                   <>
-                    <View style={styles.teamRow}>
-                      <Text style={styles.teamLabel}>Team A</Text>
-                      <Text style={styles.teamScore}>{score1 + score2}</Text>
+                    <View style={[styles.partyTeamCard, styles.partyTeamCardTeamA]}>
+                      <Text style={[styles.partyTeamLabel, styles.partyTeamLabelTeamA]}>Team A</Text>
+                      <Text style={styles.partyTeamScore}>{score1 + score2}</Text>
                     </View>
-                    <View style={styles.teamRow}>
-                      <Text style={styles.teamLabel}>Team B</Text>
-                      <Text style={styles.teamScore}>{score3 + score4}</Text>
+                    <View style={[styles.partyTeamCard, styles.partyTeamCardTeamB]}>
+                      <Text style={[styles.partyTeamLabel, styles.partyTeamLabelTeamB]}>Team B</Text>
+                      <Text style={styles.partyTeamScore}>{score3 + score4}</Text>
                     </View>
                   </>
                 )}
@@ -482,7 +484,59 @@ export function GameOverModal({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create<{
+  overlay: ViewStyle;
+  modal: ViewStyle;
+  title: TextStyle;
+  scoresSection: ViewStyle;
+  scoresTitle: TextStyle;
+  playersRow: ViewStyle;
+  threePlayersContainer: ViewStyle;
+  fourPlayersContainer: ViewStyle;
+  playerPanel: ViewStyle;
+  playerHeader: ViewStyle;
+  playerName: TextStyle;
+  playerScore: TextStyle;
+  pointsContainer: ViewStyle;
+  breakdownRow: ViewStyle;
+  breakdownLabel: TextStyle;
+  breakdownValue: TextStyle;
+  activeBonus: TextStyle;
+  separator: ViewStyle;
+  statsContainer: ViewStyle;
+  statsLabel: TextStyle;
+  statsValue: TextStyle;
+  teamsContainer: ViewStyle;
+  teamPanel: ViewStyle;
+  teamHeader: ViewStyle;
+  teamName: TextStyle;
+  teamScore: TextStyle;
+  breakdownTitle: TextStyle;
+  playersSection: ViewStyle;
+  playerContribution: ViewStyle;
+  playerLabel: TextStyle;
+  playerPoints: TextStyle;
+  teamRow: ViewStyle;
+  teamLabel: TextStyle;
+  // Party mode team row styles
+  partyTeamsRow: ViewStyle;
+  partyTeamCard: ViewStyle;
+  partyTeamCardTeamA: ViewStyle;
+  partyTeamCardTeamB: ViewStyle;
+  partyTeamLabel: TextStyle;
+  partyTeamLabelTeamA: TextStyle;
+  partyTeamLabelTeamB: TextStyle;
+  partyTeamScore: TextStyle;
+  winnerText: TextStyle;
+  buttons: ViewStyle;
+  button: ViewStyle;
+  buttonText: TextStyle;
+  backButtonText: TextStyle;
+  qualifiedBadge: ViewStyle;
+  qualifiedBadgeText: TextStyle;
+  knockedOutBadge: ViewStyle;
+  knockedOutBadgeText: TextStyle;
+}>({
   // ========================================
   // UNIFIED STYLES - Using centralized config
   // ========================================
@@ -665,6 +719,47 @@ const styles = StyleSheet.create({
     fontSize: GAME_OVER_SIZES.teamNameSize,
     fontWeight: '600',
     color: GAME_OVER_COLORS.textPrimary,
+  },
+  // Party mode team row - horizontal layout like 2/3/4 player modes
+  partyTeamsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  partyTeamCard: {
+    flex: 1,
+    backgroundColor: GAME_OVER_COLORS.panelBackground,
+    borderRadius: GAME_OVER_SIZES.panelRadius,
+    padding: GAME_OVER_LAYOUT.teamPanelPadding,
+    marginHorizontal: GAME_OVER_LAYOUT.partyTeamTileMarginHorizontal,
+    alignItems: 'center',
+    minHeight: GAME_OVER_SIZES.partyTeamTileMinHeight,
+    borderWidth: 2,
+  },
+  partyTeamCardTeamA: {
+    backgroundColor: GAME_OVER_COLORS.teamABackground,
+    borderColor: GAME_OVER_COLORS.teamABorder,
+  },
+  partyTeamCardTeamB: {
+    backgroundColor: GAME_OVER_COLORS.teamBBackground,
+    borderColor: GAME_OVER_COLORS.teamBBorder,
+  },
+  partyTeamLabel: {
+    fontSize: GAME_OVER_SIZES.partyTeamNameSize,
+    fontWeight: 'bold',
+    color: GAME_OVER_COLORS.textPrimary,
+    marginBottom: 4,
+  },
+  partyTeamLabelTeamA: {
+    color: GAME_OVER_COLORS.teamAText,
+  },
+  partyTeamLabelTeamB: {
+    color: GAME_OVER_COLORS.teamBText,
+  },
+  partyTeamScore: {
+    fontSize: GAME_OVER_SIZES.partyTeamScoreSize,
+    fontWeight: 'bold',
+    color: GAME_OVER_COLORS.gold,
   },
   winnerText: {
     fontSize: GAME_OVER_SIZES.winnerTextSize,
