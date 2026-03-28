@@ -93,6 +93,14 @@ export function GameOverModal({
   onPlayAgain,
   onBackToMenu,
 }: GameOverModalProps) {
+  // Debug logging
+  console.log('[GameOverModal] Props received:', {
+    visible,
+    playerCount,
+    isPartyMode,
+    scores: scores?.slice(0, 4),
+    teamScoreBreakdowns: teamScoreBreakdowns ? 'present' : 'null/undefined',
+  });
   const score1 = scores[0] || 0;
   const score2 = scores[1] || 0;
   const score3 = scores[2] || 0;
@@ -227,8 +235,10 @@ export function GameOverModal({
 
   // Similar style for team breakdown
   const renderTeamBreakdown = (teamName: string, team: TeamBreakdown | null, teamScore: number) => {
+    console.log(`[GameOverModal] renderTeamBreakdown called: ${teamName}, team=`, team, 'teamScore=', teamScore);
     // If no team data, return null so caller can use simple card instead
     if (!team) {
+      console.log(`[GameOverModal] No team data for ${teamName}, returning null`);
       return null;
     }
 
@@ -431,23 +441,31 @@ export function GameOverModal({
 
             {playerCount === 4 && isPartyMode && (
               <View style={styles.partyTeamsRow}>
-                {teamScoreBreakdowns ? (
-                  <>
-                    {renderTeamBreakdown('Team A', teamScoreBreakdowns.teamA, score1 + score2)}
-                    {renderTeamBreakdown('Team B', teamScoreBreakdowns.teamB, score3 + score4)}
-                  </>
-                ) : (
-                  <>
-                    <View style={[styles.partyTeamCard, styles.partyTeamCardTeamA]}>
-                      <Text style={[styles.partyTeamLabel, styles.partyTeamLabelTeamA]}>Team A</Text>
-                      <Text style={styles.partyTeamScore}>{score1 + score2}</Text>
-                    </View>
-                    <View style={[styles.partyTeamCard, styles.partyTeamCardTeamB]}>
-                      <Text style={[styles.partyTeamLabel, styles.partyTeamLabelTeamB]}>Team B</Text>
-                      <Text style={styles.partyTeamScore}>{score3 + score4}</Text>
-                    </View>
-                  </>
-                )}
+                {(() => {
+                  const showDetailed = !!teamScoreBreakdowns;
+                  console.log(`[GameOverModal] Party mode - teamScoreBreakdowns=`, teamScoreBreakdowns, ', showDetailed=', showDetailed);
+                  if (showDetailed) {
+                    return (
+                      <View style={styles.partyTeamsDetailedRow}>
+                        {renderTeamBreakdown('Team A', teamScoreBreakdowns.teamA, score1 + score2)}
+                        {renderTeamBreakdown('Team B', teamScoreBreakdowns.teamB, score3 + score4)}
+                      </View>
+                    );
+                  } else {
+                    return (
+                      <>
+                        <View style={[styles.partyTeamCard, styles.partyTeamCardTeamA]}>
+                          <Text style={[styles.partyTeamLabel, styles.partyTeamLabelTeamA]}>Team A</Text>
+                          <Text style={styles.partyTeamScore}>{score1 + score2}</Text>
+                        </View>
+                        <View style={[styles.partyTeamCard, styles.partyTeamCardTeamB]}>
+                          <Text style={[styles.partyTeamLabel, styles.partyTeamLabelTeamB]}>Team B</Text>
+                          <Text style={styles.partyTeamScore}>{score3 + score4}</Text>
+                        </View>
+                      </>
+                    );
+                  }
+                })()}
               </View>
             )}
 
@@ -520,6 +538,7 @@ const styles = StyleSheet.create<{
   teamLabel: TextStyle;
   // Party mode team row styles
   partyTeamsRow: ViewStyle;
+  partyTeamsDetailedRow: ViewStyle;
   partyTeamCard: ViewStyle;
   partyTeamCardTeamA: ViewStyle;
   partyTeamCardTeamB: ViewStyle;
@@ -663,6 +682,8 @@ const styles = StyleSheet.create<{
     borderRadius: GAME_OVER_SIZES.panelRadius,
     padding: GAME_OVER_LAYOUT.teamPanelPadding,
     marginBottom: GAME_OVER_LAYOUT.teamPanelMarginBottom,
+    minWidth: '42%',
+    flex: 1,
   },
   teamHeader: {
     flexDirection: 'row',
@@ -720,11 +741,18 @@ const styles = StyleSheet.create<{
     fontWeight: '600',
     color: GAME_OVER_COLORS.textPrimary,
   },
-  // Party mode team row - horizontal layout like 2/3/4 player modes
+  // Party mode team row - wider layout for better visibility
   partyTeamsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     width: '100%',
+    gap: 12,
+  },
+  partyTeamsDetailedRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    width: '100%',
+    gap: 12,
   },
   partyTeamCard: {
     flex: 1,
@@ -735,6 +763,8 @@ const styles = StyleSheet.create<{
     alignItems: 'center',
     minHeight: GAME_OVER_SIZES.partyTeamTileMinHeight,
     borderWidth: 2,
+    minWidth: '42%',
+    justifyContent: 'center',
   },
   partyTeamCardTeamA: {
     backgroundColor: GAME_OVER_COLORS.teamABackground,
