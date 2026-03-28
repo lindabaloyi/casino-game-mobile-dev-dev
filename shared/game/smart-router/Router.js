@@ -8,7 +8,7 @@
  */
 
 const StackHelper = require('./helpers/StackHelper');
-const { areTeammates } = require('../team');
+const { areTeammates, isPartyGame } = require('../team');
 
 // Handlers
 const TempStackDropHandler = require('./handlers/TempStackDropHandler');
@@ -187,8 +187,8 @@ class Router {
       return true;
     }
 
-    // Determine party mode
-    const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
+    // Determine party mode using the official helper
+    const isPartyMode = isPartyGame(state);
 
     // Party mode - check teammates
     if (isPartyMode) {

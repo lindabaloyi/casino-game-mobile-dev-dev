@@ -422,6 +422,7 @@ export function GameBoard({
     modals.hideEndTurnButton();
 
     // PRE-CHECK: If dropping on opponent's build with hand card, check if we should show steal modal
+    // Note: In party mode, don't show steal modal for teammate builds - server handles extension/rejection
     console.log('[GameBoard.handleDropOnStack] 🔍 Check conditions:', {
       isHandCard: source === 'hand',
       isBuildStack: stackType === 'build_stack',
@@ -444,30 +445,39 @@ export function GameBoard({
       } : 'NOT FOUND');
 
       if (targetBuild) {
-        // Check if this would be a steal (not a capture, not a base build, value < 10)
-        const isCapture = card.value === targetBuild.value;
-        const isBaseBuild = targetBuild.hasBase === true;
-        const isValue10 = targetBuild.value === 10;
-        const isSteal = !isCapture && !isBaseBuild && !isValue10;
-
-        console.log('[GameBoard.handleDropOnStack] 💰 Steal check results:', {
-          cardValue: card.value,
-          buildValue: targetBuild.value,
-          isCapture,
-          isBaseBuild,
-          isValue10,
-          isSteal,
-          hasBaseValue: targetBuild.hasBase
-        });
-
-        if (isSteal) {
-          // Show steal modal instead of directly sending action
-          console.log('[GameBoard.handleDropOnStack] 🎉 Calling openStealModal with:', { card: card?.rank, buildValue: targetBuild.value });
-          modals.openStealModal(card, targetBuild);
-          console.log('[GameBoard.handleDropOnStack] ✅ openStealModal called, returning early');
-          return;
+        // In party mode: check if this is a teammate - if so, don't show steal modal
+        // Let the server handle it (either extend or reject)
+        const isPartyMode = gameState.playerCount === 4;
+        const isTeammate = isPartyMode && areTeammates(playerNumber, targetBuild.owner);
+        
+        if (isTeammate) {
+          console.log('[GameBoard.handleDropOnStack] 🤝 Teammate build - proceeding to server (no steal modal)');
         } else {
-          console.log('[GameBoard.handleDropOnStack] ⚠️ Not a steal, proceeding to server');
+          // Check if this would be a steal (not a capture, not a base build, value < 10)
+          const isCapture = card.value === targetBuild.value;
+          const isBaseBuild = targetBuild.hasBase === true;
+          const isValue10 = targetBuild.value === 10;
+          const isSteal = !isCapture && !isBaseBuild && !isValue10;
+
+          console.log('[GameBoard.handleDropOnStack] 💰 Steal check results:', {
+            cardValue: card.value,
+            buildValue: targetBuild.value,
+            isCapture,
+            isBaseBuild,
+            isValue10,
+            isSteal,
+            hasBaseValue: targetBuild.hasBase
+          });
+
+          if (isSteal) {
+            // Show steal modal instead of directly sending action
+            console.log('[GameBoard.handleDropOnStack] 🎉 Calling openStealModal with:', { card: card?.rank, buildValue: targetBuild.value });
+            modals.openStealModal(card, targetBuild);
+            console.log('[GameBoard.handleDropOnStack] ✅ openStealModal called, returning early');
+            return;
+          } else {
+            console.log('[GameBoard.handleDropOnStack] ⚠️ Not a steal, proceeding to server');
+          }
         }
       } else {
         console.log('[GameBoard.handleDropOnStack] ❌ Target build not found, proceeding to server');
@@ -479,7 +489,7 @@ export function GameBoard({
     // Forward to server - router decides action (capture, steal, extend, etc.)
     console.log('[GameBoard.handleDropOnStack] 📤 Forwarding to server');
     actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
-  }, [modals, actions, computed.table, playerNumber]);
+  }, [modals, actions, computed.table, playerNumber, gameState.playerCount]);
 
   // ── Memoized Callbacks for Inline Handlers ─────────────────────────────────
   

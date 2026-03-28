@@ -4,6 +4,7 @@
  */
 
 const ExtendRouter = require('../routers/ExtendRouter');
+const { areTeammates } = require('../../team');
 
 class FriendlyBuildHandler {
   constructor() {
@@ -20,6 +21,10 @@ class FriendlyBuildHandler {
     console.log('[FriendlyBuildHandler] Stack cards:', stack.cards?.map(c => `${c.rank}${c.suit}`).join(', '));
     console.log('[FriendlyBuildHandler] Stack value:', stack.value, 'target:', stack.target, 'currentTotal:', stack.currentTotal);
     console.log('[FriendlyBuildHandler] Pending extension:', stack.pendingExtension);
+
+    // Check if the build owner is a teammate (not the player themselves)
+    const isTeammate = stack.owner !== playerIndex && areTeammates(playerIndex, stack.owner);
+    console.log('[FriendlyBuildHandler] isTeammate:', isTeammate);
 
     const source = cardSource || this.getCardSource(state, playerIndex, card);
     console.log('[FriendlyBuildHandler] Card source:', source);
@@ -84,6 +89,16 @@ class FriendlyBuildHandler {
           canExtend = true;
           console.log('[FriendlyBuildHandler] Extend possible (card value ' + card.value + ' < target ' + target + ')');
         }
+
+        // ========== TEAMMATE OVERRIDE ==========
+        // For teammates, allow extension even when card value equals target (no spare needed)
+        if (isTeammate && card.value === target) {
+          canExtend = true;
+          canCapture = false;
+          console.log('[FriendlyBuildHandler] Teammate override: force extension for value = target');
+        }
+        // =======================================
+
         if (!canExtend && !canCapture) {
           if (currentTotal === target) {
             throw new Error(`Build already complete (total ${target}). Only capture with ${target}.`);
@@ -102,11 +117,24 @@ class FriendlyBuildHandler {
           console.log('[FriendlyBuildHandler] Same‑rank, has spare → EXTEND');
           return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
         } else {
+          // No spare – capture would be allowed for own build, but for teammate it's disallowed
+          if (isTeammate) {
+            throw new Error('Cannot capture a teammate\'s build – you must have a spare card to extend it.');
+          }
           console.log('[FriendlyBuildHandler] Same‑rank, no spare → CAPTURE');
           return { type: 'captureOwn', payload: { card, targetType: 'build', targetStackId: stackId } };
         }
       } else {
         // Sum/diff – no spare logic
+        // For teammate builds: never allow capture, only extension
+        if (isTeammate) {
+          if (canExtend) {
+            console.log('[FriendlyBuildHandler] Sum/diff, teammate → EXTEND');
+            return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
+          }
+          throw new Error('Cannot capture a teammate\'s build – no extension possible with this card.');
+        }
+        // For own builds: allow capture or extend
         if (canCapture) {
           console.log('[FriendlyBuildHandler] Sum/diff, capture → CAPTURE');
           return { type: 'captureOwn', payload: { card, targetType: 'build', targetStackId: stackId } };

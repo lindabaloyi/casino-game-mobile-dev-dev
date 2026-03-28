@@ -80,11 +80,9 @@ export function SoundProvider({ children }: SoundProviderProps) {
     }
   }, []);
 
-  // Auto-start background music immediately on mount
-  useEffect(() => {
-    // Start music immediately when app loads
-    startMusic();
-  }, [startMusic]);
+  // Auto-start background music - DISABLED
+  // To enable, uncomment the startMusic() call below
+  // startMusic();
 
   // Stop and unload background music
   const stopMusic = useCallback(async () => {
