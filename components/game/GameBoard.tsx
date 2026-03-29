@@ -247,6 +247,22 @@ export function GameBoard({
   // Note: Recall is now triggered via double-tap on teammate's capture pile
   // No modal needed - handled by handleRecallAttempt callback
 
+  // === Capture vs Steal modal for pendingChoice ===
+  // When server returns pendingChoice (small build with newTarget in hand), show modal
+  useEffect(() => {
+    const pendingChoice = (gameState as any)?.pendingChoice;
+    if (pendingChoice && modals.captureOrStealData === null) {
+      console.log('[GameBoard] pendingChoice detected, opening CaptureOrStealModal');
+      modals.openCaptureOrStealModal({
+        card: pendingChoice.card,
+        buildValue: pendingChoice.buildValue || (pendingChoice.card?.value || 5),
+        buildCards: pendingChoice.buildCards || [],
+        extendedTarget: pendingChoice.extendedTarget || 10,
+        stackId: pendingChoice.stackId,
+      });
+    }
+  }, [gameState, modals]);
+
   // Drag end wrapper
   const handleDragEndWrapper = () => {
     setDragVersion(v => v + 1);
@@ -778,6 +794,15 @@ export function GameBoard({
         confirmTempBuildStack={modals.confirmTempBuildStack}
         onConfirmTempBuild={handleConfirmTempBuild}
         onCancelConfirmTempBuild={modals.closeConfirmTempBuildModal}
+        // Capture or steal modal
+        showCaptureOrStealModal={modals.showCaptureOrStealModal}
+        captureOrStealCard={modals.captureOrStealData?.card}
+        captureOrStealBuildValue={modals.captureOrStealData?.buildValue}
+        captureOrStealBuildCards={modals.captureOrStealData?.buildCards}
+        captureOrStealExtendedTarget={modals.captureOrStealData?.extendedTarget}
+        onConfirmCapture={() => modals.captureOrStealData && actionHandlers.handleConfirmCaptureChoice(modals.captureOrStealData)}
+        onConfirmExtend={() => modals.captureOrStealData && actionHandlers.handleConfirmExtendChoice(modals.captureOrStealData)}
+        onCancelCaptureOrSteal={modals.closeCaptureOrStealModal}
       />
 
       {/* Recall is triggered via double-tap on teammate's capture pile - no modal needed */}

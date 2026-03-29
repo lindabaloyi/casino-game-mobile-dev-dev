@@ -348,13 +348,10 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       // DEBUG: Log build stacks with pending extension
       const buildStacks = state.tableCards?.filter((tc: any) => tc.type === 'build_stack');
       const pendingExtStacks = buildStacks?.filter((tc: any) => tc.pendingExtension);
-      
       // Check for pending choice (capture vs extend modal)
       if ((state as any).pendingChoice) {
         console.log('[useGameStateSync] pendingChoice detected:', (state as any).pendingChoice);
       }
-
-      const pendingExtStacks = buildStacks?.filter((tc: any) => tc.pendingExtension);
       if (pendingExtStacks?.length > 0) {
         console.log('[useGameStateSync] game-update received with pending extensions:');
         pendingExtStacks.forEach((tc: any) => {

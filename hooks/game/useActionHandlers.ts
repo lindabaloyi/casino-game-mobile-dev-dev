@@ -94,6 +94,32 @@ export function useActionHandlers(
     actions.declineBuildExtension(stackId);
   }, [actions]);
 
+  // Capture or Steal modal handlers
+  const handleConfirmCaptureChoice = useCallback((choiceData: {
+    card: Card;
+    buildValue: number;
+    buildCards: Card[];
+    extendedTarget: number;
+    stackId: string;
+  }) => {
+    // Capture the build
+    actions.capture(choiceData.card, 'build', undefined, undefined, choiceData.stackId);
+    modals.closeCaptureOrStealModal();
+  }, [actions, modals]);
+
+  const handleConfirmExtendChoice = useCallback((choiceData: {
+    card: Card;
+    buildValue: number;
+    buildCards: Card[];
+    extendedTarget: number;
+    stackId: string;
+  }) => {
+    // Extend the build (steal)
+    actions.stealBuild(choiceData.card, choiceData.stackId);
+    modals.closeCaptureOrStealModal();
+    modals.onStealCompleted();
+  }, [actions, modals]);
+
   return {
     handleCapture,
     handleTrail,
@@ -103,5 +129,7 @@ export function useActionHandlers(
     handleExtendBuild,
     handleExtendAcceptClick,
     handleDeclineExtend,
+    handleConfirmCaptureChoice,
+    handleConfirmExtendChoice,
   };
 }
