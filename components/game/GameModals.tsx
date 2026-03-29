@@ -37,6 +37,12 @@ interface GameModalsProps {
   onCancelSteal: () => void;
   onStealCompleted?: () => void;
   
+  // Game state info for modals
+  /** Player count (2, 3, or 4) */
+  playerCount?: number;
+  /** Whether party mode is enabled */
+  isPartyMode?: boolean;
+  
   // Extend Build Modal (optional - not used in drag-drop flow)
   showExtendModal?: boolean;
   extendTargetBuild?: BuildStack | null;
@@ -88,6 +94,9 @@ export function GameModals({
   onConfirmSteal,
   onCancelSteal,
   onStealCompleted,
+  
+  playerCount = 2,
+  isPartyMode = false,
   
   showExtendModal,
   extendTargetBuild,
@@ -151,8 +160,11 @@ export function GameModals({
           buildValue={stealTargetStack.value}
           buildOwner={stealTargetStack.owner}
           playerNumber={playerNumber}
+          playerCount={playerCount}
+          isPartyMode={isPartyMode}
           onConfirm={handleConfirmSteal}
           onCancel={onCancelSteal}
+          onPlayButtonSound={onPlayButtonSound}
         />
       )}
 

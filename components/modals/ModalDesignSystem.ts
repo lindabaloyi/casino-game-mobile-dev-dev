@@ -9,6 +9,7 @@
  */
 
 import { ViewStyle, TextStyle } from 'react-native';
+import { TEAM_A_COLORS, TEAM_B_COLORS, getTeamColors, isTeamA, isTeamB, type TeamColors } from '../../constants/teamColors';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DIMENSIONS
@@ -178,6 +179,45 @@ export const MODAL_STYLES = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TEAM COLORS (mirrors capture pile colors for button styling)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Get team colors for modal buttons based on player context.
+ * This mirrors what CapturePile.tsx uses - ensuring visual consistency.
+ * 
+ * @param playerNumber - Current player index (0-3)
+ * @param playerCount - Total player count (2, 3, or 4)
+ * @param isPartyMode - Whether party mode (teams) is enabled
+ * @returns TeamColors reflecting the capture pile color scheme
+ */
+export function getModalTeamColors(
+  playerNumber: number,
+  playerCount: number = 2,
+  isPartyMode: boolean = false
+): TeamColors {
+  if (isPartyMode && playerCount === 4) {
+    // Party mode: use team colors (mirrors CapturePile logic)
+    return isTeamA(playerNumber) ? TEAM_A_COLORS : TEAM_B_COLORS;
+  } else {
+    // Non-party: use player-specific colors
+    return playerNumber === 0 ? TEAM_A_COLORS : TEAM_B_COLORS;
+  }
+}
+
+/**
+ * Get button style for modal actions that should reflect team/capture pile colors.
+ * Uses the primary and border colors from team colors.
+ */
+export function getTeamButtonStyle(playerNumber: number, playerCount: number = 2, isPartyMode: boolean = false): ViewStyle {
+  const colors = getModalTeamColors(playerNumber, playerCount, isPartyMode);
+  return {
+    backgroundColor: colors.primary,
+    borderColor: colors.border,
+  } as ViewStyle;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ALTERNATIVE RED THEME (for capture/steal modals)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -197,4 +237,7 @@ export default {
   BUTTONS: MODAL_BUTTONS,
   Z_INDEX: MODAL_Z_INDEX,
   STYLES: MODAL_STYLES,
+  // Team color helpers (mirrors capture pile colors)
+  getModalTeamColors,
+  getTeamButtonStyle,
 };

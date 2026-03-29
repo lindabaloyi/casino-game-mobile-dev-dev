@@ -798,6 +798,9 @@ export function GameBoard({
         onConfirmSteal={() => actionHandlers.handleConfirmSteal(computed.myHand as TableCard[])}
         onCancelSteal={modals.closeStealModal}
         onStealCompleted={modals.onStealCompleted}
+        // Pass game state for modals that need it
+        playerCount={gameState.playerCount}
+        isPartyMode={isPartyMode}
         // Confirm temp build modal (double-click)
         showConfirmTempBuild={modals.showConfirmTempBuild}
         confirmTempBuildStack={modals.confirmTempBuildStack}
