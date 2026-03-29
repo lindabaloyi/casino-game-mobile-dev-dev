@@ -2,7 +2,7 @@
  * CaptureOrStealModal
  * Shows choice when capturing small opponent build - capture or extend/steal.
  * 
- * Now using ModalSurface - thin wrapper with red theme.
+ * Style: Red theme per casino-noir spec
  */
 
 import React from 'react';
@@ -48,142 +48,131 @@ export function CaptureOrStealModal({
     <ModalSurface
       visible={visible}
       theme="red"
-      title="Capture or Steal?"
-      subtitle={`Play ${card.rank}${card.suit} on build ${buildValue}. Capture now or extend to ${extendedTarget}.`}
+      title="Choose Action"
+      subtitle={`What to do with ${card.rank}${card.suit}`}
       onClose={onCancel}
+      maxWidth="md"
     >
-      {/* Card display */}
-      <View style={styles.cardSection}>
+      {/* Card display - single card centered */}
+      <View style={styles.fanZone}>
         <PlayingCard rank={card.rank} suit={card.suit} />
       </View>
 
-      {/* Build info */}
-      <View style={styles.buildInfo}>
-        <Text style={styles.buildLabel}>Current build: {buildValue}</Text>
-        <View style={styles.cardsRow}>
-          {buildCards?.map((c, i) => (
-            <View key={i} style={styles.miniCard}>
-              <Text style={styles.miniCardText}>{c.rank}{c.suit}</Text>
-            </View>
-          ))}
-        </View>
-        <Text style={styles.extendedLabel}>
+      {/* Info box */}
+      <View style={styles.infoBox}>
+        <Text style={styles.infoMain}>Build Value: {buildValue}</Text>
+        <Text style={styles.infoSub}>
           After extend: {extendedTarget}
         </Text>
       </View>
 
       {/* Action buttons */}
-      <View style={styles.optionsSection}>
-        <TouchableOpacity 
-          style={[styles.optionButton, styles.captureButton]} 
-          onPress={handleCapture}
-        >
-          <Text style={styles.optionText}>Capture {buildValue}</Text>
-          <Text style={styles.optionSubtext}>Take the build</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.optionButton, styles.extendButton]} 
-          onPress={handleExtend}
-        >
-          <Text style={styles.optionText}>Extend to {extendedTarget}</Text>
-          <Text style={styles.optionSubtext}>Add to build</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Cancel */}
       <TouchableOpacity 
-        style={styles.cancelButton} 
+        style={styles.btnRed} 
+        onPress={handleCapture}
+      >
+        <Text style={styles.btnText}>Capture {buildValue}</Text>
+        <Text style={styles.btnSub}>Take the build</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.btnGreen} 
+        onPress={handleExtend}
+      >
+        <Text style={styles.btnText}>Extend to {extendedTarget}</Text>
+        <Text style={styles.btnSub}>Add to build</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.btnGhost} 
         onPress={onCancel}
       >
-        <Text style={styles.cancelText}>Cancel</Text>
+        <Text style={styles.btnGhostText}>Cancel</Text>
       </TouchableOpacity>
     </ModalSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  cardSection: {
+  // Card fan zone - fixed height for consistency
+  fanZone: {
     alignItems: 'center',
     marginBottom: 16,
+    height: 96,
+    justifyContent: 'flex-end',
   },
-  buildInfo: {
-    alignItems: 'center',
+  
+  // Info box from spec
+  infoBox: {
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    borderRadius: 11,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    textAlign: 'center',
     marginBottom: 16,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    padding: 12,
-    borderRadius: 8,
     width: '100%',
+    alignItems: 'center',
   },
-  buildLabel: {
+  infoMain: {
+    fontFamily: 'serif',
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fbbf24',
+    fontWeight: '700',
+    color: '#fde68a',
+    marginBottom: 1,
   },
-  cardsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: 8,
-    gap: 4,
-  },
-  miniCard: {
-    backgroundColor: '#fff',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  miniCardText: {
+  infoSub: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#000',
+    fontWeight: '700',
+    color: '#4a9a60',
   },
-  extendedLabel: {
-    fontSize: 14,
-    color: '#34d058',
-    marginTop: 8,
-  },
-  optionsSection: {
+  
+  // Buttons per spec
+  btnRed: {
     width: '100%',
-    marginBottom: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderRadius: 13,
+    backgroundColor: '#c0392b',
+    alignItems: 'center',
+    marginBottom: 7,
+    borderWidth: 0,
   },
-  optionButton: {
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    marginBottom: 10,
-    borderWidth: 1,
+  btnGreen: {
     width: '100%',
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderRadius: 13,
+    backgroundColor: '#1e7d3a',
+    borderWidth: 1.5,
+    borderColor: '#28a745',
+    alignItems: 'center',
+    marginBottom: 7,
+  },
+  btnGhost: {
+    width: '100%',
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
   },
-  captureButton: {
-    backgroundColor: '#dc2626',
-    borderColor: '#f87171',
-  },
-  extendButton: {
-    backgroundColor: '#059669',
-    borderColor: '#34d058',
-  },
-  optionText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  btnText: {
+    fontSize: 16,
+    fontWeight: '900',
     color: '#fff',
   },
-  optionSubtext: {
+  btnSub: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '600',
+    opacity: 0.78,
     marginTop: 2,
   },
-  cancelButton: {
-    backgroundColor: '#374151',
-    borderRadius: 8,
-    paddingVertical: 10,
-    width: '100%',
-    alignItems: 'center',
-  },
-  cancelText: {
-    fontSize: 14,
-    color: '#9ca3af',
+  btnGhostText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#6b8a72',
   },
 });
 

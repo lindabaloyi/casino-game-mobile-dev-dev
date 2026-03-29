@@ -2,26 +2,21 @@
  * ExtendBuildModal
  * Modal for extending a player's own build.
  * 
- * Shows:
- * - Current build cards
- * - Locked loose card being added
- * - Player's hand cards to choose from
- * - Accept/Cancel buttons
- * 
- * Style: Green/orange casino theme
+ * Style: Green theme per casino-noir spec
  */
 
 import React from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ModalSurface } from './ModalSurface';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card, BuildStack } from '../../types';
 
 interface ExtendBuildModalProps {
   visible: boolean;
-  buildStack: BuildStack;      // The build being extended
-  playerHand: Card[];          // Player's available hand cards
-  onAccept: (handCard: Card) => void;  // Player selects hand card to add
-  onCancel: () => void;        // Cancel the extension
+  buildStack: BuildStack;
+  playerHand: Card[];
+  onAccept: (handCard: Card) => void;
+  onCancel: () => void;
 }
 
 export function ExtendBuildModal({
@@ -37,202 +32,191 @@ export function ExtendBuildModal({
     return null;
   }
 
-  // Calculate potential new build values with each hand card
   const getPotentialValue = (handCard: Card): number => {
     const total = buildStack.value + looseCard.value + handCard.value;
-    if (total <= 10) {
-      return total;
-    }
-    // For diff builds, return the base value (largest card)
+    if (total <= 10) return total;
     const sorted = [buildStack.value, looseCard.value, handCard.value].sort((a, b) => b - a);
     return sorted[0];
   };
 
-  // Filter hand cards that could potentially create valid builds
-  const validHandCards = playerHand.filter(card => {
-    const potential = getPotentialValue(card);
-    return potential > 0;
-  });
+  const validHandCards = playerHand.filter(card => getPotentialValue(card) > 0);
 
   return (
-    <Modal
+    <ModalSurface
       visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onCancel}
+      theme="green"
+      title="Extend Build"
+      subtitle="Add your card to the existing build"
+      onClose={onCancel}
+      maxWidth="md"
     >
-      <View style={styles.overlay}>
-        <TouchableOpacity 
-          style={styles.clickOutside} 
-          activeOpacity={1} 
-          onPress={onCancel}
-        />
-        <View style={styles.modalContent}>
-          {/* Header */}
-          <Text style={styles.title}>Extend Build</Text>
-          
-          {/* Current Build */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Current Build:</Text>
-            <View style={styles.cardsRow}>
-              {buildStack.cards.map((card, index) => (
-                <View key={index} style={styles.cardWrapper}>
-                  <PlayingCard rank={card.rank} suit={card.suit} />
-                </View>
-              ))}
-            </View>
-            <Text style={styles.buildValue}>Value: {buildStack.value}</Text>
-          </View>
-
-          {/* Locked Loose Card */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Adding from table:</Text>
-            <View style={styles.cardsRow}>
-              <View style={styles.cardWrapper}>
-                <PlayingCard rank={looseCard.rank} suit={looseCard.suit} />
-              </View>
-            </View>
-            <Text style={styles.plusSign}>+</Text>
-          </View>
-
-          {/* Hand Card Selection */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Select card from hand to add:</Text>
-            {validHandCards.length > 0 ? (
-              <View style={styles.handCardsGrid}>
-                {validHandCards.map((card, index) => (
-                  <TouchableOpacity 
-                    key={index}
-                    style={styles.handCardButton}
-                    onPress={() => onAccept(card)}
-                  >
-                    <PlayingCard rank={card.rank} suit={card.suit} />
-                    <Text style={styles.handCardValue}>{card.value}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.noOptions}>
-                <Text style={styles.noOptionsText}>No valid cards in hand</Text>
-              </View>
-            )}
-          </View>
-          
-          {/* Cancel button */}
-          <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
+      {/* Table cards */}
+      <View style={styles.tableCards}>
+        <View style={styles.tableCard}>
+          <Text style={styles.cardCornerTL}></Text>
+          <Text style={[styles.cardSuit, styles.blackSuit]}>
+            Cards
+          </Text>
+        </View>
+        <Text style={styles.plusSign}>+</Text>
+        <View style={styles.tableCard}>
+          <Text style={styles.cardCornerTL}></Text>
+          <Text style={[styles.cardSuit, styles.blackSuit]}>
+            Table
+          </Text>
         </View>
       </View>
-    </Modal>
+
+      {/* Info box */}
+      <View style={styles.infoBox}>
+        <Text style={styles.infoMain}>New Value: 10</Text>
+        <Text style={styles.infoSub}>Build extends to 10</Text>
+      </View>
+
+      {/* Hand card selection */}
+      {validHandCards.length > 0 ? (
+        <View style={styles.handCardsGrid}>
+          {validHandCards.map((card, index) => (
+            <TouchableOpacity 
+              key={index}
+              style={styles.handCardButton}
+              onPress={() => onAccept(card)}
+            >
+              <PlayingCard rank={card.rank} suit={card.suit} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.noOptions}>
+          <Text style={styles.noOptionsText}>No valid cards in hand</Text>
+        </View>
+      )}
+
+      <TouchableOpacity style={styles.btnGhost} onPress={onCancel}>
+        <Text style={styles.btnGhostText}>Cancel</Text>
+      </TouchableOpacity>
+    </ModalSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2000,
-  },
-  clickOutside: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  modalContent: {
-    backgroundColor: '#1a472a',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#28a745',
-    padding: 16,
-    width: '85%',
-    maxWidth: 300,
-    alignItems: 'center',
-    zIndex: 2001,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#f59e0b',
-    marginBottom: 8,
-  },
-  section: {
-    alignItems: 'center',
-    marginBottom: 12,
-    width: '100%',
-  },
-  label: {
-    fontSize: 11,
-    color: '#9ca3af',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  cardsRow: {
+  // Table cards
+  tableCards: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 16,
   },
-  cardWrapper: {
-    marginHorizontal: -4,
+  tableCard: {
+    width: 60,
+    height: 84,
+    backgroundColor: '#faf7f0',
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: '#bbb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  cardCornerTL: {
+    position: 'absolute',
+    top: 3,
+    left: 4,
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  cardSuit: {
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  blackSuit: {
+    color: '#1c1c1c',
   },
   plusSign: {
     fontSize: 20,
-    color: '#f59e0b',
-    fontWeight: 'bold',
-    marginVertical: 4,
+    fontWeight: '900',
+    color: '#5a8a68',
   },
-  buildValue: {
+
+  // Info box
+  infoBox: {
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    borderRadius: 11,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    width: '100%',
+    alignItems: 'center',
+  },
+  infoMain: {
+    fontFamily: 'serif',
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fbbf24',
-    marginTop: 4,
+    fontWeight: '700',
+    color: '#fde68a',
   },
+  infoSub: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4a9a60',
+  },
+
+  // Hand cards grid
   handCardsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 8,
+    marginBottom: 16,
   },
   handCardButton: {
-    alignItems: 'center',
     padding: 4,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#4a7c59',
   },
-  handCardValue: {
-    fontSize: 10,
-    color: '#9ca3af',
-    marginTop: 2,
+
+  // Buttons
+  btnGreen: {
+    width: '100%',
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderRadius: 13,
+    backgroundColor: '#1e7d3a',
+    borderWidth: 1.5,
+    borderColor: '#28a745',
+    alignItems: 'center',
+    marginBottom: 7,
+  },
+  btnText: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#c8e6c9',
+  },
+  btnGhost: {
+    width: '100%',
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+  },
+  btnGhostText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#6b8a72',
   },
   noOptions: {
     paddingVertical: 8,
     alignItems: 'center',
+    marginBottom: 12,
   },
   noOptionsText: {
     fontSize: 14,
     color: '#f87171',
     fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#374151',
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  cancelText: {
-    fontSize: 13,
-    color: '#9ca3af',
   },
 });
 
