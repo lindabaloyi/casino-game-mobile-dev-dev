@@ -406,8 +406,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#388E3C',
     justifyContent: 'center',
   },
   scroll: {

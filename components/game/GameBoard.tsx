@@ -5,9 +5,11 @@
  * No styles, no layout logic, no UI primitives here.
  *
  * Sub-components own their own look:
- *   GameStatusBar   — round / turn / score display
- *   TableArea       — table drop zone + card display (loose cards + temp stacks)
- *   PlayerHandArea  — scrollable draggable hand
+ *   CornerTimer    — timer in top-right corner (non-intrusive)
+ *   RoundIndicator — round number in top-left corner
+ *   TurnStatusIndicator — turn status centered at top
+ *   TableArea      — table drop zone + card display (loose cards + temp stacks)
+ *   PlayerHandArea — scrollable draggable hand
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -28,7 +30,6 @@ import { useTurnTimer } from '../../hooks/game/useTurnTimer';
 import { useCaptureSound } from '../../hooks/useCaptureSound';
 import { useSound } from '../../hooks/useSound';
 
-import { GameStatusBar } from './GameStatusBar';
 import { TableArea } from '../table/TableArea';
 import { PlayerHandArea } from './PlayerHandArea';
 import { GameModals } from './GameModals';
@@ -41,6 +42,9 @@ import { HomeMenuButton } from './HomeMenuButton';
 import { OpponentProfileModal } from '../modals/OpponentProfileModal';
 import { useOpponentInfo } from '../../hooks/useOpponentInfo';
 import { areTeammates } from '../../shared/game/team';
+import { CornerTimer } from './CornerTimer';
+import { RoundIndicator } from './RoundIndicator';
+import { TurnStatusIndicator } from './TurnStatusIndicator';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -645,17 +649,22 @@ export function GameBoard({
         />
       )}
 
-      <GameStatusBar
-        round={gameState.round}
+      {/* Corner timer - top right corner */}
+      <CornerTimer
+        timeRemaining={turnTimer.timeRemaining}
+        visible={showTimer}
+        isLowTime={turnTimer.isLowTime}
+      />
+
+      {/* Round indicator - top left corner */}
+      <RoundIndicator round={gameState.round} />
+
+      {/* Turn status - centered at top */}
+      <TurnStatusIndicator
         currentPlayer={gameState.currentPlayer}
         playerNumber={playerNumber}
         playerCount={gameState.playerCount}
-        scores={gameState.scores as [number, number]}
-        cardsRemaining={roundInfo.cardsRemaining as [number, number]}
-        // Timer props
-        timeRemaining={turnTimer.timeRemaining}
-        showTimer={showTimer}
-        isLowTime={turnTimer.isLowTime}
+        isPartyMode={isPartyMode}
       />
 
       <TableArea
@@ -851,6 +860,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#1B5E20',
+    paddingTop: 0, // Removed - indicators now integrated onto board
   },
 });
 
