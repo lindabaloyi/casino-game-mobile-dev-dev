@@ -4,6 +4,7 @@
  */
 
 const { cloneState } = require('../');
+const { getConsecutivePartition } = require('../buildCalculator');
 
 function stealBuild(state, payload, playerIndex) {
   const card = payload.card || payload.handCard;
@@ -104,13 +105,11 @@ function stealBuild(state, payload, playerIndex) {
   recalcBuild(buildStack);
   // DEBUG: Log card order after recalcBuild (first call after adding stolen card)
   console.log(`[stealBuild] DEBUG: Cards AFTER recalcBuild: ${buildStack.cards.map(c => c.value).join(', ')}`);
-  // Debug: Log before and after hasBase assignment
-  const beforeHasBase = buildStack.hasBase;
-  console.log(`[stealBuild] BEFORE: buildStack.buildType: ${buildStack.buildType}, hasBase: ${beforeHasBase}`);
   
-  buildStack.hasBase = (buildStack.buildType !== 'sum');
-  
-  console.log(`[stealBuild] AFTER: buildStack.buildType: ${buildStack.buildType}, hasBase: ${buildStack.hasBase} (buildType !== 'sum' is ${buildStack.hasBase})`);
+  // Determine hasBase from partition
+  const cardValues = buildStack.cards.map(c => c.value);
+  const groups = getConsecutivePartition(cardValues, buildStack.value);
+  buildStack.hasBase = groups.length > 1;
   
   // --- VALIDATION: Check opponent(s) don't have build with same value ---
   // In party mode: check both opponents (not teammates); in freeforall: check all other players
@@ -315,7 +314,10 @@ function stealBuild(state, payload, playerIndex) {
       buildStack.pendingExtension = null;
       finalDisplayValue = recalculatedValue;
       buildStack.value = recalculatedValue;
-      buildStack.hasBase = (buildStack.buildType !== 'sum');
+      // Update hasBase after potential merge loop
+      const cardValues2 = buildStack.cards.map(c => c.value);
+      const groups2 = getConsecutivePartition(cardValues2, buildStack.value);
+      buildStack.hasBase = groups2.length > 1;
       
       // Still try to absorb other builds of same value (into stolen build)
       let currentValue = recalculatedValue;
@@ -376,7 +378,10 @@ function stealBuild(state, payload, playerIndex) {
         buildStack.pendingExtension = null;
         finalDisplayValue = recalculatedValue;
         buildStack.value = recalculatedValue;
-        buildStack.hasBase = (buildStack.buildType !== 'sum');
+        // Update hasBase after potential merge loop
+        const cardValues3 = buildStack.cards.map(c => c.value);
+        const groups3 = getConsecutivePartition(cardValues3, buildStack.value);
+        buildStack.hasBase = groups3.length > 1;
         
         let currentValue = recalculatedValue;
         while (true) {
@@ -399,7 +404,10 @@ function stealBuild(state, payload, playerIndex) {
       buildStack.owner = playerIndex;
       buildStack.pendingExtension = null;
       buildStack.value = recalculatedValue;
-      buildStack.hasBase = (buildStack.buildType !== 'sum');
+      // Update hasBase after potential merge loop
+      const cardValues4 = buildStack.cards.map(c => c.value);
+      const groups4 = getConsecutivePartition(cardValues4, buildStack.value);
+      buildStack.hasBase = groups4.length > 1;
       console.log(`[stealBuild] No existing builds - final value: ${buildStack.value}, cards: ${buildStack.cards.map(c => c.value).join(', ')}`);
       return newState;
     }

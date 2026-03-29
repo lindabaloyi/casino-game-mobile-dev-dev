@@ -4,7 +4,7 @@
  */
 
 const { cloneState, nextTurn, generateStackId } = require('../');
-const { canPartitionConsecutively } = require('../buildCalculator');
+const { canPartitionConsecutively, getConsecutivePartition } = require('../buildCalculator');
 
 function acceptTemp(state, payload, playerIndex) {
   const { stackId, buildValue, originalOwner } = payload;
@@ -40,9 +40,11 @@ function acceptTemp(state, payload, playerIndex) {
     throw new Error(`Cannot build ${finalValue} - cards must be in non-increasing order within each group`);
   }
   
-  console.log('[acceptTemp] Final value:', finalValue);
-  console.log('[acceptTemp] baseFixed:', stack.baseFixed);
-  console.log('[acceptTemp] pendingExtension:', stack.pendingExtension);
+  // --- Determine hasBase from partition ---
+  const groups = getConsecutivePartition(stackValues, finalValue);
+  const hasBase = groups.length > 1;
+  console.log('[acceptTemp] Partition groups:', groups);
+  console.log('[acceptTemp] Has base (multiple groups):', hasBase);
   
   // --- Merge pendingExtension cards for dual builds ---
   if (stack.baseFixed && stack.pendingExtension && stack.pendingExtension.cards) {
@@ -93,13 +95,8 @@ function acceptTemp(state, payload, playerIndex) {
   stack.need = finalValue;  // Fix: ensure need matches value for proper capture validation
   stack.type = 'build_stack';
   
-  // Debug: Log before and after hasBase assignment
-  const beforeHasBase = stack.hasBase;
-  console.log(`[acceptTemp] BEFORE: stack.buildType: ${stack.buildType}, hasBase: ${beforeHasBase}`);
-  
-  stack.hasBase = (stack.buildType === 'diff');
-  
-  console.log(`[acceptTemp] AFTER: stack.buildType: ${stack.buildType}, hasBase: ${stack.hasBase} (buildType === 'diff' is ${stack.hasBase})`);
+  // Use dynamically derived hasBase from partition
+  stack.hasBase = hasBase;
   
   // For cooperative rebuild: transfer ownership to original owner (the victim)
   if (originalOwner !== undefined && originalOwner !== null) {

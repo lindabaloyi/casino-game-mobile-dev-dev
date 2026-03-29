@@ -7,6 +7,7 @@
  */
 
 const { cloneState, nextTurn, endPlayerTurn } = require('../');
+const { getConsecutivePartition } = require('../buildCalculator');
 
 function endTurn(state, payload, playerIndex) {
   console.log(`[endTurn] Player ${playerIndex} explicitly ending turn, turnCounter before: ${state.turnCounter}`);
@@ -25,7 +26,12 @@ function endTurn(state, payload, playerIndex) {
     // Convert temp stack to build stack (same logic as acceptTemp)
     stackToAccept.type = 'build_stack';
     stackToAccept.stackId = stackToAccept.stackId.replace('temp', 'build');
-    stackToAccept.hasBase = (stackToAccept.buildType === 'diff');
+    
+    // Determine hasBase from partition
+    const stackValues = stackToAccept.cards.map(c => c.value);
+    const buildValue = stackToAccept.value;
+    const groups = getConsecutivePartition(stackValues, buildValue);
+    stackToAccept.hasBase = groups.length > 1;
     
     console.log(`[endTurn] Accepted temp stack ${stackToAccept.stackId}, converted to build`);
   }

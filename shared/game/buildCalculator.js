@@ -243,6 +243,38 @@ function canPartitionConsecutively(values, target) {
   return sum === 0;
 }
 
+/**
+ * Returns the consecutive partition groups for values that sum to target.
+ * Each group is an array of values that sum to target.
+ * This assumes the input values are already ordered correctly (non-increasing within groups).
+ *
+ * @param {number[]} values - Array of card values
+ * @param {number} target - Target sum for each group
+ * @returns {number[][]} Array of groups, each group sums to target.
+ *                        Returns empty array if invalid partition.
+ */
+function getConsecutivePartition(values, target) {
+  const groups = [];
+  let sum = 0;
+  let currentGroup = [];
+
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    sum += v;
+    currentGroup.push(v);
+
+    if (sum === target) {
+      groups.push([...currentGroup]);
+      sum = 0;
+      currentGroup = [];
+    } else if (sum > target) {
+      return []; // Invalid partition (should not happen if already validated)
+    }
+  }
+
+  return sum === 0 ? groups : [];
+}
+
 module.exports = {
   calculateBuildValue,
   calculateMultiBuildValue,
@@ -250,4 +282,5 @@ module.exports = {
   getPossibleCaptureValues,
   canCaptureBuild,
   canPartitionConsecutively,
+  getConsecutivePartition,
 };
