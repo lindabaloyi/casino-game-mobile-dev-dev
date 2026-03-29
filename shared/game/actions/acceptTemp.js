@@ -4,6 +4,7 @@
  */
 
 const { cloneState, nextTurn, generateStackId } = require('../');
+const { canPartitionConsecutively } = require('../buildCalculator');
 
 function acceptTemp(state, payload, playerIndex) {
   const { stackId, buildValue, originalOwner } = payload;
@@ -31,6 +32,13 @@ function acceptTemp(state, payload, playerIndex) {
   }
 
   const finalValue = buildValue || stack.value;
+  
+  // --- VALIDATION: Check if build value is valid with non-increasing order enforcement ---
+  const stackValues = stack.cards.map(c => c.value);
+  if (!canPartitionConsecutively(stackValues, finalValue)) {
+    console.log(`[acceptTemp] Rejecting build ${finalValue} for stack ${JSON.stringify(stackValues)} - invalid partition or order`);
+    throw new Error(`Cannot build ${finalValue} - cards must be in non-increasing order within each group`);
+  }
   
   console.log('[acceptTemp] Final value:', finalValue);
   console.log('[acceptTemp] baseFixed:', stack.baseFixed);

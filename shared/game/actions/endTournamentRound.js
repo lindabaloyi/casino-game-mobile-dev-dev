@@ -13,20 +13,31 @@ const calculateScore = calculatePlayerScore;
 /**
  * Find the player with the lowest score
  * Uses tiebreakers: fewer cards in captures, then lower seating position
+ * BUG FIX: Must use qualifiedPlayers mapping to get correct original indices
  */
 function findLowestScorer(state) {
   const activePlayers = [];
   
+  console.log(`[findLowestScorer] playerCount: ${state.playerCount}, qualifiedPlayers: ${JSON.stringify(state.qualifiedPlayers)}`);
+  console.log(`[findLowestScorer] playerStatuses: ${JSON.stringify(state.playerStatuses)}`);
+  console.log(`[findLowestScorer] tournamentScores: ${JSON.stringify(state.tournamentScores)}`);
+  
   // Get all active players with their scores
-  for (let i = 0; i < state.playerCount; i++) {
-    if (state.playerStatuses[i] === 'ACTIVE') {
-      const score = state.tournamentScores[i] || 0;
-      const cardCount = state.players[i].captures?.length || 0;
+  // BUG FIX: Use qualifiedPlayers to map between new and original indices
+  for (let newIndex = 0; newIndex < state.playerCount; newIndex++) {
+    // Map new index to original index using qualifiedPlayers (if available)
+    const originalIndex = state.qualifiedPlayers?.[newIndex] ?? newIndex;
+    
+    // Check status using the ORIGINAL index
+    if (state.playerStatuses[originalIndex] === 'ACTIVE') {
+      const score = state.tournamentScores[originalIndex] || 0;
+      const cardCount = state.players[newIndex].captures?.length || 0;  // Use newIndex for players array
       activePlayers.push({ 
-        index: i, 
+        index: originalIndex,  // Return ORIGINAL index for consistency
         score, 
         cardCount 
       });
+      console.log(`[findLowestScorer] newIndex=${newIndex} -> originalIndex=${originalIndex}: score=${score}, cardCount=${cardCount}`);
     }
   }
   
@@ -41,6 +52,7 @@ function findLowestScorer(state) {
     return a.index - b.index;
   });
   
+  console.log(`[findLowestScorer] Lowest scorer: originalIndex=${activePlayers[0].index}, score=${activePlayers[0].score}`);
   return activePlayers[0].index;
 }
 
@@ -75,12 +87,21 @@ function endTournamentRound(state, payload, playerIndex) {
   }
   
   // Calculate scores for this round
+  // BUG FIX: Need to use qualifiedPlayers to map between new indices and original indices
   console.log(`[endTournamentRound] Calculating scores...`);
-  for (let i = 0; i < newState.playerCount; i++) {
-    if (newState.playerStatuses[i] === 'ACTIVE') {
-      const roundScore = calculateScore(newState.players[i].captures);
-      newState.tournamentScores[i] = (newState.tournamentScores[i] || 0) + roundScore;
-      console.log(`[endTournamentRound] Player ${i}: round score ${roundScore}, total ${newState.tournamentScores[i]}`);
+  console.log(`[endTournamentRound] playerCount: ${newState.playerCount}, qualifiedPlayers: ${JSON.stringify(newState.qualifiedPlayers)}`);
+  console.log(`[endTournamentRound] playerStatuses: ${JSON.stringify(newState.playerStatuses)}`);
+  
+  for (let newIndex = 0; newIndex < newState.playerCount; newIndex++) {
+    // Map new index to original index using qualifiedPlayers (if available)
+    const originalIndex = newState.qualifiedPlayers?.[newIndex] ?? newIndex;
+    console.log(`[endTournamentRound] newIndex=${newIndex} -> originalIndex=${originalIndex}, playerStatuses[${newIndex}]=${newState.playerStatuses[newIndex]}, playerStatuses[${originalIndex}]=${newState.playerStatuses[originalIndex]}`);
+    
+    // Check status using the ORIGINAL index (how it's stored in playerStatuses)
+    if (newState.playerStatuses[originalIndex] === 'ACTIVE') {
+      const roundScore = calculateScore(newState.players[newIndex].captures);
+      newState.tournamentScores[originalIndex] = (newState.tournamentScores[originalIndex] || 0) + roundScore;
+      console.log(`[endTournamentRound] Player originalIndex=${originalIndex} (newIndex=${newIndex}): round score ${roundScore}, total ${newState.tournamentScores[originalIndex]}`);
     }
   }
   

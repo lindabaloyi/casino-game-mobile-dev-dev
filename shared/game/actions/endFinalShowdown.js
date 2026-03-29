@@ -13,6 +13,9 @@ function endFinalShowdown(state, payload, playerIndex) {
   const newState = cloneState(state);
   
   console.log(`[endFinalShowdown] Processing final showdown hand end`);
+  console.log(`[endFinalShowdown] playerCount: ${newState.playerCount}, qualifiedPlayers: ${JSON.stringify(newState.qualifiedPlayers)}`);
+  console.log(`[endFinalShowdown] playerStatuses: ${JSON.stringify(newState.playerStatuses)}`);
+  console.log(`[endFinalShowdown] tournamentScores: ${JSON.stringify(newState.tournamentScores)}`);
   
   // Validate tournament is in final showdown
   if (!newState.tournamentMode || newState.tournamentMode !== 'knockout') {
@@ -24,12 +27,20 @@ function endFinalShowdown(state, payload, playerIndex) {
   }
   
   // Calculate scores for this hand
+  // BUG FIX: Need to use qualifiedPlayers to map between new indices and original indices
   console.log(`[endFinalShowdown] Calculating hand scores...`);
-  for (let i = 0; i < newState.playerCount; i++) {
-    if (newState.playerStatuses[i] === 'ACTIVE') {
-      const handScore = calculateScore(newState.players[i].captures);
-      newState.tournamentScores[i] = (newState.tournamentScores[i] || 0) + handScore;
-      console.log(`[endFinalShowdown] Player ${i}: hand score ${handScore}, total ${newState.tournamentScores[i]}`);
+  console.log(`[endFinalShowdown] Using qualifiedPlayers mapping: ${JSON.stringify(newState.qualifiedPlayers)}`);
+  
+  for (let newIndex = 0; newIndex < newState.playerCount; newIndex++) {
+    // Map new index to original index using qualifiedPlayers
+    const originalIndex = newState.qualifiedPlayers?.[newIndex] ?? newIndex;
+    console.log(`[endFinalShowdown] newIndex=${newIndex} -> originalIndex=${originalIndex}, playerStatuses[${newIndex}]=${newState.playerStatuses[newIndex]}, playerStatuses[${originalIndex}]=${newState.playerStatuses[originalIndex]}`);
+    
+    // Check status using the ORIGINAL index (how it's stored in playerStatuses)
+    if (newState.playerStatuses[originalIndex] === 'ACTIVE') {
+      const handScore = calculateScore(newState.players[newIndex].captures);
+      newState.tournamentScores[originalIndex] = (newState.tournamentScores[originalIndex] || 0) + handScore;
+      console.log(`[endFinalShowdown] Player originalIndex=${originalIndex} (newIndex=${newIndex}): hand score ${handScore}, total ${newState.tournamentScores[originalIndex]}`);
     }
   }
   
@@ -39,13 +50,14 @@ function endFinalShowdown(state, payload, playerIndex) {
   
   // Check if we've played 2 hands
   if (newState.finalShowdownHandsPlayed >= 2) {
-    // Determine winner
+    // Determine winner using ORIGINAL indices
     const activePlayers = [];
-    for (let i = 0; i < newState.playerCount; i++) {
-      if (newState.playerStatuses[i] === 'ACTIVE') {
+    for (let newIndex = 0; newIndex < newState.playerCount; newIndex++) {
+      const originalIndex = newState.qualifiedPlayers?.[newIndex] ?? newIndex;
+      if (newState.playerStatuses[originalIndex] === 'ACTIVE') {
         activePlayers.push({ 
-          index: i, 
-          score: newState.tournamentScores[i] 
+          index: originalIndex,  // Use original index for consistency
+          score: newState.tournamentScores[originalIndex] 
         });
       }
     }

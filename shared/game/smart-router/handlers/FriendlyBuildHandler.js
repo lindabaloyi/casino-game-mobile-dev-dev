@@ -58,12 +58,18 @@ class FriendlyBuildHandler {
 
     if (isSameRankBuild) {
       const buildRank = stack.cards[0].rank;
-      if (card.rank !== buildRank) {
-        throw new Error(`Cannot drop ${card.rank}${card.suit} on same‑rank build of ${buildRank}`);
+      // For same-rank builds: allow any card to extend, but capture only with matching rank
+      if (card.rank === buildRank) {
+        // Matching rank: decide extend vs capture based on spare
+        canExtend = true;
+        canCapture = true;
+        console.log('[FriendlyBuildHandler] Card matches build rank → both actions possible');
+      } else {
+        // Non-matching rank: only extension is possible (capture not allowed)
+        canExtend = true;
+        canCapture = false;
+        console.log('[FriendlyBuildHandler] Non-matching rank → extension only');
       }
-      canExtend = true;
-      canCapture = true;
-      console.log('[FriendlyBuildHandler] Card matches build rank → both actions possible');
     } else {
         // Sum/diff – check for spares when card value matches build value
         // If player has a spare card of same rank, they can extend instead of capture
@@ -110,19 +116,27 @@ class FriendlyBuildHandler {
     // Decide action
     if (source === 'hand') {
       if (isSameRankBuild) {
-        const playerHand = state.players[playerIndex]?.hand || [];
-        const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
-        const hasSpare = sameRankCount > 1;
-        if (hasSpare) {
-          console.log('[FriendlyBuildHandler] Same‑rank, has spare → EXTEND');
-          return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
-        } else {
-          // No spare – capture would be allowed for own build, but for teammate it's disallowed
-          if (isTeammate) {
-            throw new Error('Cannot capture a teammate\'s build – you must have a spare card to extend it.');
+        const buildRank = stack.cards[0].rank;
+        if (card.rank === buildRank) {
+          // Matching rank: apply the spare rule for capture vs extend
+          const playerHand = state.players[playerIndex]?.hand || [];
+          const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
+          const hasSpare = sameRankCount > 1;
+          if (hasSpare) {
+            console.log('[FriendlyBuildHandler] Same‑rank, has spare → EXTEND');
+            return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
+          } else {
+            // No spare – capture would be allowed for own build, but for teammate it's disallowed
+            if (isTeammate) {
+              throw new Error('Cannot capture a teammate\'s build – you must have a spare card to extend it.');
+            }
+            console.log('[FriendlyBuildHandler] Same‑rank, no spare → CAPTURE');
+            return { type: 'captureOwn', payload: { card, targetType: 'build', targetStackId: stackId } };
           }
-          console.log('[FriendlyBuildHandler] Same‑rank, no spare → CAPTURE');
-          return { type: 'captureOwn', payload: { card, targetType: 'build', targetStackId: stackId } };
+        } else {
+          // Non-matching rank: always extend (capture not possible)
+          console.log('[FriendlyBuildHandler] Same‑rank, non‑matching card → EXTEND');
+          return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
         }
       } else {
         // Sum/diff – no spare logic

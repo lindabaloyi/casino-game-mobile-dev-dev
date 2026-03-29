@@ -12,6 +12,7 @@ import { PlayOptionsModal } from '../modals/PlayOptionsModal';
 import { StealBuildModal } from '../modals/StealBuildModal';
 import { ExtendBuildModal } from '../modals/ExtendBuildModal';
 import { ConfirmTempBuildModal } from '../modals/ConfirmTempBuildModal';
+import { DisqualifiedPlayerModal } from '../modals/DisqualifiedPlayerModal';
 
 interface GameModalsProps {
   // Play Options Modal (for accepting temp stacks)
@@ -46,6 +47,17 @@ interface GameModalsProps {
   confirmTempBuildStack?: TempStack | null;
   onConfirmTempBuild?: (value: number) => void;
   onCancelConfirmTempBuild?: () => void;
+  
+  // Disqualified Player Modal (shown when player is eliminated from tournament)
+  showDisqualifiedModal?: boolean;
+  disqualifiedPlayerIndex?: number;
+  disqualifiedTournamentScore?: number;
+  disqualifiedFinalRank?: number;
+  disqualifiedTotalPlayers?: number;
+  disqualifiedEliminationRound?: string;
+  disqualifiedRoundsSurvived?: number;
+  onReturnToLobby?: () => void;
+  onWatchTournament?: () => void;
 }
 
 export function GameModals({
@@ -75,6 +87,16 @@ export function GameModals({
   confirmTempBuildStack,
   onConfirmTempBuild,
   onCancelConfirmTempBuild,
+  
+  showDisqualifiedModal,
+  disqualifiedPlayerIndex,
+  disqualifiedTournamentScore,
+  disqualifiedFinalRank,
+  disqualifiedTotalPlayers,
+  disqualifiedEliminationRound,
+  disqualifiedRoundsSurvived,
+  onReturnToLobby,
+  onWatchTournament,
 }: GameModalsProps) {
   // Wrapper to call onStealCompleted when steal is confirmed
   const handleConfirmSteal = () => {
@@ -132,6 +154,21 @@ export function GameModals({
           stack={confirmTempBuildStack}
           onConfirm={onConfirmTempBuild ?? (() => {})}
           onCancel={onCancelConfirmTempBuild ?? (() => {})}
+        />
+      )}
+
+      {/* Disqualified Player Modal - shown when player is eliminated from tournament */}
+      {showDisqualifiedModal && (
+        <DisqualifiedPlayerModal
+          visible={showDisqualifiedModal}
+          playerIndex={disqualifiedPlayerIndex ?? 0}
+          tournamentScore={disqualifiedTournamentScore ?? 0}
+          finalRank={disqualifiedFinalRank ?? 0}
+          totalPlayers={disqualifiedTotalPlayers ?? 0}
+          eliminationRound={disqualifiedEliminationRound ?? 'Unknown'}
+          roundsSurvived={disqualifiedRoundsSurvived ?? 0}
+          onReturnToLobby={onReturnToLobby ?? (() => {})}
+          onWatchTournament={onWatchTournament}
         />
       )}
     </>

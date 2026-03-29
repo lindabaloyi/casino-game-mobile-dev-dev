@@ -229,11 +229,15 @@ function startSemifinal(state) {
   
   // Set player statuses - using original indices
   for (let i = 0; i < playerCount; i++) {
-    semifinalState.playerStatuses[qualifiedPlayers[i]] = 'ACTIVE';
-    semifinalState.tournamentScores[qualifiedPlayers[i]] = newState.tournamentScores[qualifiedPlayers[i]] || 0;
+    const origIdx = qualifiedPlayers[i];
+    semifinalState.playerStatuses[origIdx] = 'ACTIVE';
+    semifinalState.tournamentScores[origIdx] = newState.tournamentScores[origIdx] || 0;
+    console.log(`[startSemifinal] Setting playerStatuses[${origIdx}] = 'ACTIVE', tournamentScores[${origIdx}] = ${semifinalState.tournamentScores[origIdx]}`);
   }
   
   console.log('[startSemifinal] Semifinal initialized - players keep original indices:', qualifiedPlayers.map(p => `P${p}`));
+  console.log('[startSemifinal] Final playerStatuses:', JSON.stringify(semifinalState.playerStatuses));
+  console.log('[startSemifinal] Final tournamentScores:', JSON.stringify(semifinalState.tournamentScores));
   console.log('[startSemifinal] Player count:', playerCount);
   console.log('[startSemifinal] Players array:', semifinalState.players.map(p => p.id));
   console.log('[startSemifinal] playerStatuses:', JSON.stringify(semifinalState.playerStatuses));
@@ -324,11 +328,15 @@ function startFinalShowdown(state) {
   
   // Set player statuses - using original indices
   for (let i = 0; i < playerCount; i++) {
-    finalState.playerStatuses[qualifiedPlayers[i]] = 'ACTIVE';
-    finalState.tournamentScores[qualifiedPlayers[i]] = newState.tournamentScores[qualifiedPlayers[i]] || 0;
+    const origIdx = qualifiedPlayers[i];
+    finalState.playerStatuses[origIdx] = 'ACTIVE';
+    finalState.tournamentScores[origIdx] = newState.tournamentScores[origIdx] || 0;
+    console.log(`[startFinalShowdown] Setting playerStatuses[${origIdx}] = 'ACTIVE', tournamentScores[${origIdx}] = ${finalState.tournamentScores[origIdx]}`);
   }
   
   console.log('[startFinalShowdown] Final showdown initialized - players keep original indices:', qualifiedPlayers.map(p => `P${p}`));
+  console.log('[startFinalShowdown] Final playerStatuses:', JSON.stringify(finalState.playerStatuses));
+  console.log('[startFinalShowdown] Final tournamentScores:', JSON.stringify(finalState.tournamentScores));
   console.log('[startFinalShowdown] currentPlayer:', finalState.currentPlayer, '(winner starts - original index)');
   
   return finalState;

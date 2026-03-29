@@ -10,7 +10,7 @@ import React, { useMemo } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from '../../types';
-import { getBuildHint } from '../../utils/buildCalculator';
+import { getBuildHint, canPartitionConsecutively } from '../../utils/buildCalculator';
 
 interface PlayOptionsModalProps {
   visible: boolean;
@@ -60,23 +60,15 @@ export function PlayOptionsModal({
   const hint = useMemo(() => getBuildHint(cardValues), [cardValues]);
   
   // Calculate all possible build values from the cards
+  // Uses the new canPartitionConsecutively function which enforces non-increasing order within each group
   const possibleBuildValues = useMemo(() => {
     const values = new Set<number>();
     
-    // Add total sum if <= 10 (sum build)
-    if (totalSum <= 10) {
-      values.add(totalSum);
-    }
-    
-    // Add hint value if complete (need === 0)
-    if (hint && hint.need === 0) {
-      values.add(hint.value);
-    }
-    
-    // Add the "need" value if there's an incomplete build
-    if (hint && hint.need > 0) {
-      values.add(hint.value);  // The target value
-      values.add(hint.need);  // The card value needed
+    // Use the new order-enforcing partition checker for all potential targets 1-10
+    for (let target = 1; target <= 10; target++) {
+      if (canPartitionConsecutively(cardValues, target)) {
+        values.add(target);
+      }
     }
     
     // Also check for single card values (same rank builds)
@@ -85,8 +77,10 @@ export function PlayOptionsModal({
       values.add(cardValues[0]);
     }
     
+    console.log(`[PlayOptionsModal] Possible build values for ${JSON.stringify(cardValues)}:`, Array.from(values));
+    
     return Array.from(values).sort((a, b) => a - b);
-  }, [cardValues, hint, cards, totalSum]);
+  }, [cardValues, cards]);
   
   // Determine the primary build display info
   const buildInfo = useMemo(() => {

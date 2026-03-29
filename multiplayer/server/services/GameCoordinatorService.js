@@ -123,6 +123,18 @@ class GameCoordinatorService {
       if (roundCheck.ended) {
         this._handleRoundEnd(gameId, newState, isPartyGame, data, roundCheck);
       } else {
+        // Special handling: Check if tournament phase changed from QUALIFICATION_REVIEW
+        // This handles the case where advanceFromQualificationReview action is executed
+        const oldPhase = this.gameManager.getGameState(gameId)?.tournamentPhase;
+        const newPhase = newState?.tournamentPhase;
+        if (oldPhase === 'QUALIFICATION_REVIEW' && 
+            (newPhase === 'SEMI_FINAL' || newPhase === 'FINAL_SHOWDOWN')) {
+          console.log(`[Coordinator] Tournament phase transition detected: ${oldPhase} -> ${newPhase}`);
+          const qualifiedPlayers = TournamentManager.getQualifiedPlayers(newState);
+          console.log(`[Coordinator] Qualified players for socket cleanup: ${JSON.stringify(qualifiedPlayers)}`);
+          this._removeEliminatedPlayers(gameId, qualifiedPlayers);
+        }
+        
         this.broadcaster.broadcastGameUpdate(gameId, newState, this.unifiedMatchmaking);
       }
     } catch (err) {
@@ -178,12 +190,14 @@ class GameCoordinatorService {
       return;
     }
 
-    console.log(`[Coordinator] Removing eliminated players, qualified: ${JSON.stringify(qualifiedPlayers)}`);
+    console.log(`[Coordinator] _removeEliminatedPlayers called with qualifiedPlayers: ${JSON.stringify(qualifiedPlayers)}`);
+    console.log(`[Coordinator] Current socketMap BEFORE removal:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
     
     const toDelete = [];
     for (const [socketId, playerIndex] of socketMap.entries()) {
       if (!qualifiedPlayers.includes(playerIndex)) {
         toDelete.push(socketId);
+        console.log(`[Coordinator] Marking socket ${socketId.substr(0,8)} for elimination - playerIndex ${playerIndex} not in qualifiedPlayers`);
       }
     }
 
@@ -191,10 +205,10 @@ class GameCoordinatorService {
       const playerIndex = socketMap.get(socketId);
       socketMap.delete(socketId);
       this.unifiedMatchmaking.socketGameMap.delete(socketId);
-      console.log(`[Coordinator] Eliminated socket ${socketId} (was player ${playerIndex})`);
+      console.log(`[Coordinator] Eliminated socket ${socketId.substr(0,8)} (was player ${playerIndex})`);
     }
     
-    console.log(`[Coordinator] Remaining sockets:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
+    console.log(`[Coordinator] Remaining sockets AFTER removal:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
   }
 
   /**
@@ -202,8 +216,11 @@ class GameCoordinatorService {
    */
   _handleTournamentRoundEnd(gameId, gameState, isPartyGame, lastAction) {
     try {
+      console.log(`[Coordinator] _handleTournamentRoundEnd called, lastAction: ${lastAction?.type}, tournamentPhase: ${gameState.tournamentPhase}`);
+      
       // Handle special action transitions (from qualification review to semifinal/final)
       if (lastAction?.type === 'advanceFromQualificationReview') {
+        console.log(`[Coordinator] Handling advanceFromQualificationReview action`);
         const newState = TournamentManager.handleRoundTransition(gameState, 'advanceFromQualificationReview');
         
         if (newState.tournamentPhase === 'COMPLETED') {

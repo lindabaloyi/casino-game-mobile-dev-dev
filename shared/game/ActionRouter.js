@@ -17,7 +17,8 @@
 const Router = require('./smart-router/Router');
 
 // Actions that don't require turn validation in party mode
-const OUT_OF_TURN_ACTIONS = ['shiya', 'recall'];
+// Also includes tournament qualification review advancement (any player can trigger)
+const OUT_OF_TURN_ACTIONS = ['shiya', 'recall', 'advanceFromQualificationReview'];
 
 /**
  * Creates an ActionRouter with the given handlers.
@@ -50,12 +51,14 @@ function createActionRouter(config) {
         throw new Error(`Unknown action "${actionType}". Registered: ${known}`);
       }
 
-      // 2. Guard: wrong player's turn (skip for certain actions in party mode)
+      // 2. Guard: wrong player's turn (skip for certain actions in party mode or tournament qualification)
       const isPartyMode = state.playerCount === 4;
       const isOutOfTurnAction = OUT_OF_TURN_ACTIONS.includes(actionType);
-      const canActOutOfTurn = isPartyMode && isOutOfTurnAction;
+      // Also allow during tournament qualification review phase
+      const isQualificationReview = state.tournamentPhase === 'QUALIFICATION_REVIEW';
+      const canActOutOfTurn = (isPartyMode && isOutOfTurnAction) || isQualificationReview;
       
-      console.log(`[ActionRouter] Turn check: playerCount=${state.playerCount}, actionType=${actionType}, isPartyMode=${isPartyMode}, isOutOfTurnAction=${isOutOfTurnAction}, canActOutOfTurn=${canActOutOfTurn}, currentPlayer=${state.currentPlayer}, playerIndex=${playerIndex}`);
+      console.log(`[ActionRouter] Turn check: playerCount=${state.playerCount}, actionType=${actionType}, isPartyMode=${isPartyMode}, isOutOfTurnAction=${isOutOfTurnAction}, isQualificationReview=${isQualificationReview}, canActOutOfTurn=${canActOutOfTurn}, currentPlayer=${state.currentPlayer}, playerIndex=${playerIndex}`);
       
       if (!canActOutOfTurn && state.currentPlayer !== playerIndex) {
         throw new Error(`Not your turn (current: ${state.currentPlayer}, your: ${playerIndex})`);

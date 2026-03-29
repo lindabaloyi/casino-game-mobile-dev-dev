@@ -146,4 +146,41 @@ export function getBuildHint(values) {
   return null;
 }
 
+/**
+ * Check if the array of values can be split into consecutive segments,
+ * each summing to the target, AND each segment is in non-increasing order.
+ * This respects the player's stacking order (larger cards come first).
+ * 
+ * @param {number[]} values - Array of card values
+ * @param {number} target - Target sum for each group
+ * @returns {boolean} True if valid partition exists
+ */
+export function canPartitionConsecutively(values, target) {
+  let sum = 0;
+  let group = [];
+  
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    sum += v;
+    group.push(v);
+    
+    if (sum === target) {
+      // Verify the group is non-increasing (descending or equal)
+      for (let j = 1; j < group.length; j++) {
+        if (group[j] > group[j - 1]) {
+          return false; // group is not in descending order
+        }
+      }
+      // Reset for next group
+      sum = 0;
+      group = [];
+    } else if (sum > target) {
+      return false; // can't form target sum
+    }
+  }
+  
+  // After processing all cards, sum must be 0 (all groups consumed)
+  return sum === 0;
+}
+
 export default getBuildHint;
