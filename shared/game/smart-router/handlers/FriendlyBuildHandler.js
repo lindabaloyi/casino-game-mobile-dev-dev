@@ -5,6 +5,7 @@
 
 const ExtendRouter = require('../routers/ExtendRouter');
 const { areTeammates } = require('../../team');
+const { getConsecutivePartition } = require('../../buildCalculator');
 
 class FriendlyBuildHandler {
   constructor() {
@@ -55,6 +56,7 @@ class FriendlyBuildHandler {
 
     let canExtend = false;
     let canCapture = false;
+    let requiresChoice = false;
 
     if (isSameRankBuild) {
       const buildRank = stack.cards[0].rank;
@@ -71,16 +73,35 @@ class FriendlyBuildHandler {
         console.log('[FriendlyBuildHandler] Non-matching rank → extension only');
       }
     } else {
-        // Sum/diff – check for spares when card value matches build value
-        // If player has a spare card of same rank, they can extend instead of capture
+        // Sum/diff – compute hasBase dynamically
+        const cardValues = stack.cards.map(c => c.value);
+        const groups = getConsecutivePartition(cardValues, target);
+        const hasBase = (target > 5) && (groups.length > 1);
+        console.log('[FriendlyBuildHandler] Partition groups:', groups, ', hasBase:', hasBase);
+        
+        // Check for spares when card value matches build value
         const playerHand = state.players[playerIndex]?.hand || [];
         const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
         const hasSpare = sameRankCount > 1;
         
         console.log('[FriendlyBuildHandler] Sum/diff: player has ' + sameRankCount + 'x ' + card.rank + ', spare exists: ' + hasSpare);
         
-        // Rule: if card value equals build value and player has spare, allow extend
-        if (card.value === target && hasSpare) {
+        // Small build logic (value ≤ 5): offer choice if player has card to capture extended build
+        if (card.value === target && target <= 5 && !hasBase) {
+          const newTarget = target + card.value;  // e.g., 5+5=10
+          const hasNewTargetCard = playerHand.some(c => c.value === newTarget);
+          if (hasNewTargetCard) {
+            canExtend = true;
+            canCapture = true;
+            requiresChoice = true;
+            console.log('[FriendlyBuildHandler] Small build (≤5): player has ' + newTarget + ' → offer choice');
+          } else {
+            canExtend = false;
+            canCapture = true;
+            console.log('[FriendlyBuildHandler] Small build (≤5): player lacks ' + newTarget + ' → only capture');
+          }
+        } else if (card.value === target && hasSpare) {
+          // Rule: if card value equals build value and player has spare, allow extend
           canExtend = true;
           canCapture = false;  // Override capture when spare exists
           console.log('[FriendlyBuildHandler] Sum/diff, has spare → EXTEND');
@@ -148,7 +169,24 @@ class FriendlyBuildHandler {
           }
           throw new Error('Cannot capture a teammate\'s build – no extension possible with this card.');
         }
-        // For own builds: allow capture or extend
+        // For own builds: allow capture or extend or offer choice
+        if (requiresChoice) {
+          // Player has card to capture extended build → offer choice
+          const newTarget = target + card.value;
+          console.log('[FriendlyBuildHandler] Sum/diff, CHOICE → return choice action');
+          return { 
+            type: 'choice', 
+            payload: { 
+              card, 
+              stackId, 
+              options: [
+                { action: 'captureOwn', params: { card, targetType: 'build', targetStackId: stackId } },
+                { action: 'extend', params: { stackId, card, cardSource: source } }
+              ],
+              extendedTarget: newTarget
+            } 
+          };
+        }
         if (canCapture) {
           console.log('[FriendlyBuildHandler] Sum/diff, capture → CAPTURE');
           return { type: 'captureOwn', payload: { card, targetType: 'build', targetStackId: stackId } };

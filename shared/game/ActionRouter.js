@@ -15,6 +15,7 @@
  */
 
 const Router = require('./smart-router/Router');
+const { cloneState } = require('./clone');
 
 // Actions that don't require turn validation in party mode
 // Also includes tournament qualification review advancement (any player can trigger)
@@ -75,7 +76,15 @@ function createActionRouter(config) {
 
       console.log(`[ActionRouter] Router routed "${actionType}" → "${finalType}"`);
 
-      // 4. Check if handler exists
+      // 4. Handle choice type specially - set pendingChoice for modal
+      if (finalType === 'choice') {
+        console.log(`[ActionRouter] Setting pendingChoice for modal`);
+        const newState = cloneState(state);
+        newState.pendingChoice = finalPayload;
+        return newState;
+      }
+
+      // 5. Check if handler exists
       const handler = handlers[finalType];
       if (!handler) {
         console.log(`[ActionRouter] No handler for "${finalType}" - returning state unchanged`);

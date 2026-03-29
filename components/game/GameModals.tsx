@@ -13,6 +13,7 @@ import { StealBuildModal } from '../modals/StealBuildModal';
 import { ExtendBuildModal } from '../modals/ExtendBuildModal';
 import { ConfirmTempBuildModal } from '../modals/ConfirmTempBuildModal';
 import { DisqualifiedPlayerModal } from '../modals/DisqualifiedPlayerModal';
+import { CaptureOrStealModal } from '../modals/CaptureOrStealModal';
 
 interface GameModalsProps {
   // Play Options Modal (for accepting temp stacks)
@@ -58,6 +59,16 @@ interface GameModalsProps {
   disqualifiedRoundsSurvived?: number;
   onReturnToLobby?: () => void;
   onWatchTournament?: () => void;
+  
+  // Capture Or Steal Modal (shown when player has choice for small builds)
+  showCaptureOrStealModal?: boolean;
+  captureOrStealCard?: Card;
+  captureOrStealBuildValue?: number;
+  captureOrStealBuildCards?: Card[];
+  captureOrStealExtendedTarget?: number;
+  onConfirmCapture?: () => void;
+  onConfirmExtend?: () => void;
+  onCancelCaptureOrSteal?: () => void;
 }
 
 export function GameModals({
@@ -97,6 +108,15 @@ export function GameModals({
   disqualifiedRoundsSurvived,
   onReturnToLobby,
   onWatchTournament,
+  
+  showCaptureOrStealModal,
+  captureOrStealCard,
+  captureOrStealBuildValue,
+  captureOrStealBuildCards,
+  captureOrStealExtendedTarget,
+  onConfirmCapture,
+  onConfirmExtend,
+  onCancelCaptureOrSteal,
 }: GameModalsProps) {
   // Wrapper to call onStealCompleted when steal is confirmed
   const handleConfirmSteal = () => {
@@ -169,6 +189,20 @@ export function GameModals({
           roundsSurvived={disqualifiedRoundsSurvived ?? 0}
           onReturnToLobby={onReturnToLobby ?? (() => {})}
           onWatchTournament={onWatchTournament}
+        />
+      )}
+
+      {/* Capture Or Steal Modal - shown for small builds when player has choice */}
+      {showCaptureOrStealModal && captureOrStealCard && (
+        <CaptureOrStealModal
+          visible={showCaptureOrStealModal ?? false}
+          card={captureOrStealCard}
+          buildValue={captureOrStealBuildValue ?? 0}
+          buildCards={captureOrStealBuildCards ?? []}
+          extendedTarget={captureOrStealExtendedTarget ?? 0}
+          onCapture={onConfirmCapture ?? (() => {})}
+          onExtend={onConfirmExtend ?? (() => {})}
+          onCancel={onCancelCaptureOrSteal ?? (() => {})}
         />
       )}
     </>

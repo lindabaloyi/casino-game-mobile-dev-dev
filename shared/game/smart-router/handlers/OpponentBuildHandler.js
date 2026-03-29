@@ -6,6 +6,7 @@
  */
 
 const CaptureRouter = require('../routers/CaptureRouter');
+const { getConsecutivePartition } = require('../../buildCalculator');
 
 class OpponentBuildHandler {
   constructor() {
@@ -47,7 +48,44 @@ class OpponentBuildHandler {
       return this.handleTableOrCapturedCard(payload, stack, state, playerIndex, source);
     }
 
-    // Hand card dropped - delegate to CaptureRouter (capture or steal)
+    // Hand card dropped - check for small build choice
+    const cardValues = stack.cards.map(c => c.value);
+    const groups = getConsecutivePartition(cardValues, stack.value);
+    const hasBase = (stack.value > 5) && (groups.length > 1);
+    
+    let requiresChoice = false;
+    
+    // Small build logic (value ≤ 5): offer choice if player has card to capture extended build
+    if (card.value === stack.value && stack.value <= 5 && !hasBase) {
+      const newTarget = stack.value + card.value;  // e.g., 5+5=10
+      const playerHand = state.players[playerIndex]?.hand || [];
+      const hasNewTargetCard = playerHand.some(c => c.value === newTarget);
+      if (hasNewTargetCard) {
+        requiresChoice = true;
+        console.log('[OpponentBuildHandler] Small build (≤5): player has ' + newTarget + ' → offer choice');
+      } else {
+        console.log('[OpponentBuildHandler] Small build (≤5): player lacks ' + newTarget + ' → only capture');
+      }
+    }
+    
+    // Hand card dropped - delegate to CaptureRouter (capture or steal) or offer choice
+    if (requiresChoice) {
+      const newTarget = stack.value + card.value;
+      console.log('[OpponentBuildHandler] Sum/diff, CHOICE → return choice action');
+      return { 
+        type: 'choice', 
+        payload: { 
+          card, 
+          stackId, 
+          options: [
+            { action: 'captureOpponent', params: { card, targetType: 'build', targetStackId: stackId } },
+            { action: 'stealBuild', params: { card, stackId } }
+          ],
+          extendedTarget: newTarget
+        } 
+      };
+    }
+    
     console.log('[OpponentBuildHandler] 🤚 Hand card - delegating to CaptureRouter');
     return this.captureRouter.route(
       { card, targetType: 'build', targetStackId: stackId },

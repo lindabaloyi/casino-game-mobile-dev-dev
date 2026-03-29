@@ -78,6 +78,16 @@ export function useModalManager() {
     setConfirmTempBuildStack(null);
   }, []);
 
+  // Capture Or Steal Modal (for small builds when player has choice)
+  const [showCaptureOrStealModal, setShowCaptureOrStealModal] = useState(false);
+  const [captureOrStealData, setCaptureOrStealData] = useState<{
+    card: Card;
+    buildValue: number;
+    buildCards: Card[];
+    extendedTarget: number;
+    stackId: string;
+  } | null>(null);
+
   // Track when a steal happened - for showing end turn button
   const [showEndTurnButton, setShowEndTurnButton] = useState(false);
 
@@ -87,6 +97,24 @@ export function useModalManager() {
 
   const hideEndTurnButton = useCallback(() => {
     setShowEndTurnButton(false);
+  }, []);
+
+  // Capture or steal modal
+  const openCaptureOrStealModal = useCallback((data: {
+    card: Card;
+    buildValue: number;
+    buildCards: Card[];
+    extendedTarget: number;
+    stackId: string;
+  }) => {
+    console.log('[useModalManager] Opening capture or steal modal:', data);
+    setCaptureOrStealData(data);
+    setShowCaptureOrStealModal(true);
+  }, []);
+
+  const closeCaptureOrStealModal = useCallback(() => {
+    setShowCaptureOrStealModal(false);
+    setCaptureOrStealData(null);
   }, []);
 
   // Auto-capture helper
@@ -128,6 +156,11 @@ export function useModalManager() {
     showEndTurnButton,
     onStealCompleted,
     hideEndTurnButton,
+    // Capture or steal modal
+    showCaptureOrStealModal,
+    captureOrStealData,
+    openCaptureOrStealModal,
+    closeCaptureOrStealModal,
   };
 }
 
