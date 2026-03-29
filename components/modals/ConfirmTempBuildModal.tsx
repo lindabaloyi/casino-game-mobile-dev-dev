@@ -49,7 +49,7 @@ export function ConfirmTempBuildModal({
         />
         <View style={styles.modalContent}>
           {/* Header */}
-          <Text style={styles.title}>Set Temp Build Base</Text>
+          <Text style={styles.title}>Confirm Build</Text>
           
           {/* Subtitle */}
           <Text style={styles.subtitle}>Double-tap detected on temp stack</Text>

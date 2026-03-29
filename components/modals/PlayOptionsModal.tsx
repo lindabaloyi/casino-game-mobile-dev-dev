@@ -195,10 +195,10 @@ export function PlayOptionsModal({
         />
         <View style={styles.modalContent}>
           {/* Header */}
-          <Text style={styles.title}>Build Options</Text>
+          <Text style={styles.title}>Choose Build Value</Text>
           
           {/* Description */}
-          <Text style={styles.subtitle}>Choose a build value</Text>
+          <Text style={styles.subtitle}>This stack can be built as {hasTotalMatch ? totalSum : '...'} or {hasDiffMatch ? buildValue : '...'}. Select one.</Text>
           
           {/* Cards Section - only cards displayed, no jargon */}
           <View style={styles.cardsSection}>

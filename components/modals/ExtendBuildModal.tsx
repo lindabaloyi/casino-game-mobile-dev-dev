@@ -69,7 +69,7 @@ export function ExtendBuildModal({
         />
         <View style={styles.modalContent}>
           {/* Header */}
-          <Text style={styles.title}>EXTEND Build</Text>
+          <Text style={styles.title}>Extend Build</Text>
           
           {/* Current Build */}
           <View style={styles.section}>

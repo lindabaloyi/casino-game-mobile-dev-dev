@@ -47,7 +47,7 @@ export function StealBuildModal({
         />
         <View style={styles.modalContent}>
           {/* Header */}
-          <Text style={styles.title}>STEAL Build</Text>
+          <Text style={styles.title}>Steal Build</Text>
           
           {/* Combined card preview */}
           <View style={styles.cardsSection}>
