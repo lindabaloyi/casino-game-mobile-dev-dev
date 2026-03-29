@@ -253,10 +253,15 @@ export function GameBoard({
 
   // === Capture vs Steal modal for pendingChoice ===
   // When server returns pendingChoice (small build with newTarget in hand), show modal
+  // Only show for the player who triggered the choice (identified by pendingChoice.playerIndex)
   useEffect(() => {
     const pendingChoice = (gameState as any)?.pendingChoice;
-    if (pendingChoice && modals.captureOrStealData === null) {
-      console.log('[GameBoard] pendingChoice detected, opening CaptureOrStealModal');
+    // Only open modal if:
+    // 1. There's a pendingChoice
+n    // 2. It's for the current player
+    // 3. Modal data hasn't been set yet
+    if (pendingChoice && pendingChoice.playerIndex === playerNumber && modals.captureOrStealData === null) {
+      console.log('[GameBoard] pendingChoice detected for player', playerNumber, '- opening CaptureOrStealModal');
       modals.openCaptureOrStealModal({
         card: pendingChoice.card,
         buildValue: pendingChoice.buildValue || (pendingChoice.card?.value || 5),
@@ -265,7 +270,7 @@ export function GameBoard({
         stackId: pendingChoice.stackId,
       });
     }
-  }, [gameState, modals]);
+  }, [gameState, modals, playerNumber]);
 
   // Drag end wrapper
   const handleDragEndWrapper = () => {

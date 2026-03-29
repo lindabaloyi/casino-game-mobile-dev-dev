@@ -80,7 +80,11 @@ function createActionRouter(config) {
       if (finalType === 'choice') {
         console.log(`[ActionRouter] Setting pendingChoice for modal`);
         const newState = cloneState(state);
-        newState.pendingChoice = finalPayload;
+        // Include playerIndex so clients know who should see the modal
+        newState.pendingChoice = {
+          ...finalPayload,
+          playerIndex
+        };
         return newState;
       }
 
