@@ -18,6 +18,9 @@ function captureOpponent(state, payload, playerIndex) {
   const newState = cloneState(state);
   const hand = newState.players[playerIndex].hand;
 
+  // Clear any pending choice from previous modal interactions
+  newState.pendingChoice = null;
+
   const handIdx = hand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
   if (handIdx === -1) {
     throw new Error(`captureOpponent: card ${card.rank}${card.suit} not in player ${playerIndex}'s hand`);

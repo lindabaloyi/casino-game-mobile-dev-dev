@@ -2,14 +2,20 @@
  * CaptureOrStealModal
  * Shows choice when capturing small opponent build - capture or extend/steal.
  * 
- * Style: Red theme per casino-noir spec
+ * Style: Red theme per casino-noir spec - refactored to match StealBuildModal
  */
 
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { ModalSurface } from './ModalSurface';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from '../../types';
+import { getTeamButtonStyle } from './ModalDesignSystem';
 
 interface CaptureOrStealModalProps {
   visible: boolean;
@@ -35,8 +41,11 @@ export function CaptureOrStealModal({
   onPlayButtonSound,
 }: CaptureOrStealModalProps) {
   const handleCapture = () => {
+    console.log('[CaptureOrStealModal] Capture button pressed');
     onPlayButtonSound?.();
+    console.log('[CaptureOrStealModal] About to call onCapture');
     onCapture();
+    console.log('[CaptureOrStealModal] onCapture called');
   };
 
   const handleExtend = () => {
@@ -44,43 +53,59 @@ export function CaptureOrStealModal({
     onExtend();
   };
 
+  // Calculate new value after extending
+  const newValue = buildValue + card.value;
+
   return (
     <ModalSurface
       visible={visible}
       theme="red"
       title="Choose Action"
-      subtitle={`What to do with ${card.rank}${card.suit}`}
       onClose={onCancel}
       maxWidth="md"
     >
-      {/* Card display - single card centered */}
-      <View style={styles.fanZone}>
-        <PlayingCard rank={card.rank} suit={card.suit} />
+      {/* Card row - show build cards + hand card */}
+      <View style={styles.cardsRow}>
+        {buildCards.map((c, index) => (
+          <PlayingCard
+            key={`build-${index}`}
+            rank={c.rank}
+            suit={c.suit}
+            width={36}
+            height={48}
+          />
+        ))}
+
+        <Text style={styles.plusSign}>+</Text>
+
+        <PlayingCard
+          rank={card.rank}
+          suit={card.suit}
+          width={36}
+          height={48}
+        />
       </View>
 
-      {/* Info box */}
-      <View style={styles.infoBox}>
-        <Text style={styles.infoMain}>Build Value: {buildValue}</Text>
-        <Text style={styles.infoSub}>
-          After extend: {extendedTarget}
-        </Text>
-      </View>
+      {/* New value display */}
+      <Text style={styles.newValueText}>
+        After extend: {newValue}
+      </Text>
 
-      {/* Action buttons */}
+      {/* Action buttons - cleaner text like StealBuildModal */}
       <TouchableOpacity 
         style={styles.btnRed} 
         onPress={handleCapture}
+        activeOpacity={0.82}
       >
         <Text style={styles.btnText}>Capture {buildValue}</Text>
-        <Text style={styles.btnSub}>Take the build</Text>
       </TouchableOpacity>
-      
+       
       <TouchableOpacity 
         style={styles.btnGreen} 
         onPress={handleExtend}
+        activeOpacity={0.82}
       >
-        <Text style={styles.btnText}>Extend to {extendedTarget}</Text>
-        <Text style={styles.btnSub}>Add to build</Text>
+        <Text style={styles.btnText}>Steal Build</Text>
       </TouchableOpacity>
       
       <TouchableOpacity 
@@ -94,39 +119,31 @@ export function CaptureOrStealModal({
 }
 
 const styles = StyleSheet.create({
-  // Card fan zone - fixed height for consistency
-  fanZone: {
+  // Card row - matches StealBuildModal
+  cardsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
-    height: 96,
-    justifyContent: 'flex-end',
+    gap: 4,
   },
-  
-  // Info box from spec
-  infoBox: {
-    backgroundColor: 'rgba(0,0,0,0.32)',
-    borderRadius: 11,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+  plusSign: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#c0392b',
+    marginHorizontal: 4,
+  },
+
+  // New value text - clean single line
+  newValueText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fbbf24',  // Gold matching modal theme
+    marginBottom: 16,
     textAlign: 'center',
-    marginBottom: 16,
-    width: '100%',
-    alignItems: 'center',
   },
-  infoMain: {
-    fontFamily: 'serif',
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fde68a',
-    marginBottom: 1,
-  },
-  infoSub: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#4a9a60',
-  },
-  
-  // Buttons per spec
+   
+  // Buttons - matching StealBuildModal
   btnRed: {
     width: '100%',
     paddingVertical: 13,
@@ -153,9 +170,9 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 16,
     borderRadius: 13,
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,100,100,0.15)',
     alignItems: 'center',
   },
   btnText: {
@@ -163,16 +180,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#fff',
   },
-  btnSub: {
-    fontSize: 12,
-    fontWeight: '600',
-    opacity: 0.78,
-    marginTop: 2,
-  },
   btnGhostText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#6b8a72',
+    color: '#9b5555',
   },
 });
 

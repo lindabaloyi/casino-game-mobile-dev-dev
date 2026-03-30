@@ -102,10 +102,26 @@ export function useActionHandlers(
     extendedTarget: number;
     stackId: string;
   }) => {
-    // Capture the build
-    actions.capture(choiceData.card, 'build', undefined, undefined, choiceData.stackId);
+    console.log('[handleConfirmCaptureChoice] Sending choice action with capture option');
+    
+    // Send choice action with selectedOption: 'capture'
+    // This clears pendingChoice on the server and processes the capture
+    actions.choice(
+      'capture',
+      choiceData.card,
+      choiceData.stackId,
+      choiceData.buildValue,
+      choiceData.extendedTarget
+    );
+    console.log('[handleConfirmCaptureChoice] choice action (capture) sent to server');
+    
+    // Close the modal
     modals.closeCaptureOrStealModal();
+    
+    // Show end turn button after capture
+    modals.onStealCompleted();
   }, [actions, modals]);
+
 
   const handleConfirmExtendChoice = useCallback((choiceData: {
     card: Card;
@@ -114,8 +130,17 @@ export function useActionHandlers(
     extendedTarget: number;
     stackId: string;
   }) => {
-    // Extend the build (steal)
-    actions.stealBuild(choiceData.card, choiceData.stackId);
+    console.log('[handleConfirmExtendChoice] Sending choice action with extend/steal option');
+    
+    // Send choice action with selectedOption: 'extend'
+    // This clears pendingChoice on the server and processes the steal
+    actions.choice(
+      'extend',
+      choiceData.card,
+      choiceData.stackId,
+      choiceData.buildValue,
+      choiceData.extendedTarget
+    );
     modals.closeCaptureOrStealModal();
     modals.onStealCompleted();
   }, [actions, modals]);

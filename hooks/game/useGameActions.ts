@@ -53,8 +53,16 @@ export function useGameActions(sendAction: SendAction) {
 
   const stealBuild = useCallback((card: any, stackId: string) => {
     sendAction({ 
-      type: 'capture', 
-      payload: { card, targetType: 'build', targetStackId: stackId } as unknown as Record<string, unknown> 
+      type: 'stealBuild', 
+      payload: { card, stackId } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
+  // Capture opponent's build directly
+  const captureOpponent = useCallback((card: any, targetStackId: string) => {
+    sendAction({ 
+      type: 'captureOpponent', 
+      payload: { card, targetStackId } as unknown as Record<string, unknown> 
     });
   }, [sendAction]);
 
@@ -183,6 +191,14 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
+  // Choice action - for CaptureOrStealModal to tell server the player's choice
+  const choice = useCallback((selectedOption: 'capture' | 'extend', card: any, stackId: string, buildValue: number, extendedTarget: number) => {
+    sendAction({ 
+      type: 'choice', 
+      payload: { selectedOption, card, stackId, buildValue, extendedTarget } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
   return {
     createTemp,
     addToTemp,
@@ -190,6 +206,7 @@ export function useGameActions(sendAction: SendAction) {
     cancelTemp,
     capture,
     stealBuild,
+    captureOpponent,
     trail,
     dropToCapture,
     playFromCaptures,
@@ -203,6 +220,7 @@ export function useGameActions(sendAction: SendAction) {
     recall,
     setTempBuildValue,
     startBuildCapture,
+    choice,
   };
 }
 

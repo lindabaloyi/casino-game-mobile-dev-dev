@@ -65,6 +65,9 @@ const actionHandlers = {
 
   // ── Utility ───────────────────────────────────────────────────────────────────
   noop:                require('./noop'),
+
+  // ── Choice (Modal) ───────────────────────────────────────────────────────────
+  choice:              require('./choice'),
 };
 
 module.exports = actionHandlers;

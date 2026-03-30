@@ -99,6 +99,15 @@ export function useModalManager() {
     setShowEndTurnButton(false);
   }, []);
 
+  // Clear pendingChoice manually - called when modal action is taken
+  // This prevents modal from reopening after server broadcasts state
+  const clearPendingChoice = useCallback(() => {
+    console.log('[useModalManager] clearPendingChoice called - clearing locally');
+    // We don't actually clear pendingChoice in state here
+    // We just use this as a flag to prevent the useEffect from re-opening the modal
+    setCaptureOrStealData(null);
+  }, []);
+
   // Capture or steal modal
   const openCaptureOrStealModal = useCallback((data: {
     card: Card;
@@ -113,8 +122,10 @@ export function useModalManager() {
   }, []);
 
   const closeCaptureOrStealModal = useCallback(() => {
+    console.log('[useModalManager] closeCaptureOrStealModal called - about to set state to false');
     setShowCaptureOrStealModal(false);
     setCaptureOrStealData(null);
+    console.log('[useModalManager] closeCaptureOrStealModal complete - state should be updated');
   }, []);
 
   // Auto-capture helper
@@ -156,6 +167,7 @@ export function useModalManager() {
     showEndTurnButton,
     onStealCompleted,
     hideEndTurnButton,
+    clearPendingChoice,
     // Capture or steal modal
     showCaptureOrStealModal,
     captureOrStealData,

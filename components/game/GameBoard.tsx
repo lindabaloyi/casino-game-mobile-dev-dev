@@ -258,7 +258,7 @@ export function GameBoard({
     const pendingChoice = (gameState as any)?.pendingChoice;
     // Only open modal if:
     // 1. There's a pendingChoice
-n    // 2. It's for the current player
+    // 2. It's for the current player
     // 3. Modal data hasn't been set yet
     if (pendingChoice && pendingChoice.playerIndex === playerNumber && modals.captureOrStealData === null) {
       console.log('[GameBoard] pendingChoice detected for player', playerNumber, '- opening CaptureOrStealModal');
