@@ -58,8 +58,8 @@ export interface UsePlayerProfileResult {
   syncStatus: 'idle' | 'syncing' | 'success' | 'error';
   updateUsername: (username: string) => Promise<boolean>;
   updateAvatar: (avatar: AvatarId) => Promise<boolean>;
-  recordWin: () => Promise<boolean>;
-  recordLoss: () => Promise<boolean>;
+  recordWin: (mode?: string) => Promise<boolean>;
+  recordLoss: (mode?: string) => Promise<boolean>;
   resetStats: () => Promise<boolean>;
   syncWithServer: () => Promise<void>;
   forceRefresh: () => Promise<void>;
@@ -500,9 +500,10 @@ export function usePlayerProfile(): UsePlayerProfileResult {
 
   /**
    * Record a win with atomic operation
+   * @param {string} mode - Game mode (defaults to 'two-hands')
    */
-  const recordWin = useCallback(async (): Promise<boolean> => {
-    debugLog('recordWin', 'Recording win');
+  const recordWin = useCallback(async (mode?: string): Promise<boolean> => {
+    debugLog('recordWin', 'Recording win', { mode });
     
     try {
       // Optimistic update
@@ -513,10 +514,11 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       };
       await saveProfile(newProfile);
       
-      // Sync with server
+      // Sync with server - pass mode to API
       const token = await getAuthToken();
       if (token) {
-        await apiCall('/api/profile/stats/win', { method: 'POST' }, 3, 500);
+        const queryMode = mode || 'two-hands';
+        await apiCall(`/api/profile/stats/win?mode=${queryMode}`, { method: 'POST' }, 3, 500);
       }
       
       debugLog('recordWin', 'Win recorded successfully');
@@ -530,9 +532,10 @@ export function usePlayerProfile(): UsePlayerProfileResult {
 
   /**
    * Record a loss with atomic operation
+   * @param {string} mode - Game mode (defaults to 'two-hands')
    */
-  const recordLoss = useCallback(async (): Promise<boolean> => {
-    debugLog('recordLoss', 'Recording loss');
+  const recordLoss = useCallback(async (mode?: string): Promise<boolean> => {
+    debugLog('recordLoss', 'Recording loss', { mode });
     
     try {
       // Optimistic update
@@ -543,10 +546,11 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       };
       await saveProfile(newProfile);
       
-      // Sync with server
+      // Sync with server - pass mode to API
       const token = await getAuthToken();
       if (token) {
-        await apiCall('/api/profile/stats/loss', { method: 'POST' }, 3, 500);
+        const queryMode = mode || 'two-hands';
+        await apiCall(`/api/profile/stats/loss?mode=${queryMode}`, { method: 'POST' }, 3, 500);
       }
       
       debugLog('recordLoss', 'Loss recorded successfully');

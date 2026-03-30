@@ -101,6 +101,7 @@ function errorHandler(error, req, res, next) {
 /**
  * GET /api/profile/leaderboard
  * Get global leaderboard - MUST be before /:userId to avoid route conflict
+ * Supports filtering by game mode: ?mode=two-hands&limit=10
  */
 router.get('/leaderboard', async (req, res) => {
   try {
@@ -108,13 +109,25 @@ router.get('/leaderboard', async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
     const mode = req.query.mode || 'all';
     
-    const leaderboard = await GameStats.getLeaderboard(limit, offset, mode);
+    // Validate mode
+    const validModes = ['all', 'two-hands', 'three-hands', 'four-hands', 'party', 'freeforall', 'tournament'];
+    if (!validModes.includes(mode)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Invalid mode: ${mode}. Valid modes: ${validModes.join(', ')}` 
+      });
+    }
+    
+    console.log(`[Leaderboard] Fetching leaderboard for mode: ${mode}, limit: ${limit}`);
+    
+    const leaderboard = await GameStats.getLeaderboardByMode(mode, limit);
     
     // Handle empty result
     if (!leaderboard || leaderboard.length === 0) {
       return res.json({
         success: true,
         leaderboard: [],
+        mode: mode,
         pagination: { limit, offset, hasMore: false },
         serverTime: new Date().toISOString()
       });
@@ -125,16 +138,24 @@ router.get('/leaderboard', async (req, res) => {
       leaderboard.map(async (stat) => {
         const user = await User.findById(stat.userId.toString());
         const profile = await PlayerProfileService.findByUserId(stat.userId.toString());
-        const rank = await GameStats.getPlayerRank(stat.userId.toString());
+        
+        // Get rank for the requested mode (or overall)
+        const rank = await GameStats.getPlayerRank(stat.userId.toString(), mode === 'all' ? 'all' : mode);
+        
+        // Extract mode-specific stats if filtering by mode
+        const modeStats = mode === 'all' ? null : stat.modeStats?.[mode];
         
         return {
           rank,
           userId: stat.userId,
           username: user?.username || 'Unknown',
           avatar: profile?.avatar || user?.avatar || '',
-          wins: stat.wins,
-          totalGames: stat.totalGames,
-          winRate: stat.totalGames > 0 ? Math.round((stat.wins / stat.totalGames) * 100) : 0
+          wins: mode === 'all' ? stat.wins : (modeStats?.wins || 0),
+          games: mode === 'all' ? stat.totalGames : (modeStats?.games || 0),
+          losses: mode === 'all' ? stat.losses : (modeStats?.losses || 0),
+          winRate: mode === 'all' 
+            ? (stat.totalGames > 0 ? Math.round((stat.wins / stat.totalGames) * 100) : 0)
+            : (modeStats?.games > 0 ? Math.round((modeStats.wins / modeStats.games) * 100) : 0)
         };
       })
     );
@@ -142,6 +163,7 @@ router.get('/leaderboard', async (req, res) => {
     res.json({
       success: true,
       leaderboard: enriched,
+      mode: mode,
       pagination: { limit, offset, hasMore: leaderboard.length === limit },
       serverTime: new Date().toISOString()
     });
@@ -305,15 +327,23 @@ router.delete('/block/:userId', authenticate, async (req, res, next) => {
 /**
  * GET /api/profile/:userId/stats
  * Get detailed stats for a user
+ * Optional: ?mode=two-hands to get mode-specific stats
  */
 router.get('/:userId/stats', async (req, res, next) => {
   const timer = createTimer();
   const { userId } = req.params;
-  logger.enter({ userId, method: 'GET', route: 'stats' });
+  const mode = req.query.mode || 'all'; // Get stats for specific mode
+  logger.enter({ userId, mode, method: 'GET', route: 'stats' });
   
   try {
     if (!isValidObjectId(userId)) {
       throw new ValidationError('Invalid user ID format');
+    }
+
+    // Validate mode
+    const validModes = ['all', 'two-hands', 'three-hands', 'four-hands', 'party', 'freeforall', 'tournament'];
+    if (!validModes.includes(mode)) {
+      throw new ValidationError(`Invalid mode: ${mode}`);
     }
 
     let stats = await GameStats.findByUserId(userId);
@@ -321,26 +351,46 @@ router.get('/:userId/stats', async (req, res, next) => {
       stats = await GameStats.create(userId);
     }
 
-    const rank = await GameStats.getPlayerRank(userId);
-    const winRate = stats.totalGames > 0 
-      ? Math.round((stats.wins / stats.totalGames) * 100) 
-      : 0;
+    let rank, winRate;
+    
+    if (mode === 'all') {
+      // Overall stats
+      rank = await GameStats.getPlayerRank(userId, 'all');
+      winRate = stats.totalGames > 0 
+        ? Math.round((stats.wins / stats.totalGames) * 100) 
+        : 0;
+    } else {
+      // Mode-specific stats
+      const modeStats = stats.modeStats?.[mode] || { games: 0, wins: 0, losses: 0 };
+      rank = await GameStats.getPlayerRank(userId, mode);
+      winRate = modeStats.games > 0 
+        ? Math.round((modeStats.wins / modeStats.games) * 100) 
+        : 0;
+    }
 
     const response = {
       success: true,
-      stats: {
-        wins: stats.wins,
-        losses: stats.losses,
-        totalGames: stats.totalGames,
+      stats: mode === 'all' ? {
+        wins: stats.wins || 0,
+        losses: stats.losses || 0,
+        totalGames: stats.totalGames || 0,
         winRate,
         rank,
         lastGameAt: stats.lastGameAt
+      } : {
+        wins: stats.modeStats?.[mode]?.wins || 0,
+        losses: stats.modeStats?.[mode]?.losses || 0,
+        totalGames: stats.modeStats?.[mode]?.games || 0,
+        winRate,
+        rank,
+        mode: mode
       },
+      mode: mode,
       serverTime: new Date().toISOString()
     };
     
     logger.apiCall('GET', `/api/profile/${userId}/stats`, 200, timer.elapsed());
-    logger.exit({ success: true });
+    logger.exit({ success: true, mode });
     
     res.json(response);
   } catch (error) {
@@ -351,17 +401,19 @@ router.get('/:userId/stats', async (req, res, next) => {
 /**
  * POST /api/profile/stats/win
  * Record a win for the current user (atomic operation)
+ * Optional: ?mode=two-hands to record mode-specific win
  */
 router.post('/stats/win', authenticate, async (req, res, next) => {
   const timer = createTimer();
-  logger.enter({ userId: req.userId, method: 'POST', action: 'recordWin' });
+  const mode = req.query.mode || 'two-hands'; // Default to two-hands
+  logger.enter({ userId: req.userId, method: 'POST', action: 'recordWin', mode });
   
   try {
     const updatedProfile = await PlayerProfileService.recordGameResult(req.userId, true);
     
-    // Also update GameStats for consistency
+    // Also update GameStats for consistency - pass the game mode
     const currentStats = await GameStats.findByUserId(req.userId);
-    await GameStats.recordWin(req.userId);
+    await GameStats.recordWin(req.userId, mode);
     
     const response = {
       success: true,
@@ -370,7 +422,7 @@ router.post('/stats/win', authenticate, async (req, res, next) => {
     };
     
     logger.apiCall('POST', '/api/profile/stats/win', 200, timer.elapsed());
-    logger.exit({ success: true });
+    logger.exit({ success: true, mode });
     
     res.json(response);
   } catch (error) {
@@ -381,16 +433,18 @@ router.post('/stats/win', authenticate, async (req, res, next) => {
 /**
  * POST /api/profile/stats/loss
  * Record a loss for the current user (atomic operation)
+ * Optional: ?mode=two-hands to record mode-specific loss
  */
 router.post('/stats/loss', authenticate, async (req, res, next) => {
   const timer = createTimer();
-  logger.enter({ userId: req.userId, method: 'POST', action: 'recordLoss' });
+  const mode = req.query.mode || 'two-hands'; // Default to two-hands
+  logger.enter({ userId: req.userId, method: 'POST', action: 'recordLoss', mode });
   
   try {
     await PlayerProfileService.recordGameResult(req.userId, false);
     
-    // Also update GameStats for consistency
-    await GameStats.recordLoss(req.userId);
+    // Also update GameStats for consistency - pass the game mode
+    await GameStats.recordLoss(req.userId, mode);
     
     const response = {
       success: true,
@@ -399,7 +453,7 @@ router.post('/stats/loss', authenticate, async (req, res, next) => {
     };
     
     logger.apiCall('POST', '/api/profile/stats/loss', 200, timer.elapsed());
-    logger.exit({ success: true });
+    logger.exit({ success: true, mode });
     
     res.json(response);
   } catch (error) {

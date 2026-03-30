@@ -66,6 +66,18 @@ export interface UseLeaderboardResult {
 // Game modes supported
 export type GameMode = '2h' | '3h' | '4h' | '4hp' | '4hk';
 
+// Map frontend mode abbreviations to backend mode names
+function mapToBackendMode(mode: GameMode): string {
+  const modeMap: Record<GameMode, string> = {
+    '2h': 'two-hands',
+    '3h': 'three-hands',
+    '4h': 'four-hands',
+    '4hp': 'party',  // 4-hand party mode
+    '4hk': 'freeforall', // 4-hand knockout/free-for-all
+  };
+  return modeMap[mode] || 'two-hands';
+}
+
 // Get cache key for specific game mode
 function getCacheKey(mode: GameMode): string {
   return `${CACHE_KEY}_${mode}`;
@@ -78,8 +90,10 @@ async function fetchLeaderboard(
   offset = 0
 ): Promise<LeaderboardResponse | null> {
   try {
+    // Map frontend mode to backend mode
+    const backendMode = mapToBackendMode(mode);
     const response = await fetch(
-      `${SERVER_URL}/api/profile/leaderboard?mode=${mode}&limit=${limit}&offset=${offset}`,
+      `${SERVER_URL}/api/profile/leaderboard?mode=${backendMode}&limit=${limit}&offset=${offset}`,
       {
         method: 'GET',
         headers: {
@@ -160,7 +174,7 @@ export function useLeaderboard(mode: GameMode = '2h'): UseLeaderboardResult {
         }
       }
       
-      // Fetch from server
+      // Fetch from server - pass the frontend mode (will be mapped to backend)
       const data = await fetchLeaderboard(currentModeRef.current);
       
       if (data && data.success) {

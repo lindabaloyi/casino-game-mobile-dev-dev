@@ -400,13 +400,35 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       console.log('[useGameStateSync] Score breakdowns from server:', JSON.stringify(data.scoreBreakdowns, null, 2));
       setGameOverData(data);
       
-      // Record win/loss for player
+      // Record win/loss for player with game mode
       if (playerNumber !== null) {
         const isWinner = data.winner === playerNumber;
+        
+        // Get game mode from gameState or infer from player count
+        // Map server game modes to our stats model modes
+        let gameMode = 'two-hands'; // default
+        
+        if (gameState) {
+          const serverMode = gameState.gameMode;
+          if (serverMode === 'party' || serverMode === 'four-hands') {
+            gameMode = 'four-hands'; // 4-player mode
+          } else if (serverMode === 'three-hands') {
+            gameMode = 'three-hands';
+          } else if (serverMode === 'freeforall') {
+            gameMode = 'freeforall';
+          } else if (serverMode === 'tournament') {
+            gameMode = 'tournament';
+          } else {
+            gameMode = 'two-hands'; // default two-player
+          }
+        } else if (data.isPartyMode) {
+          gameMode = 'four-hands';
+        }
+        
         if (isWinner) {
-          recordWin();
+          recordWin(gameMode);
         } else {
-          recordLoss();
+          recordLoss(gameMode);
         }
       }
     };
@@ -416,7 +438,7 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     return () => {
       socket.off('game-over', handleGameOver);
     };
-  }, [socket, playerNumber, recordWin, recordLoss]);
+  }, [socket, playerNumber, recordWin, recordLoss, gameState]);
 
   // Handle player disconnection
   useEffect(() => {
