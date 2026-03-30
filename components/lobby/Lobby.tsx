@@ -70,6 +70,25 @@ export const Lobby: React.FC<LobbyProps> = ({
     return 'wifi-outline';
   };
 
+  // Get dynamic placeholder name for empty slots based on game mode
+  const getSlotPlaceholder = (slotIndex: number, mode: GameMode) => {
+    if (slotIndex === 0) {
+      return 'You';
+    }
+    
+    // Mode-specific placeholder names
+    const placeholders: Record<GameMode, string[]> = {
+      'two-hands': ['You', 'Opponent'],
+      'three-hands': ['You', 'Player 2', 'Player 3'],
+      'four-hands': ['You', 'Player 2', 'Player 3', 'Player 4'],
+      'party': ['You', 'Teammate 1', 'Opponent 1', 'Opponent 2'],
+      'freeforall': ['You', 'Player 2', 'Player 3', 'Player 4'],
+      'tournament': ['You', 'Player 2', 'Player 3', 'Player 4'],
+    };
+    
+    return placeholders[mode]?.[slotIndex] || `Player ${slotIndex + 1}`;
+  };
+
   // Get room code display
   const getRoomCodeDisplay = () => {
     if (mode === 'party') return 'PARTY';
@@ -117,27 +136,36 @@ export const Lobby: React.FC<LobbyProps> = ({
             Players ({playersInLobby}/{modeConfig.playerCount})
           </Text>
           <View style={styles.playersGrid}>
-            {/* Player 0 (self) */}
-            {lobbyPlayers[0] && (
-              <PlayerCard
-                player={lobbyPlayers[0]}
-                isOwn={true}
-                avatarEmoji={getAvatarEmoji(lobbyPlayers[0].avatar)}
-                pingColor={getPingColor}
-                pingIcon={getPingIcon}
-              />
-            )}
+            {/* Player 0 (self) - show even if not connected yet */}
+            <PlayerCard
+              key="player-self"
+              player={lobbyPlayers[0]}
+              isOwn={true}
+              slotIndex={0}
+              placeholderName={getSlotPlaceholder(0, mode)}
+              avatarEmoji={lobbyPlayers[0] ? getAvatarEmoji(lobbyPlayers[0].avatar) : undefined}
+              pingColor={getPingColor}
+              pingIcon={getPingIcon}
+            />
             
             {/* Other slots */}
             {[...Array(modeConfig.playerCount - 1)].map((_, idx) => {
               const slotIndex = idx + 1;
               const player = lobbyPlayers[slotIndex];
               
+              // DEBUG: Log each PlayerCard being rendered
+              console.log(`[Lobby] Rendering slot ${slotIndex}:`, {
+                hasPlayer: !!player,
+                playerData: player ? JSON.stringify(player) : null,
+                placeholderName: getSlotPlaceholder(slotIndex, mode),
+              });
+              
               if (player) {
                 return (
                   <PlayerCard
-                    key={slotIndex}
+                    key={`player-${slotIndex}`}
                     player={player}
+                    placeholderName={getSlotPlaceholder(slotIndex, mode)}
                     avatarEmoji={getAvatarEmoji(player.avatar)}
                     pingColor={getPingColor}
                     pingIcon={getPingIcon}
@@ -150,6 +178,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                 <PlayerCard
                   key={`empty-${slotIndex}`}
                   slotIndex={slotIndex}
+                  placeholderName={getSlotPlaceholder(slotIndex, mode)}
                 />
               );
             })}

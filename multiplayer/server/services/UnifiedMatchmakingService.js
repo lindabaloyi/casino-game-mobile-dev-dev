@@ -27,8 +27,11 @@ class UnifiedMatchmakingService {
 
   // Add player to specific game type queue
   addToQueue(socket, gameType, userId = null) {
+    console.log(`[UnifiedMatchmaking] addToQueue called: gameType=${gameType}, userId=${userId}, socket.id=${socket.id}`);
+    
     // Validation: not already in queue/game
     if (this.socketGameMap.has(socket.id)) {
+      console.log(`[UnifiedMatchmaking] Socket ${socket.id} already in queue/game, skipping`);
       return null;
     }
 
@@ -39,9 +42,11 @@ class UnifiedMatchmakingService {
       userId: userId 
     };
     
+    console.log(`[UnifiedMatchmaking] Adding to ${gameType} queue:`, socketEntry);
     this.waitingQueues[gameType].push(socketEntry);
     this.socketGameMap.set(socket.id, { gameId: null, gameType, userId });
 
+    console.log(`[UnifiedMatchmaking] ${gameType} queue now has ${this.waitingQueues[gameType].length} players`);
     return this._tryCreateGame(gameType);
   }
 
@@ -49,8 +54,11 @@ class UnifiedMatchmakingService {
   _tryCreateGame(gameType) {
     const config = GAME_TYPES[gameType];
     const queue = this.waitingQueues[gameType];
+    
+    console.log(`[UnifiedMatchmaking] _tryCreateGame for ${gameType}: queue.length=${queue.length}, minPlayers=${config.minPlayers}`);
 
     if (queue.length < config.minPlayers) {
+      console.log(`[UnifiedMatchmaking] Not enough players for ${gameType}, need ${config.minPlayers}, have ${queue.length}`);
       return null;
     }
 
@@ -62,6 +70,7 @@ class UnifiedMatchmakingService {
 
     // Extract players (socketEntry objects)
     const playerEntries = queue.splice(0, config.minPlayers);
+    console.log(`[UnifiedMatchmaking] Extracted ${playerEntries.length} players from ${gameType} queue`);
 
     // Validate sockets
     for (const entry of playerEntries) {
@@ -69,11 +78,13 @@ class UnifiedMatchmakingService {
         console.error(`[UnifiedMatchmaking] Invalid socket in ${gameType} queue`);
         return null;
       }
+      console.log(`[UnifiedMatchmaking] Player entry: socket.id=${entry.socket.id}, userId=${entry.userId}`);
     }
 
     // Extract actual sockets and userIds
     const players = playerEntries.map(e => e.socket);
     const userIds = playerEntries.map(e => e.userId);
+    console.log(`[UnifiedMatchmaking] Ready to create ${gameType} game with userIds:`, userIds);
 
     // Create game
     const { gameId, gameState } = config.createGame(this.gameManager);

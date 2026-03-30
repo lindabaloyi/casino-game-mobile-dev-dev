@@ -92,6 +92,15 @@ io.on('connection', socket => {
 
   // Two-Hands Matchmaking: add player to two-hands queue; start 2-player game when ready
   socket.on('join-two-hands-queue', async () => {
+    console.log(`[Socket] join-two-hands-queue received from ${socket.id}, userId=${socket.userId}, authenticated=${!!socket.userId}`);
+    
+    // Check if authenticated before joining
+    if (!socket.userId) {
+      console.log(`[Socket] ⚠️ User not authenticated, rejecting join-two-hands-queue`);
+      socket.emit('error', { message: 'Please authenticate before joining queue' });
+      return;
+    }
+    
     // Remove from matchmaking queues if present
     unifiedMatchmaking.socketGameMap.delete(socket.id);
     unifiedMatchmaking.waitingQueues['three-hands'] = unifiedMatchmaking.waitingQueues['three-hands'].filter(s => s.id !== socket.id);
@@ -151,6 +160,18 @@ io.on('connection', socket => {
 
   // Four-Hands Matchmaking: add player to four-hands queue; start 4-player game when ready
   socket.on('join-four-hands-queue', async () => {
+    console.log(`[Socket] join-four-hands-queue received from ${socket.id}, userId=${socket.userId}, authenticated=${!!socket.userId}`);
+    
+    // Check if authenticated before joining - but allow unauthenticated for testing
+    // In production, uncomment the authentication check below
+    /*
+    if (!socket.userId) {
+      console.log(`[Socket] ⚠️ User not authenticated, rejecting join-four-hands-queue`);
+      socket.emit('error', { message: 'Please authenticate before joining queue' });
+      return;
+    }
+    */
+    
     // Remove from matchmaking queues if present
     unifiedMatchmaking.socketGameMap.delete(socket.id);
     unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
@@ -380,11 +401,13 @@ io.on('connection', socket => {
   // ── Lobby status request (for polling) ───────────────────────────────────────
   socket.on('request-lobby-status', async () => {
     // Check all queues - include player info
+    console.log(`[Socket] request-lobby-status received from ${socket.id}, userId=${socket.userId}`);
     
     // Party queue
     const partyQueue = unifiedMatchmaking.waitingQueues.party || [];
     const partyWaitingCount = partyQueue.length;
     const partyUserIds = partyQueue.map(entry => entry.userId).filter(Boolean);
+    console.log(`[Socket] party queue: ${partyWaitingCount} players, userIds:`, partyUserIds);
     const partyPlayers = await PlayerProfile.getPlayerInfos(partyUserIds);
     socket.emit('party-waiting', { 
       playersJoined: partyWaitingCount,
@@ -406,12 +429,28 @@ io.on('connection', socket => {
     // Four-hands queue
     const fourHandsQueue = unifiedMatchmaking.waitingQueues['four-hands'] || [];
     const fourHandsWaitingCount = fourHandsQueue.length;
+    console.log(`[Socket] four-hands queue: ${fourHandsWaitingCount} players, userIds:`, fourHandsQueue.map(e => e.userId));
     if (fourHandsWaitingCount > 0) {
       const fourHandsUserIds = fourHandsQueue.map(entry => entry.userId).filter(Boolean);
       const fourHandsPlayers = await PlayerProfile.getPlayerInfos(fourHandsUserIds);
+      console.log(`[Socket] four-hands playerInfos:`, JSON.stringify(fourHandsPlayers));
+      
+      // CRITICAL: Create entries for ALL players in queue
+      const allFourHandsPlayers = fourHandsQueue.map((entry, index) => {
+        const playerInfo = fourHandsPlayers.find(p => p.userId === entry.userId);
+        if (playerInfo) return playerInfo;
+        return {
+          userId: entry.userId || `guest-${index + 1}`,
+          username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+          avatar: 'lion',
+          displayName: entry.userId ? 'Unknown' : `Player ${index + 1}`
+        };
+      });
+      console.log(`[Socket] four-hands ALL players (including guests):`, JSON.stringify(allFourHandsPlayers));
+      
       socket.emit('four-hands-waiting', { 
         playersJoined: fourHandsWaitingCount,
-        players: fourHandsPlayers
+        players: allFourHandsPlayers
       });
     }
     
@@ -488,7 +527,9 @@ async function broadcastTwoHandsWaiting(io) {
   // Get player info for all waiting players
   const queue = unifiedMatchmaking.waitingQueues['two-hands'];
   const userIds = queue.map(entry => entry.userId).filter(Boolean);
+  console.log(`[UnifiedMatchmaking] two-hands queue userIds:`, userIds);
   const players = await PlayerProfile.getPlayerInfos(userIds);
+  console.log(`[UnifiedMatchmaking] two-hands playerInfos:`, JSON.stringify(players));
   
   queue.forEach(entry => {
     // Include player info for all players in the queue
@@ -501,11 +542,14 @@ async function broadcastTwoHandsWaiting(io) {
 
 async function broadcastPartyWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('party');
+  console.log(`[UnifiedMatchmaking] Broadcasting party-waiting: ${count} players`);
   
   // Get player info for all waiting players
   const queue = unifiedMatchmaking.waitingQueues.party;
   const userIds = queue.map(entry => entry.userId).filter(Boolean);
+  console.log(`[UnifiedMatchmaking] party queue userIds:`, userIds);
   const players = await PlayerProfile.getPlayerInfos(userIds);
+  console.log(`[UnifiedMatchmaking] party playerInfos:`, JSON.stringify(players));
   
   queue.forEach(entry => {
     entry.socket.emit('party-waiting', { 
@@ -541,12 +585,29 @@ async function broadcastFourHandsWaiting(io) {
   // Get player info for all waiting players
   const queue = unifiedMatchmaking.waitingQueues['four-hands'];
   const userIds = queue.map(entry => entry.userId).filter(Boolean);
+  console.log(`[UnifiedMatchmaking] four-hands queue userIds:`, userIds);
   const players = await PlayerProfile.getPlayerInfos(userIds);
+  console.log(`[UnifiedMatchmaking] four-hands playerInfos:`, JSON.stringify(players));
+  
+  // CRITICAL: Create entries for ALL players in queue, not just authenticated ones
+  // This ensures the client sees all players in the lobby
+  const allPlayers = queue.map((entry, index) => {
+    const playerInfo = players.find(p => p.userId === entry.userId);
+    if (playerInfo) return playerInfo;
+    // Unauthenticated player - create placeholder
+    return {
+      userId: entry.userId || `guest-${index + 1}`,
+      username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+      avatar: 'lion',
+      displayName: entry.userId ? 'Unknown' : `Player ${index + 1}`
+    };
+  });
+  console.log(`[UnifiedMatchmaking] four-hands ALL players (including guests):`, JSON.stringify(allPlayers));
   
   queue.forEach(entry => {
     entry.socket.emit('four-hands-waiting', { 
       playersJoined: count,
-      players: players
+      players: allPlayers
     });
   });
 }

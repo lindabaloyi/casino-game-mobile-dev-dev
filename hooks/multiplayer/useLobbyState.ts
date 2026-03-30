@@ -82,7 +82,17 @@ export function useLobbyState(
     }
 
     // Handle party-waiting (4-player mode)
+    // Only handle if we're in party mode specifically - avoid conflict with four-hands
     const handlePartyWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
+      // Ignore party-waiting for four-hands mode to prevent conflicts
+      // four-hands mode should only listen to four-hands-waiting
+      if (requiredPlayers === 4 && playerCount === 4) {
+        // Check if this is actually a party queue or four-hands queue
+        // For now, skip party-waiting in four-hands mode to avoid conflicts
+        console.log('[useLobbyState] Skipping party-waiting for four-hands mode (using four-hands-waiting instead)');
+        return;
+      }
+      
       // Ignore lobby updates after game has started
       if (gameStartedRef.current) {
         return;
@@ -141,13 +151,28 @@ export function useLobbyState(
       }
     };
 
-    // Also handle party-waiting for tournament mode (server sends this for all 4-player modes)
+    // Handle tournament-party waiting (server sends party-waiting for all 4-player modes)
     const handleTournamentPartyWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
       // Ignore lobby updates after game has started
       if (gameStartedRef.current) {
         return;
       }
       console.log('[useLobbyState] tournament-mode party-waiting received:', data);
+      setIsInLobby(true);
+      setPlayersInLobby(data.playersJoined);
+      if (data.players) {
+        setLobbyPlayers(data.players);
+      }
+    };
+
+    // Handle four-hands-waiting (4-player mode - distinct from party/freeforall/tournament)
+    const handleFourHandsWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
+      // Ignore lobby updates after game has started
+      if (gameStartedRef.current) {
+        return;
+      }
+      console.log('[useLobbyState] four-hands-waiting received:', data);
+      console.log('[useLobbyState] Players data received:', JSON.stringify(data.players));
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
       if (data.players) {
@@ -165,7 +190,7 @@ export function useLobbyState(
       if (gameStartedRef.current) {
         return;
       }
-      console.log('[useLobbyState] two-hands-waiting received:', data);
+      console.log('[useLobbyState] duel-waiting received:', data);
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
       if (data.players) {
@@ -189,19 +214,20 @@ export function useLobbyState(
     };
 
     // Listen to appropriate events based on player count
-    // For 4-player games, listen to party-waiting, freeforall-waiting, AND tournament-waiting
+    // For 4-player games, listen to party-waiting, freeforall-waiting, four-hands-waiting, AND tournament-waiting
     // CRITICAL: For tournament mode, we MUST also listen to party-waiting because
     // the server sends party-waiting for ALL 4-player modes including tournament
     if (requiredPlayers === 4) {
       socket.on('party-waiting', handlePartyWaiting);
       socket.on('freeforall-waiting', handleFreeForAllWaiting);
+      socket.on('four-hands-waiting', handleFourHandsWaiting);
       socket.on('tournament-waiting', handleTournamentWaiting);
       // Make tournament mode also respond to party-waiting messages
       // This handles the case where server sends party-waiting for tournament queues
     } else if (requiredPlayers === 3) {
       socket.on('three-hands-waiting', handleThreeHandsWaiting);
     } else if (requiredPlayers === 2) {
-      socket.on('two-hands-waiting', handleTwoHandsWaiting);
+      socket.on('duel-waiting', handleTwoHandsWaiting);
     }
     
     socket.on('game-start', handleGameStart);
@@ -220,8 +246,9 @@ export function useLobbyState(
     return () => {
       socket.off('party-waiting', handlePartyWaiting);
       socket.off('three-hands-waiting', handleThreeHandsWaiting);
-      socket.off('two-hands-waiting', handleTwoHandsWaiting);
+      socket.off('duel-waiting', handleTwoHandsWaiting);
       socket.off('freeforall-waiting', handleFreeForAllWaiting);
+      socket.off('four-hands-waiting', handleFourHandsWaiting);
       socket.off('tournament-waiting', handleTournamentWaiting);
       socket.off('game-start', handleGameStart);
       // Clean up polling interval

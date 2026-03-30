@@ -24,6 +24,7 @@ interface PlayerCardProps {
   player?: PlayerData;
   isOwn?: boolean;
   slotIndex?: number;
+  placeholderName?: string; // For dynamic slot names
   avatarEmoji?: string;
   pingColor?: (ping: number) => string;
   pingIcon?: (ping: number) => any;
@@ -61,6 +62,7 @@ export function PlayerCard({
   player,
   isOwn,
   slotIndex,
+  placeholderName,
   avatarEmoji,
   pingColor = defaultGetPingColor,
   pingIcon = defaultGetPingIcon,
@@ -75,7 +77,29 @@ export function PlayerCard({
   // Handle new object-based interface
   if (player) {
     const isPlayerReady = player.isReady;
-    const playerName = isOwn ? player.username || 'You' : player.username;
+    // Use player username if available, otherwise use placeholderName
+    // If no player.username and no placeholderName, default to slot-based name
+    let displayName: string;
+    if (player.username && player.username.trim()) {
+      displayName = player.username;
+    } else if (placeholderName) {
+      displayName = placeholderName;
+    } else if (isOwn) {
+      displayName = 'You';
+    } else {
+      displayName = `Player ${(slotIndex ?? 0) + 1}`;
+    }
+    
+    // DEBUG: Log player card rendering
+    console.log(`[PlayerCard] Rendering player card:`, {
+      playerId: player.id,
+      playerUsername: player.username,
+      placeholderName,
+      isOwn,
+      slotIndex,
+      finalDisplayName: displayName,
+    });
+    
     const emoji = avatarEmoji || getAvatarEmoji(player.avatar);
 
     return (
@@ -93,7 +117,7 @@ export function PlayerCard({
             />
           </View>
         </View>
-        <Text style={styles.name} numberOfLines={1}>{playerName}</Text>
+        <Text style={styles.name} numberOfLines={1}>{displayName}</Text>
         
         <View style={styles.status}>
           <View style={styles.pingBadge}>
@@ -118,13 +142,22 @@ export function PlayerCard({
 
   // Handle empty slot (new interface)
   if (slotIndex !== undefined) {
+    const displayName = placeholderName || `Player ${slotIndex + 1}`;
+    
+    // DEBUG: Log empty slot rendering
+    console.log(`[PlayerCard] Rendering EMPTY slot:`, {
+      slotIndex,
+      placeholderName,
+      finalDisplayName: displayName,
+    });
+    
     return (
       <View style={[styles.card, styles.cardEmpty]}>
         <View style={[styles.avatar, styles.avatarEmpty]}>
           <Ionicons name="person-outline" size={24} color="rgba(255,255,255,0.3)" />
         </View>
         <Text style={styles.nameEmpty}>Waiting...</Text>
-        <Text style={styles.slotText}>Player {slotIndex + 1}</Text>
+        <Text style={styles.slotText}>{displayName}</Text>
       </View>
     );
   }

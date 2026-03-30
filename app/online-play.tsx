@@ -102,6 +102,9 @@ export default function OnlinePlayScreen() {
   }, [gameState, setInGameMode]);
   
   // Mock lobby data (replace with real data in production)
+  // FIXED: Use server's lobbyPlayers directly when available to ensure player names populate
+  const useServerPlayers = serverLobbyPlayers && serverLobbyPlayers.length > 0;
+  
   const {
     lobbyPlayers,
     notification,
@@ -115,6 +118,10 @@ export default function OnlinePlayScreen() {
     serverLobbyPlayers,
     initialReady: false,
   });
+
+  // DEBUG: Log the player data flow
+  console.log('[OnlinePlay] serverLobbyPlayers:', JSON.stringify(serverLobbyPlayers));
+  console.log('[OnlinePlay] lobbyPlayers after useLobbyMock:', JSON.stringify(lobbyPlayers));
 
   // Not connected yet - show connecting screen
   if (!isConnected) {

@@ -3,22 +3,48 @@
  * 
  * VS card display for 2-hands mode (1v1).
  * Shows local player on left, opponent on right.
+ * 
+ * Updated to support dynamic player names based on game mode.
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { GameMode } from '../../utils/modeConfig';
+
+interface PlayerData {
+  id: string;
+  username: string;
+  avatar: string;
+  isReady: boolean;
+  isConnected: boolean;
+  ping: number;
+}
 
 interface DuelCardProps {
-  playerName: string;
-  playerAvatar: string;
-  isReady: boolean;
-  opponentReady: boolean;
+  // New object-based props
+  player?: PlayerData;
+  opponent?: PlayerData;
+  isOwn?: boolean;
+  slotIndex?: number;
+  placeholderName?: string;
+  opponentPlaceholderName?: string;
+  mode?: GameMode;
+  // Loading state - when true, show loading instead of fallback
+  isLoading?: boolean;
+  opponentIsLoading?: boolean;
+  // Legacy props for backward compatibility
+  playerName?: string;
+  playerAvatar?: string;
+  isReady?: boolean;
+  opponentReady?: boolean;
   playersInLobby?: number;
   requiredPlayers?: number;
 }
 
 const AVATAR_EMOJI_MAP: Record<string, string> = {
+  'lion': '🦁', 'tiger': '🐯', 'elephant': '🐘', 'monkey': '🐵',
+  'panda': '🐼', 'fox': '🦊', 'wolf': '🐺', 'bear': '🐻',
   '🦊': '🦊', '🐼': '🐼', '🦁': '🦁', '🐯': '🐯',
   '🐵': '🐵', '🐸': '🐸', '🦄': '🦄', '🐲': '🐲',
 };
@@ -27,17 +53,112 @@ function getAvatarEmoji(avatarId: string): string {
   return AVATAR_EMOJI_MAP[avatarId] || '🎮';
 }
 
+// Get dynamic placeholder name based on game mode and slot
+function getSlotPlaceholder(slotIndex: number, mode: GameMode | undefined): string {
+  if (slotIndex === 0) {
+    return 'You';
+  }
+  
+  const placeholders: Record<string, string[]> = {
+    'two-hands': ['You', 'Opponent'],
+    'three-hands': ['You', 'Player 2', 'Player 3'],
+    'four-hands': ['You', 'Player 2', 'Player 3', 'Player 4'],
+    'party': ['You', 'Teammate 1', 'Opponent 1', 'Opponent 2'],
+    'freeforall': ['You', 'Player 2', 'Player 3', 'Player 4'],
+    'tournament': ['You', 'Player 2', 'Player 3', 'Player 4'],
+  };
+  
+  const modeKey = mode || 'two-hands';
+  return placeholders[modeKey]?.[slotIndex] || `Player ${slotIndex + 1}`;
+}
+
+// Determine display name with fallback chain
+function getDisplayName(
+  player: PlayerData | undefined,
+  isOwn: boolean | undefined,
+  slotIndex: number | undefined,
+  placeholderName: string | undefined,
+  mode: GameMode | undefined,
+  defaultName: string
+): string {
+  if (player?.username && player.username.trim()) {
+    return player.username;
+  }
+  if (placeholderName) {
+    return placeholderName;
+  }
+  if (isOwn) {
+    return 'You';
+  }
+  if (slotIndex !== undefined) {
+    return getSlotPlaceholder(slotIndex, mode);
+  }
+  return defaultName;
+}
+
 export function DuelCard({ 
+  // New props
+  player,
+  opponent,
+  isOwn = false,
+  slotIndex = 0,
+  placeholderName,
+  opponentPlaceholderName,
+  mode,
+  isLoading = false,
+  opponentIsLoading = false,
+  // Legacy props
   playerName, 
   playerAvatar, 
-  isReady, 
-  opponentReady,
+  isReady: isReadyProp, 
+  opponentReady: opponentReadyProp,
   playersInLobby = 0,
   requiredPlayers = 2
 }: DuelCardProps) {
   // For 2-player mode, show traditional VS layout
   // For 3+ player modes, show player count progress
   const showPlayerProgress = requiredPlayers > 2;
+  
+  // Handle new object-based interface
+  const hasPlayerData = player !== undefined;
+  const hasOpponentData = opponent !== undefined;
+  
+  // Determine names with fallback logic - NO FALLBACK to placeholders when loading
+  // If loading, show "Loading..." - don't use placeholders
+  let localPlayerName: string;
+  if (isLoading || !hasPlayerData) {
+    localPlayerName = 'Loading...';
+  } else if (player?.username && player.username.trim()) {
+    localPlayerName = player.username;
+  } else {
+    localPlayerName = placeholderName || 'You';
+  }
+  
+  let opponentPlayerName: string;
+  if (opponentIsLoading || !hasOpponentData) {
+    opponentPlayerName = 'Loading...';
+  } else if (opponent?.username && opponent.username.trim()) {
+    opponentPlayerName = opponent.username;
+  } else {
+    opponentPlayerName = opponentPlaceholderName || 'Opponent';
+  }
+  
+  // Determine ready states
+  const localReady = hasPlayerData ? (player?.isReady ?? false) : (isReadyProp ?? false);
+  const oppReady = hasOpponentData ? (opponent?.isReady ?? false) : (opponentReadyProp ?? false);
+  
+  // Determine avatars
+  const localAvatar = hasPlayerData 
+    ? getAvatarEmoji(player?.avatar || 'lion') 
+    : getAvatarEmoji(playerAvatar || 'lion');
+  const opponentAvatar = hasOpponentData
+    ? getAvatarEmoji(opponent?.avatar || 'lion')
+    : (opponentReadyProp ? '👤' : '');
+  
+  // Check if should show loading state for local player
+  const showLocalLoading = isLoading || (!hasPlayerData && playersInLobby === 0);
+  // Check if should show loading state for opponent
+  const showOpponentLoading = opponentIsLoading || (!hasOpponentData && playersInLobby < 2);
   
   return (
     <View style={styles.card}>
@@ -60,28 +181,36 @@ export function DuelCard({
         <View style={styles.vsContainer}>
           {/* Player Side */}
           <View style={styles.playerSide}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getAvatarEmoji(playerAvatar)}</Text>
-              <View style={[
-                styles.readyIndicator,
-                isReady ? styles.readyIndicatorReady : styles.readyIndicatorNotReady
-              ]}>
-                <Ionicons 
-                  name={isReady ? "checkmark" : "time-outline"} 
-                  size={12} 
-                  color="white" 
-                />
-              </View>
+            <View style={[styles.avatar, showLocalLoading && styles.avatarEmpty]}>
+              {showLocalLoading ? (
+                <ActivityIndicator size="small" color="#FFD700" />
+              ) : (
+                <Text style={styles.avatarText}>{localAvatar}</Text>
+              )}
+              {!showLocalLoading && (
+                <View style={[
+                  styles.readyIndicator,
+                  localReady ? styles.readyIndicatorReady : styles.readyIndicatorNotReady
+                ]}>
+                  <Ionicons 
+                    name={localReady ? "checkmark" : "time-outline"} 
+                    size={12} 
+                    color="white" 
+                  />
+                </View>
+              )}
             </View>
-            <Text style={styles.playerName} numberOfLines={1}>
-              {playerName}
+            <Text style={[styles.playerName, showLocalLoading && styles.playerNameLoading]} numberOfLines={1}>
+              {localPlayerName}
             </Text>
-            <Text style={[
-              styles.readyLabel,
-              isReady ? styles.readyLabelReady : styles.readyLabelNotReady
-            ]}>
-              {isReady ? 'READY' : 'NOT READY'}
-            </Text>
+            {!showLocalLoading && (
+              <Text style={[
+                styles.readyLabel,
+                localReady ? styles.readyLabelReady : styles.readyLabelNotReady
+              ]}>
+                {localReady ? 'READY' : 'NOT READY'}
+              </Text>
+            )}
           </View>
           
           {/* VS */}
@@ -93,14 +222,16 @@ export function DuelCard({
           <View style={styles.playerSide}>
             <View style={[
               styles.avatar,
-              !opponentReady && styles.avatarEmpty
+              showOpponentLoading ? styles.avatarEmpty : (!oppReady && styles.avatarEmpty)
             ]}>
-              {opponentReady ? (
-                <Text style={styles.avatarText}>👤</Text>
+              {showOpponentLoading ? (
+                <ActivityIndicator size="small" color="#FFD700" />
+              ) : oppReady ? (
+                <Text style={styles.avatarText}>{opponentAvatar}</Text>
               ) : (
                 <Ionicons name="person-outline" size={28} color="rgba(255,255,255,0.3)" />
               )}
-              {opponentReady && (
+              {!showOpponentLoading && oppReady && (
                 <View style={[
                   styles.readyIndicator,
                   styles.readyIndicatorReady
@@ -109,15 +240,17 @@ export function DuelCard({
                 </View>
               )}
             </View>
-            <Text style={styles.playerName}>
-              {opponentReady ? 'Opponent' : 'Waiting...'}
+            <Text style={[styles.playerName, showOpponentLoading && styles.playerNameLoading]}>
+              {opponentPlayerName}
             </Text>
-            <Text style={[
-              styles.readyLabel,
-              opponentReady ? styles.readyLabelReady : styles.readyLabelNotReady
-            ]}>
-              {opponentReady ? 'READY' : 'NOT READY'}
-            </Text>
+            {!showOpponentLoading && (
+              <Text style={[
+                styles.readyLabel,
+                oppReady ? styles.readyLabelReady : styles.readyLabelNotReady
+              ]}>
+                {oppReady ? 'READY' : 'NOT READY'}
+              </Text>
+            )}
           </View>
         </View>
       )}
@@ -208,6 +341,10 @@ const styles = StyleSheet.create({
     color: 'white',
     marginBottom: 4,
     textAlign: 'center',
+  },
+  playerNameLoading: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontStyle: 'italic',
   },
   readyLabel: {
     fontSize: 12,

@@ -54,32 +54,58 @@ export const useLobbyMock = ({
 
   // Initialize with self and merge with server players when available
   useEffect(() => {
+    console.log('[useLobbyMock] Initializing with serverLobbyPlayers:', JSON.stringify(serverLobbyPlayers));
+    
     // If we have server player data, use it (with self at index 0)
     if (serverLobbyPlayers && serverLobbyPlayers.length > 0) {
       // Map server players to lobby player format
-      const mappedPlayers: LobbyPlayer[] = serverLobbyPlayers.map((player, index) => ({
-        id: player.userId || String(index + 1),
-        username: player.username || 'Player',
-        avatar: player.avatar || 'lion',
-        isReady: index > 0, // Other players assumed ready
-        isConnected: true,
-        ping: Math.floor(Math.random() * 150) + 30,
-      }));
+      const mappedPlayers: LobbyPlayer[] = serverLobbyPlayers.map((player, index) => {
+        // CRITICAL FIX: Use BOTH username AND displayName, prefer displayName
+        const name = player.displayName || player.username || 'Player';
+        console.log(`[useLobbyMock] Mapping player ${index}:`, { 
+          userId: player.userId, 
+          username: player.username, 
+          displayName: player.displayName, 
+          finalName: name 
+        });
+        return {
+          id: player.userId || String(index + 1),
+          username: name,
+          avatar: player.avatar || 'lion',
+          isReady: index > 0, // Other players assumed ready
+          isConnected: true,
+          ping: Math.floor(Math.random() * 150) + 30,
+        };
+      });
       
-      // Update self with profile data
-      if (mappedPlayers.length > 0 && profile.userId) {
+      console.log('[useLobbyMock] Mapped players:', JSON.stringify(mappedPlayers));
+      
+      // CRITICAL: Ensure self is at index 0, other players fill subsequent slots
+      if (profile.userId) {
         const selfIndex = mappedPlayers.findIndex(p => p.id === profile.userId);
-        if (selfIndex >= 0) {
-          mappedPlayers[selfIndex] = {
-            ...mappedPlayers[selfIndex],
-            username: profile.username || mappedPlayers[selfIndex].username,
-            avatar: profile.avatar || mappedPlayers[selfIndex].avatar,
+        if (selfIndex > 0) {
+          // Move self to index 0
+          const [selfPlayer] = mappedPlayers.splice(selfIndex, 1);
+          mappedPlayers.unshift({
+            ...selfPlayer,
+            username: profile.username || selfPlayer.username,
+            avatar: profile.avatar || selfPlayer.avatar,
+            isReady,
+            ping: 45,
+          });
+        } else if (selfIndex === 0) {
+          // Self is already at index 0, update with profile data
+          mappedPlayers[0] = {
+            ...mappedPlayers[0],
+            username: profile.username || mappedPlayers[0].username,
+            avatar: profile.avatar || mappedPlayers[0].avatar,
             isReady,
             ping: 45,
           };
         }
       }
       
+      console.log('[useLobbyMock] Final mapped players:', JSON.stringify(mappedPlayers));
       setLobbyPlayers(mappedPlayers);
       return;
     }
@@ -114,36 +140,54 @@ export const useLobbyMock = ({
     
     // Fallback: Simulate other players joining (when no server data)
     const maxPlayers = modeConfig.playerCount;
-    if (playersInLobby > 1 && lobbyPlayers.length < Math.min(playersInLobby, maxPlayers)) {
-      const newPlayer: LobbyPlayer = {
-        id: String(lobbyPlayers.length + 1),
-        username: `Player ${lobbyPlayers.length + 1}`,
-        avatar: AVATAR_OPTIONS[lobbyPlayers.length % AVATAR_OPTIONS.length].id,
-        isReady: true,
-        isConnected: true,
-        ping: Math.floor(Math.random() * 150) + 30,
-      };
-      setLobbyPlayers(prev => [...prev, newPlayer]);
+    const currentCount = lobbyPlayers.length;
+    
+    // Only add players if:
+    // 1. More players have joined than we currently have
+    // 2. We haven't reached max players yet
+    if (playersInLobby > currentCount && currentCount < maxPlayers) {
+      // Calculate how many new players to add
+      const newPlayerCount = Math.min(playersInLobby, maxPlayers) - currentCount;
       
-      // Show notification with animation
-      setNotification(`${newPlayer.username} joined!`);
-      Vibration.vibrate(100);
-      Animated.timing(notificationAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      if (newPlayerCount > 0) {
+        const newPlayers: LobbyPlayer[] = [];
+        
+        for (let i = 0; i < newPlayerCount; i++) {
+          const slotIndex = currentCount + i;
+          newPlayers.push({
+            id: String(slotIndex + 1),
+            username: `Player ${slotIndex + 1}`,
+            avatar: AVATAR_OPTIONS[slotIndex % AVATAR_OPTIONS.length].id,
+            isReady: true,
+            isConnected: true,
+            ping: Math.floor(Math.random() * 150) + 30,
+          });
+        }
+        
+        setLobbyPlayers(prev => [...prev, ...newPlayers]);
+        
+        // Show notification for the first new player
+        if (newPlayers.length > 0) {
+          setNotification(`${newPlayers[0].username} joined!`);
+          Vibration.vibrate(100);
+          Animated.timing(notificationAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }).start();
 
-      // Auto-hide notification
-      const timer = setTimeout(() => {
-        Animated.timing(notificationAnim, {
-          toValue: -100,
-          duration: 300,
-          useNativeDriver: true,
-        }).start();
-      }, 2500);
+          // Auto-hide notification
+          const timer = setTimeout(() => {
+            Animated.timing(notificationAnim, {
+              toValue: -100,
+              duration: 300,
+              useNativeDriver: true,
+            }).start();
+          }, 2500);
 
-      return () => clearTimeout(timer);
+          return () => clearTimeout(timer);
+        }
+      }
     }
   }, [playersInLobby, modeConfig.playerCount, serverLobbyPlayers]);
 
