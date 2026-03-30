@@ -4,7 +4,7 @@
  * Uses in-game color scheme matching leaderboards/friends/stats
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -14,11 +14,14 @@ import {
   ScrollView, 
   Modal,
   useWindowDimensions,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MusicToggleButton } from '../components/ui/MusicToggleButton';
 import { usePlayerProfile, AVATAR_OPTIONS, AvatarId } from '../hooks/usePlayerProfile';
+import { useServerProfile } from '../hooks/useServerProfile';
 
 // In-game color scheme - matching leaderboards/stats/friends
 const COLORS = {
@@ -48,35 +51,103 @@ export default function ProfileScreen() {
   const statValueSize = Math.round(22 * scaleFactor);
   
   const router = useRouter();
-  const { profile, updateUsername, updateAvatar, resetStats } = usePlayerProfile();
+  const { profile, updateUsername, updateAvatar, resetStats, isLoading: localLoading, error: localError } = usePlayerProfile();
+  const { profileData, isLoading: serverLoading, isRefreshing, error: serverError, refresh, hasData: serverHasData } = useServerProfile();
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Combined loading state - show loading if either source is loading
+  const isLoading = localLoading || serverLoading;
+  
+  // Combined error - prefer server error over local error
+  const error = serverError || localError || null;
+
+  // Use server data if available, otherwise fall back to local
+  const serverData = serverHasData && profileData ? {
+    username: profileData.user?.username,
+    avatar: profileData.profile?.avatar || profileData.user?.avatar,
+    wins: profileData.stats?.wins,
+    losses: profileData.stats?.losses,
+    totalGames: profileData.stats?.totalGames,
+  } : null;
+  
+  // Prefer server data when available
+  const displayProfile = serverData ? serverData : profile;
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  };
   
   const [isEditingName, setIsEditingName] = useState(false);
   const [newUsername, setNewUsername] = useState(profile.username);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  const currentAvatar = AVATAR_OPTIONS.find(a => a.id === profile.avatar) || AVATAR_OPTIONS[0];
+  const currentAvatar = AVATAR_OPTIONS.find(a => a.id === displayProfile.avatar) || AVATAR_OPTIONS[0];
 
   const handleSaveUsername = async () => {
     if (newUsername.trim()) {
-      await updateUsername(newUsername.trim());
+      const success = await updateUsername(newUsername.trim());
+      if (success) {
+        // Optionally refresh server data after update
+        refresh();
+      }
     }
     setIsEditingName(false);
   };
 
   const handleSelectAvatar = async (avatarId: AvatarId) => {
-    await updateAvatar(avatarId);
+    const success = await updateAvatar(avatarId);
+    if (success) {
+      // Optionally refresh server data after update
+      refresh();
+    }
     setShowAvatarPicker(false);
   };
 
   const handleResetStats = async () => {
-    await resetStats();
+    const success = await resetStats();
+    if (success) {
+      refresh();
+    }
     setShowResetConfirm(false);
   };
 
-  const winRate = profile.totalGames > 0 
-    ? Math.round((profile.wins / profile.totalGames) * 100) 
+  const winRate = displayProfile.totalGames > 0 
+    ? Math.round((displayProfile.wins / displayProfile.totalGames) * 100) 
     : 0;
+
+  // Show loading indicator when initially loading
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => router.back()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="arrow-back" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+          
+          <View style={styles.titleContainer}>
+            <Text style={styles.brandName}>PROFILE</Text>
+            <Text style={styles.brandSub}>Your Account</Text>
+          </View>
+          
+          <View style={styles.musicButtonContainer}>
+            <MusicToggleButton />
+          </View>
+        </View>
+        
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -108,6 +179,14 @@ export default function ProfileScreen() {
         ]}
         showsVerticalScrollIndicator={false}
         bounces={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing || isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
       >
         {/* Profile Card */}
         <View style={styles.profileCard}>
@@ -149,12 +228,12 @@ export default function ProfileScreen() {
             <TouchableOpacity 
               style={styles.usernameContainer}
               onPress={() => {
-                setNewUsername(profile.username);
+                setNewUsername(displayProfile.username);
                 setIsEditingName(true);
               }}
               activeOpacity={0.7}
             >
-              <Text style={[styles.username, { fontSize: nameSize }]}>{profile.username}</Text>
+              <Text style={[styles.username, { fontSize: nameSize }]}>{displayProfile.username}</Text>
               <Ionicons name="pencil" size={14} color={COLORS.textMuted} />
             </TouchableOpacity>
           )}
@@ -168,14 +247,14 @@ export default function ProfileScreen() {
             <View style={styles.statBox}>
               <Text style={styles.statBoxIcon}>🎮</Text>
               <Text style={[styles.statBoxValue, { fontSize: statValueSize }]}>
-                {profile.totalGames}
+                {displayProfile.totalGames}
               </Text>
               <Text style={styles.statBoxLabel}>Games</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statBoxIcon}>🏆</Text>
               <Text style={[styles.statBoxValue, { fontSize: statValueSize, color: '#4CAF50' }]}>
-                {profile.wins}
+                {displayProfile.wins}
               </Text>
               <Text style={styles.statBoxLabel}>Wins</Text>
             </View>
@@ -195,12 +274,12 @@ export default function ProfileScreen() {
           <View style={styles.breakdownCard}>
             <View style={styles.breakdownRow}>
               <View style={styles.breakdownItem}>
-                <Text style={styles.breakdownValue}>{profile.wins}</Text>
+                <Text style={styles.breakdownValue}>{displayProfile.wins}</Text>
                 <Text style={styles.breakdownLabel}>Wins</Text>
               </View>
               <View style={styles.breakdownDivider} />
               <View style={styles.breakdownItem}>
-                <Text style={styles.breakdownValue}>{profile.losses}</Text>
+                <Text style={styles.breakdownValue}>{displayProfile.losses}</Text>
                 <Text style={styles.breakdownLabel}>Losses</Text>
               </View>
             </View>
@@ -209,7 +288,7 @@ export default function ProfileScreen() {
               <View 
                 style={[
                   styles.progressFill, 
-                  { width: `${profile.totalGames > 0 ? (profile.wins / profile.totalGames * 100) : 0}%` }
+                  { width: `${displayProfile.totalGames > 0 ? (displayProfile.wins / displayProfile.totalGames * 100) : 0}%` }
                 ]} 
               />
             </View>
@@ -244,7 +323,7 @@ export default function ProfileScreen() {
                   key={avatar.id}
                   style={[
                     styles.avatarOption,
-                    profile.avatar === avatar.id && styles.avatarOptionSelected
+                    displayProfile.avatar === avatar.id && styles.avatarOptionSelected
                   ]}
                   onPress={() => handleSelectAvatar(avatar.id)}
                   activeOpacity={0.7}
@@ -353,6 +432,16 @@ const styles = StyleSheet.create({
   },
   scrollContentScrollable: {
     paddingVertical: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    marginTop: 12,
   },
   profileCard: {
     backgroundColor: COLORS.cardBg,
