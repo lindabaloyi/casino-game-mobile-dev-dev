@@ -123,7 +123,7 @@ export function getCardImage(rank: string, suit: string): ImageRequireSource | n
   const imageRank = gameRankToImageRank(rank);
   const key = `${imageRank}${asciiSuit}`;
   
-  console.log('[cardImageMap] Looking for image:', { rank, suit, asciiSuit, imageRank, key, found: !!cardImages[key] });
+
   
   return cardImages[key] || null;
 }

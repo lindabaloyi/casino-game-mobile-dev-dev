@@ -299,6 +299,8 @@ class GameCoordinatorService {
 
     const { gameId, playerIndex, isPartyGame } = ctx;
     
+    console.log(`[GameCoordinator] handleDragStart - player ${playerIndex} dragging ${data.card?.rank}${data.card?.suit}, broadcasting to others in game ${gameId}`);
+    
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-start', {
       playerIndex,
       card: data.card,
@@ -318,6 +320,8 @@ class GameCoordinatorService {
 
     const { gameId, playerIndex, isPartyGame } = ctx;
     
+    console.log(`[GameCoordinator] handleDragMove - player ${playerIndex} at ${data.position?.x?.toFixed(2)}, ${data.position?.y?.toFixed(2)}`);
+    
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-move', {
       playerIndex,
       card: data.card,
@@ -334,6 +338,8 @@ class GameCoordinatorService {
     if (!ctx) return;
 
     const { gameId, playerIndex, isPartyGame } = ctx;
+    
+    console.log(`[GameCoordinator] handleDragEnd - player ${playerIndex}, card ${data.card?.rank}${data.card?.suit}, outcome=${data.outcome || 'miss'}, target=${data.targetType}:${data.targetId}`);
     
     this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-end', {
       playerIndex,

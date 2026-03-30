@@ -325,9 +325,15 @@ io.on('connection', socket => {
   socket.on('start-next-round', () => coordinator.handleStartNextRound(socket));
 
   // ── Drag events (for real-time shared state) ───────────────────────────────
-  socket.on('drag-start', data => coordinator.handleDragStart(socket, data));
-  socket.on('drag-move', data => coordinator.handleDragMove(socket, data));
-  socket.on('drag-end', data => coordinator.handleDragEnd(socket, data));
+  socket.on('drag-start', (data) => {
+    console.log(`[Socket] drag-start received from socket ${socket.id}:`, data.card?.rank, data.card?.suit);
+    coordinator.handleDragStart(socket, data);
+  });
+  socket.on('drag-move', (data) => coordinator.handleDragMove(socket, data));
+  socket.on('drag-end', (data) => {
+    console.log(`[Socket] drag-end received from socket ${socket.id}:`, data.card?.rank, data.card?.suit, 'outcome:', data.outcome);
+    coordinator.handleDragEnd(socket, data);
+  });
 
   // ── State sync (client can request the current state at any time) ─────────
   socket.on('request-sync', () => {

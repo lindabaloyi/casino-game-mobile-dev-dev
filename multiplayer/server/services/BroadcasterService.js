@@ -249,14 +249,21 @@ class BroadcasterService {
     const mm = matchmakingService || this.matchmaking;
     const gameSockets = mm.getGameSockets(gameId, this.io);
 
+    console.log(`[Broadcaster] broadcastToOthers: gameId=${gameId}, excludeSocket=${excludeSocketId}, event=${event}, totalSockets=${gameSockets.length}`);
+
     const otherSockets = gameSockets.filter(
       (socket) => socket.id !== excludeSocketId,
     );
 
+    console.log(`[Broadcaster] Sending to ${otherSockets.length} other players`);
+
     if (otherSockets.length > 0) {
       otherSockets.forEach((otherSocket) => {
+        console.log(`[Broadcaster] Emitting ${event} to socket:`, otherSocket.id);
         otherSocket.emit(event, data);
       });
+    } else {
+      console.log(`[Broadcaster] WARNING: No other players to send to!`);
     }
   }
 
