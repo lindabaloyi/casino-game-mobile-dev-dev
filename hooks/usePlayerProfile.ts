@@ -205,6 +205,21 @@ export function usePlayerProfile(): UsePlayerProfileResult {
     loadProfile();
   }, []);
 
+  // Clear local profile when user logs out (detect by auth token change)
+  useEffect(() => {
+    const checkAuthChange = async () => {
+      const token = await getAuthToken();
+      if (!token) {
+        // No auth - clear local profile so new login gets fresh data
+        debugLog('loadProfile', 'No auth token, clearing local profile');
+        await AsyncStorage.removeItem(STORAGE_KEY);
+        setProfile(DEFAULT_PROFILE);
+        setIsLoading(false);
+      }
+    };
+    checkAuthChange();
+  }, []);
+
   /**
    * Load profile from local storage and optionally sync with server
    */

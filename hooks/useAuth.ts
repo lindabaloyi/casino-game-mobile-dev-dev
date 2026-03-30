@@ -161,8 +161,18 @@ export function useAuth() {
 
   const logout: AuthFunctions['logout'] = async () => {
     try {
+      // Clear all auth data
       await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
       await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
+      
+      // Clear player profile data (new user should start fresh)
+      await AsyncStorage.removeItem('player_profile');
+      await AsyncStorage.removeItem('server_profile_cache');
+      await AsyncStorage.removeItem('leaderboard_cache_2h');
+      await AsyncStorage.removeItem('leaderboard_cache_3h');
+      await AsyncStorage.removeItem('leaderboard_cache_4h');
+      await AsyncStorage.removeItem('leaderboard_cache_4hp');
+      await AsyncStorage.removeItem('leaderboard_cache_4hk');
     } catch (error) {
       console.error('[Auth] Logout error:', error);
     }
