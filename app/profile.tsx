@@ -19,9 +19,11 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MusicToggleButton } from '../components/ui/MusicToggleButton';
 import { usePlayerProfile, AVATAR_OPTIONS, AvatarId } from '../hooks/usePlayerProfile';
 import { useServerProfile } from '../hooks/useServerProfile';
+import { useAuth } from '../hooks/useAuth';
 
 // In-game color scheme - matching leaderboards/stats/friends
 const COLORS = {
@@ -51,17 +53,37 @@ export default function ProfileScreen() {
   const statValueSize = Math.round(22 * scaleFactor);
   
   const router = useRouter();
-  const { profile, updateUsername, updateAvatar, resetStats, isLoading: localLoading, error: localError } = usePlayerProfile();
-  const { profileData, isLoading: serverLoading, isRefreshing, error: serverError, refresh, hasData: serverHasData } = useServerProfile();
+  const { profile, updateUsername, updateAvatar, resetStats, isLoading: localLoading, error: localError, forceRefresh } = usePlayerProfile();
+  const { profileData, isLoading: serverLoading, isRefreshing, error: serverError, refresh, forceRefresh: serverForceRefresh, hasData: serverHasData } = useServerProfile();
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [isSavingUsername, setIsSavingUsername] = useState(false);
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Debug: Log auth state on mount
+  useEffect(() => {
+    console.log('[ProfileScreen] Auth state:', { isAuthenticated: !!isAuthenticated, userId: user?._id, hasServerData: serverHasData });
+  }, [isAuthenticated, user, serverHasData]);
+
+  // Force refresh on mount to get latest data from database
+  useEffect(() => {
+    console.log('[ProfileScreen] Mounting - forcing refresh from database');
+    // Call both refresh functions - they handle auth checks internally
+    forceRefresh().catch(err => console.log('[ProfileScreen] forceRefresh error:', err));
+    serverForceRefresh().catch(err => console.log('[ProfileScreen] serverForceRefresh error:', err));
+  }, [forceRefresh, serverForceRefresh]);
 
   // Combined loading state - show loading if either source is loading
   const isLoading = localLoading || serverLoading;
   
   // Combined error - prefer server error over local error
-  const error = serverError || localError || null;
+  // Show "not logged in" message if no auth and no server data
+  const error = serverError || localError || (!isAuthenticated && !serverHasData ? 'Please log in to see your profile data' : null);
 
   // Use server data if available, otherwise fall back to local
+  // DEBUG: Log what we receive
+  console.log('[Profile] serverHasData:', serverHasData, 'profileData:', JSON.stringify(profileData?.stats));
   const serverData = serverHasData && profileData ? {
     username: profileData.user?.username,
     avatar: profileData.profile?.avatar || profileData.user?.avatar,
@@ -69,6 +91,7 @@ export default function ProfileScreen() {
     losses: profileData.stats?.losses,
     totalGames: profileData.stats?.totalGames,
   } : null;
+  console.log('[Profile] serverData computed:', JSON.stringify(serverData));
   
   // Prefer server data when available
   const displayProfile = serverData ? serverData : profile;
@@ -88,20 +111,42 @@ export default function ProfileScreen() {
 
   const handleSaveUsername = async () => {
     if (newUsername.trim()) {
-      const success = await updateUsername(newUsername.trim());
-      if (success) {
-        // Optionally refresh server data after update
-        refresh();
+      setIsSavingUsername(true);
+      setSaveError(null);
+      try {
+        const success = await updateUsername(newUsername.trim());
+        if (success) {
+          // Refresh both caches after successful update
+          await forceRefresh();
+          await serverForceRefresh();
+        } else {
+          setSaveError('Failed to save username. Please try again.');
+        }
+      } catch (error) {
+        setSaveError('Error saving username: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      } finally {
+        setIsSavingUsername(false);
       }
     }
     setIsEditingName(false);
   };
 
   const handleSelectAvatar = async (avatarId: AvatarId) => {
-    const success = await updateAvatar(avatarId);
-    if (success) {
-      // Optionally refresh server data after update
-      refresh();
+    setIsSavingAvatar(true);
+    setSaveError(null);
+    try {
+      const success = await updateAvatar(avatarId);
+      if (success) {
+        // Refresh both caches after successful update
+        await forceRefresh();
+        await serverForceRefresh();
+      } else {
+        setSaveError('Failed to save avatar. Please try again.');
+      }
+    } catch (error) {
+      setSaveError('Error saving avatar: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setIsSavingAvatar(false);
     }
     setShowAvatarPicker(false);
   };
@@ -188,15 +233,23 @@ export default function ProfileScreen() {
           />
         }
       >
+        {/* Error Display */}
+        {(error || saveError) && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error || saveError}</Text>
+          </View>
+        )}
+
         {/* Profile Card */}
         <View style={styles.profileCard}>
           {/* Avatar */}
           <TouchableOpacity 
             style={[
               styles.avatarContainer,
-              { width: avatarSize, height: avatarSize },
+              { width: avatarSize, height: avatarSize, opacity: isSavingAvatar ? 0.5 : 1 },
             ]}
-            onPress={() => setShowAvatarPicker(true)}
+            onPress={() => !isSavingAvatar && setShowAvatarPicker(true)}
+            disabled={isSavingAvatar}
             activeOpacity={0.7}
           >
             <Text style={{ fontSize: avatarSize * 0.9 }}>{currentAvatar.emoji}</Text>
@@ -206,6 +259,11 @@ export default function ProfileScreen() {
             ]}>
               <Ionicons name="pencil" size={10} color={COLORS.background} />
             </View>
+            {isSavingAvatar && (
+              <View style={styles.savingOverlay}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              </View>
+            )}
           </TouchableOpacity>
 
           {/* Username */}
@@ -493,6 +551,30 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.primary,
     paddingVertical: 4,
     minWidth: 120,
+  },
+  errorContainer: {
+    backgroundColor: 'rgba(244, 67, 54, 0.2)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F44336',
+  },
+  errorText: {
+    color: '#F44336',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  savingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statsSection: {
     marginBottom: 16,

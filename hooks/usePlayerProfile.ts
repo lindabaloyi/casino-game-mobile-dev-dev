@@ -344,6 +344,10 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       }>('/api/profile', { method: 'GET' });
       
       if (response.success) {
+        // DEBUG: Log response stats
+        console.log('[syncWithServer] Response stats:', JSON.stringify(response.stats));
+        console.log('[syncWithServer] Current profile wins:', profileRef.current.wins);
+        
         const newProfile: PlayerProfile = {
           username: response.user?.username || profileRef.current.username,
           avatar: (response.profile?.avatar as AvatarId) || profileRef.current.avatar,
@@ -354,9 +358,13 @@ export function usePlayerProfile(): UsePlayerProfileResult {
           lastSyncAt: new Date().toISOString(),
         };
         
+        console.log('[syncWithServer] New profile to save:', JSON.stringify(newProfile));
+        
         await saveProfile(newProfile);
         setSyncStatus('success');
         debugLog('syncWithServer', 'Sync successful', newProfile);
+      } else {
+        console.log('[syncWithServer] Sync failed - response:', JSON.stringify(response));
       }
     } catch (error: any) {
       debugError('syncWithServer', 'Sync failed', error);

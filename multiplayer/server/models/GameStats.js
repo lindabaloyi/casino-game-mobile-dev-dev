@@ -183,6 +183,54 @@ class GameStats {
     
     return rank + 1;
   }
+
+  /**
+   * Record a win for the user
+   * @param {string} userId - User ID
+   * @returns {Promise<Object|null>} Updated stats
+   */
+  static async recordWin(userId) {
+    return this.updateAfterGame(userId, { won: true, lost: false, draw: false });
+  }
+
+  /**
+   * Record a loss for the user
+   * @param {string} userId - User ID
+   * @returns {Promise<Object|null>} Updated stats
+   */
+  static async recordLoss(userId) {
+    return this.updateAfterGame(userId, { won: false, lost: true, draw: false });
+  }
+
+  /**
+   * Update stats directly (for merging guest data)
+   * @param {string} userId - User ID
+   * @param {Object} stats - Stats to set (wins, losses, totalGames)
+   * @returns {Promise<Object|null>} Updated stats
+   */
+  static async updateStats(userId, stats) {
+    const database = await db.getDb();
+    
+    try {
+      const result = await database.collection(COLLECTION_NAME).findOneAndUpdate(
+        { userId: new ObjectId(userId) },
+        { 
+          $set: {
+            wins: stats.wins,
+            losses: stats.losses,
+            totalGames: stats.totalGames,
+            updatedAt: new Date(),
+          }
+        },
+        { returnDocument: 'after' }
+      );
+      
+      return result;
+    } catch (error) {
+      console.error('[GameStats] updateStats error:', error.message);
+      return null;
+    }
+  }
 }
 
 module.exports = GameStats;
