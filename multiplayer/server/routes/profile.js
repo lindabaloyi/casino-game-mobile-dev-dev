@@ -94,435 +94,60 @@ function errorHandler(error, req, res, next) {
   });
 }
 
-/**
- * GET /api/profile
- * Get current user's profile with full data
- */
-router.get('/', authenticate, async (req, res, next) => {
-  const timer = createTimer();
-  logger.enter({ userId: req.userId, method: 'GET' });
-  
-  try {
-    // Get user data
-    const user = await User.findById(req.userId);
-    if (!user) {
-      logger.warn('User not found', { userId: req.userId });
-      throw new NotFoundError('User');
-    }
-
-    // Get or create profile
-    const profile = await PlayerProfileService.getOrCreate(req.userId);
-    
-    // Get or create stats
-    let stats = await GameStats.findByUserId(req.userId);
-    if (!stats) {
-      stats = await GameStats.create(req.userId);
-    }
-    
-    // Calculate win rate
-    const winRate = stats.totalGames > 0 
-      ? Math.round((stats.wins / stats.totalGames) * 100) 
-      : 0;
-    
-    // Get rank
-    const rank = await GameStats.getPlayerRank(req.userId);
-    
-    const { password: _, ...userWithoutPassword } = user;
-    
-    const response = {
-      success: true,
-      user: userWithoutPassword,
-      profile: {
-        displayName: profile.displayName,
-        avatar: profile.avatar,
-        bio: profile.bio,
-        preferences: profile.preferences,
-        friends: profile.friends?.length || 0,
-        version: profile.version,
-        createdAt: profile.createdAt,
-        updatedAt: profile.updatedAt
-      },
-      stats: {
-        wins: stats.wins || 0,
-        losses: stats.losses || 0,
-        totalGames: stats.totalGames || 0,
-        winRate,
-        rank,
-        lastGameAt: stats.lastGameAt
-      },
-      serverTime: new Date().toISOString()
-    };
-    
-    logger.apiCall('GET', '/api/profile', 200, timer.elapsed());
-    logger.exit({ success: true });
-    
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * GET /api/profile/:userId
- * Get another user's public profile
- */
-router.get('/:userId', async (req, res, next) => {
-  const timer = createTimer();
-  const { userId } = req.params;
-  logger.enter({ userId, method: 'GET' });
-  
-  try {
-    // Validate userId
-    if (!isValidObjectId(userId)) {
-      logger.warn('Invalid user ID format', { userId });
-      throw new ValidationError('Invalid user ID format');
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      logger.warn('User not found', { userId });
-      throw new NotFoundError('User');
-    }
-
-    const profile = await PlayerProfileService.findByUserId(userId);
-    let stats = await GameStats.findByUserId(userId);
-    
-    // Auto-create stats if not found
-    if (!stats) {
-      stats = await GameStats.create(userId);
-    }
-    
-    const rank = await GameStats.getPlayerRank(userId);
-
-    // Use local avatar from profile if available
-    const userAvatar = profile?.avatar && !profile.avatar.startsWith('http') 
-      ? profile.avatar 
-      : user.avatar;
-    
-    const response = {
-      success: true,
-      user: {
-        _id: user._id,
-        username: user.username,
-        avatar: userAvatar,
-        createdAt: user.createdAt
-      },
-      profile: {
-        bio: profile?.bio || '',
-        displayName: profile?.displayName || user.username,
-        favoriteGameMode: profile?.favoriteGameMode || 'twoPlayer'
-      },
-      stats: {
-        wins: stats?.wins || 0,
-        losses: stats?.losses || 0,
-        totalGames: stats?.totalGames || 0,
-        winRate: stats?.totalGames > 0 
-          ? Math.round((stats.wins / stats.totalGames) * 100) 
-          : 0,
-        rank
-      },
-      serverTime: new Date().toISOString()
-    };
-    
-    logger.apiCall('GET', `/api/profile/${userId}`, 200, timer.elapsed());
-    logger.exit({ success: true });
-    
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * PUT /api/profile
- * Update current user's profile with validation and error handling
- */
-router.put('/', authenticate, async (req, res, next) => {
-  const timer = createTimer();
-  logger.enter({ userId: req.userId, method: 'PUT', body: Object.keys(req.body) });
-  
-  try {
-    const { username, avatar, bio, displayName, favoriteGameMode, preferences } = req.body;
-    
-    // Build updates object
-    const updates = {};
-    
-    if (username !== undefined) updates.username = username;
-    if (avatar !== undefined) updates.avatar = avatar;
-    if (bio !== undefined) updates.bio = bio;
-    if (displayName !== undefined) updates.displayName = displayName;
-    if (favoriteGameMode !== undefined) updates.favoriteGameMode = favoriteGameMode;
-    if (preferences !== undefined) updates.preferences = preferences;
-    
-    // Validate and sanitize updates
-    const validation = validateAndSanitize(updates);
-    if (!validation.isValid) {
-      logger.warn('Validation failed', { errors: validation.errors });
-      throw new ValidationError('Invalid profile data', validation.errors);
-    }
-    
-    // Update username in User collection
-    if (validation.sanitizedData.username) {
-      const existing = await User.findByUsername(validation.sanitizedData.username);
-      if (existing && existing._id.toString() !== req.userId) {
-        logger.warn('Username already taken', { username: validation.sanitizedData.username });
-        throw new ConflictError('Username already taken');
-      }
-      await User.update(req.userId, { username: validation.sanitizedData.username });
-    }
-    
-    // Update avatar in User collection
-    if (validation.sanitizedData.avatar) {
-      await User.update(req.userId, { avatar: validation.sanitizedData.avatar });
-    }
-    
-    // Update profile with sanitized data
-    const profile = await PlayerProfileService.update(req.userId, validation.sanitizedData);
-    
-    const response = {
-      success: true,
-      profile: {
-        displayName: profile.displayName,
-        avatar: profile.avatar,
-        bio: profile.bio,
-        preferences: profile.preferences,
-        version: profile.version,
-        updatedAt: profile.updatedAt
-      },
-      serverTime: new Date().toISOString()
-    };
-    
-    logger.apiCall('PUT', '/api/profile', 200, timer.elapsed());
-    logger.exit({ success: true });
-    
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * PATCH /api/profile/avatar
- * Quick endpoint to update just the avatar (optimized for frequent updates)
- */
-router.patch('/avatar', authenticate, async (req, res, next) => {
-  const timer = createTimer();
-  const { avatar } = req.body;
-  logger.enter({ userId: req.userId, method: 'PATCH', avatar });
-  
-  try {
-    // Validate avatar
-    const validation = validateAndSanitize({ avatar });
-    if (!validation.isValid) {
-      throw new ValidationError('Invalid avatar', validation.errors);
-    }
-    
-    // Update in both User and Profile for consistency
-    await User.update(req.userId, { avatar: validation.sanitizedData.avatar });
-    const profile = await PlayerProfileService.update(req.userId, { avatar: validation.sanitizedData.avatar });
-    
-    const response = {
-      success: true,
-      avatar: profile.avatar,
-      serverTime: new Date().toISOString()
-    };
-    
-    logger.apiCall('PATCH', '/api/profile/avatar', 200, timer.elapsed());
-    logger.exit({ success: true });
-    
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * GET /api/profile/:userId/stats
- * Get detailed stats for a user
- */
-router.get('/:userId/stats', async (req, res, next) => {
-  const timer = createTimer();
-  const { userId } = req.params;
-  logger.enter({ userId, method: 'GET', route: 'stats' });
-  
-  try {
-    if (!isValidObjectId(userId)) {
-      throw new ValidationError('Invalid user ID format');
-    }
-
-    let stats = await GameStats.findByUserId(userId);
-    if (!stats) {
-      stats = await GameStats.create(userId);
-    }
-
-    const rank = await GameStats.getPlayerRank(userId);
-    const winRate = stats.totalGames > 0 
-      ? Math.round((stats.wins / stats.totalGames) * 100) 
-      : 0;
-
-    const response = {
-      success: true,
-      stats: {
-        wins: stats.wins,
-        losses: stats.losses,
-        totalGames: stats.totalGames,
-        winRate,
-        rank,
-        lastGameAt: stats.lastGameAt
-      },
-      serverTime: new Date().toISOString()
-    };
-    
-    logger.apiCall('GET', `/api/profile/${userId}/stats`, 200, timer.elapsed());
-    logger.exit({ success: true });
-    
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * POST /api/profile/stats/win
- * Record a win for the current user (atomic operation)
- */
-router.post('/stats/win', authenticate, async (req, res, next) => {
-  const timer = createTimer();
-  logger.enter({ userId: req.userId, method: 'POST', action: 'recordWin' });
-  
-  try {
-    const updatedProfile = await PlayerProfileService.recordGameResult(req.userId, true);
-    
-    // Also update GameStats for consistency
-    const currentStats = await GameStats.findByUserId(req.userId);
-    await GameStats.recordWin(req.userId);
-    
-    const response = {
-      success: true,
-      message: 'Win recorded successfully',
-      serverTime: new Date().toISOString()
-    };
-    
-    logger.apiCall('POST', '/api/profile/stats/win', 200, timer.elapsed());
-    logger.exit({ success: true });
-    
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * POST /api/profile/stats/loss
- * Record a loss for the current user (atomic operation)
- */
-router.post('/stats/loss', authenticate, async (req, res, next) => {
-  const timer = createTimer();
-  logger.enter({ userId: req.userId, method: 'POST', action: 'recordLoss' });
-  
-  try {
-    await PlayerProfileService.recordGameResult(req.userId, false);
-    
-    // Also update GameStats for consistency
-    await GameStats.recordLoss(req.userId);
-    
-    const response = {
-      success: true,
-      message: 'Loss recorded successfully',
-      serverTime: new Date().toISOString()
-    };
-    
-    logger.apiCall('POST', '/api/profile/stats/loss', 200, timer.elapsed());
-    logger.exit({ success: true });
-    
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * DELETE /api/profile/stats
- * Reset player stats
- */
-router.delete('/stats', authenticate, async (req, res, next) => {
-  const timer = createTimer();
-  logger.enter({ userId: req.userId, method: 'DELETE', action: 'resetStats' });
-  
-  try {
-    await PlayerProfileService.resetStats(req.userId);
-    await GameStats.reset(req.userId);
-    
-    const response = {
-      success: true,
-      message: 'Stats reset successfully',
-      serverTime: new Date().toISOString()
-    };
-    
-    logger.apiCall('DELETE', '/api/profile/stats', 200, timer.elapsed());
-    logger.exit({ success: true });
-    
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
+// =====================================================
+// ROUTES IN CORRECT ORDER - SPECIFIC ROUTES FIRST
+// =====================================================
 
 /**
  * GET /api/profile/leaderboard
- * Get global leaderboard with pagination
+ * Get global leaderboard - MUST be before /:userId to avoid route conflict
  */
-router.get('/leaderboard', async (req, res, next) => {
-  const timer = createTimer();
-  const limit = parseInt(req.query.limit) || 10;
-  const offset = parseInt(req.query.offset) || 0;
-  logger.enter({ method: 'GET', route: 'leaderboard', limit, offset });
-  
+router.get('/leaderboard', async (req, res) => {
   try {
-    const leaderboard = await GameStats.getLeaderboard(limit, offset);
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = parseInt(req.query.offset) || 0;
+    const mode = req.query.mode || 'all';
+    
+    const leaderboard = await GameStats.getLeaderboard(limit, offset, mode);
+    
+    // Handle empty result
+    if (!leaderboard || leaderboard.length === 0) {
+      return res.json({
+        success: true,
+        leaderboard: [],
+        pagination: { limit, offset, hasMore: false },
+        serverTime: new Date().toISOString()
+      });
+    }
     
     // Enrich with user data
-    const enrichedLeaderboard = await Promise.all(
+    const enriched = await Promise.all(
       leaderboard.map(async (stat) => {
         const user = await User.findById(stat.userId.toString());
         const profile = await PlayerProfileService.findByUserId(stat.userId.toString());
         const rank = await GameStats.getPlayerRank(stat.userId.toString());
         
-        const userAvatar = profile?.avatar && !profile.avatar.startsWith('http') 
-          ? profile.avatar 
-          : user?.avatar || '';
-        
         return {
           rank,
           userId: stat.userId,
           username: user?.username || 'Unknown',
-          avatar: userAvatar,
+          avatar: profile?.avatar || user?.avatar || '',
           wins: stat.wins,
           totalGames: stat.totalGames,
-          winRate: stat.totalGames > 0 
-            ? Math.round((stat.wins / stat.totalGames) * 100) 
-            : 0
+          winRate: stat.totalGames > 0 ? Math.round((stat.wins / stat.totalGames) * 100) : 0
         };
       })
     );
 
-    const response = {
+    res.json({
       success: true,
-      leaderboard: enrichedLeaderboard,
-      pagination: {
-        limit,
-        offset,
-        hasMore: leaderboard.length === limit
-      },
+      leaderboard: enriched,
+      pagination: { limit, offset, hasMore: leaderboard.length === limit },
       serverTime: new Date().toISOString()
-    };
-    
-    logger.apiCall('GET', '/api/profile/leaderboard', 200, timer.elapsed());
-    logger.exit({ success: true, count: enrichedLeaderboard.length });
-    
-    res.json(response);
+    });
   } catch (error) {
-    next(error);
+    console.error('Leaderboard error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch leaderboard' });
   }
 });
 
@@ -669,6 +294,384 @@ router.delete('/block/:userId', authenticate, async (req, res, next) => {
     };
     
     logger.apiCall('DELETE', `/api/profile/block/${blockedUserId}`, 200, timer.elapsed());
+    logger.exit({ success: true });
+    
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/profile/:userId/stats
+ * Get detailed stats for a user
+ */
+router.get('/:userId/stats', async (req, res, next) => {
+  const timer = createTimer();
+  const { userId } = req.params;
+  logger.enter({ userId, method: 'GET', route: 'stats' });
+  
+  try {
+    if (!isValidObjectId(userId)) {
+      throw new ValidationError('Invalid user ID format');
+    }
+
+    let stats = await GameStats.findByUserId(userId);
+    if (!stats) {
+      stats = await GameStats.create(userId);
+    }
+
+    const rank = await GameStats.getPlayerRank(userId);
+    const winRate = stats.totalGames > 0 
+      ? Math.round((stats.wins / stats.totalGames) * 100) 
+      : 0;
+
+    const response = {
+      success: true,
+      stats: {
+        wins: stats.wins,
+        losses: stats.losses,
+        totalGames: stats.totalGames,
+        winRate,
+        rank,
+        lastGameAt: stats.lastGameAt
+      },
+      serverTime: new Date().toISOString()
+    };
+    
+    logger.apiCall('GET', `/api/profile/${userId}/stats`, 200, timer.elapsed());
+    logger.exit({ success: true });
+    
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/profile/stats/win
+ * Record a win for the current user (atomic operation)
+ */
+router.post('/stats/win', authenticate, async (req, res, next) => {
+  const timer = createTimer();
+  logger.enter({ userId: req.userId, method: 'POST', action: 'recordWin' });
+  
+  try {
+    const updatedProfile = await PlayerProfileService.recordGameResult(req.userId, true);
+    
+    // Also update GameStats for consistency
+    const currentStats = await GameStats.findByUserId(req.userId);
+    await GameStats.recordWin(req.userId);
+    
+    const response = {
+      success: true,
+      message: 'Win recorded successfully',
+      serverTime: new Date().toISOString()
+    };
+    
+    logger.apiCall('POST', '/api/profile/stats/win', 200, timer.elapsed());
+    logger.exit({ success: true });
+    
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/profile/stats/loss
+ * Record a loss for the current user (atomic operation)
+ */
+router.post('/stats/loss', authenticate, async (req, res, next) => {
+  const timer = createTimer();
+  logger.enter({ userId: req.userId, method: 'POST', action: 'recordLoss' });
+  
+  try {
+    await PlayerProfileService.recordGameResult(req.userId, false);
+    
+    // Also update GameStats for consistency
+    await GameStats.recordLoss(req.userId);
+    
+    const response = {
+      success: true,
+      message: 'Loss recorded successfully',
+      serverTime: new Date().toISOString()
+    };
+    
+    logger.apiCall('POST', '/api/profile/stats/loss', 200, timer.elapsed());
+    logger.exit({ success: true });
+    
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/profile/stats
+ * Reset player stats
+ */
+router.delete('/stats', authenticate, async (req, res, next) => {
+  const timer = createTimer();
+  logger.enter({ userId: req.userId, method: 'DELETE', action: 'resetStats' });
+  
+  try {
+    await PlayerProfileService.resetStats(req.userId);
+    await GameStats.reset(req.userId);
+    
+    const response = {
+      success: true,
+      message: 'Stats reset successfully',
+      serverTime: new Date().toISOString()
+    };
+    
+    logger.apiCall('DELETE', '/api/profile/stats', 200, timer.elapsed());
+    logger.exit({ success: true });
+    
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// =====================================================
+// PARAMETRIC ROUTES - AFTER SPECIFIC ROUTES
+// =====================================================
+
+/**
+ * GET /api/profile
+ * Get current user's profile with full data
+ */
+router.get('/', authenticate, async (req, res, next) => {
+  const timer = createTimer();
+  logger.enter({ userId: req.userId, method: 'GET' });
+  
+  try {
+    // Get user data
+    const user = await User.findById(req.userId);
+    if (!user) {
+      logger.warn('User not found', { userId: req.userId });
+      throw new NotFoundError('User');
+    }
+
+    // Get or create profile
+    const profile = await PlayerProfileService.getOrCreate(req.userId);
+    
+    // Get or create stats
+    let stats = await GameStats.findByUserId(req.userId);
+    if (!stats) {
+      stats = await GameStats.create(req.userId);
+    }
+    
+    // Calculate win rate
+    const winRate = stats.totalGames > 0 
+      ? Math.round((stats.wins / stats.totalGames) * 100) 
+      : 0;
+    
+    // Get rank
+    const rank = await GameStats.getPlayerRank(req.userId);
+    
+    const { password: _, ...userWithoutPassword } = user;
+    
+    const response = {
+      success: true,
+      user: userWithoutPassword,
+      profile: {
+        displayName: profile.displayName,
+        avatar: profile.avatar,
+        bio: profile.bio,
+        preferences: profile.preferences,
+        friends: profile.friends?.length || 0,
+        version: profile.version,
+        createdAt: profile.createdAt,
+        updatedAt: profile.updatedAt
+      },
+      stats: {
+        wins: stats.wins || 0,
+        losses: stats.losses || 0,
+        totalGames: stats.totalGames || 0,
+        winRate,
+        rank,
+        lastGameAt: stats.lastGameAt
+      },
+      serverTime: new Date().toISOString()
+    };
+    
+    logger.apiCall('GET', '/api/profile', 200, timer.elapsed());
+    logger.exit({ success: true });
+    
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/profile
+ * Update current user's profile with validation and error handling
+ */
+router.put('/', authenticate, async (req, res, next) => {
+  const timer = createTimer();
+  logger.enter({ userId: req.userId, method: 'PUT', body: Object.keys(req.body) });
+  
+  try {
+    const { username, avatar, bio, displayName, favoriteGameMode, preferences } = req.body;
+    
+    // Build updates object
+    const updates = {};
+    
+    if (username !== undefined) updates.username = username;
+    if (avatar !== undefined) updates.avatar = avatar;
+    if (bio !== undefined) updates.bio = bio;
+    if (displayName !== undefined) updates.displayName = displayName;
+    if (favoriteGameMode !== undefined) updates.favoriteGameMode = favoriteGameMode;
+    if (preferences !== undefined) updates.preferences = preferences;
+    
+    // Validate and sanitize updates
+    const validation = validateAndSanitize(updates);
+    if (!validation.isValid) {
+      logger.warn('Validation failed', { errors: validation.errors });
+      throw new ValidationError('Invalid profile data', validation.errors);
+    }
+    
+    // Update username in User collection
+    if (validation.sanitizedData.username) {
+      const existing = await User.findByUsername(validation.sanitizedData.username);
+      if (existing && existing._id.toString() !== req.userId) {
+        logger.warn('Username already taken', { username: validation.sanitizedData.username });
+        throw new ConflictError('Username already taken');
+      }
+      await User.update(req.userId, { username: validation.sanitizedData.username });
+    }
+    
+    // Update avatar in User collection
+    if (validation.sanitizedData.avatar) {
+      await User.update(req.userId, { avatar: validation.sanitizedData.avatar });
+    }
+    
+    // Update profile with sanitized data
+    const profile = await PlayerProfileService.update(req.userId, validation.sanitizedData);
+    
+    const response = {
+      success: true,
+      profile: {
+        displayName: profile.displayName,
+        avatar: profile.avatar,
+        bio: profile.bio,
+        preferences: profile.preferences,
+        version: profile.version,
+        updatedAt: profile.updatedAt
+      },
+      serverTime: new Date().toISOString()
+    };
+    
+    logger.apiCall('PUT', '/api/profile', 200, timer.elapsed());
+    logger.exit({ success: true });
+    
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/profile/avatar
+ * Quick endpoint to update just the avatar (optimized for frequent updates)
+ */
+router.patch('/avatar', authenticate, async (req, res, next) => {
+  const timer = createTimer();
+  const { avatar } = req.body;
+  logger.enter({ userId: req.userId, method: 'PATCH', avatar });
+  
+  try {
+    // Validate avatar
+    const validation = validateAndSanitize({ avatar });
+    if (!validation.isValid) {
+      throw new ValidationError('Invalid avatar', validation.errors);
+    }
+    
+    // Update in both User and Profile for consistency
+    await User.update(req.userId, { avatar: validation.sanitizedData.avatar });
+    const profile = await PlayerProfileService.update(req.userId, { avatar: validation.sanitizedData.avatar });
+    
+    const response = {
+      success: true,
+      avatar: profile.avatar,
+      serverTime: new Date().toISOString()
+    };
+    
+    logger.apiCall('PATCH', '/api/profile/avatar', 200, timer.elapsed());
+    logger.exit({ success: true });
+    
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/profile/:userId
+ * Get another user's public profile - MUST BE LAST (most generic)
+ */
+router.get('/:userId', async (req, res, next) => {
+  const timer = createTimer();
+  const { userId } = req.params;
+  logger.enter({ userId, method: 'GET' });
+  
+  try {
+    // Validate userId
+    if (!isValidObjectId(userId)) {
+      logger.warn('Invalid user ID format', { userId });
+      throw new ValidationError('Invalid user ID format');
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      logger.warn('User not found', { userId });
+      throw new NotFoundError('User');
+    }
+
+    const profile = await PlayerProfileService.findByUserId(userId);
+    let stats = await GameStats.findByUserId(userId);
+    
+    // Auto-create stats if not found
+    if (!stats) {
+      stats = await GameStats.create(userId);
+    }
+    
+    const rank = await GameStats.getPlayerRank(userId);
+
+    // Use local avatar from profile if available
+    const userAvatar = profile?.avatar && !profile.avatar.startsWith('http') 
+      ? profile.avatar 
+      : user.avatar;
+    
+    const response = {
+      success: true,
+      user: {
+        _id: user._id,
+        username: user.username,
+        avatar: userAvatar,
+        createdAt: user.createdAt
+      },
+      profile: {
+        bio: profile?.bio || '',
+        displayName: profile?.displayName || user.username,
+        favoriteGameMode: profile?.favoriteGameMode || 'twoPlayer'
+      },
+      stats: {
+        wins: stats?.wins || 0,
+        losses: stats?.losses || 0,
+        totalGames: stats?.totalGames || 0,
+        winRate: stats?.totalGames > 0 
+          ? Math.round((stats.wins / stats.totalGames) * 100) 
+          : 0,
+        rank
+      },
+      serverTime: new Date().toISOString()
+    };
+    
+    logger.apiCall('GET', `/api/profile/${userId}`, 200, timer.elapsed());
     logger.exit({ success: true });
     
     res.json(response);

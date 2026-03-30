@@ -1,9 +1,10 @@
 /**
  * Leaderboards Screen
  * Full leaderboard page with game mode tabs, podium, and rankings
+ * Now fetches live data from server
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -11,9 +12,12 @@ import {
   TouchableOpacity,
   ScrollView,
   useWindowDimensions,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useLeaderboard, GameMode } from '../hooks/useLeaderboard';
 
 // In-game color scheme - matching friends/game-modes pages
 const COLORS = {
@@ -29,68 +33,12 @@ const COLORS = {
 };
 
 // Game modes
-const MODES = [
+export const MODES: { id: GameMode; label: string; icon: string }[] = [
   { id: '2h', label: '2 Hands', icon: '✌️' },
   { id: '3h', label: '3 Hands', icon: '🤟' },
   { id: '4h', label: '4 Hands', icon: '✋' },
   { id: '4hp', label: '4H Party', icon: '🎉' },
   { id: '4hk', label: '4H Knockout', icon: '🥊' },
-];
-
-// Mock leaderboard data
-const MOCK = {
-  '2h': [
-    { rank: 1, name: 'PhoenixAce', score: 4821, wins: 142, country: '🇿🇦' },
-    { rank: 2, name: 'CardShark_ZA', score: 4650, wins: 131, country: '🇺🇸' },
-    { rank: 3, name: 'DealMaster', score: 4512, wins: 118, country: '🇬🇧' },
-    { rank: 4, name: 'StackKing', score: 4301, wins: 109, country: '🇫🇷' },
-    { rank: 5, name: 'WildCard99', score: 4188, wins: 97, country: '🇩🇪' },
-    { rank: 6, name: 'HighRoller', score: 4002, wins: 88, country: '🇧🇷' },
-    { rank: 7, name: 'NightDealer', score: 3876, wins: 81, country: '🇯🇵' },
-  ],
-  '3h': [
-    { rank: 1, name: 'TriForce_K', score: 5100, wins: 160, country: '🇿🇦' },
-    { rank: 2, name: 'ThreeAces', score: 4988, wins: 149, country: '🇺🇸' },
-    { rank: 3, name: 'CloverJack', score: 4720, wins: 133, country: '🇦🇺' },
-    { rank: 4, name: 'TrefoilPro', score: 4501, wins: 121, country: '🇨🇦' },
-    { rank: 5, name: 'TripleDown', score: 4399, wins: 112, country: '🇳🇬' },
-    { rank: 6, name: '3CardMonte', score: 4200, wins: 103, country: '🇰🇷' },
-    { rank: 7, name: 'TrickMaster', score: 4011, wins: 94, country: '🇮🇳' },
-  ],
-  '4h': [
-    { rank: 1, name: 'FourKings', score: 5540, wins: 177, country: '🇿🇦' },
-    { rank: 2, name: 'QuadAce', score: 5301, wins: 164, country: '🇺🇸' },
-    { rank: 3, name: 'TableBoss', score: 5102, wins: 151, country: '🇬🇧' },
-    { rank: 4, name: 'GrandSlamR', score: 4899, wins: 139, country: '🇫🇷' },
-    { rank: 5, name: 'DeckLord', score: 4700, wins: 128, country: '🇪🇸' },
-    { rank: 6, name: 'AllInAlways', score: 4555, wins: 117, country: '🇮🇹' },
-    { rank: 7, name: 'CardCartel', score: 4320, wins: 105, country: '🇲🇽' },
-  ],
-  '4hp': [
-    { rank: 1, name: 'PartyAce', score: 6100, wins: 200, country: '🇿🇦' },
-    { rank: 2, name: 'FestiveKing', score: 5880, wins: 188, country: '🇧🇷' },
-    { rank: 3, name: 'GoodTimesG', score: 5612, wins: 172, country: '🇦🇺' },
-    { rank: 4, name: 'JollyJoker', score: 5400, wins: 159, country: '🇨🇦' },
-    { rank: 5, name: 'Confetti_K', score: 5200, wins: 144, country: '🇳🇿' },
-    { rank: 6, name: 'PartyPooper', score: 4988, wins: 133, country: '🇸🇬' },
-    { rank: 7, name: 'BigBashCard', score: 4750, wins: 121, country: '🇿🇦' },
-  ],
-  '4hk': [
-    { rank: 1, name: 'KnockoutK', score: 7200, wins: 230, country: '🇿🇦' },
-    { rank: 2, name: 'IronFist88', score: 6950, wins: 218, country: '🇺🇸' },
-    { rank: 3, name: 'Eliminator', score: 6700, wins: 204, country: '🇬🇧' },
-    { rank: 4, name: 'LastStanding', score: 6430, wins: 191, country: '🇷🇺' },
-    { rank: 5, name: 'TKO_Card', score: 6200, wins: 179, country: '🇹🇷' },
-    { rank: 6, name: 'Ruthless_R', score: 5980, wins: 165, country: '🇩🇪' },
-    { rank: 7, name: 'FinalBlow', score: 5740, wins: 152, country: '🇰🇷' },
-  ],
-};
-
-// Podium styles for top 3 (Gold, Purple, Green accents)
-const POD_STYLE = [
-  { color: COLORS.primary, border: '#FFD70055', bg: '#FFD70015', rankBg: '#FFD70030' },  // Gold
-  { color: COLORS.secondary, border: '#9C27B044', bg: '#9C27B012', rankBg: '#9C27B028' }, // Purple
-  { color: '#4CAF50', border: '#4CAF5044', bg: '#4CAF5012', rankBg: '#4CAF5025' },    // Green
 ];
 
 interface Entry {
@@ -100,6 +48,13 @@ interface Entry {
   wins: number;
   country: string;
 }
+
+// Podium styles for top 3 (Gold, Purple, Green accents)
+const POD_STYLE = [
+  { color: COLORS.primary, border: '#FFD70055', bg: '#FFD70015', rankBg: '#FFD70030' },  // Gold
+  { color: COLORS.secondary, border: '#9C27B044', bg: '#9C27B012', rankBg: '#9C27B028' }, // Purple
+  { color: '#4CAF50', border: '#4CAF5044', bg: '#4CAF5012', rankBg: '#4CAF5025' },    // Green
+];
 
 interface AvatarProps {
   name: string;
@@ -214,8 +169,64 @@ export const options = {
 export default function LeaderboardsScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const [mode, setMode] = useState('2h');
-  const entries = MOCK[mode as keyof typeof MOCK] || MOCK['2h'];
+  const [mode, setMode] = useState<GameMode>('2h');
+  const [refreshing, setRefreshing] = useState(false);
+  
+  const { 
+    leaderboard, 
+    isLoading, 
+    isRefreshing, 
+    error, 
+    isEmpty,
+    refresh 
+  } = useLeaderboard(mode);
+
+  // Map server data to entry format
+  const entries = leaderboard.map((entry, index) => ({
+    rank: entry.rank || index + 1,
+    name: entry.username || 'Unknown',
+    score: entry.wins || 0,
+    wins: entry.wins || 0,
+    country: '🌍',
+  }));
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  };
+
+  // Show loading state
+  if (isLoading && leaderboard.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => router.back()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="arrow-back" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+          
+          <View style={styles.titleContainer}>
+            <Text style={styles.brandName}>LEADERBOARD</Text>
+            <Text style={styles.brandSub}>Card Game Rankings</Text>
+          </View>
+          
+          <View style={styles.liveIndicator}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>LIVE</Text>
+          </View>
+        </View>
+        
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Loading leaderboard...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -264,48 +275,73 @@ export default function LeaderboardsScreen() {
       {/* Podium */}
       <View style={styles.podium}>
         {/* Order: 2nd, 1st, 3rd */}
-        <Podium 
-          entry={entries[1]} 
-          style={POD_STYLE[1]} 
-          isTop={false} 
-          position={1}
-        />
-        <Podium 
-          entry={entries[0]} 
-          style={POD_STYLE[0]} 
-          isTop={true} 
-          position={0}
-        />
-        <Podium 
-          entry={entries[2]} 
-          style={POD_STYLE[2]} 
-          isTop={false} 
-          position={2}
-        />
+        {entries[1] && (
+          <Podium 
+            entry={entries[1]} 
+            style={POD_STYLE[1]} 
+            isTop={false} 
+            position={1}
+          />
+        )}
+        {entries[0] && (
+          <Podium 
+            entry={entries[0]} 
+            style={POD_STYLE[0]} 
+            isTop={true} 
+            position={0}
+          />
+        )}
+        {entries[2] && (
+          <Podium 
+            entry={entries[2]} 
+            style={POD_STYLE[2]} 
+            isTop={false} 
+            position={2}
+          />
+        )}
       </View>
 
       {/* Divider */}
       <View style={styles.divider} />
 
       {/* Section Title */}
-      <Text style={styles.sectionTitle}>Rankings #4 — #7</Text>
+      <Text style={styles.sectionTitle}>
+        Rankings #{entries.length > 3 ? '#4' : entries.length + 1} — #{Math.min(entries.length, 7)}
+      </Text>
 
       {/* Rankings List */}
-      <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-        {entries.slice(3).map((e, index) => (
-          <View 
-            key={e.rank} 
-            style={styles.row}
-          >
-            <Text style={styles.rowRank}>#{e.rank}</Text>
-            <Avatar name={e.name} color={COLORS.primary} size={28} radius={7} fontSize={10} />
-            <View style={styles.rowInfo}>
-              <Text style={styles.rowName}>{e.name}</Text>
-              <Text style={styles.rowMeta}>{e.country} · {e.wins} wins</Text>
-            </View>
-            <Text style={styles.rowScore}>{e.score.toLocaleString()}</Text>
+      <ScrollView 
+        style={styles.list} 
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing || isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
+        {entries.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No players yet</Text>
           </View>
-        ))}
+        ) : (
+          entries.slice(3).map((e, index) => (
+            <View 
+              key={`${e.rank}-${index}`} 
+              style={styles.row}
+            >
+              <Text style={styles.rowRank}>#{e.rank}</Text>
+              <Avatar name={e.name} color={COLORS.primary} size={28} radius={7} fontSize={10} />
+              <View style={styles.rowInfo}>
+                <Text style={styles.rowName}>{e.name}</Text>
+                <Text style={styles.rowMeta}>{e.country} · {e.wins} wins</Text>
+              </View>
+              <Text style={styles.rowScore}>{e.score.toLocaleString()}</Text>
+            </View>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -421,6 +457,37 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     paddingHorizontal: 14,
     paddingVertical: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    marginTop: 12,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    textAlign: 'center',
   },
   list: {
     flex: 1,
