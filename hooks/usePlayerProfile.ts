@@ -13,8 +13,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// DEBUG: Add diagnostic logging for hybrid storage
 const STORAGE_KEY = 'player_profile';
 const SERVER_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+
+// PRD Storage Keys
+const GUEST_PROFILE_KEY = 'guest_profile';
+const GUEST_GAME_PROGRESS_KEY = 'guest_game_progress';
+const AUTH_CACHE_PROFILE_KEY = 'auth_cache_profile';
+const AUTH_CACHE_PROGRESS_KEY = 'auth_cache_progress';
+const TOKEN_STORAGE_KEY = 'casino_auth_token';
+
+function profileDebugLog(tag: string, message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [ProfileStorage:${tag}] ${message}`, data || '');
+}
 
 // Avatar options
 export type AvatarId = 
@@ -120,7 +133,10 @@ function debugError(tag: string, message: string, error: any) {
 // Get auth token
 async function getAuthToken(): Promise<string | null> {
   try {
-    return await AsyncStorage.getItem('casino_auth_token');
+    profileDebugLog('getAuthToken', 'Fetching auth token');
+    const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+    profileDebugLog('getAuthToken', 'Token retrieved', { hasToken: !!token });
+    return token;
   } catch (error) {
     debugError('getAuthToken', 'Failed to get auth token', error);
     return null;
@@ -222,17 +238,40 @@ export function usePlayerProfile(): UsePlayerProfileResult {
 
   /**
    * Load profile from local storage and optionally sync with server
+   * 
+   * PRD Logic:
+   * - Guest mode: Read from guest_profile
+   * - Auth mode: Read from player_profile (cache), then sync with server
    */
   const loadProfile = async () => {
+    profileDebugLog('loadProfile', 'Starting profile load');
+    
+    // Determine which storage key to use based on auth state
+    const token = await getAuthToken();
+    const isAuth = !!token;
+    
+    profileDebugLog('loadProfile', 'Auth state check', { isAuthenticated: isAuth });
+    
     try {
-      debugLog('loadProfile', 'Loading profile...');
-      
       // First load from local storage
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      // PRD: Guest uses guest_profile, Auth uses player_profile (cache)
+      const storageKey = isAuth ? STORAGE_KEY : GUEST_PROFILE_KEY;
+      profileDebugLog('loadProfile', 'Reading from storage', { storageKey });
+      
+      const stored = await AsyncStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
         setProfile({ ...DEFAULT_PROFILE, ...parsed });
-        debugLog('loadProfile', 'Loaded from local storage', parsed);
+        profileDebugLog('loadProfile', 'Loaded from local storage', { storageKey, data: parsed });
+      } else {
+        profileDebugLog('loadProfile', 'No data in storage, using default', { storageKey });
+        // No guest data exists - this is a new guest, create default
+        if (!isAuth) {
+          // Auto-create guest profile
+          const newGuestProfile = { ...DEFAULT_PROFILE };
+          await AsyncStorage.setItem(GUEST_PROFILE_KEY, JSON.stringify(newGuestProfile));
+          profileDebugLog('loadProfile', 'Created new guest profile');
+        }
       }
     } catch (error) {
       debugError('loadProfile', 'Error loading from storage', error);
@@ -240,22 +279,40 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       setIsLoading(false);
     }
     
-    // Then try to sync with server
-    await syncWithServer();
+    // Then try to sync with server (only if authenticated)
+    if (isAuth) {
+      profileDebugLog('loadProfile', 'Auth user - will sync with server');
+      await syncWithServer();
+    } else {
+      profileDebugLog('loadProfile', 'Guest - no server sync needed');
+    }
   };
 
   /**
    * Save profile to local storage
+   * 
+   * PRD Logic:
+   * - Guest mode: Write to guest_profile
+   * - Auth mode: Write to player_profile (cache)
    */
   const saveProfile = async (newProfile: PlayerProfile) => {
+    profileDebugLog('saveProfile', 'Starting profile save');
+    
+    // Determine which storage key to use based on auth state
+    const token = await getAuthToken();
+    const isAuth = !!token;
+    const storageKey = isAuth ? STORAGE_KEY : GUEST_PROFILE_KEY;
+    
+    profileDebugLog('saveProfile', 'Writing to storage', { storageKey, isAuthenticated: isAuth });
+    
     try {
       const toSave = {
         ...newProfile,
         lastSyncAt: new Date().toISOString(),
       };
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+      await AsyncStorage.setItem(storageKey, JSON.stringify(toSave));
       setProfile(toSave);
-      debugLog('saveProfile', 'Saved to local storage', toSave);
+      profileDebugLog('saveProfile', 'Saved successfully', toSave);
     } catch (error) {
       debugError('saveProfile', 'Error saving to storage', error);
       throw error;

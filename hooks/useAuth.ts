@@ -33,8 +33,22 @@ interface AuthFunctions {
   verifySession: () => Promise<boolean>;
 }
 
+// DEBUG: Add diagnostic logging for hybrid storage flow
 const AUTH_STORAGE_KEY = 'casino_auth_user';
 const TOKEN_STORAGE_KEY = 'casino_auth_token';
+
+// PRD Keys - Guest Mode
+const GUEST_PROFILE_KEY = 'guest_profile';
+const GUEST_GAME_PROGRESS_KEY = 'guest_game_progress';
+
+// PRD Keys - Authenticated Cache
+const AUTH_CACHE_PROFILE_KEY = 'auth_cache_profile';
+const AUTH_CACHE_PROGRESS_KEY = 'auth_cache_progress';
+
+function debugLog(tag: string, message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [HybridStorage:${tag}] ${message}`, data || '');
+}
 
 export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>({
@@ -49,9 +63,11 @@ export function useAuth() {
   }, []);
 
   const loadSession = async () => {
+    debugLog('loadSession', 'Starting session load');
     try {
       const storedUser = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
       const storedToken = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      debugLog('loadSession', 'Checking storage', { hasUser: !!storedUser, hasToken: !!storedToken });
       
       if (storedUser) {
         const user = JSON.parse(storedUser);
@@ -90,13 +106,33 @@ export function useAuth() {
   };
 
   const login: AuthFunctions['login'] = async (username, password) => {
+    debugLog('login', 'Starting login flow', { username });
     try {
+      // DEBUG: Check for guest data before login
+      const guestProfileRaw = await AsyncStorage.getItem(GUEST_PROFILE_KEY);
+      const guestProgressRaw = await AsyncStorage.getItem(GUEST_GAME_PROGRESS_KEY);
+      
+      const guestProfile = guestProfileRaw ? JSON.parse(guestProfileRaw) : null;
+      const guestGameProgress = guestProgressRaw ? JSON.parse(guestProgressRaw) : null;
+      
+      debugLog('login', 'Guest data check before login', { 
+        hasGuestProfile: !!guestProfile, 
+        hasGuestProgress: !!guestGameProgress,
+        guestProfile: guestProfile ? { wins: guestProfile.wins, losses: guestProfile.losses } : null
+      });
+
+      // Send guest data along with login credentials for merging
       const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ 
+          username, 
+          password,
+          guestProfile: guestProfile ? JSON.stringify(guestProfile) : null,
+          guestGameProgress: guestGameProgress ? JSON.stringify(guestGameProgress) : null
+        }),
       });
 
       const data = await response.json();
@@ -108,8 +144,24 @@ export function useAuth() {
           await AsyncStorage.setItem(TOKEN_STORAGE_KEY, data.token);
         }
         
+        // PRD: After successful login, clear guest data (US-02)
+        // This ensures no cross-account data leaks
+        if (guestProfile || guestGameProgress) {
+          debugLog('login', 'Clearing guest data after successful login');
+          await AsyncStorage.removeItem(GUEST_PROFILE_KEY);
+          await AsyncStorage.removeItem(GUEST_GAME_PROGRESS_KEY);
+          debugLog('login', 'Guest data cleared successfully');
+        }
+        
+        // If merged stats were returned, save to local cache
+        if (data.mergedStats) {
+          debugLog('login', 'Guest data was merged', data.mergedStats);
+          // The usePlayerProfile hook will fetch fresh data from server on next load
+        }
+        
         setAuthState({
           user: data.user,
+          token: data.token,
           isLoading: false,
           isAuthenticated: true,
         });
@@ -125,13 +177,34 @@ export function useAuth() {
   };
 
   const register: AuthFunctions['register'] = async (username, email, password) => {
+    debugLog('register', 'Starting registration flow', { username, email });
     try {
+      // DEBUG: Check for guest data before registration
+      const guestProfileRaw = await AsyncStorage.getItem(GUEST_PROFILE_KEY);
+      const guestProgressRaw = await AsyncStorage.getItem(GUEST_GAME_PROGRESS_KEY);
+      
+      const guestProfile = guestProfileRaw ? JSON.parse(guestProfileRaw) : null;
+      const guestGameProgress = guestProgressRaw ? JSON.parse(guestProgressRaw) : null;
+      
+      debugLog('register', 'Guest data check before registration', { 
+        hasGuestProfile: !!guestProfile, 
+        hasGuestProgress: !!guestGameProgress,
+        guestProfile: guestProfile ? { wins: guestProfile.wins, losses: guestProfile.losses, avatar: guestProfile.avatar } : null
+      });
+
+      // Send guest data along with registration for merging
       const response = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ 
+          username, 
+          email, 
+          password,
+          guestProfile: guestProfile ? JSON.stringify(guestProfile) : null,
+          guestGameProgress: guestGameProgress ? JSON.stringify(guestGameProgress) : null
+        }),
       });
 
       const data = await response.json();
@@ -143,8 +216,18 @@ export function useAuth() {
           await AsyncStorage.setItem(TOKEN_STORAGE_KEY, data.token);
         }
         
+        // PRD: After successful registration, clear guest data (US-02)
+        // This ensures no cross-account data leaks
+        if (guestProfile || guestGameProgress) {
+          debugLog('register', 'Clearing guest data after successful registration');
+          await AsyncStorage.removeItem(GUEST_PROFILE_KEY);
+          await AsyncStorage.removeItem(GUEST_GAME_PROGRESS_KEY);
+          debugLog('register', 'Guest data cleared successfully');
+        }
+        
         setAuthState({
           user: data.user,
+          token: data.token,
           isLoading: false,
           isAuthenticated: true,
         });
@@ -160,10 +243,17 @@ export function useAuth() {
   };
 
   const logout: AuthFunctions['logout'] = async () => {
+    debugLog('logout', 'Starting logout - clearing all caches');
     try {
+      // DEBUG: Log what we're clearing
+      debugLog('logout', 'Clearing auth storage', { AUTH_STORAGE_KEY, TOKEN_STORAGE_KEY });
+      
       // Clear all auth data
       await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
       await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
+      
+      // DEBUG: Log cache clearing
+      debugLog('logout', 'Clearing player caches');
       
       // Clear player profile data (new user should start fresh)
       await AsyncStorage.removeItem('player_profile');
@@ -173,6 +263,14 @@ export function useAuth() {
       await AsyncStorage.removeItem('leaderboard_cache_4h');
       await AsyncStorage.removeItem('leaderboard_cache_4hp');
       await AsyncStorage.removeItem('leaderboard_cache_4hk');
+      
+      // DEBUG: Clear PRD-specific keys
+      await AsyncStorage.removeItem(GUEST_PROFILE_KEY);
+      await AsyncStorage.removeItem(GUEST_GAME_PROGRESS_KEY);
+      await AsyncStorage.removeItem(AUTH_CACHE_PROFILE_KEY);
+      await AsyncStorage.removeItem(AUTH_CACHE_PROGRESS_KEY);
+      
+      debugLog('logout', 'All caches cleared successfully');
     } catch (error) {
       console.error('[Auth] Logout error:', error);
     }

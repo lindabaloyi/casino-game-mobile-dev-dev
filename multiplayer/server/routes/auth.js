@@ -22,11 +22,31 @@ function generateAvatar(username) {
 /**
  * POST /api/auth/register
  * Register a new user
- * Body: { username, email, password }
+ * Body: { username, email, password, guestProfile?, guestGameProgress? }
+ * 
+ * If guestProfile/guestGameProgress provided (as JSON strings), merge into new user's MongoDB data
  */
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    let { username, email, password, guestProfile, guestGameProgress } = req.body;
+
+    // Parse guestProfile if it's a string (sent as JSON string from client)
+    if (typeof guestProfile === 'string') {
+      try {
+        guestProfile = JSON.parse(guestProfile);
+      } catch (e) {
+        guestProfile = null;
+      }
+    }
+    
+    // Parse guestGameProgress if it's a string
+    if (typeof guestGameProgress === 'string') {
+      try {
+        guestGameProgress = JSON.parse(guestGameProgress);
+      } catch (e) {
+        guestGameProgress = null;
+      }
+    }
 
     // Validate input
     if (!username || !email || !password) {
@@ -48,6 +68,19 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
+    // Merge guest data if provided (PRD: US-02 - Guest upgrade)
+    let mergedWins = 0;
+    let mergedLosses = 0;
+    let mergedTotalGames = 0;
+    
+    if (guestProfile) {
+      // Use max for scalar fields (last write wins - guest data is newer)
+      mergedWins = Math.max(0, guestProfile.wins || 0);
+      mergedLosses = Math.max(0, guestProfile.losses || 0);
+      mergedTotalGames = Math.max(0, guestProfile.totalGames || 0);
+      console.log('[Auth] Merging guest profile stats:', { mergedWins, mergedLosses, mergedTotalGames });
+    }
+
     // Create user
     const user = await User.create({
       username,
@@ -56,24 +89,31 @@ router.post('/register', async (req, res) => {
       avatar: generateAvatar(username)
     });
 
-    // Create default profile with username and default avatar
+    // Create profile with merged guest data if available
     await PlayerProfile.create(user._id.toString(), {
       displayName: username,
-      avatar: 'lion',  // Default animal avatar
-      wins: 0,
-      losses: 0,
-      totalGames: 0,
+      avatar: guestProfile?.avatar || 'lion',  // Use guest avatar if available
+      wins: mergedWins,
+      losses: mergedLosses,
+      totalGames: mergedTotalGames,
       rank: null
     });
 
-    // Create initial stats
-    await GameStats.create(user._id.toString());
+    // Create initial stats with merged data
+    await GameStats.create(user._id.toString(), {
+      wins: mergedWins,
+      losses: mergedLosses,
+      totalGames: mergedTotalGames
+    });
+
+    console.log('[Auth] User registered with merged guest data:', { userId: user._id, mergedStats: { wins: mergedWins, losses: mergedLosses, totalGames: mergedTotalGames } });
 
     // Return user without password
     const { password: _, ...userWithoutPassword } = user;
     res.status(201).json({ 
       success: true, 
-      user: userWithoutPassword 
+      user: userWithoutPassword,
+      mergedStats: { wins: mergedWins, losses: mergedLosses, totalGames: mergedTotalGames }
     });
   } catch (error) {
     console.error('[Auth] Register error:', error);
@@ -84,11 +124,31 @@ router.post('/register', async (req, res) => {
 /**
  * POST /api/auth/login
  * Login user
- * Body: { username, password }
+ * Body: { username, password, guestProfile?, guestGameProgress? }
+ * 
+ * If guestProfile/guestGameProgress provided, merge into existing user's MongoDB data
  */
 router.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    let { username, password, guestProfile, guestGameProgress } = req.body;
+
+    // Parse guestProfile if it's a string (sent as JSON string from client)
+    if (typeof guestProfile === 'string') {
+      try {
+        guestProfile = JSON.parse(guestProfile);
+      } catch (e) {
+        guestProfile = null;
+      }
+    }
+    
+    // Parse guestGameProgress if it's a string
+    if (typeof guestGameProgress === 'string') {
+      try {
+        guestGameProgress = JSON.parse(guestGameProgress);
+      } catch (e) {
+        guestGameProgress = null;
+      }
+    }
 
     // Validate input
     if (!username || !password) {
@@ -122,6 +182,60 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Merge guest data if provided (PRD: US-02 - Guest login with existing progress)
+    let mergedStats = null;
+    
+    if (guestProfile) {
+      // Get current profile and stats
+      const profile = await PlayerProfile.findByUserId(user._id.toString());
+      
+      if (profile) {
+        // Use max for scalar fields (last write wins - guest data is newer if just upgrading)
+        const currentWins = profile.wins || 0;
+        const currentLosses = profile.losses || 0;
+        const currentTotalGames = profile.totalGames || 0;
+        
+        const guestWins = guestProfile.wins || 0;
+        const guestLosses = guestProfile.losses || 0;
+        const guestTotalGames = guestProfile.totalGames || 0;
+        
+        // Merge: take the maximum (best progress)
+        const newWins = Math.max(currentWins, guestWins);
+        const newLosses = Math.max(currentLosses, guestLosses);
+        const newTotalGames = Math.max(currentTotalGames, guestTotalGames);
+        
+        // Update profile with merged stats
+        await PlayerProfile.update(user._id.toString(), {
+          wins: newWins,
+          losses: newLosses,
+          totalGames: newTotalGames,
+          // Use guest avatar if guest has one and current doesn't
+          avatar: guestProfile.avatar && !profile.avatar ? guestProfile.avatar : profile.avatar
+        });
+        
+        // Also update GameStats
+        await GameStats.updateStats(user._id.toString(), {
+          wins: newWins,
+          losses: newLosses,
+          totalGames: newTotalGames
+        });
+        
+        mergedStats = { 
+          wins: newWins, 
+          losses: newLosses, 
+          totalGames: newTotalGames,
+          wasMerged: (guestWins > currentWins || guestLosses > currentLosses)
+        };
+        
+        console.log('[Auth] Merged guest data into existing user:', { 
+          userId: user._id, 
+          oldStats: { wins: currentWins, losses: currentLosses, totalGames: currentTotalGames },
+          guestStats: { wins: guestWins, losses: guestLosses, totalGames: guestTotalGames },
+          newStats: { wins: newWins, losses: newLosses, totalGames: newTotalGames }
+        });
+      }
+    }
+
     // Update last login
     await User.updateLastLogin(user._id.toString());
     
@@ -136,7 +250,8 @@ router.post('/login', async (req, res) => {
     res.json({ 
       success: true, 
       token,
-      user: userWithoutPassword 
+      user: userWithoutPassword,
+      mergedStats
     });
   } catch (error) {
     console.error('[Auth] Login error:', error);
