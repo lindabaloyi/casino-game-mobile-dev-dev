@@ -130,18 +130,16 @@ export function useActionHandlers(
     extendedTarget: number;
     stackId: string;
   }) => {
-    console.log('[handleConfirmExtendChoice] Sending choice action with extend/steal option');
+    console.log('[handleConfirmExtendChoice] Sending stealBuild action directly');
     
-    // Send choice action with selectedOption: 'extend'
-    // This clears pendingChoice on the server and processes the steal
-    actions.choice(
-      'extend',
-      choiceData.card,
-      choiceData.stackId,
-      choiceData.buildValue,
-      choiceData.extendedTarget
-    );
+    // Send stealBuild action directly - bypasses choice/extend router
+    // This routes straight to stealBuild.js backend handler
+    actions.stealBuild(choiceData.card, choiceData.stackId);
+    
+    // Close the modal
     modals.closeCaptureOrStealModal();
+    
+    // Show end turn button after successful steal
     modals.onStealCompleted();
   }, [actions, modals]);
 
