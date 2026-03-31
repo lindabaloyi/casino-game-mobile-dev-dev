@@ -15,7 +15,7 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { MODAL_COLORS, MODAL_DIMENSIONS, MODAL_Z_INDEX } from './ModalDesignSystem';
 
 // Theme configuration
-type ThemeType = 'green' | 'red' | 'gold';
+type ThemeType = 'green' | 'red' | 'gold' | 'purple';
 
 interface ThemeConfig {
   background: string;
@@ -58,6 +58,16 @@ const THEMES: Record<ThemeType, ThemeConfig> = {
     buttonSecondary: '#7c3aed',
     buttonSecondaryBorder: '#a78bfa',
     accentBar: '#f59e0b',
+  },
+  purple: {
+    background: '#2d1b4e',
+    border: '#7c3aed',
+    titleColor: '#fbbf24',
+    buttonPrimary: '#7c3aed',
+    buttonPrimaryBorder: '#a78bfa',
+    buttonSecondary: '#059669',
+    buttonSecondaryBorder: '#34d058',
+    accentBar: '#7c3aed',
   },
 };
 

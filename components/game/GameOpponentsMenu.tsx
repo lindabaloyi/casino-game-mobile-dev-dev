@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AVATAR_OPTIONS, AvatarId } from '../../hooks/usePlayerProfile';
+import { getPlayerColors } from '../../constants/teamColors';
 
 // In-game color scheme - matching leaderboards.tsx
 const COLORS = {
@@ -112,8 +113,7 @@ export function GameOpponentsMenu({
 
   // Get player color based on player index
   const getPlayerColor = (index: number) => {
-    const colors = ['#FF9800', '#9C27B0', '#2196F3', '#800020'];
-    return colors[index % colors.length];
+    return getPlayerColors(index, 4).primary;
   };
 
   // Toggle a setting

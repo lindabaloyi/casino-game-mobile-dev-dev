@@ -11,18 +11,12 @@ import { getTeamFromIndex } from '../../../shared/game/team';
 import { 
   TEAM_A_COLORS, 
   TEAM_B_COLORS,
-  PLAYER_1_GOLD, 
-  PLAYER_2_PURPLE, 
-  PLAYER_3_BLUE, 
-  PLAYER_4_BURGUNDY 
+  getPlayerColors
 } from '../../../constants/teamColors';
 
-// Re-export player colors for convenience
+// Re-export player colors for convenience (using getPlayerColors internally)
 export const COLORS = {
-  PLAYER_1_GOLD,
-  PLAYER_2_PURPLE,
-  PLAYER_3_BLUE,
-  PLAYER_4_BURGUNDY,
+  getPlayerColor: (index: number, count: number) => getPlayerColors(index, count).primary,
 };
 
 interface UseTempStackDisplayResult {
@@ -59,28 +53,9 @@ export function useTempStackDisplay(
       return team === 'A' ? TEAM_A_COLORS.primary : TEAM_B_COLORS.primary;
     }
     
-    // Complete - use player-specific colors based on playerCount
-    if (playerCount === 4) {
-      // 4-player free-for-all: P0=purple, P1=gold, P2=blue, P3=burgundy
-      switch (stack.owner) {
-        case 0: return PLAYER_2_PURPLE;  // Purple
-        case 1: return PLAYER_1_GOLD;    // Gold
-        case 2: return PLAYER_3_BLUE;    // Blue
-        case 3: return PLAYER_4_BURGUNDY; // Burgundy
-        default: return PLAYER_2_PURPLE;
-      }
-    }
-    if (playerCount === 3) {
-      // 3-player mode
-      switch (stack.owner) {
-        case 0: return PLAYER_1_GOLD;
-        case 1: return PLAYER_2_PURPLE;
-        case 2: return PLAYER_3_BLUE;
-        default: return PLAYER_2_PURPLE;
-      }
-    }
-    // 2-player mode
-    return stack.owner === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE;
+    // Complete - use player-specific colors using centralized getPlayerColors
+    const playerColors = getPlayerColors(stack.owner, playerCount);
+    return playerColors.primary;
   };
 
   // Compute display value and badge color

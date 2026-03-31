@@ -1,6 +1,7 @@
 /**
  * Build Team Info Hook
  * Derives team, colors, owner label based on mode.
+ * Now uses constants/teamColors.ts for consistent player colors.
  */
 
 import { useMemo } from 'react';
@@ -17,20 +18,6 @@ import {
   type TeamColors 
 } from '../../../constants/teamColors';
 
-// Canonical purple/blue from Team B colors
-export const CANONICAL_PURPLE = TEAM_B_COLORS.primary;
-
-// Orange/Gold color for Player 1 / Team A (2-player and party mode)
-export const PLAYER_1_GOLD = '#FF9800';
-
-// Blue/Purple for Player 2 / Team B (2-player and party mode)
-export const PLAYER_2_PURPLE = TEAM_B_COLORS.primary;
-
-// Blue for Player 3 (3-player mode)
-export const PLAYER_3_BLUE = '#2196F3';
-
-// Burgundy for Player 4 (4-player free-for-all mode)
-export const PLAYER_4_BURGUNDY = '#800020';
 
 interface UseBuildTeamInfoProps {
   /** Owner player index */
@@ -91,10 +78,8 @@ export function useBuildTeamInfo({
       // 3-player mode: use player-specific colors with playerCount
       teamColors = getPlayerColors(owner, playerCount);
     } else {
-      // 2-player mode: use gold for P1, purple for P2
-      teamColors = owner === 0 
-        ? { ...TEAM_B_COLORS, primary: PLAYER_1_GOLD, accent: '#B8860B' }  // Gold for P1
-        : TEAM_B_COLORS;  // Purple for P2
+      // 2-player mode: use player-specific colors
+      teamColors = getPlayerColors(owner, 2);
     }
     
     return { 
@@ -108,45 +93,26 @@ export function useBuildTeamInfo({
   // Badge color: accent while incomplete (effectiveSum !== 0), team color when complete
   // Capture uses same colors as extension (team-based, not red)
   const badgeColor = useMemo(() => {
-    // Helper function to get player color based on owner and playerCount
+    // Use centralized getPlayerColors() for consistent player colors
     const getPlayerColor = (playerIndex: number, count: number): string => {
-      if (count === 4) {
-        // 4-player free-for-all: P0=purple, P1=gold, P2=blue, P3=burgundy
-        switch (playerIndex) {
-          case 0: return PLAYER_2_PURPLE;  // Purple
-          case 1: return PLAYER_1_GOLD;   // Gold
-          case 2: return PLAYER_3_BLUE;   // Blue
-          case 3: return PLAYER_4_BURGUNDY;  // Burgundy
-          default: return PLAYER_2_PURPLE;
-        }
-      }
-      if (count === 3) {
-        // 3-player mode: P1=gold, P2=purple, P3=blue
-        switch (playerIndex) {
-          case 0: return PLAYER_1_GOLD;
-          case 1: return PLAYER_2_PURPLE;
-          case 2: return PLAYER_3_BLUE;
-          default: return PLAYER_2_PURPLE;
-        }
-      }
-      // 2-player mode
-      return playerIndex === 0 ? PLAYER_1_GOLD : PLAYER_2_PURPLE;
+      const playerColors = getPlayerColors(playerIndex, count);
+      return playerColors.primary;
     };
     
     if (isExtending || isCapturing) {
       if (effectiveSum !== 0) {
         return colors.accent; // incomplete - show accent
       } else {
-        // complete – use team color
+        // complete – use player color
         return isPartyMode 
-          ? (ownerTeam === 'B' ? CANONICAL_PURPLE : PLAYER_1_GOLD)
-          : getPlayerColor(owner, playerCount);
+          ? (ownerTeam === 'B' ? TEAM_B_COLORS.primary : TEAM_A_COLORS.primary)
+          : getPlayerColors(owner, playerCount).primary;
       }
     } else {
-      // Not extending/capturing – normal team color
+      // Not extending/capturing – normal player color
       return isPartyMode 
-        ? (ownerTeam === 'B' ? CANONICAL_PURPLE : PLAYER_1_GOLD)
-        : getPlayerColor(owner, playerCount);
+        ? (ownerTeam === 'B' ? TEAM_B_COLORS.primary : TEAM_A_COLORS.primary)
+        : getPlayerColors(owner, playerCount).primary;
     }
   }, [isExtending, isCapturing, effectiveSum, colors, isPartyMode, ownerTeam, owner, playerCount]);
 

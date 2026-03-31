@@ -15,29 +15,29 @@ export interface TeamColors {
 }
 
 /**
- * Team A colors - Orange/Gold theme (same as Player 1 in 2-hands)
- * Players 0 and 1 belong to Team A
+ * Team A colors - Sky Blue theme (matches Player 1 in all modes)
+ * Players 0 and 2 belong to Team A
  */
 export const TEAM_A_COLORS: TeamColors = {
-  primary: '#FF9800',   // Orange/Gold
-  secondary: '#FFF3E0',
-  accent: '#E65100',
-  background: '#FFF3E0',
-  text: '#E65100',
-  border: '#FFB74D',
+  primary: '#0284c7',   // Sky Blue
+  secondary: '#E0F2FE',
+  accent: '#0369A1',
+  background: '#E0F2FE',
+  text: '#0369A1',
+  border: '#38BDF8',
 };
 
 /**
- * Team B colors - Purple theme (matches Player 2 in 2-hands)
- * Players 2 and 3 belong to Team B
+ * Team B colors - Amber theme (matches Player 2 in all modes)
+ * Players 1 and 3 belong to Team B
  */
 export const TEAM_B_COLORS: TeamColors = {
-  primary: '#9C27B0',   // Purple
-  secondary: '#F3E5F5',
-  accent: '#7B1FA2',
-  background: '#F3E5F5',
-  text: '#4A148C',
-  border: '#BA68C8',
+  primary: '#c2410c',   // Amber
+  secondary: '#FFF7ED',
+  accent: '#9A3412',
+  background: '#FFF7ED',
+  text: '#9A3412',
+  border: '#FB923C',
 };
 
 /**
@@ -50,68 +50,68 @@ export function getTeamColors(teamId: 'A' | 'B'): TeamColors {
 }
 
 /**
- * Player 1 colors - Orange theme for 2-player mode
- * Distinct color to differentiate from Player 2 (matches Team A)
+ * Player 1 colors - Sky Blue theme for all modes
+ * Distinct color to differentiate from Player 2
  */
 export const PLAYER_1_COLORS: TeamColors = {
-  primary: '#FF9800',   // Orange
-  secondary: '#FFF3E0',
-  accent: '#E65100',
-  background: '#FFF3E0',
-  text: '#E65100',
-  border: '#FFB74D',
+  primary: '#0284c7',   // Sky Blue
+  secondary: '#E0F2FE',
+  accent: '#0369A1',
+  background: '#E0F2FE',
+  text: '#0369A1',
+  border: '#38BDF8',
 };
 
 /**
- * Player 2 colors - Purple theme for 2-player mode
- * Distinct color to differentiate from Player 1 (matches Team B)
+ * Player 2 colors - Amber theme for all modes
+ * Distinct color to differentiate from Player 1
  */
 export const PLAYER_2_COLORS: TeamColors = {
-  primary: '#9C27B0',   // Purple
-  secondary: '#F3E5F5',
-  accent: '#7B1FA2',
-  background: '#F3E5F5',
-  text: '#4A148C',
-  border: '#BA68C8',
+  primary: '#c2410c',   // Amber
+  secondary: '#FFF7ED',
+  accent: '#9A3412',
+  background: '#FFF7ED',
+  text: '#9A3412',
+  border: '#FB923C',
 };
 
 /**
- * Player 3 colors - Blue theme for 3-player mode
- * Distinct color to differentiate from Player 1 (gold) and Player 2 (purple)
+ * Player 3 colors - Lime Green for 4-player FFA only
+ * Not used in 3-hand mode (uses Fuchsia instead)
  */
 export const PLAYER_3_COLORS: TeamColors = {
-  primary: '#2196F3',   // Blue
-  secondary: '#E3F2FD',
-  accent: '#1565C0',
-  background: '#E3F2FD',
-  text: '#0D47A1',
-  border: '#64B5F6',
+  primary: '#15803d',   // Lime Green
+  secondary: '#DCFCE7',
+  accent: '#166534',
+  background: '#DCFCE7',
+  text: '#166534',
+  border: '#4ADE80',
 };
 
 /**
- * Player 4 colors - Burgundy theme for 4-player free-for-all mode
- * Distinct color to differentiate from other players
+ * Player 4 colors - Fuchsia for 4-player FFA and 3-hand mode
+ * Used by P4 in 4-player FFA, and P3 in 3-hand mode
  */
 export const PLAYER_4_COLORS: TeamColors = {
-  primary: '#800020',   // Burgundy
-  secondary: '#F5E6E8',
-  accent: '#5C0018',
-  background: '#F5E6E8',
-  text: '#5C0018',
-  border: '#B76E84',
+  primary: '#a21caf',   // Fuchsia
+  secondary: '#FCE7F3',
+  accent: '#BE185D',
+  background: '#FCE7F3',
+  text: '#BE185D',
+  border: '#F472B6',
 };
 
-// Burgundy for Player 4 (4-player free-for-all mode)
-export const PLAYER_4_BURGUNDY = '#800020';
+// Player 1 Sky Blue (for individual player identification)
+export const PLAYER_1_GOLD = '#0284c7';
 
-// Player 1 Gold (for individual player identification)
-export const PLAYER_1_GOLD = '#FF9800';
+// Player 2 Amber (for individual player identification)
+export const PLAYER_2_PURPLE = '#c2410c';
 
-// Player 2 Purple (for individual player identification)
-export const PLAYER_2_PURPLE = '#9C27B0';
+// Player 3 Lime Green (for individual player identification)
+export const PLAYER_3_BLUE = '#15803d';
 
-// Player 3 Blue (for individual player identification)
-export const PLAYER_3_BLUE = '#2196F3';
+// Player 4 Fuchsia (for individual player identification)
+export const PLAYER_4_FUCHSIA = '#a21caf';
 
 /**
  * Get player-specific colors for 2, 3, or 4-player mode
@@ -120,26 +120,26 @@ export const PLAYER_3_BLUE = '#2196F3';
  * @returns TeamColors object for the specified player
  */
 export function getPlayerColors(playerIndex: number, playerCount: number = 2): TeamColors {
-  // For 4-player free-for-all mode: P0=purple, P1=gold, P2=blue, P3=burgundy
+  // For 4-player free-for-all mode: P0=SkyBlue, P1=Amber, P2=LimeGreen, P3=Fuchsia
   if (playerCount === 4) {
     switch (playerIndex) {
-      case 0: return { ...TEAM_B_COLORS, primary: '#9C27B0', accent: '#7B1FA2' };  // Purple
-      case 1: return { ...TEAM_B_COLORS, primary: PLAYER_1_COLORS.primary, accent: '#B8860B' };  // Gold
-      case 2: return PLAYER_3_COLORS;  // Blue
-      case 3: return PLAYER_4_COLORS;  // Burgundy
+      case 0: return PLAYER_1_COLORS;   // Sky Blue
+      case 1: return PLAYER_2_COLORS;   // Amber
+      case 2: return PLAYER_3_COLORS;   // Lime Green
+      case 3: return PLAYER_4_COLORS;   // Fuchsia
       default: return NEUTRAL_COLORS;
     }
   }
-  // For 3-player mode: player 0 = Player 1 (gold/orange), player 1 = Player 2 (purple), player 2 = Player 3 (blue)
+  // For 3-player mode: P0=SkyBlue, P1=Amber, P2=Fuchsia (NOT Lime!)
   if (playerCount === 3) {
     switch (playerIndex) {
-      case 0: return PLAYER_1_COLORS;   // Gold/Orange
-      case 1: return PLAYER_2_COLORS;   // Purple
-      case 2: return PLAYER_3_COLORS;   // Blue
+      case 0: return PLAYER_1_COLORS;   // Sky Blue
+      case 1: return PLAYER_2_COLORS;   // Amber
+      case 2: return PLAYER_4_COLORS;   // Fuchsia (NOT PLAYER_3_COLORS!)
       default: return NEUTRAL_COLORS;
     }
   }
-  // For 2-player mode: player 0 = Player 1 (gold/orange), player 1 = Player 2 (purple)
+  // For 2-player mode: player 0 = Player 1 (Sky Blue), player 1 = Player 2 (Amber)
   return playerIndex === 0 ? PLAYER_1_COLORS : PLAYER_2_COLORS;
 }
 

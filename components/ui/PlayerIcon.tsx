@@ -2,8 +2,8 @@
  * PlayerIcon Component
  * Displays a player indicator with team colors for party mode
  * 
- * - Team A players (0, 1): Orange/Gold theme (#FF9800)
- * - Team B players (2, 3): Blue/Purple theme (#4DABF7)
+ * - Team A players (0, 1): Sky Blue theme (#0284c7)
+ * - Team B players (1, 3): Amber theme (#c2410c)
  * - Shows player position (P1, P2) within their team
  */
 
@@ -38,8 +38,8 @@ function getPlayerTeamColors(playerIndex: number): TeamColors {
 /**
  * PlayerIcon - displays a styled player badge with team colors
  * 
- * Team A (players 0, 1): Orange/Gold theme (#FF9800)
- * Team B (players 2, 3): Blue/Purple theme (#4DABF7)
+ * Team A (players 0, 1): Sky Blue theme (#0284c7)
+ * Team B (players 1, 3): Amber theme (#c2410c)
  */
 export function PlayerIcon({ 
   playerIndex, 
@@ -76,12 +76,11 @@ export function PlayerIcon({
         sizeStyles.container,
         { 
           backgroundColor: colors.primary,
-          borderColor: WHITE,
         },
         style
       ]}
     >
-      <Text style={[styles.text, sizeStyles.text, { color: WHITE }]}>
+      <Text style={[styles.text, sizeStyles.text, { color: WHITE, fontWeight: 'bold' }]}>
         {position}
       </Text>
     </View>
@@ -97,7 +96,7 @@ export function PlayerBadge({ playerIndex }: { playerIndex: number }) {
   
   return (
     <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-      <Text style={styles.badgeText}>{position}</Text>
+      <Text style={[styles.badgeText, { fontWeight: 'bold' }]}>{position}</Text>
     </View>
   );
 }
@@ -122,8 +121,8 @@ export function TeamPlayerIcon({
   
   return (
     <View style={[styles.teamContainer, { borderColor: colors.primary }]}>
-      <View style={[styles.teamBadge, { backgroundColor: colors.primary, borderColor: WHITE }]}>
-        <Text style={[styles.teamText, { color: WHITE }]}>{position}</Text>
+      <View style={[styles.teamBadge, { backgroundColor: colors.primary }]}>
+        <Text style={[styles.teamText, { color: WHITE, fontWeight: 'bold' }]}>{position}</Text>
       </View>
       <Text style={[styles.teamLabel, { color: colors.text }]}>
         {isFriendly ? 'Friendly' : 'Enemy'}
@@ -134,26 +133,24 @@ export function TeamPlayerIcon({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 8,
+    borderRadius: 14,  // Pill shape
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
   },
   containerSmall: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
   },
   containerMedium: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   containerLarge: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   text: {
     color: '#FFFFFF',
@@ -169,7 +166,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   subtext: {
-    fontWeight: 'normal',
+    fontWeight: 'bold',
   },
   subtextSmall: {
     fontSize: 6,
@@ -180,43 +177,41 @@ const styles = StyleSheet.create({
   subtextLarge: {
     fontSize: 10,
   },
-  // Badge styles (compact)
+  // Badge styles (compact) - Pill shape
   badge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    minWidth: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 14,  // Pill shape
+    minWidth: 24,
     alignItems: 'center',
   },
   badgeText: {
-    color: WHITE,
+    color: '#FFFFFF',
     fontSize: 10,
     fontWeight: 'bold',
   },
   // Team container styles
   teamContainer: {
-    borderWidth: 2,
-    borderRadius: 8,
-    padding: 4,
+    borderWidth: 0,
+    borderRadius: 16,
+    padding: 6,
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.9)',
   },
   teamBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: WHITE,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,  // Pill shape
   },
   teamText: {
-    color: WHITE,
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
   },
   teamLabel: {
     fontSize: 8,
     marginTop: 2,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
 });
 
