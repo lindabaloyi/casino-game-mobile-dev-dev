@@ -77,7 +77,9 @@ function createActionRouter(config) {
       console.log(`[ActionRouter] Router routed "${actionType}" → "${finalType}"`);
 
       // 4. Handle choice type specially - set pendingChoice for modal
-      if (finalType === 'choice') {
+      // Only set pendingChoice if no selection has been made yet (modal needs to be shown)
+      // When selectedOption is present, the player has made their choice - fall through to handler
+      if (finalType === 'choice' && !finalPayload?.selectedOption) {
         console.log(`[ActionRouter] Setting pendingChoice for modal`);
         const newState = cloneState(state);
         // Include playerIndex so clients know who should see the modal

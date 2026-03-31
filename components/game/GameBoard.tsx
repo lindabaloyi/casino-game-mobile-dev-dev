@@ -256,10 +256,7 @@ export function GameBoard({
   // Only show for the player who triggered the choice (identified by pendingChoice.playerIndex)
   useEffect(() => {
     const pendingChoice = (gameState as any)?.pendingChoice;
-    // Only open modal if:
-    // 1. There's a pendingChoice
-    // 2. It's for the current player
-    // 3. Modal data hasn't been set yet
+    // Open modal when pendingChoice appears
     if (pendingChoice && pendingChoice.playerIndex === playerNumber && modals.captureOrStealData === null) {
       console.log('[GameBoard] pendingChoice detected for player', playerNumber, '- opening CaptureOrStealModal');
       modals.openCaptureOrStealModal({
@@ -269,6 +266,12 @@ export function GameBoard({
         extendedTarget: pendingChoice.extendedTarget || 10,
         stackId: pendingChoice.stackId,
       });
+    }
+    // Close modal when pendingChoice is cleared by server (action completed successfully)
+    else if (!pendingChoice && modals.showCaptureOrStealModal) {
+      console.log('[GameBoard] pendingChoice cleared by server - closing CaptureOrStealModal');
+      modals.closeCaptureOrStealModal();
+      modals.onStealCompleted(); // Show end turn button after successful capture
     }
   }, [gameState, modals, playerNumber]);
 
