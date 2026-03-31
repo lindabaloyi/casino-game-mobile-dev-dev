@@ -254,18 +254,32 @@ export function GameBoard({
   // === Capture vs Steal modal for pendingChoice ===
   // When server returns pendingChoice (small build with newTarget in hand), show modal
   // Only show for the player who triggered the choice (identified by pendingChoice.playerIndex)
+  // GUARDRAIL: Only show when targeting opponent's build, not own builds
   useEffect(() => {
     const pendingChoice = (gameState as any)?.pendingChoice;
+    
     // Open modal when pendingChoice appears
     if (pendingChoice && pendingChoice.playerIndex === playerNumber && modals.captureOrStealData === null) {
-      console.log('[GameBoard] pendingChoice detected for player', playerNumber, '- opening CaptureOrStealModal');
-      modals.openCaptureOrStealModal({
-        card: pendingChoice.card,
-        buildValue: pendingChoice.buildValue || (pendingChoice.card?.value || 5),
-        buildCards: pendingChoice.buildCards || [],
-        extendedTarget: pendingChoice.extendedTarget || 10,
-        stackId: pendingChoice.stackId,
-      });
+      // GUARDRAIL: Check if this is an opponent's build
+      // buildOwner is provided by server in pendingChoice object
+      const buildOwner = pendingChoice.buildOwner;
+      const isOwnBuild = buildOwner === playerNumber;
+      
+      if (isOwnBuild) {
+        // GUARDRAIL: Don't show CaptureOrStealModal for own builds
+        // Own builds should be handled through normal capture flow
+        console.log('[GameBoard] GUARDRAIL: pendingChoice detected for OWN build (owner:', buildOwner, ') - NOT opening CaptureOrStealModal');
+        // Don't open modal - server will handle own build capture through normal flow
+      } else {
+        console.log('[GameBoard] pendingChoice detected for player', playerNumber, 'on opponent build (owner:', buildOwner, ') - opening CaptureOrStealModal');
+        modals.openCaptureOrStealModal({
+          card: pendingChoice.card,
+          buildValue: pendingChoice.buildValue || (pendingChoice.card?.value || 5),
+          buildCards: pendingChoice.buildCards || [],
+          extendedTarget: pendingChoice.extendedTarget || 10,
+          stackId: pendingChoice.stackId,
+        });
+      }
     }
     // Close modal when pendingChoice is cleared by server (action completed successfully)
     else if (!pendingChoice && modals.showCaptureOrStealModal) {

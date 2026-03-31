@@ -82,10 +82,18 @@ function createActionRouter(config) {
       if (finalType === 'choice' && !finalPayload?.selectedOption) {
         console.log(`[ActionRouter] Setting pendingChoice for modal`);
         const newState = cloneState(state);
+        
+        // Find the build stack to get the owner for the frontend ownership check
+        const buildStack = state.tableCards?.find(
+          tc => tc.type === 'build_stack' && tc.stackId === (finalPayload.stackId || finalPayload.targetStackId)
+        );
+        
         // Include playerIndex so clients know who should see the modal
+        // Include buildOwner so the frontend can check if this is an opponent's build
         newState.pendingChoice = {
           ...finalPayload,
-          playerIndex
+          playerIndex,
+          buildOwner: buildStack?.owner ?? -1
         };
         return newState;
       }
