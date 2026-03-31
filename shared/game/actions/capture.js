@@ -4,6 +4,7 @@
  */
 
 const { cloneState, nextTurn, startPlayerTurn, triggerAction, finalizeGame } = require('../');
+const { hasAnyActiveTempStack, getPlayerTempStack } = require('../tempStackHelpers');
 
 function getPossibleCaptureValues(cards) {
   if (cards.length === 0) return [];
@@ -68,6 +69,21 @@ function capture(state, payload, playerIndex) {
       throw new Error(`capture: build stack "${targetStackId}" not found`);
     }
     const buildStack = newState.tableCards[stackIdx];
+    
+    // --- GUARDRAIL: When capturing a build, verify it's valid ---
+    if (buildStack && buildStack.type === 'temp_stack') {
+      // Player can only capture their own temp stack
+      const playerTempStack = getPlayerTempStack(state, playerIndex);
+      if (playerTempStack && playerTempStack.stackId !== targetStackId) {
+        throw new Error('Cannot capture another player\'s temp stack - can only capture your own');
+      }
+    }
+    
+    // GUARDRAIL: Prevent capture of regular build when any temp stack exists
+    if (hasAnyActiveTempStack(state) && buildStack?.type !== 'temp_stack') {
+      throw new Error('Cannot capture builds when there is an active temp stack on the table');
+    }
+    
     if (buildStack.cards.length > 0) {
       const buildRank = buildStack.cards[0].rank;
       const allSameRank = buildStack.cards.every(c => c.rank === buildRank);

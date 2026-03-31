@@ -13,6 +13,7 @@
  */
 
 const { cloneState, nextTurn, startPlayerTurn, triggerAction, finalizeGame } = require('../');
+const { hasAnyActiveTempStack, getPlayerTempStack } = require('../tempStackHelpers');
 
 /**
  * @param {object} state       Current game state
@@ -26,6 +27,11 @@ function trail(state, payload, playerIndex) {
   // Validate card payload
   if (!card || !card.rank || !card.suit) {
     throw new Error('trail: invalid card payload');
+  }
+
+  // --- GUARDRAIL: Prevent trail when any player has active temp stack ---
+  if (hasAnyActiveTempStack(state)) {
+    throw new Error('Cannot trail - there is an active temp stack on the table. Capture or cancel it first.');
   }
 
   // --- UNIVERSAL RANK VALIDATION ---

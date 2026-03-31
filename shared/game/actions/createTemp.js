@@ -9,6 +9,7 @@
 
 const { cloneState, generateStackId, startPlayerTurn, triggerAction } = require('../');
 const { calculateBuildValue } = require('../buildCalculator');
+const { hasAnyActiveTempStack } = require('../tempStackHelpers');
 
 /**
  * Helper: Find card specifically on table
@@ -105,6 +106,11 @@ function createTemp(state, payload, playerIndex) {
   }
   if (!targetCard?.rank || !targetCard?.suit || targetCard?.value === undefined) {
     throw new Error('createTemp: invalid targetCard payload - missing rank, suit, or value');
+  }
+
+  // --- GUARDRAIL: Prevent create temp when any player has active temp stack ---
+  if (hasAnyActiveTempStack(state)) {
+    throw new Error('Cannot create temp stack - there is already an active temp stack on the table. Capture or cancel it first.');
   }
 
   // STEP 1: Validate the card exists at the claimed source

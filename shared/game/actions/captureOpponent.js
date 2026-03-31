@@ -4,6 +4,7 @@
  */
 
 const { cloneState, nextTurn, startPlayerTurn, triggerAction, finalizeGame } = require('../');
+const { hasAnyActiveTempStack, getPlayerTempStack } = require('../tempStackHelpers');
 
 function captureOpponent(state, payload, playerIndex) {
   const { card, targetStackId } = payload;
@@ -37,6 +38,17 @@ function captureOpponent(state, payload, playerIndex) {
   const buildStack = newState.tableCards[stackIdx];
   if (buildStack.owner === playerIndex) {
     throw new Error('captureOpponent: cannot capture your own build - use captureOwn');
+  }
+  
+  // --- GUARDRAIL: Prevent capture opponent when player has active temp stack ---
+  const playerTempStack = getPlayerTempStack(state, playerIndex);
+  if (playerTempStack) {
+    throw new Error('Cannot capture opponent\'s build when you have an active temp stack - capture your temp stack first');
+  }
+  
+  // Also check for ANY temp stack on table
+  if (hasAnyActiveTempStack(state)) {
+    throw new Error('Cannot capture opponent\'s build when there is an active temp stack on the table');
   }
 
   if (capturingCard.value !== buildStack.value) {

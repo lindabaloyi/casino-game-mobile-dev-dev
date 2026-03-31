@@ -5,6 +5,7 @@
 
 const { cloneState, nextTurn, startPlayerTurn, triggerAction, finalizeGame } = require('../');
 const { createRecallEntries } = require('../recallHelpers');
+const { hasAnyActiveTempStack, getPlayerTempStack } = require('../tempStackHelpers');
 
 function getPossibleCaptureValues(cards) {
   if (cards.length === 0) return [];
@@ -71,6 +72,23 @@ function captureOwn(state, payload, playerIndex) {
     if (buildStack.owner !== playerIndex) {
       throw new Error('captureOwn: use captureOpponent for opponent builds');
     }
+    
+    // --- GUARDRAIL: When capturing own build, verify it's valid ---
+    if (buildStack && buildStack.type === 'temp_stack') {
+      // Player can only capture their own temp stack - this is already validated by owner check above
+      // Additional check: if player has a temp stack, they can only capture that specific one
+      const playerTempStack = getPlayerTempStack(state, playerIndex);
+      if (playerTempStack && playerTempStack.stackId !== targetStackId) {
+        throw new Error('Cannot capture another player\'s temp stack - can only capture your own');
+      }
+    }
+    
+    // GUARDRAIL: Prevent capture of regular build when player has active temp stack
+    const playerTempStack = getPlayerTempStack(state, playerIndex);
+    if (playerTempStack && buildStack?.type !== 'temp_stack') {
+      throw new Error('Cannot capture other cards when you have an active temp stack - capture your temp stack first');
+    }
+    
     if (buildStack.cards.length > 0) {
       const buildRank = buildStack.cards[0].rank;
       const allSameRank = buildStack.cards.every(c => c.rank === buildRank);
