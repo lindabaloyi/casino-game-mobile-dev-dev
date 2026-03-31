@@ -137,6 +137,13 @@ class UnifiedMatchmakingService {
 
     const { gameId, gameType } = socketInfo;
 
+    // Safety check: ensure gameType is valid
+    if (!gameType || !this.waitingQueues[gameType]) {
+      console.log(`[UnifiedMatchmaking] Unknown gameType on disconnect: ${gameType}, socket: ${socket.id}`);
+      this.socketGameMap.delete(socket.id);
+      return null;
+    }
+
     // Remove from waiting queue if still waiting
     if (!gameId) {
       this.waitingQueues[gameType] = this.waitingQueues[gameType].filter(s => s.id !== socket.id);

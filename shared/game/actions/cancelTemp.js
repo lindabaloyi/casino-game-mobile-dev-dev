@@ -152,7 +152,12 @@ function cancelTemp(state, payload, playerIndex) {
   }
   
   console.log('[cancelTemp] Final tableCards count:', newState.tableCards.length);
-  console.log('[cancelTemp] Final players captures - P0:', newState.players[0].captures.length, ', P1:', newState.players[1].captures.length, ', P2:', newState.players[2].captures.length);
+  // Use optional chaining for safety with different player counts
+  const playerCount = newState.playerCount || newState.players.length;
+  const p0Captures = newState.players[0]?.captures?.length ?? 0;
+  const p1Captures = newState.players[1]?.captures?.length ?? 0;
+  const p2Captures = newState.players[2]?.captures?.length ?? 0;
+  console.log('[cancelTemp] Final players captures (PC' + playerCount + '): - P0:', p0Captures, ', P1:', p1Captures, ', P2:', p2Captures);
   
   // After removing stack, verify we have the right cards on table
   console.log('[cancelTemp] Final tableCards:', newState.tableCards.map(tc => tc.type ? `stack-${tc.stackId}` : `${tc.rank}${tc.suit}`).join(', '));

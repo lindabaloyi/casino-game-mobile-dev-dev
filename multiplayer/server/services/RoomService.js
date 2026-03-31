@@ -298,9 +298,13 @@ class RoomService {
       gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
       room.status = 'started';
       
-      // Emit game-start to all players
+      // Emit game-start to all players - include gameState so clients can render
       sockets.forEach(socket => {
-        socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
+        socket.emit('game-start', { 
+          gameId, 
+          gameState,  // Include gameState for frontend
+          playerNumber: sockets.indexOf(socket) 
+        });
       });
     } else {
       // For 2-hands, three-hands, and four-hands games
@@ -322,9 +326,13 @@ class RoomService {
       gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
       room.status = 'started';
 
-      // Emit game-start to all players
+      // Emit game-start to all players - include gameState so clients can render
       sockets.forEach(socket => {
-        socket.emit('game-start', { gameId, playerNumber: sockets.indexOf(socket) });
+        socket.emit('game-start', { 
+          gameId, 
+          gameState,  // Include gameState for frontend
+          playerNumber: sockets.indexOf(socket) 
+        });
       });
     }
 

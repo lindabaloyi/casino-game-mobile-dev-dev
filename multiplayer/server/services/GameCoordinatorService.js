@@ -75,9 +75,22 @@ class GameCoordinatorService {
 
     try {
       console.log(`[Coordinator] handleGameAction - action: ${data.type}, playerIndex: ${playerIndex}`);
+      
+      // Debug: check state before action
+      const preState = this.gameManager.getGameState(gameId);
+      console.log(`[Coordinator] DEBUG Pre-action: playerCount=${preState?.playerCount}, players.length=${preState?.players?.length}`);
+      
       const newState = this.actionRouter.executeAction(gameId, playerIndex, data);
       
-      console.log(`[Coordinator] After action ${data.type} - tableCards: ${newState.tableCards?.length}, players[0].captures: ${newState.players[0]?.captures?.length}, players[1].captures: ${newState.players[1]?.captures?.length}, players[2].captures: ${newState.players[2]?.captures?.length}`);
+      // Debug: verify newState is valid
+      if (!newState) {
+        throw new Error('Action returned undefined state');
+      }
+      if (!newState.players) {
+        throw new Error('Action returned state without players array');
+      }
+      
+      console.log(`[Coordinator] After action ${data.type} - tableCards: ${newState.tableCards?.length}, playerCount: ${newState.playerCount}, players array length: ${newState.players?.length}, players[0].captures: ${newState.players[0]?.captures?.length}, players[1].captures: ${newState.players[1]?.captures?.length}, players[2]?.captures: ${newState.players[2]?.captures?.length}`);
       
       // Check if all players have ended their turn (trick complete)
       if (allPlayersTurnEnded(newState)) {
