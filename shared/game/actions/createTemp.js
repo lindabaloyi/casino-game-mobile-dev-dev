@@ -135,6 +135,19 @@ function createTemp(state, payload, playerIndex) {
     throw new Error(`createTemp: target card ${targetCard.rank}${targetCard.suit} not found on table`);
   }
 
+  // --- GUARDRAIL: Opponent capture card must be <= loose card ---
+  if (cardSource && (cardSource === 'captured' || cardSource.startsWith('captured_'))) {
+    const ownerIdx = cardInfo.ownerIndex !== undefined ? cardInfo.ownerIndex : playerIndex;
+    if (ownerIdx !== playerIndex) {
+      if (card.value > targetCard.value) {
+        throw new Error(
+          `Cannot create temp stack: opponent capture card (${card.rank}${card.suit}, value ${card.value}) ` +
+          `is greater than loose card (${targetCard.rank}${targetCard.suit}, value ${targetCard.value})`
+        );
+      }
+    }
+  }
+
   // STEP 3: Clone state and perform operations
   const newState = cloneState(state);
 

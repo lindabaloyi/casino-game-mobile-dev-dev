@@ -1,12 +1,20 @@
 /**
  * ExtendBuildModal
- * Modal for extending a player's own build.
+ * Modal for confirming a build extension.
  * 
  * Style: Green theme per casino-noir spec
+ * Matches PlayOptionsModal/StealBuildModal styling
+ * Card preview in single horizontal row, full-width buttons with pulse animation.
  */
 
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  Animated,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { ModalSurface } from './ModalSurface';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card, BuildStack } from '../../types';
@@ -15,83 +23,92 @@ interface ExtendBuildModalProps {
   visible: boolean;
   buildStack: BuildStack;
   playerHand: Card[];
-  onAccept: (handCard: Card) => void;
+  onConfirm: () => void;
   onCancel: () => void;
+  onPlayButtonSound?: () => void;
 }
 
 export function ExtendBuildModal({
   visible,
   buildStack,
   playerHand,
-  onAccept,
+  onConfirm,
   onCancel,
+  onPlayButtonSound,
 }: ExtendBuildModalProps) {
-  const looseCard = buildStack.pendingExtension?.looseCard;
-  
-  if (!looseCard) {
-    return null;
-  }
+  // Pulsing glow animation on the confirm button
+  const glowAnim = useRef(new Animated.Value(0)).current;
 
-  const getPotentialValue = (handCard: Card): number => {
-    const total = buildStack.value + looseCard.value + handCard.value;
-    if (total <= 10) return total;
-    const sorted = [buildStack.value, looseCard.value, handCard.value].sort((a, b) => b - a);
-    return sorted[0];
+  useEffect(() => {
+    if (!visible) return;
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: false,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 900,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [visible, glowAnim]);
+
+  const glowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.55, 1],
+  });
+
+  const handleConfirm = () => {
+    onPlayButtonSound?.();
+    onConfirm();
   };
 
-  const validHandCards = playerHand.filter(card => getPotentialValue(card) > 0);
+  const pendingExtension = buildStack?.pendingExtension;
+  const pendingCards = pendingExtension?.cards || [];
+
+  if (!pendingExtension) {
+    return null;
+  }
 
   return (
     <ModalSurface
       visible={visible}
       theme="green"
-      title="Extend Build"
-      subtitle="Add your card to the existing build"
+      title="Confirm Extension"
       onClose={onCancel}
       maxWidth="md"
     >
-      {/* Table cards */}
-      <View style={styles.tableCards}>
-        <View style={styles.tableCard}>
-          <Text style={styles.cardCornerTL}></Text>
-          <Text style={[styles.cardSuit, styles.blackSuit]}>
-            Cards
-          </Text>
-        </View>
-        <Text style={styles.plusSign}>+</Text>
-        <View style={styles.tableCard}>
-          <Text style={styles.cardCornerTL}></Text>
-          <Text style={[styles.cardSuit, styles.blackSuit]}>
-            Table
-          </Text>
-        </View>
+      {/* Card row - show pending extension cards */}
+      <View style={styles.cardsRow}>
+        {pendingCards.map((item, index) => (
+          <PlayingCard
+            key={`pending-${index}`}
+            rank={item.card.rank}
+            suit={item.card.suit}
+            width={36}
+            height={48}
+          />
+        ))}
       </View>
 
-      {/* Info box */}
-      <View style={styles.infoBox}>
-        <Text style={styles.infoMain}>New Value: 10</Text>
-        <Text style={styles.infoSub}>Build extends to 10</Text>
-      </View>
+      {/* Confirm button - green with pulsing glow */}
+      <Animated.View style={[styles.glowWrapper, { opacity: glowOpacity }]}>
+        <TouchableOpacity 
+          style={styles.btnGreen} 
+          onPress={handleConfirm}
+          activeOpacity={0.82}
+        >
+          <Text style={styles.btnText}>Confirm Extension</Text>
+        </TouchableOpacity>
+      </Animated.View>
 
-      {/* Hand card selection */}
-      {validHandCards.length > 0 ? (
-        <View style={styles.handCardsGrid}>
-          {validHandCards.map((card, index) => (
-            <TouchableOpacity 
-              key={index}
-              style={styles.handCardButton}
-              onPress={() => onAccept(card)}
-            >
-              <PlayingCard rank={card.rank} suit={card.suit} />
-            </TouchableOpacity>
-          ))}
-        </View>
-      ) : (
-        <View style={styles.noOptions}>
-          <Text style={styles.noOptionsText}>No valid cards in hand</Text>
-        </View>
-      )}
-
+      {/* Cancel button - ghost style */}
       <TouchableOpacity style={styles.btnGhost} onPress={onCancel}>
         <Text style={styles.btnGhostText}>Cancel</Text>
       </TouchableOpacity>
@@ -100,83 +117,28 @@ export function ExtendBuildModal({
 }
 
 const styles = StyleSheet.create({
-  // Table cards
-  tableCards: {
+  // Card row - single horizontal line
+  cardsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
     marginBottom: 16,
-  },
-  tableCard: {
-    width: 60,
-    height: 84,
-    backgroundColor: '#faf7f0',
-    borderRadius: 7,
-    borderWidth: 1.5,
-    borderColor: '#bbb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  cardCornerTL: {
-    position: 'absolute',
-    top: 3,
-    left: 4,
-    fontSize: 9,
-    fontWeight: '900',
-  },
-  cardSuit: {
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  blackSuit: {
-    color: '#1c1c1c',
-  },
-  plusSign: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#5a8a68',
+    gap: 4,
   },
 
-  // Info box
-  infoBox: {
-    backgroundColor: 'rgba(0,0,0,0.32)',
-    borderRadius: 11,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginBottom: 16,
+  // Pulsing glow wrapper
+  glowWrapper: {
     width: '100%',
-    alignItems: 'center',
-  },
-  infoMain: {
-    fontFamily: 'serif',
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fde68a',
-  },
-  infoSub: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#4a9a60',
+    marginBottom: 7,
+    shadowColor: '#28a745',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 12,
+    elevation: 8,
+    borderRadius: 13,
   },
 
-  // Hand cards grid
-  handCardsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  handCardButton: {
-    padding: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#4a7c59',
-  },
-
-  // Buttons
+  // Primary button - green theme
   btnGreen: {
     width: '100%',
     paddingVertical: 13,
@@ -186,13 +148,15 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#28a745',
     alignItems: 'center',
-    marginBottom: 7,
   },
   btnText: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#c8e6c9',
+    color: '#FFFFFF',
+    letterSpacing: 0.4,
   },
+
+  // Cancel ghost button - green themed
   btnGhost: {
     width: '100%',
     paddingVertical: 11,
@@ -200,23 +164,13 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     backgroundColor: 'rgba(255,255,255,0.07)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(40, 167, 69, 0.3)',
     alignItems: 'center',
   },
   btnGhostText: {
     fontSize: 13,
     fontWeight: '800',
     color: '#6b8a72',
-  },
-  noOptions: {
-    paddingVertical: 8,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  noOptionsText: {
-    fontSize: 14,
-    color: '#f87171',
-    fontWeight: 'bold',
   },
 });
 

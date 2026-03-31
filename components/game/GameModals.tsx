@@ -43,11 +43,12 @@ interface GameModalsProps {
   /** Whether party mode is enabled */
   isPartyMode?: boolean;
   
-  // Extend Build Modal (optional - not used in drag-drop flow)
+  // Extend Build Modal (for confirming pending extensions)
   showExtendModal?: boolean;
   extendTargetBuild?: BuildStack | null;
-  onAcceptExtend?: (handCard: Card) => void;
+  onConfirmExtend?: () => void;
   onDeclineExtend?: () => void;
+  onPlayButtonSoundExtend?: () => void;
   
   // Confirm Temp Build Value Modal (for double-click on temp stacks)
   showConfirmTempBuild?: boolean;
@@ -73,7 +74,7 @@ interface GameModalsProps {
   captureOrStealBuildCards?: Card[];
   captureOrStealExtendedTarget?: number;
   onConfirmCapture?: () => void;
-  onConfirmExtend?: () => void;
+  onConfirmExtendChoice?: () => void;
   onCancelCaptureOrSteal?: () => void;
 }
 
@@ -100,8 +101,9 @@ export function GameModals({
   
   showExtendModal,
   extendTargetBuild,
-  onAcceptExtend,
+  onConfirmExtend,
   onDeclineExtend,
+  onPlayButtonSoundExtend,
   
   showConfirmTempBuild,
   confirmTempBuildStack,
@@ -124,7 +126,7 @@ export function GameModals({
   captureOrStealBuildCards,
   captureOrStealExtendedTarget,
   onConfirmCapture,
-  onConfirmExtend,
+  onConfirmExtendChoice,
   onCancelCaptureOrSteal,
 }: GameModalsProps) {
   // Wrapper to call onStealCompleted when steal is confirmed
@@ -168,14 +170,15 @@ export function GameModals({
         />
       )}
 
-      {/* Extend Build Modal - not used in drag-drop flow but available */}
+      {/* Extend Build Modal - for confirming pending extensions */}
       {showExtendModal && extendTargetBuild && (
         <ExtendBuildModal
-          visible={showExtendModal ?? false}
+          visible={showExtendModal}
           buildStack={extendTargetBuild}
           playerHand={playerHand}
-          onAccept={onAcceptExtend ?? (() => {})}
+          onConfirm={onConfirmExtend ?? (() => {})}
           onCancel={onDeclineExtend ?? (() => {})}
+          onPlayButtonSound={onPlayButtonSoundExtend}
         />
       )}
 
@@ -213,7 +216,7 @@ export function GameModals({
           buildCards={captureOrStealBuildCards ?? []}
           extendedTarget={captureOrStealExtendedTarget ?? 0}
           onCapture={onConfirmCapture ?? (() => {})}
-          onExtend={onConfirmExtend ?? (() => {})}
+          onExtend={onConfirmExtendChoice ?? (() => {})}
           onCancel={onCancelCaptureOrSteal ?? (() => {})}
         />
       )}

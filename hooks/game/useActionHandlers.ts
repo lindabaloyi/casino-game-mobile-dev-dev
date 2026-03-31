@@ -82,14 +82,38 @@ export function useActionHandlers(
     onDragEndWrapper();
   }, [actions, onDragEndWrapper]);
 
+  // Open extend modal when player clicks Accept button on pending extension
   const handleExtendAcceptClick = useCallback((stackId: string) => {
     const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
     if (stack?.pendingExtension?.looseCard || stack?.pendingExtension?.cards) {
-      // Pass stackId - server already has the pending cards
-      actions.acceptBuildExtension(stackId);
+      // Open modal instead of sending action - player confirms in modal
+      console.log('[handleExtendAcceptClick] Opening extend modal for stack', stackId);
+      modals.openExtendModal(stack);
     }
-  }, [table, actions]);
+  }, [table, modals]);
 
+  // Player confirms the extension in modal
+  const handleConfirmExtendAccept = useCallback(() => {
+    const stack = modals.extendTargetBuild;
+    if (stack) {
+      console.log('[handleConfirmExtendAccept] Accepting extension for stack', stack.stackId);
+      actions.acceptBuildExtension(stack.stackId);
+      modals.closeExtendModal();
+      // No End Turn button - extension auto-ends the turn
+    }
+  }, [modals, actions]);
+
+  // Player cancels the extension in modal
+  const handleCancelExtendAccept = useCallback(() => {
+    const stack = modals.extendTargetBuild;
+    if (stack) {
+      console.log('[handleCancelExtendAccept] Declining extension for stack', stack.stackId);
+      actions.declineBuildExtension(stack.stackId);
+      modals.closeExtendModal();
+    }
+  }, [modals, actions]);
+
+  // Legacy handler - kept for backward compatibility
   const handleDeclineExtend = useCallback((stackId: string) => {
     actions.declineBuildExtension(stackId);
   }, [actions]);
@@ -151,6 +175,8 @@ export function useActionHandlers(
     handleConfirmSteal,
     handleExtendBuild,
     handleExtendAcceptClick,
+    handleConfirmExtendAccept,
+    handleCancelExtendAccept,
     handleDeclineExtend,
     handleConfirmCaptureChoice,
     handleConfirmExtendChoice,

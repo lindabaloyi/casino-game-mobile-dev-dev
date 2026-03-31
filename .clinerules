@@ -1,0 +1,435 @@
+# Casino Game - Cline Rules
+Apple AAA Level Development Guidelines
+
+This file provides comprehensive rules for AI-assisted development of this casino card game project.
+
+---
+
+## 1. Project Structure
+
+casino-game/
+├── app/                    # Expo Router pages (file-based routing)
+│   ├── (tabs)/             # Tab-based navigation screens
+│   ├── auth/               # Authentication screens
+│   └── *.tsx               # Route pages
+├── components/             # React components
+│   ├── ui/                 # Reusable UI components (PlayerIcon, TurnIndicator)
+│   ├── game/               # Game-specific components (GameBoard, GameModals)
+│   ├── modals/             # Modal components
+│   ├── table/              # Game table components
+│   │   ├── hooks/          # Table-specific hooks
+│   │   └── components/     # Table sub-components (BuildValueBadge, OwnerIndicator)
+│   └── themed/             # Theme-aware components
+├── constants/              # Application constants
+│   ├── teamColors.ts       # Player/team color system
+│   ├── cardDimensions.ts   # Card sizing
+│   └── theme.ts            # Theme configuration
+├── hooks/                  # React hooks
+│   ├── game/               # Game-specific hooks (useActionHandlers, useGameActions)
+│   └── multiplayer/        # Multiplayer hooks
+├── shared/                 # Shared code (server + client)
+│   ├── game/               # Game logic (server-side)
+│   │   ├── actions/        # Action handlers (captureOpponent.js, extendBuild.js)
+│   │   ├── smart-router/  # Action routing logic
+│   │   └── *.js           # Game utilities
+│   └── config/             # Shared configuration
+├── multiplayer/           # Server-side code
+│   └── server/
+│       ├── game/          # Server game handlers
+│       ├── services/      # Server services
+│       └── models/        # Database models
+├── types/                  # TypeScript type definitions
+└── utils/                  # Utility functions
+
+---
+
+## 2. Naming Conventions
+
+### Files
+- Components: PascalCase.tsx (e.g., PlayerIcon.tsx, GameBoard.tsx)
+- Hooks: camelCase.ts (e.g., useGameActions.ts, useDrag.ts)
+- Utilities: camelCase.js / .ts (e.g., buildCalculator.js)
+- Constants: camelCase.ts (e.g., teamColors.ts, cardDimensions.ts)
+- Server Actions: camelCase.js (e.g., captureOpponent.js, extendBuild.js)
+
+### Functions & Variables
+- React Components: PascalCase (e.g., function PlayerIcon(), export function GameBoard())
+- Hooks: camelCase starting with use (e.g., useGameActions, useDrag)
+- Utility Functions: camelCase (e.g., getPlayerColors(), cloneState())
+- Constants: PascalCase for exported, camelCase for internal (e.g., TEAM_A_COLORS, CARD_WIDTH)
+- Boolean Props: isPrefix or hasPrefix (e.g., isPartyMode, hasPendingExtension)
+
+### Action Types
+- Use camelCase with descriptive verbs: createTemp, acceptTemp, extendBuild, captureOpponent, declineBuildExtension, stackDrop
+
+---
+
+## 3. Color System (CRITICAL)
+
+Single Source of Truth: constants/teamColors.ts
+
+### Rules
+- NEVER hardcode colors in components. Always import from constants/teamColors.ts
+- Use getPlayerColors(playerIndex, playerCount) for player-specific colors
+- Use getTeamColors(teamId) for team-based display (party mode)
+- Use TEAM_A_COLORS / TEAM_B_COLORS for party mode team colors
+
+### PRD Colors
+Player colors via getPlayerColors(playerIndex, playerCount):
+- Player 0: Sky Blue (#0284c7)
+- Player 1: Amber (#c2410c)
+- Player 2: Lime Green (#15803d) [4-player] / Fuchsia (#a21caf) [3-player]
+- Player 3: Fuchsia (#a21caf) [4-player]
+
+Team colors:
+- Team A: Sky Blue (#0284c7)
+- Team B: Amber (#c2410c)
+
+### Example Usage
+CORRECT:
+import { getPlayerColors, getTeamColors, TEAM_A_COLORS } from '../../constants/teamColors';
+const playerColor = getPlayerColors(playerIndex, playerCount).primary;
+const teamColor = getTeamColors(teamId);
+
+WRONG - Never hardcode:
+const color = '#FF9800';
+
+---
+
+## 4. State Management & Communication
+
+### Client-Server Flow
+1. Client dispatches action via useGameActions hook
+2. Socket sends action to server
+3. Server processes action, updates state
+4. Server broadcasts gameUpdate to all clients
+5. Client updates UI from broadcast state
+
+### Client State
+- Derived from server-broadcast gameState
+- No local mirrors of game state
+- Use useEffect sparingly; prefer event-driven updates
+
+### Action Dispatch Pattern
+In useGameActions hook:
+const actionName = useCallback((payload) => {
+  sendAction({ 
+    type: 'actionName', 
+    payload: payload as unknown as Record<string, unknown> 
+  });
+}, [sendAction]);
+
+---
+
+## 5. Action Handling (Server)
+
+### Action Router Pattern
+All actions flow through ActionRouter.js → specific handler → action file in actions/
+
+### Critical Rules
+- Always use cloneState(state) before mutating
+- Always validate inputs at start of handler
+- Clear pendingChoice, pendingExtension appropriately
+- Use nextTurn(newState) to advance turns
+- Log with prefix: [ActionName] (e.g., [captureOpponent])
+
+### Action Handler Template
+function actionName(state, payload, playerIndex) {
+  // 1. Validate inputs
+  if (!payload?.requiredField) {
+    throw new Error('actionName: requiredField is required');
+  }
+
+  // 2. Clone state
+  const newState = cloneState(state);
+
+  // 3. Clear pending state
+  newState.pendingChoice = null;
+
+  // 4. Business logic
+  // ... modify newState ...
+
+  // 5. Advance turn (if applicable)
+  const resultState = nextTurn(newState);
+  
+  return resultState;
+}
+
+---
+
+## 6. Component Patterns
+
+### Functional Components with Hooks
+import React, { useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+
+interface ComponentNameProps {
+  /** Description of prop */
+  propName: string;
+  /** Optional prop with default */
+  optionalProp?: boolean;
+}
+
+export function ComponentName({ propName, optionalProp = false }: ComponentNameProps) {
+  // Use useMemo for derived values
+  const derivedValue = useMemo(() => {
+    return computeValue(propName);
+  }, [propName]);
+
+  return (
+    <View style={styles.container}>
+      <Text>{derivedValue}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { /* ... */ },
+});
+
+export default ComponentName;
+
+### Modal Patterns
+- Use ModalSurface as base component
+- Include both Confirm and Cancel buttons
+- Use getTeamButtonStyle from ModalDesignSystem.ts
+- Close modal immediately after dispatching action
+
+### Import Order
+1. React imports: import React, { useMemo, useCallback } from 'react';
+2. External libraries: import { StyleSheet, Text, View } from 'react-native';
+3. Internal imports - absolute: import { getPlayerColors } from '../../constants/teamColors';
+4. Internal imports - relative: import { useGameActions } from '../../../hooks/game/useGameActions';
+
+---
+
+## 7. Game Mechanics Rules
+
+### Build Extensions
+- pendingExtension.cards: Array of cards added to build
+- Turn ends only when user confirms (via modal or explicit action)
+- Use acceptBuildExtension to finalize, declineBuildExtension to cancel
+
+### Capture vs Steal
+- Capture: Take opponent's build (must match exact value)
+- Steal: Extend opponent's build to change ownership
+
+### Sum/Diff Builds
+- Extension allowed: card value < target OR card value == target with spare
+- Capture allowed: only if no spare card
+
+### Party Mode (4-Player Teams)
+- Teams: Players 0,1 = Team A; Players 2,3 = Team B
+- Use areTeammates(playerA, playerB) helper
+- Shiya: Teammate can capture, other teammate can rebuild
+- Recall: Only Shiya activator can recall
+
+### Turn Management
+- Turn advances via nextTurn(state)
+- Use turnEnded flag for manual turn control
+- After certain actions (steal), show "Continue" button
+
+### Capture & Build Guardrails (CRITICAL)
+
+#### Illegal Capture Rules
+- **Cannot capture using opponent's capture pile cards unless the capturing build has a base.**
+  - A "base" is defined as:
+    - For sum/diff builds: the build has a `target` value (i.e., it is an existing build stack with cards that sum to a target).
+    - For same‑rank builds: the build has at least one card (the base) and is already established.
+  - **Scenario:** Capturing a 9 by using an opponent's 3 (from their capture pile) + a table 6 → **ILLEGAL** if the capturing build has no base. The handler must reject.
+
+- **When building a new stack (creating a build), you cannot use cards from opponents' capture piles.**
+  - Only table cards and your own hand may be used to initiate a build.
+
+#### Legal Use of Opponent's Capture Pile Cards
+- **If a build already has a base (i.e., it is an existing stack with a target value or at least one card), you may add cards from opponents' capture piles to that build.**
+  - **Example:** A build with base 9,5,2,2 (already established stack) → using opponent's capture pile cards to extend the build is allowed.
+
+#### Enforcement Points
+- **Capture handler (`capture` action):** Must validate the source of each card used in the capture. If any card comes from an opponent's capture pile, the capturing stack must have a base.
+- **Build creation (`stackDrop` with `stackType = 'build_stack'` when creating a new build):** Must reject any attempt to use opponent's capture pile cards.
+- **Build extension (`extendBuild` or `stackDrop` on existing build):** Must allow opponent's capture pile cards only if the build already has a base (i.e., it's an existing stack with a target or with at least one card already placed). For a newly created build, such cards are disallowed.
+
+#### Implementation Guidance
+- In server handlers:
+  - For capture: Before finalizing, check `cardSource` for each card involved. If any source is `opponentCapture` (or similar), ensure the target build stack has `cards.length > 0` (or a `target` defined).
+  - For build creation: When creating a new build stack, validate that none of the cards come from opponent's capture piles. If they do, throw an error.
+  - For build extension: Allow opponent's capture pile cards if `stack.cards.length > 0` (i.e., the stack already exists).
+
+#### Code Example (Pseudo)
+```javascript
+function validateCapture(captureCards, targetStack) {
+  const usesOpponentCapture = captureCards.some(c => c.source === 'opponentCapture');
+  if (usesOpponentCapture && targetStack.cards.length === 0) {
+    throw new Error('Cannot capture with opponent cards unless build has a base');
+  }
+}
+```
+
+### Capture Validation for Temp Stacks (Refined)
+
+#### Core Principle
+- A temp stack is capturable only if it can be partitioned into one or more legal builds (single build or multiple builds).
+- For **each constituent build**, if it is a **sum build** (total ≤10), then **all cards in that build must be from loose sources** (`hand` or `table`). No opponent capture cards allowed.
+- For **difference builds** (total >10, target = largest card) and **multi‑build partitions** where the sub‑builds are not sum builds (e.g., difference builds), opponent capture cards are allowed.
+
+#### Validation Steps
+
+1. **Determine the partition(s) of the stack into builds.**
+   - Use the build calculator (`calculateMultiBuildValue`). If it returns a non‑null result, the partition is known.
+   - For a single build (no partition), the entire stack is the single build.
+
+2. **For each constituent build in the partition:**
+   - Compute its total value.
+   - If total ≤10 → sum build → **all cards in that build must be loose**.
+   - If total >10 → difference build → no restriction (opponent capture allowed).
+
+3. **If any sum build contains an opponent capture card, reject the capture.**
+
+#### Examples
+
+| Stack Cards (values, sources) | Partition | Allowed? | Reason |
+|-------------------------------|-----------|----------|--------|
+| 6 (loose), 3 (loose), 1 (loose), 9 (loose), 1 (loose), 10 (loose), 5 (loose), 5 (loose) | Multiple sum builds all loose | ✅ | Sum builds, all loose |
+| 6 (loose), 3 (opponent capture), 1 (loose), 9 (loose), 1 (loose), 10 (loose), 5 (loose), 5 (loose) | Sum build [6,3,1] with capture card | ❌ | Sum build contains capture card |
+| 8 (opponent capture), 2 (loose) | Single build (total=10 ≤10 → sum) | ❌ | Different rank, sum build with capture card |
+| 8 (opponent capture), 3 (loose) | Single build (total=11 >10 → difference) | ✅ | Difference build, opponent capture allowed |
+| 4,4,4,4 (any sources) | Two sum builds (4+4=8 each) | ❌ if any capture card in sum builds | Sum builds must be all loose |
+| 5,5,5,5 (any sources) | Two sum builds (5+5=10 each) | ❌ if any capture card in sum builds | Sum builds must be all loose |
+| 8,2,6,4 (any sources) | Two builds of 10 (8+2, 6+4) | ✅ if both are difference builds (not sum) | Difference builds allow capture cards |
+
+#### Why This Matters
+- Prevents players from using opponent capture cards to create new sum‑type bases.
+- Allows legitimate use of capture cards in difference builds or multi‑build stacks that are not sum‑type.
+- Preserves game integrity by enforcing the "bases are built from loose cards only" rule.
+
+### Temp Stack Creation Guardrail (Capture Card vs Loose Card)
+
+- When creating a temp stack using a card from an opponent's capture pile, the capture card's value **must be ≤ the value of the loose card** (hand or table card).
+- If the capture card's value is greater than the loose card, reject the action with a descriptive error.
+- This prevents players from using a large capture card to dominate a small loose card, which would create an unfair temporary stack.
+- Cards from the player's own capture pile are allowed without this restriction.
+
+**Implementation:** In [`createTemp`](shared/game/actions/createTemp.js), after retrieving the card and target, check the source. If the source indicates an opponent's capture pile (source starts with `'captured_'` and the owner index != playerIndex), then compare the values. If `card.value > targetCard.value`, throw an error.
+
+---
+
+## 8. Hooks Organization
+
+### useActionHandlers Pattern
+export function useActionHandlers(actions, modals, table, playerNumber, ...) {
+  const handleAction = useCallback((data) => {
+    // Validate
+    // Call action
+    // Close modal
+    // Update UI
+  }, [actions, modals, ...]);
+
+  return { handleAction };
+}
+
+### Available Game Hooks
+- useGameActions: All action dispatchers
+- useActionHandlers: Modal handlers
+- useModalManager: Modal state management
+- useDrag: Drag and drop handling
+- useGameState: Game state subscription
+
+---
+
+## 9. Error Handling
+
+### Server Handlers
+if (requiredParam) {
+  throw new Error('actionName: requiredParam is required');
+}
+
+### Client Components
+- Use try/catch for async operations
+- Display user-friendly errors (toasts, modals)
+- Log errors with context: [ComponentName] Error: details
+
+### Logging Pattern
+console.log('[ActionName] Description:', relevantData);
+// Example:
+console.log('[captureOpponent] Capturing build:', targetStackId, 'value:', buildValue);
+
+---
+
+## 10. Testing Conventions
+
+- Test files: __tests__/*.test.ts or *.test.ts
+- Server handlers: Unit test with mock state
+- Components: Test with different game states
+- Integration: Test critical flows (drop → extend → confirm → cancel → turn end)
+
+---
+
+## 11. UI/UX Guidelines
+
+### Badge Styling
+- Pill shape (fully rounded corners) for player indicators
+- Square with rounded corners for build value badges
+- No borders on badges (use shadows for separation)
+- Bold text on all badges
+
+### Component Props
+- Always use interfaces with JSDoc descriptions
+- Use optional props with defaults
+- Prefer explicit boolean props
+
+---
+
+## 12. Performance
+
+- Memoize derived values with useMemo
+- Callback handlers with useCallback
+- Broadcast only deltas (not full state)
+- Use requestAnimationFrame for layout measurements
+
+---
+
+## 13. TypeScript Guidelines
+
+- Use interface for object shapes, type for unions/aliases
+- Avoid any - use explicit types
+- Group imports: external, then internal
+- Use strict mode
+
+---
+
+## 14. File Organization Rules
+
+### When Adding New Components
+1. Put UI components in components/ui/
+2. Put game-specific in components/game/
+3. Put modals in components/modals/
+4. Put table components in components/table/
+
+### When Adding New Server Actions
+1. Add to shared/game/actions/
+2. Export from shared/game/actions/index.js
+3. Add router logic in shared/game/smart-router/
+
+### When Adding New Hooks
+1. Game hooks go in hooks/game/
+2. Multiplayer hooks go in hooks/multiplayer/
+3. UI hooks go in hooks/
+
+---
+
+## 15. Quick Reference
+
+| Pattern | Rule |
+|---------|------|
+| Colors | Use getPlayerColors() from constants/teamColors.ts |
+| State | Derive from server broadcast, never mirror locally |
+| Actions | Route through server, never auto-execute |
+| Modals | Always confirm + cancel, close after dispatch |
+| Errors | Throw descriptive, log with [Module] prefix |
+| Imports | React → External → Internal absolute → Relative |
+| Naming | Components: PascalCase, hooks: useCamelCase, files: PascalCase.tsx |
+
+---
+
+This file is maintained by the development team. Update as conventions evolve.

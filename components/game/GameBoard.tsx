@@ -828,6 +828,12 @@ export function GameBoard({
         confirmTempBuildStack={modals.confirmTempBuildStack}
         onConfirmTempBuild={handleConfirmTempBuild}
         onCancelConfirmTempBuild={modals.closeConfirmTempBuildModal}
+        // Extend build modal
+        showExtendModal={modals.showExtendModal}
+        extendTargetBuild={modals.extendTargetBuild}
+        onConfirmExtend={actionHandlers.handleConfirmExtendAccept}
+        onDeclineExtend={actionHandlers.handleCancelExtendAccept}
+        onPlayButtonSoundExtend={playButton}
         // Capture or steal modal
         showCaptureOrStealModal={modals.showCaptureOrStealModal}
         captureOrStealCard={modals.captureOrStealData?.card}
@@ -835,7 +841,7 @@ export function GameBoard({
         captureOrStealBuildCards={modals.captureOrStealData?.buildCards}
         captureOrStealExtendedTarget={modals.captureOrStealData?.extendedTarget}
         onConfirmCapture={() => modals.captureOrStealData && actionHandlers.handleConfirmCaptureChoice(modals.captureOrStealData)}
-        onConfirmExtend={() => modals.captureOrStealData && actionHandlers.handleConfirmExtendChoice(modals.captureOrStealData)}
+        onConfirmExtendChoice={() => modals.captureOrStealData && actionHandlers.handleConfirmExtendChoice(modals.captureOrStealData)}
         onCancelCaptureOrSteal={modals.closeCaptureOrStealModal}
       />
 
