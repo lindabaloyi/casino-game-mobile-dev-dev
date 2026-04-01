@@ -150,17 +150,17 @@ export interface GameState {
   tournamentMode?: 'knockout' | null;
   tournamentPhase?: 'QUALIFYING' | 'QUALIFICATION_REVIEW' | 'SEMI_FINAL' | 'FINAL_SHOWDOWN' | 'COMPLETED' | null;
   tournamentRound?: number;
-  playerStatuses?: { [playerIndex: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
-  tournamentScores?: { [playerIndex: string]: number };
-  eliminationOrder?: number[];
+  playerStatuses?: { [playerId: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
+  tournamentScores?: { [playerId: string]: number };
+  eliminationOrder?: string[];
   finalShowdownHandsPlayed?: number;
   tournamentWinner?: number | null;
   
   // Qualification Review Phase
   qualificationCountdown?: number;
-  qualifiedPlayers?: number[];
+  qualifiedPlayers?: string[];
   qualificationScores?: { 
-    [playerIndex: string]: {
+    [playerId: string]: {
       totalPoints: number;
       cardPoints: number;
       tenDiamondPoints: number;

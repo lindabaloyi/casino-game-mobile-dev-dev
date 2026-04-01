@@ -13,31 +13,29 @@ const calculateScore = calculatePlayerScore;
 /**
  * Find the player with the lowest score
  * Uses tiebreakers: fewer cards in captures, then lower seating position
- * BUG FIX: Must use qualifiedPlayers mapping to get correct original indices
+ * IMPORTANT: Uses playerId strings, NOT indices!
  */
 function findLowestScorer(state) {
   const activePlayers = [];
   
-  console.log(`[findLowestScorer] playerCount: ${state.playerCount}, qualifiedPlayers: ${JSON.stringify(state.qualifiedPlayers)}`);
-  console.log(`[findLowestScorer] playerStatuses: ${JSON.stringify(state.playerStatuses)}`);
+  console.log(`[findLowestScorer] playerCount: ${state.playerCount}`);
+  console.log(`[findLowestScorer] playerStatuses (playerId strings): ${JSON.stringify(state.playerStatuses)}`);
   console.log(`[findLowestScorer] tournamentScores: ${JSON.stringify(state.tournamentScores)}`);
   
-  // Get all active players with their scores
-  // BUG FIX: Use qualifiedPlayers to map between new and original indices
-  for (let newIndex = 0; newIndex < state.playerCount; newIndex++) {
-    // Map new index to original index using qualifiedPlayers (if available)
-    const originalIndex = state.qualifiedPlayers?.[newIndex] ?? newIndex;
+  // Get all active players with their scores using playerId strings
+  for (let i = 0; i < state.playerCount; i++) {
+    const playerId = state.players[i].id;  // Get playerId string (e.g., 'player_0')
     
-    // Check status using the ORIGINAL index
-    if (state.playerStatuses[originalIndex] === 'ACTIVE') {
-      const score = state.tournamentScores[originalIndex] || 0;
-      const cardCount = state.players[newIndex].captures?.length || 0;  // Use newIndex for players array
+    // Check status using the playerId string
+    if (state.playerStatuses[playerId] === 'ACTIVE') {
+      const score = state.tournamentScores[playerId] || 0;
+      const cardCount = state.players[i].captures?.length || 0;
       activePlayers.push({ 
-        index: originalIndex,  // Return ORIGINAL index for consistency
+        playerId: playerId,  // Return playerId string for consistency
         score, 
         cardCount 
       });
-      console.log(`[findLowestScorer] newIndex=${newIndex} -> originalIndex=${originalIndex}: score=${score}, cardCount=${cardCount}`);
+      console.log(`[findLowestScorer] Player ${playerId}: score=${score}, cardCount=${cardCount}`);
     }
   }
   
@@ -45,68 +43,80 @@ function findLowestScorer(state) {
     throw new Error('No active players found');
   }
   
-  // Sort by score (ascending), then card count (ascending), then index
+  // Sort by score (ascending), then card count (ascending), then playerId
   activePlayers.sort((a, b) => {
     if (a.score !== b.score) return a.score - b.score;
     if (a.cardCount !== b.cardCount) return a.cardCount - b.cardCount;
-    return a.index - b.index;
+    return a.playerId.localeCompare(b.playerId);
   });
   
-  console.log(`[findLowestScorer] Lowest scorer: originalIndex=${activePlayers[0].index}, score=${activePlayers[0].score}`);
-  return activePlayers[0].index;
+  console.log(`[findLowestScorer] Lowest scorer: playerId=${activePlayers[0].playerId}, score=${activePlayers[0].score}`);
+  return activePlayers[0].playerId;  // Return playerId string, not index!
 }
 
 /**
  * Compress players array to only include active players with contiguous indices
  * This ensures players array indices match the new playerCount after elimination
+ * IMPORTANT: playerStatuses and tournamentScores continue using playerId strings!
  * 
  * @param {Object} state - Current game state
- * @param {number[]} activeIndices - Array of original indices to keep
+ * @param {string[]} activePlayerIds - Array of playerId strings to keep
  * @returns {Object} New state with compressed players array
  */
-function compressStateForNewPhase(state, activeIndices) {
+function compressStateForNewPhase(state, activePlayerIds) {
   const newState = cloneState(state);
-  const newPlayerCount = activeIndices.length;
+  const newPlayerCount = activePlayerIds.length;
   
   console.log(`[compressStateForNewPhase] Compressing from ${state.playerCount} to ${newPlayerCount} players`);
-  console.log(`[compressStateForNewPhase] Active indices (original): ${activeIndices.join(', ')}`);
+  console.log(`[compressStateForNewPhase] Active playerIds: ${activePlayerIds.join(', ')}`);
   
   // Create new players array with contiguous indices (0, 1, 2, ...)
+  // IMPORTANT: Keep the ORIGINAL playerId string in the id field!
   const newPlayers = [];
-  const newPlayerStatuses = {};
-  const newTournamentScores = {};
   
-  for (let newIdx = 0; newIdx < activeIndices.length; newIdx++) {
-    const originalIdx = activeIndices[newIdx];
+  for (let newIdx = 0; newIdx < activePlayerIds.length; newIdx++) {
+    const playerId = activePlayerIds[newIdx];  // Original playerId string (e.g., 'player_2')
+    
+    // Find the player in the old array by their playerId
+    const oldPlayer = state.players.find(p => p.id === playerId);
+    if (!oldPlayer) {
+      console.error(`[compressStateForNewPhase] ERROR: Could not find player with id ${playerId}`);
+      continue;
+    }
+    
     newPlayers.push({
-      ...state.players[originalIdx],
-      id: newIdx,
+      ...oldPlayer,
+      id: playerId,  // KEEP original playerId string!
+      index: newIdx,  // Update index to new position
       hand: [],  // Fresh hand for new round
       captures: [],  // Fresh captures for new round
       score: 0
     });
-    newPlayerStatuses[newIdx] = 'ACTIVE';
-    newTournamentScores[newIdx] = state.tournamentScores[originalIdx] || 0;
-    console.log(`[compressStateForNewPhase] newIdx=${newIdx} <- originalIdx=${originalIdx}`);
+    
+    // Update playerStatuses and tournamentScores using playerId string
+    newState.playerStatuses[playerId] = 'ACTIVE';
+    newState.tournamentScores[playerId] = state.tournamentScores[playerId] || 0;
+    
+    console.log(`[compressStateForNewPhase] newIdx=${newIdx} <- playerId=${playerId}`);
   }
   
-  // Preserve ELIMINATED status for non-active players
+  // Preserve ELIMINATED status for non-active players using their playerId strings
   for (let i = 0; i < state.playerCount; i++) {
-    if (!activeIndices.includes(i)) {
-      newPlayerStatuses[i] = 'ELIMINATED';
-      console.log(`[compressStateForNewPhase] Preserving ELIMINATED for original index ${i}`);
+    const oldPlayerId = state.players[i].id;
+    if (!activePlayerIds.includes(oldPlayerId)) {
+      newState.playerStatuses[oldPlayerId] = 'ELIMINATED';
+      console.log(`[compressStateForNewPhase] Preserving ELIMINATED for playerId ${oldPlayerId}`);
     }
   }
   
   newState.players = newPlayers;
   newState.playerCount = newPlayerCount;
-  newState.playerStatuses = newPlayerStatuses;
-  newState.tournamentScores = newTournamentScores;
   newState.scores = new Array(newPlayerCount).fill(0);
   
   // Update currentPlayer to new index if still active
-  if (activeIndices.includes(state.currentPlayer)) {
-    newState.currentPlayer = activeIndices.indexOf(state.currentPlayer);
+  const currentPlayerId = state.players[state.currentPlayer]?.id;
+  if (currentPlayerId && activePlayerIds.includes(currentPlayerId)) {
+    newState.currentPlayer = activePlayerIds.indexOf(currentPlayerId);
     console.log(`[compressStateForNewPhase] currentPlayer remapped: ${state.currentPlayer} -> ${newState.currentPlayer}`);
   } else {
     newState.currentPlayer = 0;  // Fallback
@@ -150,6 +160,7 @@ function compressStateForNewPhase(state, activeIndices) {
   newState.shiyaRecalls = {};
   
   console.log(`[compressStateForNewPhase] Compressed: players.length=${newState.players.length}, playerCount=${newState.playerCount}`);
+  console.log(`[compressStateForNewPhase] New player IDs:`, newState.players.map(p => p.id));
   
   return newState;
 }
@@ -163,10 +174,11 @@ function startNewRound(state) {
   // Use compressStateForNewPhase instead
   console.warn('[startNewRound] DEPRECATED - using compressStateForNewPhase instead');
   
-  // Get active player indices
+  // Get active player indices - use playerId strings!
   const activeIndices = [];
   for (let i = 0; i < state.playerCount; i++) {
-    if (state.playerStatuses[i] === 'ACTIVE') {
+    const playerId = state.players[i].id;
+    if (state.playerStatuses[playerId] === 'ACTIVE') {
       activeIndices.push(i);
     }
   }
@@ -185,21 +197,20 @@ function endTournamentRound(state, payload, playerIndex) {
   }
   
   // Calculate scores for this round
-  // BUG FIX: Need to use qualifiedPlayers to map between new indices and original indices
+  // IMPORTANT: playerStatuses and tournamentScores use PLAYER ID STRINGS (e.g., 'player_0'), NOT indices!
   console.log(`[endTournamentRound] Calculating scores...`);
-  console.log(`[endTournamentRound] playerCount: ${newState.playerCount}, qualifiedPlayers: ${JSON.stringify(newState.qualifiedPlayers)}`);
-  console.log(`[endTournamentRound] playerStatuses: ${JSON.stringify(newState.playerStatuses)}`);
+  console.log(`[endTournamentRound] playerStatuses (using playerId strings): ${JSON.stringify(newState.playerStatuses)}`);
+  console.log(`[endTournamentRound] tournamentScores: ${JSON.stringify(newState.tournamentScores)}`);
   
-  for (let newIndex = 0; newIndex < newState.playerCount; newIndex++) {
-    // Map new index to original index using qualifiedPlayers (if available)
-    const originalIndex = newState.qualifiedPlayers?.[newIndex] ?? newIndex;
-    console.log(`[endTournamentRound] newIndex=${newIndex} -> originalIndex=${originalIndex}, playerStatuses[${newIndex}]=${newState.playerStatuses[newIndex]}, playerStatuses[${originalIndex}]=${newState.playerStatuses[originalIndex]}`);
+  // Sum up scores from each player's captures using their playerId
+  for (let i = 0; i < newState.playerCount; i++) {
+    const playerId = newState.players[i].id;  // Get playerId string (e.g., 'player_0')
     
-    // Check status using the ORIGINAL index (how it's stored in playerStatuses)
-    if (newState.playerStatuses[originalIndex] === 'ACTIVE') {
-      const roundScore = calculateScore(newState.players[newIndex].captures);
-      newState.tournamentScores[originalIndex] = (newState.tournamentScores[originalIndex] || 0) + roundScore;
-      console.log(`[endTournamentRound] Player originalIndex=${originalIndex} (newIndex=${newIndex}): round score ${roundScore}, total ${newState.tournamentScores[originalIndex]}`);
+    // Check status using the playerId string
+    if (newState.playerStatuses[playerId] === 'ACTIVE') {
+      const roundScore = calculateScore(newState.players[i].captures);
+      newState.tournamentScores[playerId] = (newState.tournamentScores[playerId] || 0) + roundScore;
+      console.log(`[endTournamentRound] Player ${playerId}: round score ${roundScore}, total ${newState.tournamentScores[playerId]}`);
     }
   }
   
@@ -210,11 +221,25 @@ function endTournamentRound(state, payload, playerIndex) {
   // Check if we should start qualification review
   // This shows qualified players with score breakdown before advancing to next round
   // Trigger when:
-  // 1. Going from 4→3 in QUALIFYING (show top 3 qualified)
-  // 2. Going from 3→2 in SEMI_FINAL (show top 2 qualified for final)
+  // 1. Going from 4→3 in QUALIFYING - just compress state, go to SEMI_FINAL
+  // 2. Going from 3→2 in SEMI_FINAL - show top 2 qualified for final
   const remainingAfterElimination = activePlayers - 1;
   
-  // Trigger qualification review when going to 3 players (from 4) or 2 players (from 3)
+  // For QUALIFYING phase with 4 players: after elimination we go to SEMI_FINAL with 3 players
+  // Show qualification review with 3 players qualifying (to display scores and who advances)
+  if (newState.tournamentPhase === 'QUALIFYING' && activePlayers === 4) {
+    console.log(`[endTournamentRound] QUALIFYING phase with 4 players - starting qualification review for 3 to advance`);
+    
+    // Start qualification review with 3 players qualifying (not 2!)
+    // This will show the score breakdown and eliminate only the lowest scorer
+    const reviewState = startQualificationReview(newState, 3);
+    
+    console.log(`[endTournamentRound] Qualification review started (3 players will qualify for SEMI_FINAL)`);
+    return reviewState;
+  }
+  
+  // For SEMI_FINAL phase (3 players): trigger qualification review for top 2
+  // Trigger qualification review when going to 2 players (from 3)
   if (remainingAfterElimination >= 2) {
     console.log(`[endTournamentRound] ${remainingAfterElimination} players will remain - starting QUALIFICATION REVIEW`);
     
@@ -233,16 +258,17 @@ function endTournamentRound(state, payload, playerIndex) {
   newState.playerStatuses[eliminatedPlayer] = 'ELIMINATED';
   newState.eliminationOrder.push(eliminatedPlayer);
   
-  // Get remaining active player indices
-  const activeIndices = [];
+  // Get remaining active player IDs (playerId strings)
+  const activePlayerIds = [];
   for (let i = 0; i < newState.playerCount; i++) {
-    if (newState.playerStatuses[i] === 'ACTIVE') {
-      activeIndices.push(i);
+    const playerId = newState.players[i].id;
+    if (newState.playerStatuses[playerId] === 'ACTIVE') {
+      activePlayerIds.push(playerId);
     }
   }
   
   // Determine next phase
-  const remainingPlayers = activeIndices.length;
+  const remainingPlayers = activePlayerIds.length;
   let nextPhase = newState.tournamentPhase;
   
   if (remainingPlayers === 3) {
@@ -254,7 +280,7 @@ function endTournamentRound(state, payload, playerIndex) {
   }
   
   // CRITICAL: Compress state to rebuild players array with contiguous indices
-  const compressedState = compressStateForNewPhase(newState, activeIndices);
+  const compressedState = compressStateForNewPhase(newState, activePlayerIds);
   
   // Preserve tournament-specific fields
   compressedState.tournamentPhase = nextPhase;
@@ -264,8 +290,8 @@ function endTournamentRound(state, payload, playerIndex) {
   compressedState.finalShowdownHandsPlayed = newState.finalShowdownHandsPlayed || 0;
   compressedState.tournamentMode = newState.tournamentMode;
   
-  // Preserve qualifiedPlayers for mapping
-  compressedState.qualifiedPlayers = activeIndices;
+  // Preserve qualifiedPlayers (now using playerId strings)
+  compressedState.qualifiedPlayers = activePlayerIds;
   compressedState.qualificationScores = newState.qualificationScores;
   
   console.log(`[endTournamentRound] AFTER compression - players.length: ${compressedState.players?.length}, playerCount: ${compressedState.playerCount}`);

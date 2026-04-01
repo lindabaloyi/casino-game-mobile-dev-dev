@@ -12,9 +12,10 @@ interface TournamentStatusBarProps {
   tournamentPhase: string | null;
   tournamentRound: number;
   finalShowdownHandsPlayed: number;
-  playerStatuses: { [playerIndex: string]: string };
-  tournamentScores: { [playerIndex: string]: number };
+  playerStatuses: { [playerId: string]: string };  // Keys are now playerId strings
+  tournamentScores: { [playerId: string]: number };  // Keys are now playerId strings
   playerCount: number;
+  qualifiedPlayers?: string[];  // Now uses playerId strings
 }
 
 export function TournamentStatusBar({
@@ -25,10 +26,14 @@ export function TournamentStatusBar({
   playerStatuses,
   tournamentScores,
   playerCount,
+  qualifiedPlayers = [],  // Not needed anymore - playerId strings are stable!
 }: TournamentStatusBarProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const accentColor = useThemeColor({}, 'tint');
+  
+  // No more index mapping needed - playerIds are persistent across tournament phases!
+  // Get all playerIds from playerStatuses and sort them
   
   // Don't render if not in tournament mode
   if (!tournamentMode || tournamentMode !== 'knockout') {
@@ -78,22 +83,27 @@ export function TournamentStatusBar({
       </View>
       
       <View style={styles.playersRow}>
-        {Array.from({ length: playerCount }, (_, i) => (
-          <View key={i} style={styles.playerInfo}>
-            <View 
-              style={[
-                styles.statusDot, 
-                { backgroundColor: getStatusColor(playerStatuses[i] || 'ACTIVE') }
-              ]} 
-            />
-            <Text style={[styles.playerName, { color: textColor }]}>
-              P{i + 1}
-            </Text>
-            <Text style={[styles.playerScore, { color: accentColor }]}>
-              {tournamentScores[i] || 0} pts
-            </Text>
-          </View>
-        ))}
+        {Object.keys(playerStatuses).sort().map((playerId, idx) => {
+          // Extract player number from playerId (e.g., 'player_0' -> 1)
+          const playerNum = parseInt(playerId.replace('player_', '')) + 1;
+          const status = playerStatuses[playerId] || 'ACTIVE';
+          return (
+            <View key={playerId} style={styles.playerInfo}>
+              <View 
+                style={[
+                  styles.statusDot, 
+                  { backgroundColor: getStatusColor(status) }
+                ]} 
+              />
+              <Text style={[styles.playerName, { color: textColor }]}>
+                P{playerNum}
+              </Text>
+              <Text style={[styles.playerScore, { color: accentColor }]}>
+                {tournamentScores[playerId] || 0} pts
+              </Text>
+            </View>
+          );
+        })}
       </View>
     </View>
   );

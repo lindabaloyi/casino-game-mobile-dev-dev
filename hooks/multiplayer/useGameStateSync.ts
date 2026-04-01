@@ -103,13 +103,13 @@ export interface GameState {
   tournamentMode?: 'knockout' | null;
   tournamentPhase?: 'QUALIFYING' | 'SEMI_FINAL' | 'FINAL_SHOWDOWN' | 'COMPLETED' | null;
   tournamentRound?: number;
-  playerStatuses?: { [playerIndex: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
-  tournamentScores?: { [playerIndex: string]: number };
-  eliminationOrder?: number[];
+  playerStatuses?: { [playerId: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
+  tournamentScores?: { [playerId: string]: number };
+  eliminationOrder?: string[];
   finalShowdownHandsPlayed?: number;
-  finalShowdownScores?: { [playerIndex: string]: number };
-  qualifiedPlayers?: number[];
-  qualificationScores?: { [playerIndex: string]: { totalPoints: number; cardPoints: number; tenDiamondPoints: number; twoSpadePoints: number; acePoints: number; spadeBonus: number; cardCountBonus: number; rank?: number } };
+  finalShowdownScores?: { [playerId: string]: number };
+  qualifiedPlayers?: string[];
+  qualificationScores?: { [playerId: string]: { totalPoints: number; cardPoints: number; tenDiamondPoints: number; twoSpadePoints: number; acePoints: number; spadeBonus: number; cardCountBonus: number; rank?: number } };
 }
 
 export interface GameOverData {
@@ -121,9 +121,9 @@ export interface GameOverData {
   isPartyMode?: boolean; // NEW: tells frontend if party mode (teams) or free-for-all
   // Tournament-specific data
   isTournamentMode?: boolean;
-  playerStatuses?: { [playerIndex: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
-  qualifiedPlayers?: number[];
-  qualificationScores?: { [playerIndex: string]: { totalPoints: number; cardPoints: number; tenDiamondPoints: number; twoSpadePoints: number; acePoints: number; spadeBonus: number; cardCountBonus: number; rank?: number } };
+  playerStatuses?: { [playerId: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
+  qualifiedPlayers?: string[];
+  qualificationScores?: { [playerId: string]: { totalPoints: number; cardPoints: number; tenDiamondPoints: number; twoSpadePoints: number; acePoints: number; spadeBonus: number; cardCountBonus: number; rank?: number } };
 
   scoreBreakdowns?: Array<{
     totalCards: number;

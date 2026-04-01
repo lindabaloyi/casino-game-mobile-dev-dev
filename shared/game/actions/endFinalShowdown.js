@@ -2,6 +2,8 @@
  * endFinalShowdown
  * Ends a hand in the final showdown, tracks hands played,
  * and declares winner after 2 hands.
+ * 
+ * IMPORTANT: Now uses playerId strings (e.g., 'player_0') instead of numeric indices!
  */
 
 const { cloneState, initializeGame, calculatePlayerScore } = require('../');
@@ -12,10 +14,12 @@ const calculateScore = calculatePlayerScore;
 function endFinalShowdown(state, payload, playerIndex) {
   const newState = cloneState(state);
   
+  console.log(`[endFinalShowdown] === TOURNAMENT FINAL SHOWDOWN DEBUG ===`);
   console.log(`[endFinalShowdown] Processing final showdown hand end`);
   console.log(`[endFinalShowdown] playerCount: ${newState.playerCount}, qualifiedPlayers: ${JSON.stringify(newState.qualifiedPlayers)}`);
-  console.log(`[endFinalShowdown] playerStatuses: ${JSON.stringify(newState.playerStatuses)}`);
+  console.log(`[endFinalShowdown] playerStatuses (playerId strings): ${JSON.stringify(newState.playerStatuses)}`);
   console.log(`[endFinalShowdown] tournamentScores: ${JSON.stringify(newState.tournamentScores)}`);
+  console.log(`[endFinalShowdown] tournamentPhase before processing: ${newState.tournamentPhase}`);
   
   // Validate tournament is in final showdown
   if (!newState.tournamentMode || newState.tournamentMode !== 'knockout') {
@@ -27,20 +31,17 @@ function endFinalShowdown(state, payload, playerIndex) {
   }
   
   // Calculate scores for this hand
-  // BUG FIX: Need to use qualifiedPlayers to map between new indices and original indices
+  // IMPORTANT: Uses playerId strings now!
   console.log(`[endFinalShowdown] Calculating hand scores...`);
-  console.log(`[endFinalShowdown] Using qualifiedPlayers mapping: ${JSON.stringify(newState.qualifiedPlayers)}`);
   
-  for (let newIndex = 0; newIndex < newState.playerCount; newIndex++) {
-    // Map new index to original index using qualifiedPlayers
-    const originalIndex = newState.qualifiedPlayers?.[newIndex] ?? newIndex;
-    console.log(`[endFinalShowdown] newIndex=${newIndex} -> originalIndex=${originalIndex}, playerStatuses[${newIndex}]=${newState.playerStatuses[newIndex]}, playerStatuses[${originalIndex}]=${newState.playerStatuses[originalIndex]}`);
+  for (let i = 0; i < newState.playerCount; i++) {
+    const playerId = newState.players[i].id;  // Get playerId string (e.g., 'player_0')
     
-    // Check status using the ORIGINAL index (how it's stored in playerStatuses)
-    if (newState.playerStatuses[originalIndex] === 'ACTIVE') {
-      const handScore = calculateScore(newState.players[newIndex].captures);
-      newState.tournamentScores[originalIndex] = (newState.tournamentScores[originalIndex] || 0) + handScore;
-      console.log(`[endFinalShowdown] Player originalIndex=${originalIndex} (newIndex=${newIndex}): hand score ${handScore}, total ${newState.tournamentScores[originalIndex]}`);
+    // Check status using the playerId string
+    if (newState.playerStatuses[playerId] === 'ACTIVE') {
+      const handScore = calculateScore(newState.players[i].captures);
+      newState.tournamentScores[playerId] = (newState.tournamentScores[playerId] || 0) + handScore;
+      console.log(`[endFinalShowdown] Player ${playerId}: hand score ${handScore}, total ${newState.tournamentScores[playerId]}`);
     }
   }
   
@@ -50,14 +51,14 @@ function endFinalShowdown(state, payload, playerIndex) {
   
   // Check if we've played 2 hands
   if (newState.finalShowdownHandsPlayed >= 2) {
-    // Determine winner using ORIGINAL indices
+    // Determine winner using playerId strings
     const activePlayers = [];
-    for (let newIndex = 0; newIndex < newState.playerCount; newIndex++) {
-      const originalIndex = newState.qualifiedPlayers?.[newIndex] ?? newIndex;
-      if (newState.playerStatuses[originalIndex] === 'ACTIVE') {
+    for (let i = 0; i < newState.playerCount; i++) {
+      const playerId = newState.players[i].id;
+      if (newState.playerStatuses[playerId] === 'ACTIVE') {
         activePlayers.push({ 
-          index: originalIndex,  // Use original index for consistency
-          score: newState.tournamentScores[originalIndex] 
+          playerId: playerId,  // Use playerId string!
+          score: newState.tournamentScores[playerId] 
         });
       }
     }
@@ -69,20 +70,27 @@ function endFinalShowdown(state, payload, playerIndex) {
     // Compare scores - HIGHER score wins
     activePlayers.sort((a, b) => b.score - a.score); // Descending
     
-    const winner = activePlayers[0].index;
-    const loser = activePlayers[1].index;
+    const winner = activePlayers[0].playerId;
+    const loser = activePlayers[1].playerId;
     
-    console.log(`[endFinalShowdown] FINAL RESULTS:`);
-    console.log(`  Player ${winner}: ${activePlayers[0].score} points - WINNER!`);
-    console.log(`  Player ${loser}: ${activePlayers[1].score} points`);
+    console.log(`[endFinalShowdown] === TOURNAMENT FINAL RESULTS ===`);
+    console.log(`[endFinalShowdown] Active players with scores:`);
+    activePlayers.forEach((p, i) => {
+      console.log(`  [${i}] playerId=${p.playerId}, score=${p.score}`);
+    });
+    console.log(`[endFinalShowdown] Winner (playerId): ${winner}`);
+    console.log(`[endFinalShowdown] Loser (playerId): ${loser}`);
+    console.log(`[endFinalShowdown] Player statuses BEFORE update: ${JSON.stringify(newState.playerStatuses)}`);
     
-    // Update statuses
+    // Update statuses - using playerId strings
     newState.playerStatuses[winner] = 'WINNER';
     newState.playerStatuses[loser] = 'ELIMINATED';
-    newState.tournamentWinner = winner;
+    newState.tournamentWinner = winner;  // Now stores playerId string!
     newState.tournamentPhase = 'COMPLETED';
     
-    console.log(`[endFinalShowdown] TOURNAMENT COMPLETE! Winner: Player ${winner}`);
+    console.log(`[endFinalShowdown] Player statuses AFTER update: ${JSON.stringify(newState.playerStatuses)}`);
+    console.log(`[endFinalShowdown] tournamentWinner set to: ${winner}`);
+    console.log(`[endFinalShowdown] tournamentPhase set to: COMPLETED`);
     
     return newState;
   }
@@ -91,18 +99,30 @@ function endFinalShowdown(state, payload, playerIndex) {
   console.log(`[endFinalShowdown] Starting hand ${newState.finalShowdownHandsPlayed + 1}`);
   
   // Reset for next hand while keeping tournament state
+  // IMPORTANT: Need to preserve player identities using playerId strings!
   const resetState = initializeGame(newState.playerCount, newState.gameMode === 'party');
   
-  // Preserve tournament state
+  // Preserve tournament state - including playerId-based playerStatuses and tournamentScores
   resetState.tournamentMode = newState.tournamentMode;
   resetState.tournamentPhase = newState.tournamentPhase;
   resetState.tournamentRound = newState.tournamentRound;
-  resetState.playerStatuses = newState.playerStatuses;
-  resetState.tournamentScores = newState.tournamentScores;
+  resetState.playerStatuses = newState.playerStatuses;  // Keep playerId-based statuses!
+  resetState.tournamentScores = newState.tournamentScores;  // Keep playerId-based scores!
   resetState.eliminationOrder = newState.eliminationOrder;
   resetState.finalShowdownHandsPlayed = newState.finalShowdownHandsPlayed;
   resetState.tournamentWinner = newState.tournamentWinner;
-  resetState.qualifiedPlayers = newState.qualifiedPlayers;
+  resetState.qualifiedPlayers = newState.qualifiedPlayers;  // Keep playerId strings!
+  
+  // IMPORTANT: Recreate players array with correct playerId strings
+  // The initializeGame creates players with id 'player_0', 'player_1', etc.
+  // We need to map them to the correct playerId strings from qualifiedPlayers
+  if (newState.qualifiedPlayers && newState.qualifiedPlayers.length > 0) {
+    for (let i = 0; i < resetState.playerCount && i < newState.qualifiedPlayers.length; i++) {
+      const targetPlayerId = newState.qualifiedPlayers[i];
+      resetState.players[i].id = targetPlayerId;
+      console.log(`[endFinalShowdown] Remapped player ${i} to playerId ${targetPlayerId}`);
+    }
+  }
   
   console.log(`[endFinalShowdown] Hand ${resetState.finalShowdownHandsPlayed + 1} starting`);
   console.log(`[endFinalShowdown] AFTER initializeGame - players.length: ${resetState.players?.length}, playerCount: ${resetState.playerCount}`);

@@ -192,12 +192,17 @@ class BroadcasterService {
       // The server has already remapped socket indices, so we look up the new index
       let playerNumber = null;
       
-      if (socketPlayerMap) {
+      if (socketPlayerMap && socketPlayerMap.size > 0) {
         // Get this socket's player index from the remapped map
-        playerNumber = socketPlayerMap.get(gameSocket.id);
+        const mappedIndex = socketPlayerMap.get(gameSocket.id);
+        
+        // Only set playerNumber if the socket is still in the map (not eliminated)
+        if (mappedIndex !== undefined && mappedIndex !== null) {
+          playerNumber = mappedIndex;
+        }
       }
       
-      if (isTournamentTransition && playerNumber !== null) {
+      if (isTournamentTransition) {
         console.log(`[Broadcaster] Socket ${gameSocket.id.substr(0,8)} -> playerNumber: ${playerNumber}`);
       }
       

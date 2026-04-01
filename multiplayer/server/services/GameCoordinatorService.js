@@ -229,11 +229,29 @@ class GameCoordinatorService {
     console.log(`[Coordinator] _removeEliminatedPlayers called with qualifiedPlayers: ${JSON.stringify(qualifiedPlayers)}`);
     console.log(`[Coordinator] Current socketMap BEFORE removal:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
     
+    // Handle both string playerId (e.g., 'player_0') and numeric indices
+    const qualifiedIndices = [];
+    for (const q of qualifiedPlayers) {
+      if (typeof q === 'string') {
+        // Extract numeric index from playerId string like 'player_0' -> 0
+        const match = q.match(/^player_(\d+)$/);
+        if (match) {
+          qualifiedIndices.push(parseInt(match[1], 10));
+        } else {
+          console.warn(`[Coordinator] Could not parse playerId: ${q}`);
+        }
+      } else if (typeof q === 'number') {
+        qualifiedIndices.push(q);
+      }
+    }
+    
+    console.log(`[Coordinator] Qualified indices (numeric): ${JSON.stringify(qualifiedIndices)}`);
+    
     const toDelete = [];
     for (const [socketId, playerIndex] of socketMap.entries()) {
-      if (!qualifiedPlayers.includes(playerIndex)) {
+      if (!qualifiedIndices.includes(playerIndex)) {
         toDelete.push(socketId);
-        console.log(`[Coordinator] Marking socket ${socketId.substr(0,8)} for elimination - playerIndex ${playerIndex} not in qualifiedPlayers`);
+        console.log(`[Coordinator] Marking socket ${socketId.substr(0,8)} for elimination - playerIndex ${playerIndex} not in qualifiedIndices`);
       }
     }
 

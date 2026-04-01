@@ -71,8 +71,8 @@ interface GameOverModalProps {
   teamScoreBreakdowns?: TeamScoreBreakdowns;
   isPartyMode?: boolean;
   isTournamentMode?: boolean;
-  playerStatuses?: { [playerIndex: string]: string };
-  qualifiedPlayers?: number[];
+  playerStatuses?: { [playerId: string]: string };  // Keys are now playerId strings
+  qualifiedPlayers?: string[];  // Now uses playerId strings
   onPlayAgain?: () => void;
   onBackToMenu?: () => void;
 }
@@ -108,30 +108,52 @@ export function GameOverModal({
 
   // Determine winner text
   let winnerText: string;
-  if (playerCount === 4 && isPartyMode) {
-    const teamAScore = score1 + score2;
-    const teamBScore = score3 + score4;
-    if (teamAScore > teamBScore) winnerText = 'Team A';
-    else if (teamBScore > teamAScore) winnerText = 'Team B';
-    else winnerText = 'Tie';
-  } else if (playerCount === 4) {
-    const maxScore = Math.max(score1, score2, score3, score4);
-    const winners = [];
-    if (score1 === maxScore) winners.push('Player 1');
-    if (score2 === maxScore) winners.push('Player 2');
-    if (score3 === maxScore) winners.push('Player 3');
-    if (score4 === maxScore) winners.push('Player 4');
-    winnerText = winners.length === 1 ? winners[0] : 'Tie';
-  } else if (playerCount === 3) {
-    const maxScore = Math.max(score1, score2, score3);
-    const winners = [
-      score1 === maxScore ? 'Player 1' : null,
-      score2 === maxScore ? 'Player 2' : null,
-      score3 === maxScore ? 'Player 3' : null,
-    ].filter(Boolean);
-    winnerText = winners.length === 1 ? winners[0]! : 'Tie';
+  
+  // For tournament mode, determine winner from playerStatuses
+  if (isTournamentMode && playerStatuses) {
+    const winnerEntry = Object.entries(playerStatuses).find(([_, status]) => status === 'WINNER');
+    if (winnerEntry) {
+      // winnerEntry[0] is now the playerId string (e.g., 'player_0')
+      const winnerPlayerId = winnerEntry[0];
+      // Extract player number from playerId (e.g., 'player_0' -> 1)
+      const winnerDisplayIndex = parseInt(winnerPlayerId.replace('player_', '')) + 1;
+      winnerText = `Player ${winnerDisplayIndex}`;
+      console.log('[GameOverModal] Tournament winner detected: playerId', winnerPlayerId, '-> display index', winnerDisplayIndex);
+    } else {
+      // Fallback to score-based logic
+      winnerText = getScoreBasedWinner();
+    }
   } else {
-    winnerText = score1 > score2 ? 'Player 1' : score2 > score1 ? 'Player 2' : 'Tie';
+    winnerText = getScoreBasedWinner();
+  }
+  
+  // Helper function for score-based winner determination
+  function getScoreBasedWinner(): string {
+    if (playerCount === 4 && isPartyMode) {
+      const teamAScore = score1 + score2;
+      const teamBScore = score3 + score4;
+      if (teamAScore > teamBScore) return 'Team A';
+      else if (teamBScore > teamAScore) return 'Team B';
+      else return 'Tie';
+    } else if (playerCount === 4) {
+      const maxScore = Math.max(score1, score2, score3, score4);
+      const winners = [];
+      if (score1 === maxScore) winners.push('Player 1');
+      if (score2 === maxScore) winners.push('Player 2');
+      if (score3 === maxScore) winners.push('Player 3');
+      if (score4 === maxScore) winners.push('Player 4');
+      return winners.length === 1 ? winners[0] : 'Tie';
+    } else if (playerCount === 3) {
+      const maxScore = Math.max(score1, score2, score3);
+      const winners = [
+        score1 === maxScore ? 'Player 1' : null,
+        score2 === maxScore ? 'Player 2' : null,
+        score3 === maxScore ? 'Player 3' : null,
+      ].filter(Boolean);
+      return winners.length === 1 ? winners[0]! : 'Tie';
+    } else {
+      return score1 > score2 ? 'Player 1' : score2 > score1 ? 'Player 2' : 'Tie';
+    }
   }
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -321,11 +343,15 @@ export function GameOverModal({
   };
 
   // Tournament player: status badges + same minimal layout
-  const renderTournamentPlayer = (playerIndex: number, playerName: string, score: number) => {
-    const bd = scoreBreakdowns?.[playerIndex];
-    const status = playerStatuses?.[playerIndex];
-    const isQualified = qualifiedPlayers?.includes(playerIndex) || status === 'WINNER';
+  const renderTournamentPlayer = (playerId: string, playerName: string, score: number) => {
+    const bd = scoreBreakdowns?.[parseInt(playerId.replace('player_', ''))];
+    const status = playerStatuses?.[playerId];
+    // For playerId strings, check if status is WINNER (still qualifies)
+    const isQualified = status === 'WINNER' || (qualifiedPlayers?.includes(playerId) ?? false);
     const isKnockedOut = status === 'ELIMINATED';
+    
+    // Extract player number from playerId (e.g., 'player_0' -> 1)
+    const playerNum = parseInt(playerId.replace('player_', '')) + 1;
 
     if (!bd) {
       return (

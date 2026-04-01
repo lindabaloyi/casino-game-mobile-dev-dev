@@ -29,12 +29,12 @@ interface TournamentStatus {
   tournamentPhase: string | null;
   tournamentRound: number;
   finalShowdownHandsPlayed: number;
-  eliminationOrder: number[];
-  tournamentScores: { [playerIndex: string]: number };
-  playerStatuses: { [playerIndex: string]: string };
+  eliminationOrder: string[];  // Now uses playerId strings!
+  tournamentScores: { [playerId: string]: number };
+  playerStatuses: { [playerId: string]: string };
   qualificationCountdown: number;
-  qualifiedPlayers: number[];
-  qualificationScores: { [playerIndex: string]: QualificationScore };
+  qualifiedPlayers: string[];  // Now uses playerId strings!
+  qualificationScores: { [playerId: string]: QualificationScore };
 }
 
 export interface UseTournamentStatusOptions {
@@ -69,13 +69,24 @@ export function useTournamentStatus(
     const playerStatuses = gameState?.playerStatuses || {};
     const tournamentRound = gameState?.tournamentRound || 1;
     const finalShowdownHandsPlayed = gameState?.finalShowdownHandsPlayed || 0;
-    const eliminationOrder = gameState?.eliminationOrder || [];
+    const eliminationOrder = (gameState?.eliminationOrder || []) as string[];
     const tournamentScores = gameState?.tournamentScores || {};
+    const qualifiedPlayers = (gameState?.qualifiedPlayers || []) as string[];
     
     const isInTournament = tournamentMode === 'knockout' && tournamentPhase !== null;
     
-    const playerStatus = playerStatuses[index] 
-      ? playerStatuses[index] as 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER'
+    // qualifiedPlayers now contains playerId strings (e.g., 'player_0', 'player_1')
+    // The player's position in the players array corresponds to their playerId
+    // We get the player's playerId by looking at the players array at position 'index'
+    let myPlayerId: string | null = null;
+    if (gameState?.players && gameState.players[index]) {
+      // Get playerId from players array - it's stored as string (e.g., 'player_0')
+      myPlayerId = String(gameState.players[index].id);
+    }
+    
+    // Look up status using playerId
+    const playerStatus = myPlayerId && playerStatuses[myPlayerId] 
+      ? playerStatuses[myPlayerId] as 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER'
       : null;
     
     const isSpectator = isInTournament && 
@@ -88,7 +99,6 @@ export function useTournamentStatus(
     // Qualification review data
     const isInQualificationReview = tournamentPhase === 'QUALIFICATION_REVIEW';
     const qualificationCountdown = gameState?.qualificationCountdown || 0;
-    const qualifiedPlayers = gameState?.qualifiedPlayers || [];
     const qualificationScores = gameState?.qualificationScores || {};
     
     return {

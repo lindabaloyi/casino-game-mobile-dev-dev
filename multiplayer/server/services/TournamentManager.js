@@ -57,7 +57,7 @@ class TournamentManager {
    * This ensures the winner starts first (playerIndex 0)
    * 
    * @param {Map} socketPlayerMap - The game's socket to player index mapping
-   * @param {number[]} qualifiedPlayers - Array of original player indices that qualified
+   * @param {string[]|number[]} qualifiedPlayers - Array of player IDs (playerId strings like 'player_0' or numeric indices)
    */
   static remapPlayerIndices(socketPlayerMap, qualifiedPlayers) {
     if (!socketPlayerMap) {
@@ -67,11 +67,30 @@ class TournamentManager {
 
     console.log(`[TournamentManager] Remapping player indices with qualified: ${JSON.stringify(qualifiedPlayers)}`);
     
+    // Handle both string playerId (e.g., 'player_0') and numeric indices
+    // Convert to numeric indices for mapping
+    const qualifiedIndices = [];
+    for (const q of qualifiedPlayers) {
+      if (typeof q === 'string') {
+        // Extract numeric index from playerId string like 'player_0' -> 0
+        const match = q.match(/^player_(\d+)$/);
+        if (match) {
+          qualifiedIndices.push(parseInt(match[1], 10));
+        } else {
+          console.warn(`[TournamentManager] Could not parse playerId: ${q}`);
+        }
+      } else if (typeof q === 'number') {
+        qualifiedIndices.push(q);
+      }
+    }
+    
+    console.log(`[TournamentManager] Qualified indices (numeric): ${JSON.stringify(qualifiedIndices)}`);
+    
     // Create a reverse mapping: old player index -> new player index
     // qualifiedPlayers[0] = winner -> new index 0
     // qualifiedPlayers[1] -> new index 1
     const oldToNewMap = {};
-    qualifiedPlayers.forEach((oldIndex, newIndex) => {
+    qualifiedIndices.forEach((oldIndex, newIndex) => {
       oldToNewMap[oldIndex] = newIndex;
     });
 

@@ -32,7 +32,8 @@ function initializeGame(playerCount = 2, isPartyMode = false) {
   // Deal cards to each player
   for (let i = 0; i < playerCount; i++) {
     players.push({
-      id: i,
+      id: `player_${i}`,  // PERSISTENT ID - never changes throughout tournament
+      index: i,  // Current array index (changes after tournament transitions)
       name: `Player ${i + 1}`,
       hand: deck.splice(0, startingCards),
       captures: [],
@@ -82,15 +83,17 @@ function initializeGame(playerCount = 2, isPartyMode = false) {
     tournamentMode: null, // 'knockout' or null
     tournamentPhase: null, // 'QUALIFYING' | 'QUALIFICATION_REVIEW' | 'SEMI_FINAL' | 'FINAL_SHOWDOWN' | 'COMPLETED'
     tournamentRound: 0,
-    playerStatuses: {}, // { [playerIndex]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' }
-    tournamentScores: {}, // { [playerIndex]: cumulativeScore }
-    eliminationOrder: [], // [playerIndex, playerIndex, ...]
+    // TOURNAMENT STATE NOW USES PLAYER IDs (e.g., 'player_0', 'player_1') - NOT indices!
+    // This persists across all tournament transitions - no more index mapping issues!
+    playerStatuses: {}, // { [playerId]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' }
+    tournamentScores: {}, // { [playerId]: cumulativeScore }
+    eliminationOrder: [], // [playerId, playerId, ...]
     finalShowdownHandsPlayed: 0,
-    tournamentWinner: null,
+    tournamentWinner: null, // playerId of winner
     // Qualification Review Phase
     qualificationCountdown: 0, // seconds remaining in qualification review
-    qualifiedPlayers: [], // [playerIndex1, playerIndex2] - players advancing to semifinal
-    qualificationScores: {}, // { [playerIndex]: { totalPoints, cardPoints, tenDiamondPoints, twoSpadePoints, acePoints, spadeBonus, cardCountBonus } }
+    qualifiedPlayers: [], // [playerId1, playerId2] - players advancing to next phase
+    qualificationScores: {}, // { [playerId]: { totalPoints, cardPoints, tenDiamondPoints, twoSpadePoints, acePoints, spadeBonus, cardCountBonus } }
   };
 
   // Validate card distribution
@@ -143,7 +146,8 @@ function initializeTestGame(playerCount = 2) {
 
   // Player 0 gets the special hand
   players.push({
-    id: 0,
+    id: 'player_0',  // PERSISTENT ID
+    index: 0,
     name: 'Player 1',
     hand: player0Cards,
     captures: [],
@@ -155,7 +159,8 @@ function initializeTestGame(playerCount = 2) {
   for (let i = 1; i < playerCount; i++) {
     const hand = remainingDeck.splice(0, startingCards);
     players.push({
-      id: i,
+      id: `player_${i}`,  // PERSISTENT ID
+      index: i,
       name: `Player ${i + 1}`,
       hand,
       captures: [],

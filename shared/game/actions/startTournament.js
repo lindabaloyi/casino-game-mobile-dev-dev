@@ -24,10 +24,11 @@ function startTournament(state, payload, playerIndex) {
   newState.finalShowdownHandsPlayed = 0;
   newState.tournamentWinner = null;
   
-  // Initialize player statuses and tournament scores
+  // Initialize player statuses and tournament scores using PLAYER IDs
   for (let i = 0; i < newState.playerCount; i++) {
-    newState.playerStatuses[i] = 'ACTIVE';
-    newState.tournamentScores[i] = 0;
+    const playerId = newState.players[i].id;  // Use persistent playerId (e.g., 'player_0')
+    newState.playerStatuses[playerId] = 'ACTIVE';
+    newState.tournamentScores[playerId] = 0;
   }
   
   console.log(`[startTournament] ✅ Tournament initialized:`);

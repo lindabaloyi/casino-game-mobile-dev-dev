@@ -191,23 +191,24 @@ export default function OnlinePlayScreen() {
         <QualificationReviewModal
           visible={true}
           currentPlayerIndex={safePlayerNumber}
-          qualifiedPlayers={tournamentStatus.qualifiedPlayers.map((playerIndex, idx) => ({
-            playerIndex,
+          // qualifiedPlayers now contains playerId strings - need to extract player number
+          qualifiedPlayers={tournamentStatus.qualifiedPlayers.map((playerId) => ({
+            playerIndex: parseInt(playerId.replace('player_', '')),
             score: {
-              ...tournamentStatus.qualificationScores[playerIndex],
-              rank: idx + 1
+              ...tournamentStatus.qualificationScores[playerId],
+              rank: tournamentStatus.qualifiedPlayers.indexOf(playerId) + 1
             }
           }))}
+          // eliminatedPlayers are those in playerStatuses but not in qualifiedPlayers
           eliminatedPlayers={Object.keys(tournamentStatus.playerStatuses)
-            .map(Number)
-            .filter(idx => 
+            .filter(playerId => 
               // Include players NOT in the qualified list (they didn't qualify)
-              !tournamentStatus.qualifiedPlayers.includes(idx)
+              !tournamentStatus.qualifiedPlayers.includes(playerId)
             )
-            .map(playerIndex => ({
-              playerIndex,
-              score: tournamentStatus.qualificationScores[playerIndex] || {
-                totalPoints: tournamentStatus.tournamentScores[playerIndex] || 0,
+            .map(playerId => ({
+              playerIndex: parseInt(playerId.replace('player_', '')),
+              score: tournamentStatus.qualificationScores[playerId] || {
+                totalPoints: tournamentStatus.tournamentScores[playerId] || 0,
                 cardPoints: 0,
                 tenDiamondPoints: 0,
                 twoSpadePoints: 0,
@@ -234,6 +235,7 @@ export default function OnlinePlayScreen() {
           playerStatuses={tournamentStatus.playerStatuses}
           tournamentScores={tournamentStatus.tournamentScores}
           playerCount={gameState?.playerCount || modeConfig.playerCount}
+          qualifiedPlayers={tournamentStatus.qualifiedPlayers}
         />
       ) : !tournamentStatus.isInQualificationReview ? (
         <GameBoard

@@ -63,8 +63,8 @@ interface GameBoardProps {
     isPartyMode?: boolean;
     // Tournament-specific props
     isTournamentMode?: boolean;
-    playerStatuses?: { [playerIndex: string]: string };
-    qualifiedPlayers?: number[];
+    playerStatuses?: { [playerId: string]: string };  // Keys are now playerId strings
+    qualifiedPlayers?: string[];  // Now uses playerId strings
   } | null;
   playerNumber: number;
   sendAction: (action: { type: string; payload?: Record<string, unknown> }) => void;
@@ -894,8 +894,13 @@ export function GameBoard({
         onCancelCaptureOrSteal={modals.closeCaptureOrStealModal}
         // Disqualified player modal (tournament)
         showDisqualifiedModal={tournamentStatus.isEliminated}
+        // Get the player's playerId to access tournament data
         disqualifiedPlayerIndex={playerNumber}
-        disqualifiedTournamentScore={tournamentStatus.tournamentScores[playerNumber] ?? 0}
+        disqualifiedTournamentScore={(() => {
+          // Get playerId from gameState.players array
+          const playerId = gameState.players?.[playerNumber]?.id;
+          return playerId ? tournamentStatus.tournamentScores[playerId] ?? 0 : 0;
+        })()}
         disqualifiedFinalRank={Object.values(tournamentStatus.playerStatuses).filter(s => s === 'ELIMINATED' || s === 'ACTIVE').length}
         disqualifiedTotalPlayers={Object.keys(tournamentStatus.playerStatuses).length}
         disqualifiedEliminationRound={tournamentStatus.tournamentPhase ?? 'Qualifying'}
@@ -911,6 +916,7 @@ export function GameBoard({
 
     
       
+      {/* GameOverModal - Tournament winner display */}
       <GameOverModal
         visible={isGameOver}
         scores={gameOverData?.finalScores || gameState.scores as number[]}
@@ -921,6 +927,9 @@ export function GameBoard({
         scoreBreakdowns={gameOverData?.scoreBreakdowns}
         teamScoreBreakdowns={gameOverData?.teamScoreBreakdowns}
         isPartyMode={gameOverData?.isPartyMode ?? isPartyMode}
+        isTournamentMode={gameState.tournamentMode === 'knockout'}
+        playerStatuses={gameState.playerStatuses}
+        qualifiedPlayers={gameState.qualifiedPlayers}
         onPlayAgain={onRestart ? handlePlayAgain : undefined}
         onBackToMenu={onBackToMenu}
       />
