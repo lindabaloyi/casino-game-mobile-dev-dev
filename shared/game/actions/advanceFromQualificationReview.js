@@ -26,17 +26,24 @@ function advanceFromQualificationReview(state) {
   // Get the number of qualified players
   const qualifiedCount = newState.qualifiedPlayers?.length || 0;
   
-  console.log(`[advanceFromQualificationReview] Qualified count: ${qualifiedCount}`);
+  console.log(`[advanceFromQualificationReview] Qualified count: ${qualifiedCount}, qualifiedPlayers: ${JSON.stringify(newState.qualifiedPlayers)}`);
+  console.log(`[advanceFromQualificationReview] Players array BEFORE transition:`, newState.players?.map(p => p.id), ', length:', newState.players?.length);
   
   // Determine next phase based on qualified count
   if (qualifiedCount <= 2) {
     // 2 players qualified - go to final showdown
     console.log('[advanceFromQualificationReview] Advancing to FINAL_SHOWDOWN');
-    return startFinalShowdown(newState);
+    const resultState = startFinalShowdown(newState);
+    console.log(`[advanceFromQualificationReview] AFTER transition - players.length: ${resultState.players?.length}, playerCount: ${resultState.playerCount}`);
+    console.log(`[advanceFromQualificationReview] Players array AFTER transition:`, resultState.players?.map(p => p.id));
+    return resultState;
   } else {
     // 3+ players qualified - go to semifinal
     console.log('[advanceFromQualificationReview] Advancing to SEMI_FINAL');
-    return startSemifinal(newState);
+    const resultState = startSemifinal(newState);
+    console.log(`[advanceFromQualificationReview] AFTER transition - players.length: ${resultState.players?.length}, playerCount: ${resultState.playerCount}`);
+    console.log(`[advanceFromQualificationReview] Players array AFTER transition:`, resultState.players?.map(p => p.id));
+    return resultState;
   }
 }
 

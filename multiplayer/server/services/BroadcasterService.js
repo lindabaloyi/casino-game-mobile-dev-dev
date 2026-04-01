@@ -154,6 +154,8 @@ class BroadcasterService {
 
   /**
    * Broadcast game update to all players in a game
+   * CRITICAL: Include each socket's player index in the update so clients
+   * can update their playerNumber after tournament phase transitions
    */
   broadcastGameUpdate(gameId, gameState, matchmakingService = null) {
     // Use the provided matchmaking service or default to regular matchmaking
@@ -171,8 +173,39 @@ class BroadcasterService {
     // Deep clone to avoid serializing internal references
     const stateToSend = JSON.parse(JSON.stringify(gameState));
 
+    // Get socket->player index mapping from gameManager if available
+    const socketPlayerMap = this.gameManager?.socketPlayerMap?.get(gameId);
+    const qualifiedPlayers = gameState?.qualifiedPlayers || null;
+    
+    // Check if this is a tournament phase transition (fewer players than original)
+    const isTournamentTransition = qualifiedPlayers && 
+      socketPlayerMap && 
+      gameState?.tournamentPhase && 
+      ['SEMI_FINAL', 'FINAL_SHOWDOWN'].includes(gameState.tournamentPhase);
+    
+    if (isTournamentTransition) {
+      console.log(`[Broadcaster] Tournament transition detected - sending updated playerNumber to each client`);
+    }
+
     gameSockets.forEach((gameSocket) => {
-      gameSocket.emit("game-update", stateToSend);
+      // Include playerNumber for each socket - CRITICAL for tournament transitions
+      // The server has already remapped socket indices, so we look up the new index
+      let playerNumber = null;
+      
+      if (socketPlayerMap) {
+        // Get this socket's player index from the remapped map
+        playerNumber = socketPlayerMap.get(gameSocket.id);
+      }
+      
+      if (isTournamentTransition && playerNumber !== null) {
+        console.log(`[Broadcaster] Socket ${gameSocket.id.substr(0,8)} -> playerNumber: ${playerNumber}`);
+      }
+      
+      // Emit with playerNumber so client can update their stored value
+      gameSocket.emit("game-update", {
+        ...stateToSend,
+        playerNumber: playerNumber
+      });
     });
   }
 

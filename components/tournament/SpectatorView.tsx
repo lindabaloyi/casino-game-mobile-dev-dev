@@ -76,9 +76,35 @@ export function SpectatorView({
     }
   };
   
+  // Get active players - filter by ACTIVE/WINNER status (not by index >= playerCount)
+  // After tournament transitions, playerStatuses still uses ORIGINAL indices
+  // Example: {"0":"ACTIVE","1":"ACTIVE","2":"ELIMINATED","3":"ACTIVE"} with playerCount=3
+  // Should show players 0,1,3 as active -> display as P1, P2, P4
   const activePlayers = Object.entries(playerStatuses)
     .filter(([_, status]) => status === 'ACTIVE' || status === 'WINNER')
-    .map(([index]) => parseInt(index) + 1);
+    .map(([index]) => parseInt(index))
+    .sort((a, b) => a - b)  // Sort by original index
+    .map((origIndex, displayIdx) => displayIdx + 1);  // Display as 1,2,3,... (not origIndex+1)
+  
+  // DEBUG: Log playerStatuses and tournamentScores to diagnose winner display issue
+  console.log('[SpectatorView] playerStatuses:', JSON.stringify(playerStatuses));
+  console.log('[SpectatorView] tournamentScores:', JSON.stringify(tournamentScores));
+  console.log('[SpectatorView] activePlayers calculated:', activePlayers);
+  console.log('[SpectatorView] playerCount:', playerCount);
+  console.log('[SpectatorView] tournamentPhase:', tournamentPhase);
+  
+  // Build a mapping from original index to display index for the standings
+  // This is needed because playerStatuses uses ORIGINAL indices but playerCount is the NEW count
+  const originalIndices = Object.keys(playerStatuses)
+    .map(k => parseInt(k))
+    .filter(idx => idx < playerCount || playerStatuses[idx] === 'ELIMINATED')  // Include all stored indices
+    .sort((a, b) => a - b);
+  
+  // Map original index to display position (1-based)
+  const getDisplayIndex = (origIndex: number): number => {
+    const position = originalIndices.indexOf(origIndex);
+    return position >= 0 ? position + 1 : origIndex + 1;
+  };
   
   return (
     <View style={[styles.container, { backgroundColor }]}>
@@ -125,28 +151,31 @@ export function SpectatorView({
           Standings
         </Text>
         <ScrollView style={styles.standingsList}>
-          {Array.from({ length: playerCount }, (_, i) => (
-            <View key={i} style={styles.standingRow}>
-              <View 
-                style={[
-                  styles.statusDot, 
-                  { backgroundColor: getStatusColor(playerStatuses[i] || 'ACTIVE') }
-                ]} 
-              />
-              <Text style={[styles.playerName, { color: textColor }]}>
-                Player {i + 1}
-              </Text>
-              <Text style={[styles.playerScore, { color: tintColor }]}>
-                {tournamentScores[i] || 0} pts
-              </Text>
-              <Text style={[
-                styles.playerStatus,
-                { color: getStatusColor(playerStatuses[i] || 'ACTIVE') }
-              ]}>
-                {getStatusLabel(playerStatuses[i] || 'ACTIVE')}
-              </Text>
-            </View>
-          ))}
+          {originalIndices.map((origIndex) => {
+            const status = playerStatuses[origIndex] || 'ACTIVE';
+            return (
+              <View key={origIndex} style={styles.standingRow}>
+                <View 
+                  style={[
+                    styles.statusDot, 
+                    { backgroundColor: getStatusColor(status) }
+                  ]} 
+                />
+                <Text style={[styles.playerName, { color: textColor }]}>
+                  Player {getDisplayIndex(origIndex)}
+                </Text>
+                <Text style={[styles.playerScore, { color: tintColor }]}>
+                  {tournamentScores[origIndex] || 0} pts
+                </Text>
+                <Text style={[
+                  styles.playerStatus,
+                  { color: getStatusColor(status) }
+                ]}>
+                  {getStatusLabel(status)}
+                </Text>
+              </View>
+            );
+          })}
         </ScrollView>
       </View>
       

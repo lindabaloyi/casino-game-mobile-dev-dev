@@ -105,6 +105,8 @@ function endFinalShowdown(state, payload, playerIndex) {
   resetState.qualifiedPlayers = newState.qualifiedPlayers;
   
   console.log(`[endFinalShowdown] Hand ${resetState.finalShowdownHandsPlayed + 1} starting`);
+  console.log(`[endFinalShowdown] AFTER initializeGame - players.length: ${resetState.players?.length}, playerCount: ${resetState.playerCount}`);
+  console.log(`[endFinalShowdown] Players array:`, resetState.players?.map(p => p.id));
   
   return resetState;
 }

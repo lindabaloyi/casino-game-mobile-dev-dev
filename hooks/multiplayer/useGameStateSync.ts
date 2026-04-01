@@ -344,7 +344,7 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
   useEffect(() => {
     if (!socket) return;
 
-    const handleGameUpdate = (state: GameState) => {
+    const handleGameUpdate = (state: any) => {
       // DEBUG: Log build stacks with pending extension
       const buildStacks = state.tableCards?.filter((tc: any) => tc.type === 'build_stack');
       const pendingExtStacks = buildStacks?.filter((tc: any) => tc.pendingExtension);
@@ -358,6 +358,22 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
           console.log('  Stack:', tc.stackId, 'pendingExt cards:', tc.pendingExtension?.cards?.map((p: any) => p.card?.value));
         });
       }
+      
+      // CRITICAL: Update playerNumber if provided (e.g., after tournament phase transitions)
+      // The server sends playerNumber in game-update after remapping indices
+      if (state.playerNumber !== undefined && state.playerNumber !== null) {
+        const newPlayerNumber = state.playerNumber;
+        if (newPlayerNumber !== playerNumber) {
+          console.log(`[useGameStateSync] 🔄 Player number updated: ${playerNumber} -> ${newPlayerNumber}`);
+          setPlayerNumber(newPlayerNumber);
+        }
+      }
+      
+      // DEBUG: Log gameState important fields for tournament transition
+      if (state.tournamentPhase === 'SEMI_FINAL' || state.tournamentPhase === 'FINAL_SHOWDOWN') {
+        console.log(`[useGameStateSync] 📡 Received ${state.tournamentPhase} state: playerCount=${state.playerCount}, gameMode=${state.gameMode}, players.length=${state.players?.length}`);
+      }
+      
       setGameState(state);
     };
 
@@ -366,7 +382,7 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     return () => {
       socket.off('game-update', handleGameUpdate);
     };
-  }, [socket]);
+  }, [socket, playerNumber]);
 
   // Handle round-end event
   useEffect(() => {

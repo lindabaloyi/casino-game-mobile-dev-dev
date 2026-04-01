@@ -57,23 +57,121 @@ function findLowestScorer(state) {
 }
 
 /**
- * Start a new round (reset hands and table)
+ * Compress players array to only include active players with contiguous indices
+ * This ensures players array indices match the new playerCount after elimination
+ * 
+ * @param {Object} state - Current game state
+ * @param {number[]} activeIndices - Array of original indices to keep
+ * @returns {Object} New state with compressed players array
  */
-function startNewRound(state) {
-  // Reset for a new round while keeping tournament state
-  const newState = initializeGame(state.playerCount, state.gameMode === 'party');
+function compressStateForNewPhase(state, activeIndices) {
+  const newState = cloneState(state);
+  const newPlayerCount = activeIndices.length;
   
-  // Preserve tournament state
-  newState.tournamentMode = state.tournamentMode;
-  newState.tournamentPhase = state.tournamentPhase;
-  newState.tournamentRound = state.tournamentRound;
-  newState.playerStatuses = state.playerStatuses;
-  newState.tournamentScores = state.tournamentScores;
-  newState.eliminationOrder = state.eliminationOrder;
-  newState.finalShowdownHandsPlayed = state.finalShowdownHandsPlayed;
-  newState.tournamentWinner = state.tournamentWinner;
+  console.log(`[compressStateForNewPhase] Compressing from ${state.playerCount} to ${newPlayerCount} players`);
+  console.log(`[compressStateForNewPhase] Active indices (original): ${activeIndices.join(', ')}`);
+  
+  // Create new players array with contiguous indices (0, 1, 2, ...)
+  const newPlayers = [];
+  const newPlayerStatuses = {};
+  const newTournamentScores = {};
+  
+  for (let newIdx = 0; newIdx < activeIndices.length; newIdx++) {
+    const originalIdx = activeIndices[newIdx];
+    newPlayers.push({
+      ...state.players[originalIdx],
+      id: newIdx,
+      hand: [],  // Fresh hand for new round
+      captures: [],  // Fresh captures for new round
+      score: 0
+    });
+    newPlayerStatuses[newIdx] = 'ACTIVE';
+    newTournamentScores[newIdx] = state.tournamentScores[originalIdx] || 0;
+    console.log(`[compressStateForNewPhase] newIdx=${newIdx} <- originalIdx=${originalIdx}`);
+  }
+  
+  // Preserve ELIMINATED status for non-active players
+  for (let i = 0; i < state.playerCount; i++) {
+    if (!activeIndices.includes(i)) {
+      newPlayerStatuses[i] = 'ELIMINATED';
+      console.log(`[compressStateForNewPhase] Preserving ELIMINATED for original index ${i}`);
+    }
+  }
+  
+  newState.players = newPlayers;
+  newState.playerCount = newPlayerCount;
+  newState.playerStatuses = newPlayerStatuses;
+  newState.tournamentScores = newTournamentScores;
+  newState.scores = new Array(newPlayerCount).fill(0);
+  
+  // Update currentPlayer to new index if still active
+  if (activeIndices.includes(state.currentPlayer)) {
+    newState.currentPlayer = activeIndices.indexOf(state.currentPlayer);
+    console.log(`[compressStateForNewPhase] currentPlayer remapped: ${state.currentPlayer} -> ${newState.currentPlayer}`);
+  } else {
+    newState.currentPlayer = 0;  // Fallback
+    console.log(`[compressStateForNewPhase] currentPlayer fallback to 0`);
+  }
+  
+  // Reset round-specific fields
+  newState.tableCards = [];
+  newState.turnCounter = 1;
+  newState.moveCount = 0;
+  newState.gameOver = false;
+  
+  // Create new deck for the new player count
+  const { createDeck } = require('../deck');
+  const deck = createDeck();
+  
+  // Deal cards to players
+  const cardsPerPlayer = newPlayerCount === 2 ? 10 : (newPlayerCount === 3 ? 13 : 10);
+  for (let i = 0; i < newPlayerCount; i++) {
+    newPlayers[i].hand = deck.splice(0, cardsPerPlayer);
+  }
+  
+  // Place initial table cards
+  if (newPlayerCount === 3) {
+    newState.tableCards = [deck.splice(0, 1)[0]];
+  } else if (newPlayerCount === 4) {
+    newState.tableCards = deck.splice(0, 4);
+  } else {
+    newState.tableCards = deck.splice(0, 4);
+  }
+  newState.deck = deck;
+  
+  // Create round players for turn tracking
+  const { createRoundPlayers } = require('../turn');
+  newState.roundPlayers = createRoundPlayers(newPlayerCount);
+  
+  // Reset game-specific fields
+  newState.stackCounters = { tempP1: 0, tempP2: 0, tempP3: 0, tempP4: 0, buildP1: 0, buildP2: 0, buildP3: 0, buildP4: 0 };
+  newState.lastCapturePlayer = null;
+  newState.teamCapturedBuilds = {};
+  newState.shiyaRecalls = {};
+  
+  console.log(`[compressStateForNewPhase] Compressed: players.length=${newState.players.length}, playerCount=${newState.playerCount}`);
   
   return newState;
+}
+
+/**
+ * Start a new round (reset hands and table) - DEPRECATED
+ * Use compressStateForNewPhase instead for tournament transitions
+ */
+function startNewRound(state) {
+  // DEPRECATED: This loses player identity
+  // Use compressStateForNewPhase instead
+  console.warn('[startNewRound] DEPRECATED - using compressStateForNewPhase instead');
+  
+  // Get active player indices
+  const activeIndices = [];
+  for (let i = 0; i < state.playerCount; i++) {
+    if (state.playerStatuses[i] === 'ACTIVE') {
+      activeIndices.push(i);
+    }
+  }
+  
+  return compressStateForNewPhase(state, activeIndices);
 }
 
 function endTournamentRound(state, payload, playerIndex) {
@@ -135,29 +233,48 @@ function endTournamentRound(state, payload, playerIndex) {
   newState.playerStatuses[eliminatedPlayer] = 'ELIMINATED';
   newState.eliminationOrder.push(eliminatedPlayer);
   
+  // Get remaining active player indices
+  const activeIndices = [];
+  for (let i = 0; i < newState.playerCount; i++) {
+    if (newState.playerStatuses[i] === 'ACTIVE') {
+      activeIndices.push(i);
+    }
+  }
+  
   // Determine next phase
-  const remainingPlayers = Object.values(newState.playerStatuses).filter(s => s === 'ACTIVE').length;
+  const remainingPlayers = activeIndices.length;
+  let nextPhase = newState.tournamentPhase;
   
   if (remainingPlayers === 3) {
-    newState.tournamentPhase = 'SEMI_FINAL';
+    nextPhase = 'SEMI_FINAL';
     console.log(`[endTournamentRound] Advancing to SEMI_FINAL (3 players)`);
   } else if (remainingPlayers === 2) {
-    // Should have been caught above, but just in case
-    newState.tournamentPhase = 'FINAL_SHOWDOWN';
+    nextPhase = 'FINAL_SHOWDOWN';
     console.log(`[endTournamentRound] Advancing to FINAL_SHOWDOWN`);
   }
   
-  // Start next round
-  const resetState = startNewRound(newState);
-  resetState.tournamentPhase = newState.tournamentPhase;
-  resetState.tournamentRound = newState.tournamentRound + 1;
-  resetState.playerStatuses = newState.playerStatuses;
-  resetState.tournamentScores = newState.tournamentScores;
-  resetState.eliminationOrder = newState.eliminationOrder;
+  // CRITICAL: Compress state to rebuild players array with contiguous indices
+  const compressedState = compressStateForNewPhase(newState, activeIndices);
   
-  console.log(`[endTournamentRound] Round ${resetState.tournamentRound} starting`);
+  // Preserve tournament-specific fields
+  compressedState.tournamentPhase = nextPhase;
+  compressedState.tournamentRound = newState.tournamentRound + 1;
+  compressedState.eliminationOrder = newState.eliminationOrder;
+  compressedState.tournamentWinner = newState.tournamentWinner;
+  compressedState.finalShowdownHandsPlayed = newState.finalShowdownHandsPlayed || 0;
+  compressedState.tournamentMode = newState.tournamentMode;
   
-  return resetState;
+  // Preserve qualifiedPlayers for mapping
+  compressedState.qualifiedPlayers = activeIndices;
+  compressedState.qualificationScores = newState.qualificationScores;
+  
+  console.log(`[endTournamentRound] AFTER compression - players.length: ${compressedState.players?.length}, playerCount: ${compressedState.playerCount}`);
+  console.log(`[endTournamentRound] Tournament phase: ${compressedState.tournamentPhase}, Round: ${compressedState.tournamentRound}`);
+  console.log(`[endTournamentRound] Players array:`, compressedState.players?.map(p => p.id));
+  
+  console.log(`[endTournamentRound] Round ${compressedState.tournamentRound} starting`);
+  
+  return compressedState;
 }
 
 module.exports = endTournamentRound;

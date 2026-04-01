@@ -117,17 +117,20 @@ function startQualificationReview(state, qualifiedCount = 3) {
     return qualifiedCount === 2 ? startFinalShowdown(newState) : startSemifinal(newState);
   }
   
-  // Get top qualifiedCount players
+  // CRITICAL: Sort qualified players by their ORIGINAL indices for consistent ordering
+  // This ensures the players array in semifinal will have deterministic indices
   const qualified = sortedPlayers.slice(0, qualifiedCount);
+  const qualifiedSortedByIndex = [...qualified].sort((a, b) => a.index - b.index);
   
   console.log('[startQualificationReview] Qualified players:', qualified.map(p => `P${p.index} (${p.score} pts)`));
   
   // Calculate detailed score breakdowns for qualified players
+  // Use the sorted-by-index array for consistent player ordering
   const qualificationScores = {};
   const qualifiedPlayers = [];
   
-  for (let rank = 0; rank < qualified.length; rank++) {
-    const player = qualified[rank];
+  for (let rank = 0; rank < qualifiedSortedByIndex.length; rank++) {
+    const player = qualifiedSortedByIndex[rank];
     const playerIndex = player.index;
     
     qualifiedPlayers.push(playerIndex);
@@ -194,6 +197,7 @@ function startSemifinal(state) {
   const newState = cloneState(state);
   
   console.log('[startSemifinal] Starting semifinal phase');
+  console.log('[startSemifinal] BEFORE - players.length:', newState.players?.length, ', playerCount:', newState.playerCount);
   
   // Get qualified players (should already be set from qualification review)
   let qualifiedPlayers = newState.qualifiedPlayers || [];
@@ -215,8 +219,10 @@ function startSemifinal(state) {
   semifinalState.tournamentPhase = 'SEMI_FINAL';
   semifinalState.tournamentRound = newState.tournamentRound + 1;
   semifinalState.round = 1;
-  // Winner (qualifiedPlayers[0]) starts - this is their ORIGINAL index
-  semifinalState.currentPlayer = qualifiedPlayers[0];
+  // Winner (qualifiedPlayers[0]) starts - use NEW index 0, not original index
+  // CRITICAL FIX: currentPlayer must be new index, not original index
+  semifinalState.currentPlayer = 0;
+  console.log('[startSemifinal] currentPlayer set to: 0 (winner at new index 0)');
   semifinalState.turnCounter = 1;
   semifinalState.moveCount = 0;
   semifinalState.gameOver = false;
@@ -250,20 +256,20 @@ function startSemifinal(state) {
   
   semifinalState.deck = deck;
   
-  // Filter players to only keep qualified ones, in the ORDER of qualifiedPlayers
-  // This is KEY: we preserve the order [P1, P3, P0] not [P0, P1, P3]
-  // This ensures players[j] corresponds to qualifiedPlayers[j]
+  // Filter players to only keep qualified ones, assign NEW indices 0,1,2
+  // This ensures players array indices match socket remapped indices
   semifinalState.players = [];
   for (let j = 0; j < qualifiedPlayers.length; j++) {
     const originalIndex = qualifiedPlayers[j];
     const startingCards = playerCount === 3 ? 13 : 10;
     semifinalState.players.push({
       ...newState.players[originalIndex],
-      id: originalIndex, // Keep original ID/index
+      id: j, // Use NEW index, not original index
       hand: deck.splice(0, startingCards),
       captures: [],
       score: 0
     });
+    console.log(`[startSemifinal] Created player at new index ${j} from original player ${originalIndex}`);
   }
   
   semifinalState.scores = new Array(playerCount).fill(0);
@@ -289,13 +295,14 @@ function startSemifinal(state) {
     }
   }
   
-  console.log('[startSemifinal] Semifinal initialized - players keep original indices:', qualifiedPlayers.map(p => `P${p}`));
+  console.log('[startSemifinal] Players array (NEW indices):', semifinalState.players.map(p => p.id));
   console.log('[startSemifinal] Final playerStatuses:', JSON.stringify(semifinalState.playerStatuses));
   console.log('[startSemifinal] Final tournamentScores:', JSON.stringify(semifinalState.tournamentScores));
   console.log('[startSemifinal] Player count:', playerCount);
   console.log('[startSemifinal] Players array:', semifinalState.players.map(p => p.id));
   console.log('[startSemifinal] playerStatuses:', JSON.stringify(semifinalState.playerStatuses));
   console.log('[startSemifinal] currentPlayer:', semifinalState.currentPlayer, '(winner starts - original index)');
+  console.log('[startSemifinal] AFTER - players.length:', semifinalState.players?.length, ', playerCount:', semifinalState.playerCount);
   
   return semifinalState;
 }
@@ -313,6 +320,7 @@ function startFinalShowdown(state) {
   const newState = cloneState(state);
   
   console.log('[startFinalShowdown] Starting final showdown phase');
+  console.log('[startFinalShowdown] BEFORE - players.length:', newState.players?.length, ', playerCount:', newState.playerCount);
   
   // Get qualified players (should already be set from qualification review)
   let qualifiedPlayers = newState.qualifiedPlayers || [];
@@ -334,8 +342,10 @@ function startFinalShowdown(state) {
   finalState.tournamentPhase = 'FINAL_SHOWDOWN';
   finalState.tournamentRound = newState.tournamentRound + 1;
   finalState.round = 1;
-  // Winner starts
-  finalState.currentPlayer = qualifiedPlayers[0];
+  // Winner starts - use NEW index 0, not original index
+  // CRITICAL FIX: currentPlayer must be new index, not original index
+  finalState.currentPlayer = 0;
+  console.log('[startFinalShowdown] currentPlayer set to: 0 (winner at new index 0)');
   finalState.turnCounter = 1;
   finalState.moveCount = 0;
   finalState.gameOver = false;
@@ -361,18 +371,19 @@ function startFinalShowdown(state) {
   finalState.tableCards = deck.splice(0, 4);
   finalState.deck = deck;
   
-  // Keep players at original indices, in the ORDER of qualifiedPlayers
+  // Keep players at NEW indices 0,1 (matching remapped socket indices)
   finalState.players = [];
   for (let j = 0; j < qualifiedPlayers.length; j++) {
     const originalIndex = qualifiedPlayers[j];
     const startingCards = 10;
     finalState.players.push({
       ...newState.players[originalIndex],
-      id: originalIndex,
+      id: j, // Use NEW index, not original index
       hand: deck.splice(0, startingCards),
       captures: [],
       score: 0
     });
+    console.log(`[startFinalShowdown] Created player at new index ${j} from original player ${originalIndex}`);
   }
   
   finalState.scores = new Array(playerCount).fill(0);
@@ -388,10 +399,11 @@ function startFinalShowdown(state) {
     console.log(`[startFinalShowdown] Setting playerStatuses[${origIdx}] = 'ACTIVE', tournamentScores[${origIdx}] = ${finalState.tournamentScores[origIdx]}`);
   }
   
-  console.log('[startFinalShowdown] Final showdown initialized - players keep original indices:', qualifiedPlayers.map(p => `P${p}`));
+  console.log('[startFinalShowdown] Players array (NEW indices):', finalState.players.map(p => p.id));
   console.log('[startFinalShowdown] Final playerStatuses:', JSON.stringify(finalState.playerStatuses));
   console.log('[startFinalShowdown] Final tournamentScores:', JSON.stringify(finalState.tournamentScores));
   console.log('[startFinalShowdown] currentPlayer:', finalState.currentPlayer, '(winner starts - original index)');
+  console.log('[startFinalShowdown] AFTER - players.length:', finalState.players?.length, ', playerCount:', finalState.playerCount);
   
   return finalState;
 }

@@ -80,6 +80,10 @@ class GameCoordinatorService {
       const preState = this.gameManager.getGameState(gameId);
       console.log(`[Coordinator] DEBUG Pre-action: playerCount=${preState?.playerCount}, players.length=${preState?.players?.length}`);
       
+      // CRITICAL: Save old tournament phase BEFORE action executes
+      const oldTournamentPhase = preState?.tournamentPhase;
+      console.log(`[Coordinator] OLD tournament phase before action: ${oldTournamentPhase}`);
+      
       const newState = this.actionRouter.executeAction(gameId, playerIndex, data);
       
       // Debug: verify newState is valid
@@ -138,14 +142,33 @@ class GameCoordinatorService {
       } else {
         // Special handling: Check if tournament phase changed from QUALIFICATION_REVIEW
         // This handles the case where advanceFromQualificationReview action is executed
-        const oldPhase = this.gameManager.getGameState(gameId)?.tournamentPhase;
+        // CRITICAL: Use oldTournamentPhase (saved before action) NOT newState.tournamentPhase
         const newPhase = newState?.tournamentPhase;
-        if (oldPhase === 'QUALIFICATION_REVIEW' && 
+        console.log(`[Coordinator] Phase check - oldTournamentPhase (from before action): ${oldTournamentPhase}, newPhase: ${newPhase}`);
+        
+        // Log the socket mapping state
+        const socketMap = this.gameManager.socketPlayerMap.get(gameId);
+        console.log(`[Coordinator] Socket map at transition check:`, socketMap ? Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`) : 'no map');
+        
+        if (oldTournamentPhase === 'QUALIFICATION_REVIEW' && 
             (newPhase === 'SEMI_FINAL' || newPhase === 'FINAL_SHOWDOWN')) {
-          console.log(`[Coordinator] Tournament phase transition detected: ${oldPhase} -> ${newPhase}`);
+          console.log(`[Coordinator] Tournament phase transition detected: ${oldTournamentPhase} -> ${newPhase}`);
+          console.log(`[Coordinator] Tournament phase transition detected: ${oldTournamentPhase} -> ${newPhase}`);
           const qualifiedPlayers = TournamentManager.getQualifiedPlayers(newState);
           console.log(`[Coordinator] Qualified players for socket cleanup: ${JSON.stringify(qualifiedPlayers)}`);
-          this._removeEliminatedPlayers(gameId, qualifiedPlayers);
+          
+          // CRITICAL FIX: Remap player indices so socket -> new index mapping is correct
+          const socketMap = this.gameManager.socketPlayerMap.get(gameId);
+          if (socketMap) {
+            // Log BEFORE remapping
+            console.log(`[Coordinator] Socket map BEFORE remap:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
+            
+            TournamentManager.remapPlayerIndices(socketMap, qualifiedPlayers);
+            
+            // Log AFTER remapping
+            console.log(`[Coordinator] Socket map AFTER remap:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
+            console.log(`[Coordinator] Socket indices remapped for tournament phase`);
+          }
         }
         
         this.broadcaster.broadcastGameUpdate(gameId, newState, this.unifiedMatchmaking);
@@ -242,11 +265,23 @@ class GameCoordinatorService {
           return;
         }
 
-        // Remove eliminated players - keep qualified players at original indices
+        // Remove eliminated players - now also remap indices for remaining players
         if (newState.tournamentPhase === 'SEMI_FINAL' || newState.tournamentPhase === 'FINAL_SHOWDOWN') {
           const qualifiedPlayers = TournamentManager.getQualifiedPlayers(newState);
           console.log(`[Coordinator] Transition to ${newState.tournamentPhase}, qualified players: ${JSON.stringify(qualifiedPlayers)}`);
-          this._removeEliminatedPlayers(gameId, qualifiedPlayers);
+          
+          // CRITICAL FIX: Remap player indices so socket -> new index mapping is correct
+          const socketMap = this.gameManager.socketPlayerMap.get(gameId);
+          if (socketMap) {
+            // Log BEFORE remapping
+            console.log(`[Coordinator] Socket map BEFORE remap:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
+            
+            TournamentManager.remapPlayerIndices(socketMap, qualifiedPlayers);
+            
+            // Log AFTER remapping
+            console.log(`[Coordinator] Socket map AFTER remap:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
+            console.log(`[Coordinator] Socket indices remapped for tournament phase`);
+          }
         }
 
         this.gameManager.saveGameState(gameId, newState);
@@ -282,10 +317,21 @@ class GameCoordinatorService {
         this.broadcaster.broadcastGameUpdate(gameId, tournamentState, this.unifiedMatchmaking);
       } else if (tournamentState.tournamentPhase === 'SEMI_FINAL' || 
                  tournamentState.tournamentPhase === 'FINAL_SHOWDOWN') {
-        // Remove eliminated players - keep qualified players at original indices
+        // CRITICAL FIX: Remap player indices so socket -> new index mapping is correct
         const qualifiedPlayers = TournamentManager.getQualifiedPlayers(tournamentState);
         console.log(`[Coordinator] Transition to ${tournamentState.tournamentPhase}, qualified players: ${JSON.stringify(qualifiedPlayers)}`);
-        this._removeEliminatedPlayers(gameId, qualifiedPlayers);
+        
+        const socketMap = this.gameManager.socketPlayerMap.get(gameId);
+        if (socketMap) {
+          // Log BEFORE remapping
+          console.log(`[Coordinator] Socket map BEFORE remap:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
+          
+          TournamentManager.remapPlayerIndices(socketMap, qualifiedPlayers);
+          
+          // Log AFTER remapping
+          console.log(`[Coordinator] Socket map AFTER remap:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
+          console.log(`[Coordinator] Socket indices remapped for tournament phase`);
+        }
         
         this.gameManager.saveGameState(gameId, tournamentState);
         this.broadcaster.broadcastGameUpdate(gameId, tournamentState, this.unifiedMatchmaking);

@@ -233,7 +233,7 @@ export default function OnlinePlayScreen() {
           eliminationOrder={tournamentStatus.eliminationOrder}
           playerStatuses={tournamentStatus.playerStatuses}
           tournamentScores={tournamentStatus.tournamentScores}
-          playerCount={modeConfig.playerCount}
+          playerCount={gameState?.playerCount || modeConfig.playerCount}
         />
       ) : !tournamentStatus.isInQualificationReview ? (
         <GameBoard
