@@ -93,6 +93,21 @@ function startQualificationReview(state, qualifiedCount = 3) {
   
   console.log(`[startQualificationReview] Starting qualification review phase - ${qualifiedCount} players qualify`);
   
+  // FIX: Update playerStatuses to only include active players with correct indices
+  // This ensures getSortedPlayersByScore correctly identifies all active players
+  // when transitioning between tournament rounds where playerCount may have changed
+  // IMPORTANT: Preserve ELIMINATED status for eliminated players
+  const activePlayerIndices = [];
+  const eliminatedPlayerIndices = [];
+  
+  for (let i = 0; i < newState.playerCount; i++) {
+    if (newState.playerStatuses[i] === 'ACTIVE') {
+      activePlayerIndices.push(i);
+    } else if (newState.playerStatuses[i] === 'ELIMINATED') {
+      eliminatedPlayerIndices.push(i);
+    }
+  }
+  
   // Get sorted players by score
   const sortedPlayers = getSortedPlayersByScore(newState);
   
@@ -121,6 +136,36 @@ function startQualificationReview(state, qualifiedCount = 3) {
     
     console.log(`[startQualificationReview] Player ${playerIndex} (Rank ${rank + 1}):`, qualificationScores[playerIndex]);
   }
+  
+  // CRITICAL FIX: Set playerStatuses - qualified = ACTIVE, not qualified = ELIMINATED
+  const qualifiedSet = new Set(qualifiedPlayers);
+  
+  // Build new playerStatuses
+  const finalPlayerStatuses = {};
+  
+  // Set qualified players to ACTIVE
+  for (const playerIndex of qualifiedPlayers) {
+    finalPlayerStatuses[playerIndex] = 'ACTIVE';
+  }
+  
+  // Set non-qualified active players to ELIMINATED
+  for (const playerIndex of activePlayerIndices) {
+    if (!qualifiedSet.has(playerIndex)) {
+      finalPlayerStatuses[playerIndex] = 'ELIMINATED';
+      console.log(`[startQualificationReview] Eliminating non-qualified player ${playerIndex}`);
+    }
+  }
+  
+  // Preserve previously eliminated players
+  for (const playerIndex of eliminatedPlayerIndices) {
+    finalPlayerStatuses[playerIndex] = 'ELIMINATED';
+  }
+  
+  newState.playerStatuses = finalPlayerStatuses;
+  
+  console.log(`[startQualificationReview] Final playerStatuses:`, JSON.stringify(newState.playerStatuses));
+  console.log(`[startQualificationReview] Qualified players:`, qualifiedPlayers);
+  console.log(`[startQualificationReview] Eliminated players:`, Object.entries(finalPlayerStatuses).filter(([k,v]) => v === 'ELIMINATED').map(([k]) => k));
   
   // Set qualification review state
   newState.tournamentPhase = 'QUALIFICATION_REVIEW';
@@ -228,11 +273,20 @@ function startSemifinal(state) {
   semifinalState.roundPlayers = createRoundPlayers(playerCount);
   
   // Set player statuses - using original indices
+  // IMPORTANT: Preserve ELIMINATED status for players who didn't qualify
   for (let i = 0; i < playerCount; i++) {
     const origIdx = qualifiedPlayers[i];
     semifinalState.playerStatuses[origIdx] = 'ACTIVE';
     semifinalState.tournamentScores[origIdx] = newState.tournamentScores[origIdx] || 0;
     console.log(`[startSemifinal] Setting playerStatuses[${origIdx}] = 'ACTIVE', tournamentScores[${origIdx}] = ${semifinalState.tournamentScores[origIdx]}`);
+  }
+  
+  // Preserve ELIMINATED status for players who didn't qualify for semifinal
+  for (let i = 0; i < newState.playerCount; i++) {
+    if (!qualifiedPlayers.includes(i) && newState.playerStatuses[i] === 'ELIMINATED') {
+      semifinalState.playerStatuses[i] = 'ELIMINATED';
+      console.log(`[startSemifinal] Preserving ELIMINATED status for player ${i}`);
+    }
   }
   
   console.log('[startSemifinal] Semifinal initialized - players keep original indices:', qualifiedPlayers.map(p => `P${p}`));

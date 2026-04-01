@@ -312,6 +312,24 @@ function validateCapture(captureCards, targetStack) {
 
 **Implementation:** In [`createTemp`](shared/game/actions/createTemp.js), after retrieving the card and target, check the source. If the source indicates an opponent's capture pile (source starts with `'captured_'` and the owner index != playerIndex), then compare the values. If `card.value > targetCard.value`, throw an error.
 
+### Single-Card Temp Stack Creation
+
+- Players can create a temp stack from a single loose card (hand or table) by **double-clicking** the card.
+- **Value restriction:** Only cards with value ≤ 5 may be used to start a single-card temp stack.
+- **Guardrail:** Cannot create when another active temp stack exists on the table.
+- The resulting temp stack will have `value = card.value`, `need = 0`, `buildType = 'single'`.
+- The stack behaves like any other temp stack (can be extended, captured, etc.).
+- **Turn behavior:** The turn does NOT end after creating a single-card temp stack - player can continue with more actions.
+- The server handler ([`createSingleTemp`](shared/game/actions/createSingleTemp.js)) enforces:
+  - Card value ≤ 5
+  - No existing active temp stacks
+  - Card exists at the claimed source (hand or table)
+
+**UI Implementation:**
+- DraggableHandCard detects double-tap and calls `onDoubleTap` callback
+- PlayerHandArea passes `onDoubleTapCard` callback to DraggableHandCard
+- GameBoard validates card value ≤ 5 and dispatches `createSingleTemp` action
+
 ---
 
 ## 8. Hooks Organization

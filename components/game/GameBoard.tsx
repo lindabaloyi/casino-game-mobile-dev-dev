@@ -29,6 +29,7 @@ import { useTableBounds } from '../../hooks/game/useTableBounds';
 import { useTurnTimer } from '../../hooks/game/useTurnTimer';
 import { useCaptureSound } from '../../hooks/useCaptureSound';
 import { useSound } from '../../hooks/useSound';
+import { useTournamentStatus } from '../../hooks/useTournamentStatus';
 
 import { TableArea } from '../table/TableArea';
 import { PlayerHandArea } from './PlayerHandArea';
@@ -142,6 +143,9 @@ export function GameBoard({
   
   // Opponent info hook for profile modal
   const opponentInfo = useOpponentInfo();
+  
+  // Tournament status for disqualified player detection
+  const tournamentStatus = useTournamentStatus(gameState, playerNumber);
 
   // Computed values
   const computed = useGameComputed(gameState, playerNumber);
@@ -204,25 +208,37 @@ export function GameBoard({
 
   // Debug logging disabled for cleaner console
 
-  // Clear pending drop when hand changes (card was removed/added)
+  // Clear pending drop when card is removed from its source (hand or table)
   // This ensures optimistic UI state is reset after server confirms the action
   useEffect(() => {
     if (dragOverlay.pendingDropCard) {
-      // Check if the pending drop card is still in hand
-      const myHand = gameState.players?.[playerNumber]?.hand ?? [];
-      const stillInHand = myHand.some(
-        (c: any) => c.rank === dragOverlay.pendingDropCard?.rank && c.suit === dragOverlay.pendingDropCard?.suit
-      );
-      
-      if (!stillInHand) {
-        // Card was removed from hand - clear pending drop
-        console.log('[GameBoard] OPTIMISTIC UI: Hand changed, card', dragOverlay.pendingDropCard.rank, dragOverlay.pendingDropCard.suit, 'removed - clearing pending drop (server confirmed)');
-        dragOverlay.clearPendingDrop();
-      } else {
-        console.log('[GameBoard] OPTIMISTIC UI: Card', dragOverlay.pendingDropCard.rank, dragOverlay.pendingDropCard.suit, 'still in hand, keeping pending drop');
+      if (dragOverlay.pendingDropSource === 'hand') {
+        // Check if the pending drop card is still in hand
+        const myHand = gameState.players?.[playerNumber]?.hand ?? [];
+        const stillInHand = myHand.some(
+          (c: any) => c.rank === dragOverlay.pendingDropCard?.rank && c.suit === dragOverlay.pendingDropCard?.suit
+        );
+        
+        if (!stillInHand) {
+          // Card was removed from hand - clear pending drop
+          console.log('[GameBoard] OPTIMISTIC UI: Hand changed, card', dragOverlay.pendingDropCard.rank, dragOverlay.pendingDropCard.suit, 'removed - clearing pending drop (server confirmed)');
+          dragOverlay.clearPendingDrop();
+        }
+      } else if (dragOverlay.pendingDropSource === 'table') {
+        // Check if the pending drop card is still on table (not in a stack)
+        const tableCards = computed.table ?? [];
+        const stillOnTable = tableCards.some(
+          (tc: any) => !tc.type && tc.rank === dragOverlay.pendingDropCard?.rank && tc.suit === dragOverlay.pendingDropCard?.suit
+        );
+        
+        if (!stillOnTable) {
+          // Card was removed from table - clear pending drop
+          console.log('[GameBoard] OPTIMISTIC UI: Table changed, card', dragOverlay.pendingDropCard.rank, dragOverlay.pendingDropCard.suit, 'removed - clearing pending drop (server confirmed)');
+          dragOverlay.clearPendingDrop();
+        }
       }
     }
-  }, [gameState.players, dragOverlay, playerNumber]);
+  }, [gameState.players, computed.table, dragOverlay, playerNumber]);
 
   // KISS Round Transition Logic
   // When round ends:
@@ -414,6 +430,8 @@ export function GameBoard({
   }, [gameState, playerNumber, actions]);
 
   // Drag handlers
+  // IMPORTANT: Use gameState.tableCards directly instead of computed.table
+  // to avoid stale closure issues with memoized selectors
   const dragHandlers = useDragHandlers({
     dragOverlay,
     dropBounds: drag.dropBounds,
@@ -427,15 +445,17 @@ export function GameBoard({
     actions,
     onDragEndWrapper: handleDragEndWrapper,
     openStealModal: modals.openStealModal,
-    table: computed.table,
+    table: gameState.tableCards ?? [],
     onTableCardDragDrop: playTableCardDrag,
   });
 
   // Action handlers
+  // IMPORTANT: Use gameState.tableCards directly instead of computed.table
+  // to avoid stale closure issues with memoized selectors
   const actionHandlers = useActionHandlers(
     actions,
     modals,
-    computed.table,
+    gameState.tableCards ?? [],
     playerNumber,
     dragHandlers.handleDragEnd,
     gameState.playerCount === 4,
@@ -451,6 +471,9 @@ export function GameBoard({
   // - Build value validation
   // - Ownership changes
   // This ensures the server has full authority over game rules.
+  // 
+  // IMPORTANT: Use gameState.tableCards directly instead of computed.table
+  // to avoid stale closure issues where useMemo may lag behind gameState updates.
   const handleDropOnStack = useCallback((
     card: any,
     stackId: string,
@@ -474,8 +497,9 @@ export function GameBoard({
     if (source === 'hand' && stackType === 'build_stack' && stackOwner !== playerNumber) {
       console.log('[GameBoard.handleDropOnStack] ✅ Conditions met for steal check');
       
-      // Find the build stack in the table
-      const targetBuild = computed.table.find(
+      // Use gameState.tableCards directly instead of computed.table for latest state
+      const tableCards = gameState.tableCards ?? [];
+      const targetBuild = tableCards.find(
         (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
       ) as any;
 
@@ -531,7 +555,7 @@ export function GameBoard({
     // Forward to server - router decides action (capture, steal, extend, etc.)
     console.log('[GameBoard.handleDropOnStack] 📤 Forwarding to server');
     actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
-  }, [modals, actions, computed.table, playerNumber, gameState.playerCount]);
+  }, [modals, actions, gameState.tableCards, playerNumber, gameState.playerCount]);
 
   // ── Memoized Callbacks for Inline Handlers ─────────────────────────────────
   
@@ -592,8 +616,9 @@ export function GameBoard({
       emitDragEnd(card, { x: normX, y: normY }, 'success', 'build_stack', stackId);
     }
     
-    // Find the build stack to get owner
-    const buildStack = computed.table.find(
+    // Use gameState.tableCards directly instead of computed.table for latest state
+    const tableCards = gameState.tableCards ?? [];
+    const buildStack = tableCards.find(
       (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
     ) as any;
     const stackOwner = buildStack?.owner ?? 0;
@@ -601,7 +626,7 @@ export function GameBoard({
     const source = cardSource || 'captured';
     actions.stackDrop(card, stackId, stackOwner, 'build_stack', source as any);
     dragOverlay.endDrag();
-  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions, computed.table]);
+  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions, gameState.tableCards]);
 
   const handleDropBuildToCapture = useCallback((stack: any) => {
     actions.dropToCapture({ stackId: stack.stackId, stackType: 'build_stack' });
@@ -745,6 +770,20 @@ export function GameBoard({
         onRecallAttempt={handleRecallAttempt}
         onPlayButtonSound={playButton}
         onCardPlayed={playCardContact}
+        onDoubleTapCard={(card) => {
+          // Only allow cards with value ≤ 5
+          if (card.value <= 5) {
+            console.log('[GameBoard] Double-tap on table card:', card.rank, card.suit, 'value:', card.value);
+            // OPTIMISTIC UI: Mark the table card as pending drop to hide it immediately
+            // This prevents duplicate display when server confirms the temp stack creation
+            dragOverlay.markPendingDrop(card, 'table');
+            actions.createSingleTemp(card, 'table');
+          } else {
+            console.log('[GameBoard] Double-tap rejected - card value', card.value, '> 5');
+          }
+        }}
+        pendingDropCard={dragOverlay.pendingDropCard}
+        pendingDropSource={dragOverlay.pendingDropSource}
       />
 
       <PlayerHandArea
@@ -784,6 +823,16 @@ export function GameBoard({
         currentPlayer={gameState.currentPlayer}
         selectedBuild={selectedBuildForShiya}
         onShiya={handleShiyaAction}
+        // Double-tap to create single temp stack
+        onDoubleTapCard={(card) => {
+          // Only allow cards with value ≤ 5
+          if (card.value <= 5) {
+            console.log('[GameBoard] Double-tap on card:', card.rank, card.suit, 'value:', card.value);
+            actions.createSingleTemp(card, 'hand');
+          } else {
+            console.log('[GameBoard] Double-tap rejected - card value', card.value, '> 5');
+          }
+        }}
       />
 
       <DragGhost 
@@ -843,6 +892,19 @@ export function GameBoard({
         onConfirmCapture={() => modals.captureOrStealData && actionHandlers.handleConfirmCaptureChoice(modals.captureOrStealData)}
         onConfirmExtendChoice={() => modals.captureOrStealData && actionHandlers.handleConfirmExtendChoice(modals.captureOrStealData)}
         onCancelCaptureOrSteal={modals.closeCaptureOrStealModal}
+        // Disqualified player modal (tournament)
+        showDisqualifiedModal={tournamentStatus.isEliminated}
+        disqualifiedPlayerIndex={playerNumber}
+        disqualifiedTournamentScore={tournamentStatus.tournamentScores[playerNumber] ?? 0}
+        disqualifiedFinalRank={Object.values(tournamentStatus.playerStatuses).filter(s => s === 'ELIMINATED' || s === 'ACTIVE').length}
+        disqualifiedTotalPlayers={Object.keys(tournamentStatus.playerStatuses).length}
+        disqualifiedEliminationRound={tournamentStatus.tournamentPhase ?? 'Qualifying'}
+        disqualifiedRoundsSurvived={tournamentStatus.tournamentRound - 1}
+        onReturnToLobby={onBackToMenu}
+        onWatchTournament={() => {
+          // Keep watching as spectator
+          console.log('[GameBoard] Player chose to watch tournament');
+        }}
       />
 
       {/* Recall is triggered via double-tap on teammate's capture pile - no modal needed */}

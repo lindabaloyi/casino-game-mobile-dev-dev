@@ -14,6 +14,7 @@ const actionHandlers = {
 
   // ── Temp Stack actions ─────────────────────────────────────────────────────
   createTemp:          require('./createTemp'),
+  createSingleTemp:    require('./createSingleTemp'),
   addToTemp:           require('./addToTemp'),
   acceptTemp:          require('./acceptTemp'),
   cancelTemp:          require('./cancelTemp'),

@@ -107,6 +107,8 @@ interface Props {
   onTrailSound?: () => void;
   /** Callback for button click sound - passed from GameBoard */
   onPlayButtonSound?: () => void;
+  /** Double-tap callback for creating single-card temp stacks */
+  onDoubleTapCard?: (card: Card) => void;
 }
 
 // Default card dimensions - matching capture pile (56x84)
@@ -148,6 +150,7 @@ export function PlayerHandArea({
   onCardContact,
   onTrailSound,
   onPlayButtonSound,
+  onDoubleTapCard,
 }: Props) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   
@@ -326,6 +329,7 @@ export function PlayerHandArea({
                   cardWidth={responsiveCardWidth}
                   cardHeight={responsiveCardHeight}
                   onCardContact={onCardContact}
+                  onDoubleTap={onDoubleTapCard}
                 />
               </View>
             );

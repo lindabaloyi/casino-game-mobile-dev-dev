@@ -38,6 +38,8 @@ interface Props {
   onDropOnStack: (card: Card, stackId: string, owner: number, stackType: 'temp_stack' | 'build_stack') => void;
   /** Called when dropped on a card - SmartRouter decides what action */
   onDropOnCard: (card: Card, targetCard: Card) => void;
+  /** Called when card is double-tapped - for createSingleTemp */
+  onDoubleTap?: (card: Card) => void;
   
   // ── Legacy callbacks (for ghost overlay) ─────────────────────────────────
   onDragStart?: (card: Card, absoluteX: number, absoluteY: number) => void;
@@ -55,6 +57,7 @@ export function DraggableTableCard({
   findTempStackAtPoint,
   onDropOnStack,
   onDropOnCard,
+  onDoubleTap,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -89,6 +92,16 @@ export function DraggableTableCard({
   }
 
   /**
+   * Handle double-tap for createSingleTemp action
+   */
+  function handleDoubleTapCard() {
+    if (onDoubleTap && isMyTurn) {
+      console.log('[DraggableTableCard] Double-tap detected on', card.rank, card.suit);
+      onDoubleTap(card);
+    }
+  }
+
+  /**
    * handleDrop — DUMB UI: just detects WHAT was hit
    * SmartRouter decides what action to take
    */
@@ -120,7 +133,16 @@ export function DraggableTableCard({
 
   // ── Gesture ─────────────────────────────────────────────────────────────
 
-  const gesture = Gesture.Pan()
+  // Double-tap gesture for createSingleTemp action
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .enabled(isMyTurn && !!onDoubleTap)
+    .onEnd(() => {
+      runOnJS(handleDoubleTapCard)();
+    });
+
+  // Pan gesture for dragging cards
+  const panGesture = Gesture.Pan()
     .enabled(isMyTurn)
     .onStart(e => {
       opacity.value = 0;
@@ -133,6 +155,10 @@ export function DraggableTableCard({
     .onEnd(e => {
       runOnJS(handleDrop)(e.absoluteX, e.absoluteY);
     });
+
+  // Use Exclusive gesture - try double-tap first, fall back to pan
+  // This ensures double-tap can complete before pan takes over
+  const gesture = Gesture.Exclusive(doubleTapGesture, panGesture);
 
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 

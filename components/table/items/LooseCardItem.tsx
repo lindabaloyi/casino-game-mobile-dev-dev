@@ -18,6 +18,12 @@ interface LooseCardItemProps {
   onTableDragMove: (absoluteX: number, absoluteY: number) => void;
   onTableDragEnd: () => void;
   isHidden?: boolean;
+  /** Callback for double-tap to create single temp stack */
+  onDoubleTapCard?: (card: Card) => void;
+  /** Pending drop card - for optimistic UI to hide card immediately after action */
+  pendingDropCard?: Card | null;
+  /** Pending drop source - 'hand' | 'captured' | 'table' | null */
+  pendingDropSource?: 'hand' | 'captured' | 'table' | null;
 }
 
 export function LooseCardItem({
@@ -35,10 +41,22 @@ export function LooseCardItem({
   onTableDragMove,
   onTableDragEnd,
   isHidden,
+  onDoubleTapCard,
+  pendingDropCard,
+  pendingDropSource,
 }: LooseCardItemProps) {
   // Generate a unique key using rank, suit to handle potential duplicates
   // In practice, duplicate cards shouldn't exist in a standard deck
   const cardKey = `${card.rank}${card.suit}`;
+  
+  // Check if this card is pending drop (optimistic UI - hide immediately after action)
+  const isPendingDrop = pendingDropCard && 
+    pendingDropSource === 'table' &&
+    pendingDropCard.rank === card.rank &&
+    pendingDropCard.suit === card.suit;
+  
+  // Combine with isHidden prop
+  const shouldHide = Boolean(isHidden || isPendingDrop);
   
   return (
     <DraggableLooseCard
@@ -51,7 +69,7 @@ export function LooseCardItem({
       unregisterCard={unregisterCard}
       findCardAtPoint={findCardAtPoint}
       findTempStackAtPoint={findTempStackAtPoint}
-      isHidden={isHidden}
+      isHidden={shouldHide}
       onDropOnStack={(droppedCard, stackId, stackOwner, stackType) => {
         onStackDrop?.(droppedCard, stackId, stackOwner, stackType);
       }}
@@ -61,6 +79,7 @@ export function LooseCardItem({
       onDragStart={onTableDragStart}
       onDragMove={onTableDragMove}
       onDragEnd={onTableDragEnd}
+      onDoubleTapCard={onDoubleTapCard}
     />
   );
 }

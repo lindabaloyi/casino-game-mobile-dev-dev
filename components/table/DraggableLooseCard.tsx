@@ -53,6 +53,8 @@ export interface DraggableLooseCardProps {
   
   // Hide this card (used when opponent is dragging it)
   isHidden?: boolean;
+  /** Callback for double-tap to create single temp stack */
+  onDoubleTapCard?: (card: Card) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -72,6 +74,7 @@ export function DraggableLooseCard({
   onDragMove,
   onDragEnd,
   isHidden,
+  onDoubleTapCard,
 }: DraggableLooseCardProps) {
   const viewRef = useRef<View>(null);
   const cardId  = `${card.rank}${card.suit}`;
@@ -128,6 +131,7 @@ export function DraggableLooseCard({
         onDragStart={onDragStart}
         onDragMove={onDragMove}
         onDragEnd={onDragEnd}
+        onDoubleTap={onDoubleTapCard}
       />
     </View>
   );

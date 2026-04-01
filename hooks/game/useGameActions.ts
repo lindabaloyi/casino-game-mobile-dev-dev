@@ -17,6 +17,14 @@ export function useGameActions(sendAction: SendAction) {
     });
   }, [sendAction]);
 
+  // Create a single-card temp stack (value ≤ 5 only)
+  const createSingleTemp = useCallback((card: any, source: 'hand' | 'table' = 'hand') => {
+    sendAction({ 
+      type: 'createSingleTemp', 
+      payload: { card, source } as unknown as Record<string, unknown> 
+    });
+  }, [sendAction]);
+
   const addToTemp = useCallback((card: any, stackId: string, source: string = 'hand') => {
     sendAction({ 
       type: 'addToTemp', 
@@ -201,6 +209,7 @@ export function useGameActions(sendAction: SendAction) {
 
   return {
     createTemp,
+    createSingleTemp,
     addToTemp,
     acceptTemp,
     cancelTemp,

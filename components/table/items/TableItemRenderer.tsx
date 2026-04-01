@@ -37,6 +37,12 @@ interface TableItemRendererProps {
   playerCount?: number;
   /** Callback when a build is tapped - for Shiya selection or dual builds */
   onBuildTap?: (stack: BuildStack | TempStack) => void;
+  /** Callback for double-tapping a loose card to create single temp stack */
+  onDoubleTapCard?: (card: Card) => void;
+  /** Pending drop card - for optimistic UI to hide card immediately after action */
+  pendingDropCard?: Card | null;
+  /** Pending drop source - 'hand' | 'captured' | 'table' | null */
+  pendingDropSource?: 'hand' | 'captured' | 'table' | null;
 }
 
 export function TableItemRenderer(props: TableItemRendererProps) {
@@ -50,6 +56,9 @@ export function TableItemRenderer(props: TableItemRendererProps) {
     onDropBuildToCapture,
     onDropToCapture,
     onBuildTap,
+    onDoubleTapCard,
+    pendingDropCard,
+    pendingDropSource,
     ...rest 
   } = props;
   
@@ -67,7 +76,15 @@ export function TableItemRenderer(props: TableItemRendererProps) {
     : {};
   
   if (isLooseCard(item)) {
-    return <LooseCardItem card={item} isHidden={isHidden} tableVersion={tableVersion} {...rest} />;
+    return <LooseCardItem 
+      card={item} 
+      isHidden={isHidden} 
+      tableVersion={tableVersion} 
+      onDoubleTapCard={onDoubleTapCard}
+      pendingDropCard={pendingDropCard}
+      pendingDropSource={pendingDropSource}
+      {...rest} 
+    />;
   }
   
   if (isTempStack(item)) {

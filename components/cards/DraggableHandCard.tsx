@@ -63,6 +63,9 @@ interface Props {
   onDropOnCard: (card: Card, targetCard: Card) => void;
   /** Called when dropped on table zone - SmartRouter decides trail vs other */
   onDropOnTable: (card: Card) => void;
+  // ── Double-tap for createSingleTemp ───────────────────────────────────────
+  /** Called when card is double-tapped - for creating single-card temp stack */
+  onDoubleTap?: (card: Card) => void;
   // ── Legacy callbacks (for compatibility) ───────────────────────────────────
   onDragStart?: (card: Card, absoluteX: number, absoluteY: number) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
@@ -91,6 +94,7 @@ export function DraggableHandCard({
   onDropOnStack,
   onDropOnCard,
   onDropOnTable,
+  onDoubleTap,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -122,6 +126,16 @@ export function DraggableHandCard({
   function handleSnapBack() {
     opacity.value = withSpring(1);
     if (onDragEnd) onDragEnd();
+  }
+
+  /**
+   * Handle double-tap for createSingleTemp action
+   */
+  function handleDoubleTapCard() {
+    if (onDoubleTap && isMyTurn) {
+      console.log('[DraggableHandCard] Double-tap detected on', card.rank, card.suit);
+      onDoubleTap(card);
+    }
   }
 
   /**
@@ -184,7 +198,16 @@ export function DraggableHandCard({
 
   // ── Gesture ─────────────────────────────────────────────────────────────────
 
-  const gesture = Gesture.Pan()
+  // Double-tap gesture for createSingleTemp action
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .enabled(isMyTurn && !!onDoubleTap)
+    .onEnd(() => {
+      runOnJS(handleDoubleTapCard)();
+    });
+
+  // Pan gesture for dragging cards
+  const panGesture = Gesture.Pan()
     .enabled(isMyTurn)
     .onStart(e => {
       opacity.value = 0;
@@ -198,6 +221,9 @@ export function DraggableHandCard({
       // Pass ONLY coordinates to JS thread
       runOnJS(handleDrop)(e.absoluteX, e.absoluteY);
     });
+
+  // Use a Simultaneous gesture to handle both double-tap and pan
+  const gesture = Gesture.Race(panGesture, doubleTapGesture);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
