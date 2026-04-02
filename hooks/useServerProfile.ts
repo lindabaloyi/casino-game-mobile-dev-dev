@@ -28,7 +28,6 @@ export interface ServerProfileData {
   
   // Profile info
   profile: {
-    displayName: string;
     avatar: string;
     bio: string;
     preferences: {

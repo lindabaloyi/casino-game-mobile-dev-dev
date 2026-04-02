@@ -25,8 +25,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
       return {
         userId: entry.userId || `guest-${index + 1}`,
         username: entry.userId || `Player ${index + 1}`,
-        avatar: 'lion',
-        displayName: entry.userId || `Player ${index + 1}`
+        avatar: 'lion'
       };
     });
     
@@ -57,7 +56,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
         userId: entry.userId || `guest-${index + 1}`,
         username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
         avatar: 'lion',
-        displayName: entry.userId ? 'Unknown' : `Player ${index + 1}`
+
       };
     });
     
@@ -88,7 +87,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
         userId: entry.userId || `guest-${index + 1}`,
         username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
         avatar: 'lion',
-        displayName: entry.userId ? 'Unknown' : `Player ${index + 1}`
+
       };
     });
     
@@ -117,7 +116,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
         userId: entry.userId || `guest-${index + 1}`,
         username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
         avatar: 'lion',
-        displayName: entry.userId ? 'Unknown' : `Player ${index + 1}`
+
       };
     });
     
@@ -148,7 +147,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
         userId: entry.userId || `guest-${index + 1}`,
         username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
         avatar: 'lion',
-        displayName: entry.userId ? 'Unknown' : `Player ${index + 1}`
+
       };
     });
     
@@ -183,7 +182,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
         userId: entry.userId || `guest-${index + 1}`,
         username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
         avatar: 'lion',
-        displayName: entry.userId ? 'Unknown' : `Player ${index + 1}`
+
       };
     });
     

@@ -1,6 +1,6 @@
 /**
  * PlayerProfile Model
- * Stores player profile information (avatar, display name, preferences)
+ * Stores player profile information (avatar, preferences)
  */
 
 const { ObjectId } = require('mongodb');
@@ -13,7 +13,6 @@ const COLLECTION_NAME = 'playerProfiles';
  * {
  *   _id: ObjectId,
  *   userId: ObjectId (unique, ref to users),
- *   displayName: string,
  *   avatar: string,
  *   bio: string,
  *   preferences: {
@@ -41,7 +40,6 @@ class PlayerProfile {
     
     const profile = {
       userId: new ObjectId(userId),
-      displayName: profileData.displayName || 'Player',
       avatar: profileData.avatar || null,
       bio: profileData.bio || '',
       preferences: {
@@ -100,7 +98,7 @@ class PlayerProfile {
   /**
    * Get player info for lobby display (combines User + Profile data)
    * @param {Array<string>} userIds - Array of user IDs
-   * @returns {Promise<Array>} Array of player info objects with username, avatar, displayName
+   * @returns {Promise<Array>} Array of player info objects with username, avatar
    */
   static async getPlayerInfos(userIds) {
     if (!userIds || userIds.length === 0) return [];
@@ -128,8 +126,7 @@ class PlayerProfile {
         return {
           userId,
           username: user?.username || 'Player',
-          avatar: profile?.avatar || user?.avatar || 'lion',
-          displayName: profile?.displayName || user?.username || 'Player'
+          avatar: profile?.avatar || user?.avatar || 'lion'
         };
       });
     } catch (error) {
@@ -137,8 +134,7 @@ class PlayerProfile {
       return userIds.map(userId => ({
         userId,
         username: 'Player',
-        avatar: 'lion',
-        displayName: 'Player'
+        avatar: 'lion'
       }));
     }
   }

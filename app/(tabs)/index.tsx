@@ -39,24 +39,25 @@ export default function HomeScreen() {
     setSearchModalVisible,
     menuVisible,
     setMenuVisible,
-    
+
     // Play Online menu
     playOnlineMenuVisible,
     setPlayOnlineMenuVisible,
-    
+
     // Logout confirmation
     showLogoutConfirm,
     setShowLogoutConfirm,
-    
+
     // Data
     unreadCount,
-    
+
     // Computed
     currentAvatar,
     winRate,
-    
+
     // Profile data
     profile,
+    isLoading,
     isAuthenticated,
     
     // Handlers
@@ -96,10 +97,10 @@ export default function HomeScreen() {
   const isSmallScreen = width < 380;
   const titleSize = isSmallScreen ? 42 : 52;
 
-  if (!profile) {
+  if (isLoading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={styles.loadingText}>Loading profile...</Text>
       </View>
     );
   }

@@ -98,10 +98,10 @@ export function SpectatorView({
     <View style={[styles.container, { backgroundColor }]}>
       <View style={styles.header}>
         <Text style={[styles.eliminatedText, { color: '#ef4444' }]}>
-          You've Been Eliminated!
+          You&apos;ve Been Eliminated!
         </Text>
         <Text style={[styles.spectatingText, { color: textColor }]}>
-          You're now spectating the tournament
+          You&apos;re now spectating the tournament
         </Text>
       </View>
       

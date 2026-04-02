@@ -531,7 +531,6 @@ router.get('/', authenticate, async (req, res, next) => {
       success: true,
       user: userWithoutPassword,
       profile: {
-        displayName: profile.displayName,
         avatar: profile.avatar,
         bio: profile.bio,
         preferences: profile.preferences,
@@ -569,15 +568,14 @@ router.put('/', authenticate, async (req, res, next) => {
   logger.enter({ userId: req.userId, method: 'PUT', body: Object.keys(req.body) });
   
   try {
-    const { username, avatar, bio, displayName, favoriteGameMode, preferences } = req.body;
-    
+    const { username, avatar, bio, favoriteGameMode, preferences } = req.body;
+
     // Build updates object
     const updates = {};
-    
+
     if (username !== undefined) updates.username = username;
     if (avatar !== undefined) updates.avatar = avatar;
     if (bio !== undefined) updates.bio = bio;
-    if (displayName !== undefined) updates.displayName = displayName;
     if (favoriteGameMode !== undefined) updates.favoriteGameMode = favoriteGameMode;
     if (preferences !== undefined) updates.preferences = preferences;
     
@@ -609,7 +607,6 @@ router.put('/', authenticate, async (req, res, next) => {
     const response = {
       success: true,
       profile: {
-        displayName: profile.displayName,
         avatar: profile.avatar,
         bio: profile.bio,
         preferences: profile.preferences,
@@ -710,7 +707,6 @@ router.get('/:userId', async (req, res, next) => {
       },
       profile: {
         bio: profile?.bio || '',
-        displayName: profile?.displayName || user.username,
         favoriteGameMode: profile?.favoriteGameMode || 'twoPlayer'
       },
       stats: {

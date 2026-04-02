@@ -91,7 +91,6 @@ router.post('/register', async (req, res) => {
 
     // Create profile with merged guest data if available
     await PlayerProfile.create(user._id.toString(), {
-      displayName: username,
       avatar: guestProfile?.avatar || 'lion',  // Use guest avatar if available
       wins: mergedWins,
       losses: mergedLosses,

@@ -250,11 +250,7 @@ function validatePlayerProfile(profile) {
     result.addError('userId', 'Invalid user ID format');
   }
   
-  // Validate displayName
-  if (profile.displayName !== undefined) {
-    const displayNameResult = validateUsername(profile.displayName);
-    displayNameResult.errors.forEach(err => result.addError('displayName', err.message));
-  }
+
   
   // Validate avatar
   if (profile.avatar !== undefined) {
@@ -336,9 +332,7 @@ function sanitizeProfileUpdate(data) {
     sanitized.bio = sanitizeString(data.bio).trim();
   }
   
-  if (data.displayName !== undefined) {
-    sanitized.displayName = sanitizeString(data.displayName).trim();
-  }
+
   
   if (data.favoriteGameMode !== undefined) {
     sanitized.favoriteGameMode = sanitizeString(data.favoriteGameMode);

@@ -3,7 +3,7 @@
  * 
  * This script fixes existing player profiles that have:
  * - null avatar (sets to 'lion')
- * - displayName of 'Player' (attempts to get from User collection)
+ * - Remove displayName field
  * 
  * Usage: node scripts/fix-profiles.js
  */
@@ -27,16 +27,15 @@ async function fixProfiles() {
     
     for (const profile of nullAvatarProfiles) {
       // Try to get the username from the User collection
-      let displayName = 'Player';
       let newAvatar = 'lion';
-      
+
       try {
         const user = await database.collection('users').findOne(
           { _id: profile.userId }
         );
-        
+
         if (user && user.username) {
-          displayName = user.username;
+          // No displayName to set
         }
       } catch (err) {
         console.log(`[Migration] Could not find user for profile ${profile._id}:`, err.message);
@@ -45,16 +44,16 @@ async function fixProfiles() {
       // Update the profile
       await database.collection('playerProfiles').updateOne(
         { _id: profile._id },
-        { 
-          $set: { 
-            displayName: displayName,
+        {
+          $unset: { displayName: 1 },
+          $set: {
             avatar: newAvatar,
             updatedAt: new Date()
           }
         }
       );
       
-      console.log(`[Migration] Updated profile ${profile._id}: ${displayName}, avatar: ${newAvatar}`);
+      console.log(`[Migration] Updated profile ${profile._id}: removed displayName, avatar: ${newAvatar}`);
       updated++;
     }
     

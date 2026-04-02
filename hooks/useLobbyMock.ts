@@ -19,7 +19,7 @@ export interface LobbyPlayer {
   isReady: boolean;
   isConnected: boolean;
   ping: number;
-  displayName?: string;
+
 }
 
 interface ServerLobbyPlayer {
@@ -113,12 +113,10 @@ export const useLobbyMock = ({
 
       // Map server players to lobby player format
       const mappedPlayers: LobbyPlayer[] = serverLobbyPlayers.map((player, index) => {
-        // CRITICAL FIX: Use BOTH username AND displayName, prefer displayName
-        const name = player.displayName || player.username || 'Player';
+        const name = player.username || 'Player';
         console.log(`[useLobbyMock] Mapping player at index ${index}:`, {
           userId: player.userId,
           username: player.username,
-          displayName: player.displayName,
           finalName: name,
           avatar: player.avatar
         });
@@ -152,7 +150,7 @@ export const useLobbyMock = ({
           console.log('[useLobbyMock] Array AFTER splice:', JSON.stringify(mappedPlayers));
           mappedPlayers.unshift({
             ...selfPlayer,
-            // Keep server username/displayName, only override avatar and ready state
+            // Keep server username, only override avatar and ready state
             avatar: profile.avatar || selfPlayer.avatar,
             isReady,
             ping: 45,

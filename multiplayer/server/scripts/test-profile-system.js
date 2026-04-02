@@ -109,18 +109,15 @@ async function runAllTests() {
 
   await runTest('Create profile', async () => {
     const profile = await PlayerProfileService.create(testUserId1, {
-      displayName: 'Test Player',
       avatar: 'panda'
     });
     assert(profile !== null, 'Profile should be created');
-    assert(profile.displayName === 'Test Player', 'Display name should match');
     assert(profile.avatar === 'panda', 'Avatar should match');
   });
 
   await runTest('Get profile by user ID', async () => {
     const profile = await PlayerProfileService.findByUserId(testUserId1);
     assert(profile !== null, 'Profile should be found');
-    assert(profile.displayName === 'Test Player', 'Display name should match');
   });
 
   await runTest('Get non-existent profile', async () => {
@@ -135,10 +132,8 @@ async function runAllTests() {
 
   await runTest('Update profile', async () => {
     const profile = await PlayerProfileService.update(testUserId1, {
-      displayName: 'Updated Player',
       avatar: 'fox'
     });
-    assert(profile.displayName === 'Updated Player', 'Name should be updated');
     assert(profile.avatar === 'fox', 'Avatar should be updated');
   });
 

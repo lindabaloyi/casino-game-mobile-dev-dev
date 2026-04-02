@@ -35,26 +35,27 @@ export interface HomeScreenState {
   setSearchModalVisible: (visible: boolean) => void;
   menuVisible: boolean;
   setMenuVisible: (visible: boolean) => void;
-  
+
   // Play Online menu
   playOnlineMenuVisible: boolean;
   setPlayOnlineMenuVisible: (visible: boolean) => void;
-  
+
   // Logout confirmation
   showLogoutConfirm: boolean;
   setShowLogoutConfirm: (show: boolean) => void;
-  
+
   // Data
   unreadCount: number;
-  
+
   // Computed
   currentAvatar: { id: string; emoji: string };
   winRate: number;
-  
+
   // Profile data
   profile: any;
   user: any;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
@@ -81,8 +82,8 @@ export function useHomeScreen(): HomeScreenState & HomeScreenHandlers {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   // Computed values
-  const displayAvatarId = isAuthenticated && user ? user.avatar : profile.avatar;
-  const currentAvatar = useMemo(() => 
+  const displayAvatarId = profile.avatar;
+  const currentAvatar = useMemo(() =>
     AVATAR_OPTIONS.find(a => a.id === displayAvatarId) || AVATAR_OPTIONS[0],
     [displayAvatarId]
   );

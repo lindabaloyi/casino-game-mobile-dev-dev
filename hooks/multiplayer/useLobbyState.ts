@@ -20,7 +20,6 @@ export interface LobbyPlayerInfo {
   userId: string;
   username: string;
   avatar: string;
-  displayName: string;
 }
 
 export interface UseLobbyStateResult {

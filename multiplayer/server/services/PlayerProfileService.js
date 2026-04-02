@@ -113,7 +113,6 @@ class PlayerProfileService {
       
       const profile = {
         userId: new ObjectId(userId),
-        displayName: validation.sanitizedData.displayName || 'Player',
         avatar: validation.sanitizedData.avatar || null,
         bio: validation.sanitizedData.bio || '',
         preferences: {
@@ -697,7 +696,6 @@ class PlayerProfileService {
           userId: friendIdStr,
           username: friendUser.username,
           avatar: friendProfile?.avatar || friendUser.avatar || 'lion',
-          displayName: friendProfile?.displayName || friendUser.username,
           isFriend: true
         };
       }).filter(Boolean);
@@ -744,8 +742,7 @@ class PlayerProfileService {
         return {
           userId,
           username: user?.username || 'Player',
-          avatar: profile?.avatar || user?.avatar || 'lion',
-          displayName: profile?.displayName || user?.username || 'Player'
+          avatar: profile?.avatar || user?.avatar || 'lion'
         };
       });
       
@@ -846,33 +843,55 @@ class PlayerProfileService {
   }
 
   /**
-   * Search profiles by display name
+   * Search users by username
    * @param {string} searchTerm - Search term
-   * @param {number} limit - Max results
-   * @returns {Promise<Array>} Array of matching profiles
+   * @param {number} limit - Maximum results
+   * @returns {Promise<Array>} Array of user profiles with info
    */
-  static async searchByDisplayName(searchTerm, limit = 20) {
+  static async searchByUsername(searchTerm, limit = 20) {
     const timer = createTimer();
     logger.enter({ searchTerm, limit });
-    
+
     try {
       if (!searchTerm || typeof searchTerm !== 'string') {
         throw new ValidationError('Search term must be a string');
       }
-      
-      const collection = await this.getCollection();
-      
-      const profiles = await collection
-        .find({ 
-          displayName: { $regex: searchTerm, $options: 'i' }
+
+      const db = require('../db/connection');
+      const database = await db.getDb();
+      const User = require('../models/User');
+
+      // Search users by username
+      const users = await database.collection('users')
+        .find({
+          username: { $regex: searchTerm, $options: 'i' }
         })
+        .project({ passwordHash: 0 })
         .limit(limit)
         .toArray();
-      
-      logger.dbOperation('SEARCH_BY_DISPLAY_NAME', { searchTerm, limit }, timer.startTime);
-      logger.exit({ foundCount: profiles.length });
-      
-      return profiles;
+
+      // Get profiles for these users
+      const userIds = users.map(u => u._id);
+      const profiles = await database.collection('playerProfiles')
+        .find({ userId: { $in: userIds } })
+        .toArray();
+
+      // Combine user and profile data
+      const results = users.map(user => {
+        const profile = profiles.find(p => p.userId.toString() === user._id.toString());
+        return {
+          userId: user._id.toString(),
+          username: user.username,
+          avatar: profile?.avatar || user.avatar || 'lion',
+          bio: profile?.bio || '',
+          createdAt: user.createdAt
+        };
+      });
+
+      logger.dbOperation('SEARCH_BY_USERNAME', { searchTerm, limit }, timer.startTime);
+      logger.exit({ foundCount: results.length });
+
+      return results;
     } catch (error) {
       logger.errorWithStack('Failed to search profiles', error);
       throw new DatabaseError('Failed to search profiles', error);

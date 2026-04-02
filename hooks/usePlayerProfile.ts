@@ -245,19 +245,19 @@ export function usePlayerProfile(): UsePlayerProfileResult {
    */
   const loadProfile = async () => {
     profileDebugLog('loadProfile', 'Starting profile load');
-    
+
     // Determine which storage key to use based on auth state
     const token = await getAuthToken();
     const isAuth = !!token;
-    
+
     profileDebugLog('loadProfile', 'Auth state check', { isAuthenticated: isAuth });
-    
+
     try {
       // First load from local storage
       // PRD: Guest uses guest_profile, Auth uses player_profile (cache)
       const storageKey = isAuth ? STORAGE_KEY : GUEST_PROFILE_KEY;
       profileDebugLog('loadProfile', 'Reading from storage', { storageKey });
-      
+
       const stored = await AsyncStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -275,10 +275,8 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       }
     } catch (error) {
       debugError('loadProfile', 'Error loading from storage', error);
-    } finally {
-      setIsLoading(false);
     }
-    
+
     // Then try to sync with server (only if authenticated)
     if (isAuth) {
       profileDebugLog('loadProfile', 'Auth user - will sync with server');
@@ -286,6 +284,9 @@ export function usePlayerProfile(): UsePlayerProfileResult {
     } else {
       profileDebugLog('loadProfile', 'Guest - no server sync needed');
     }
+
+    // Set loading false after sync completes
+    setIsLoading(false);
   };
 
   /**
@@ -339,7 +340,7 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       const response = await apiCall<{
         success: boolean;
         user?: { username: string };
-        profile?: { displayName: string; avatar: string };
+        profile?: { avatar: string };
         stats?: { wins: number; losses: number; totalGames: number };
       }>('/api/profile', { method: 'GET' });
       
