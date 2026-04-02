@@ -1,17 +1,57 @@
+/**
+ * Private Room Screen
+ * Create or join a private game with friends
+ * Redesigned to match the game modes page layout and styling
+ */
+
 import React, { useState } from 'react';
 import { 
   StyleSheet, 
-  View, 
   Text, 
-  TouchableOpacity, 
-  TextInput, 
+  View,
+  Pressable,
   ScrollView,
+  TextInput,
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-type GameModeOption = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament';
+type GameModeOption = 'two-hands' | 'party' | 'three-hands' | 'four-hands';
+
+interface ModeInfo {
+  id: GameModeOption;
+  title: string;
+  subtitle: string;
+  players: string;
+}
+
+const GAME_MODES: ModeInfo[] = [
+  {
+    id: 'two-hands',
+    title: '2 Hands',
+    subtitle: '1v1 Battle',
+    players: '2 Players',
+  },
+  {
+    id: 'three-hands',
+    title: '3 Hands',
+    subtitle: '3 Player battle',
+    players: '3 Players',
+  },
+  {
+    id: 'four-hands',
+    title: '4 Hands',
+    subtitle: '4 Player battle',
+    players: '4 Players',
+  },
+  {
+    id: 'party',
+    title: '4 Hands Party',
+    subtitle: '2v2 Team battle',
+    players: '4 Players',
+  },
+];
 
 export const options = {
   headerShown: false,
@@ -20,28 +60,14 @@ export const options = {
 export default function PrivateRoomScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
-  const screenHeight = height;
-  
-  const needsScroll = screenHeight < 600;
-  const scaleFactor = width < 380 ? 0.85 : 1;
-  
-  const titleSize = Math.round(28 * scaleFactor);
-  const subtitleSize = Math.round(14 * scaleFactor);
-  const buttonFontSize = Math.round(16 * scaleFactor);
-  const inputFontSize = Math.round(20 * scaleFactor);
-  
   const [selectedMode, setSelectedMode] = useState<GameModeOption>('two-hands');
-  const [showModeDropdown, setShowModeDropdown] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [showJoinInput, setShowJoinInput] = useState(false);
 
-  const gameModeOptions: { value: GameModeOption; label: string; players: string }[] = [
-    { value: 'two-hands', label: '2 Hands (2 Players)', players: '2 Players' },
-    { value: 'party', label: 'Party (4 Players)', players: '4 Players' },
-    { value: 'three-hands', label: 'Three Hands (3 Players)', players: '3 Players' },
-  ];
-
-  const currentMode = gameModeOptions.find(m => m.value === selectedMode);
+  const isPortrait = height > width;
+  const isSmallScreen = width < 400;
+  const horizontalPadding = isSmallScreen ? 16 : isPortrait ? 20 : 40;
+  const maxContentWidth = Math.min(width - horizontalPadding * 2, 480);
 
   const handleCreateRoom = () => router.push(`/create-room?mode=${selectedMode}` as any);
   const handleJoinRoom = () => {
@@ -53,145 +79,124 @@ export default function PrivateRoomScreen() {
   const handleBack = () => router.back();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingHorizontal: horizontalPadding }]}>
+      {/* Back Button */}
+      <Pressable style={styles.backButton} onPress={handleBack}>
+        <Ionicons name="arrow-back" size={22} color="#f5c842" />
+      </Pressable>
+
+      {/* Title */}
+      <Text style={[styles.title, isSmallScreen && styles.titleSmall]}>Private Room</Text>
+      <Text style={styles.subtitle}>Create or join a private game with friends</Text>
+      
+      {/* Mode Selection - Scrollable */}
       <ScrollView 
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          needsScroll && styles.scrollContentScrollable,
-        ]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={true}
         keyboardShouldPersistTaps="handled"
       >
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={22} color="white" />
-        </TouchableOpacity>
-
-        <Text style={[styles.title, { fontSize: titleSize }]}>Private Room</Text>
-        <Text style={[styles.subtitle, { fontSize: subtitleSize }]}>
-          Create or join a private game with friends
-        </Text>
-
-        {/* Game Mode Dropdown */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Select Game Mode</Text>
-          
-          <TouchableOpacity 
-            style={styles.dropdown}
-            onPress={() => setShowModeDropdown(!showModeDropdown)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.dropdownContent}>
-              <Text style={styles.dropdownText}>{currentMode?.label}</Text>
-              <Text style={styles.dropdownPlayers}>{currentMode?.players}</Text>
-            </View>
-            <Ionicons 
-              name={showModeDropdown ? 'chevron-up' : 'chevron-down'} 
-              size={20} 
-              color="#FFD700" 
-            />
-          </TouchableOpacity>
-
-          {/* Dropdown Options */}
-          {showModeDropdown && (
-            <View style={styles.dropdownOptions}>
-              {gameModeOptions.map(option => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.dropdownOption,
-                    selectedMode === option.value && styles.dropdownOptionSelected
-                  ]}
-                  onPress={() => {
-                    setSelectedMode(option.value);
-                    setShowModeDropdown(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[
-                    styles.dropdownOptionText,
-                    selectedMode === option.value && styles.dropdownOptionTextSelected,
-                  ]}>
-                    {option.label}
-                  </Text>
-                  <Text style={styles.dropdownOptionPlayers}>{option.players}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+        <View style={[styles.modesContainer, { maxWidth: maxContentWidth }]}>
+          {GAME_MODES.map((mode) => {
+            const isSelected = selectedMode === mode.id;
+            
+            return (
+              <Pressable
+                key={mode.id}
+                style={({ pressed }) => [
+                  styles.modeCard,
+                  isSelected && styles.modeCardSelected,
+                  pressed && styles.modeCardPressed,
+                ]}
+                onPress={() => setSelectedMode(mode.id)}
+              >
+                {isSelected && <View style={styles.selectedIndicator} />}
+                
+                <View style={styles.iconWrap}>
+                  <Ionicons 
+                    name={mode.id === 'party' ? 'star' : 'people'} 
+                    size={28} 
+                    color={isSelected ? '#f5c842' : '#8fba6a'} 
+                  />
+                </View>
+                
+                <View style={styles.textCol}>
+                  <Text style={styles.modeName}>{mode.title}</Text>
+                  <Text style={styles.modeSub}>{mode.subtitle}</Text>
+                </View>
+                
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{mode.players}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
 
-        {/* Create Private Room Button */}
-        <TouchableOpacity 
-          style={styles.primaryButton} 
-          onPress={handleCreateRoom}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="add-circle" size={24} color="#0f4d0f" />
-          <Text style={[styles.primaryButtonText, { fontSize: buttonFontSize }]}>
-            Create Private Room
-          </Text>
-        </TouchableOpacity>
-
-        {/* Divider */}
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* Join with Code */}
-        {!showJoinInput ? (
-          <TouchableOpacity 
-            style={styles.secondaryButton} 
-            onPress={() => setShowJoinInput(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="enter" size={20} color="#FFD700" />
-            <Text style={[styles.secondaryButtonText, { fontSize: buttonFontSize - 2 }]}>
-              Join with Room Code
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.joinSection}>
+        {/* Join Code Input (inline) */}
+        {showJoinInput && (
+          <View style={[styles.joinSection, { maxWidth: maxContentWidth }]}>
             <TextInput
-              style={[styles.codeInput, { fontSize: inputFontSize }]}
+              style={styles.codeInput}
               value={joinCode}
               onChangeText={(text) => setJoinCode(text.toUpperCase().slice(0, 6))}
-              placeholder="Enter code"
+              placeholder="Enter room code"
               placeholderTextColor="rgba(255, 255, 255, 0.3)"
               autoCapitalize="characters"
               maxLength={6}
               autoCorrect={false}
               autoFocus
             />
-            <View style={styles.joinButtons}>
-              <TouchableOpacity 
+            <View style={styles.codeActions}>
+              <Pressable 
                 style={styles.cancelButton}
                 onPress={() => {
                   setShowJoinInput(false);
                   setJoinCode('');
                 }}
-                activeOpacity={0.7}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.joinButton,
-                  !joinCode.trim() && styles.disabledButton
-                ]}
+              </Pressable>
+              <Pressable 
+                style={[styles.confirmButton, !joinCode.trim() && styles.disabledButton]}
                 onPress={handleJoinRoom}
                 disabled={!joinCode.trim()}
-                activeOpacity={0.7}
               >
-                <Text style={styles.joinButtonText}>Join</Text>
-              </TouchableOpacity>
+                <Text style={styles.confirmButtonText}>Join</Text>
+              </Pressable>
             </View>
           </View>
         )}
       </ScrollView>
+
+      {/* Action Buttons - Horizontal Row */}
+      <View style={[styles.actionRow, { maxWidth: maxContentWidth }]}>
+        {!showJoinInput ? (
+          <>
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                pressed && styles.actionButtonPressed,
+              ]}
+              onPress={handleCreateRoom}
+            >
+              <Ionicons name="add-circle" size={20} color="#0f3318" />
+              <Text style={styles.actionButtonText}>Create Room</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButtonOutline,
+                pressed && styles.actionButtonOutlinePressed,
+              ]}
+              onPress={() => setShowJoinInput(true)}
+            >
+              <Ionicons name="enter" size={18} color="#f5c842" />
+              <Text style={styles.actionButtonOutlineText}>Join Room</Text>
+            </Pressable>
+          </>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -199,7 +204,33 @@ export default function PrivateRoomScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f4d0f',
+    backgroundColor: '#1a4a1a',
+    paddingTop: 40,
+    paddingBottom: 20,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 44,
+    left: 16,
+    zIndex: 100,
+    padding: 8,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#f5c842',
+    letterSpacing: 0.02,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  titleSmall: {
+    fontSize: 18,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: '#8fba6a',
+    marginBottom: 20,
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,
@@ -207,201 +238,175 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 80,
   },
-  scrollContentScrollable: {
-    paddingVertical: 40,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 16,
-    zIndex: 100,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 8,
-    borderRadius: 8,
-  },
-  title: {
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: 25,
-    textAlign: 'center',
-  },
-  section: {
+  modesContainer: {
     width: '100%',
-    marginBottom: 20,
+    alignSelf: 'center',
+    gap: 12,
   },
-  sectionLabel: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 13,
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  dropdown: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    borderRadius: 10,
-    padding: 12,
+  modeCard: {
+    backgroundColor: '#0f3318',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#2a6632',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  dropdownContent: {
-    flex: 1,
-  },
-  dropdownText: {
-    color: 'white',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  dropdownPlayers: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  dropdownOptions: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
-    marginTop: -2,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    position: 'relative',
     overflow: 'hidden',
   },
-  dropdownOption: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  modeCardSelected: {
+    borderColor: '#f5c842',
+    backgroundColor: '#143d1e',
   },
-  dropdownOptionSelected: {
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+  modeCardPressed: {
+    transform: [{ scale: 0.98 }],
   },
-  dropdownOptionText: {
-    color: 'white',
-    fontSize: 14,
+  selectedIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: '#f5c842',
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
   },
-  dropdownOptionTextSelected: {
-    color: '#FFD700',
-    fontWeight: '600',
-  },
-  dropdownOptionPlayers: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 12,
-  },
-  primaryButton: {
-    backgroundColor: '#FFD700',
-    borderRadius: 10,
-    flexDirection: 'row',
+  iconWrap: {
+    width: 52,
+    height: 52,
+    flexShrink: 0,
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-    maxWidth: 280,
-    paddingVertical: 14,
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
   },
-  primaryButtonText: {
-    color: '#0f4d0f',
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 280,
-    marginVertical: 18,
-  },
-  dividerLine: {
+  textCol: {
     flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginLeft: 18,
   },
-  dividerText: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    marginHorizontal: 12,
-    fontSize: 12,
-  },
-  secondaryButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    maxWidth: 280,
-    paddingVertical: 12,
-  },
-  secondaryButtonText: {
-    color: '#FFD700',
+  modeName: {
+    fontSize: 20,
     fontWeight: '600',
-    marginLeft: 8,
+    color: '#f5c842',
+    lineHeight: 24,
+  },
+  modeSub: {
+    fontSize: 13,
+    color: '#8fba6a',
+    marginTop: 2,
+  },
+  badge: {
+    backgroundColor: '#2a5c20',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+    borderWidth: 0.5,
+    borderColor: '#3a7a2a',
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#a8d87a',
   },
   joinSection: {
     width: '100%',
-    maxWidth: 280,
+    alignSelf: 'center',
+    marginTop: 20,
   },
   codeInput: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    borderRadius: 10,
+    backgroundColor: '#0f3318',
+    borderWidth: 1.5,
+    borderColor: '#2a6632',
+    borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    fontWeight: 'bold',
-    color: '#FFD700',
+    fontWeight: '600',
+    color: '#f5c842',
     letterSpacing: 4,
     textAlign: 'center',
+    fontSize: 20,
     marginBottom: 12,
   },
-  joinButtons: {
+  codeActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12,
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: 10,
-    marginRight: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#2a6632',
     alignItems: 'center',
+    backgroundColor: '#0f3318',
   },
   cancelButtonText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 13,
+    color: '#8fba6a',
+    fontSize: 14,
+    fontWeight: '600',
   },
-  joinButton: {
+  confirmButton: {
     flex: 1,
-    backgroundColor: '#FFD700',
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginLeft: 8,
+    backgroundColor: '#f5c842',
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: 'center',
   },
   disabledButton: {
-    backgroundColor: 'rgba(255, 215, 0, 0.5)',
+    backgroundColor: 'rgba(245, 200, 66, 0.5)',
   },
-  joinButtonText: {
-    color: '#0f4d0f',
-    fontSize: 13,
-    fontWeight: 'bold',
+  confirmButtonText: {
+    color: '#0f3318',
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.02,
+  },
+  actionRow: {
+    marginTop: 20,
+    width: '100%',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    backgroundColor: '#f5c842',
+    borderRadius: 12,
+    gap: 8,
+  },
+  actionButtonPressed: {
+    backgroundColor: '#fad84a',
+  },
+  actionButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0f3318',
+    letterSpacing: 0.02,
+  },
+  actionButtonOutline: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    backgroundColor: '#0f3318',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#f5c842',
+    gap: 8,
+  },
+  actionButtonOutlinePressed: {
+    backgroundColor: '#143d1e',
+  },
+  actionButtonOutlineText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#f5c842',
+    letterSpacing: 0.02,
   },
 });

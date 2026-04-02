@@ -38,6 +38,9 @@ interface UseLobbyMockProps {
   };
   serverLobbyPlayers?: ServerLobbyPlayer[];
   initialReady?: boolean;
+  /** Room-based player data for private rooms (overrides serverLobbyPlayers) */
+  roomPlayers?: Array<{ socketId: string; isHost: boolean }>;
+  roomPlayerCount?: number;
 }
 
 export const useLobbyMock = ({ 
@@ -46,17 +49,56 @@ export const useLobbyMock = ({
   profile,
   serverLobbyPlayers,
   initialReady = false,
+  roomPlayers,
+  roomPlayerCount,
 }: UseLobbyMockProps) => {
   const [lobbyPlayers, setLobbyPlayers] = useState<LobbyPlayer[]>([]);
   const [notification, setNotification] = useState<string | null>(null);
   const notificationAnim = useRef(new Animated.Value(-100)).current;
   const [isReady, setIsReady] = useState(initialReady);
 
-  // Initialize with self and merge with server players when available
+  // Initialize with self and merge with server/room players when available
   useEffect(() => {
-    console.log('[useLobbyMock] Initializing with serverLobbyPlayers:', JSON.stringify(serverLobbyPlayers));
+    console.log('[useLobbyMock] Initializing with serverLobbyPlayers:', JSON.stringify(serverLobbyPlayers), 'roomPlayers:', roomPlayers?.length, 'roomPlayerCount:', roomPlayerCount);
     
-    // If we have server player data, use it (with self at index 0)
+    // Priority 1: Room-based players (private rooms)
+    if (roomPlayers !== undefined && roomPlayerCount !== undefined) {
+      const maxPlayers = modeConfig.playerCount;
+      const players: LobbyPlayer[] = [];
+      
+      // Slot 0 is always self
+      players.push({
+        id: profile.userId || '1',
+        username: profile.username || 'You',
+        avatar: profile.avatar || 'lion',
+        isReady,
+        isConnected: true,
+        ping: 45,
+      });
+      
+      // Fill remaining slots based on roomPlayerCount
+      for (let i = 1; i < maxPlayers; i++) {
+        if (i < roomPlayerCount) {
+          // Slot is occupied but we don't have username from room system
+          // Show generic player name
+          players.push({
+            id: String(i + 1),
+            username: `Player ${i + 1}`,
+            avatar: AVATAR_OPTIONS[i % AVATAR_OPTIONS.length].id,
+            isReady: true,
+            isConnected: true,
+            ping: Math.floor(Math.random() * 150) + 30,
+          });
+        }
+        // Empty slots remain undefined
+      }
+      
+      console.log('[useLobbyMock] Room-based players:', JSON.stringify(players));
+      setLobbyPlayers(players);
+      return;
+    }
+    
+    // Priority 2: Server lobby players (matchmaking)
     if (serverLobbyPlayers && serverLobbyPlayers.length > 0) {
       // Map server players to lobby player format
       const mappedPlayers: LobbyPlayer[] = serverLobbyPlayers.map((player, index) => {
@@ -121,7 +163,7 @@ export const useLobbyMock = ({
         ping: 45,
       },
     ]);
-  }, [profile, isReady, serverLobbyPlayers]);
+  }, [profile, isReady, serverLobbyPlayers, roomPlayers, roomPlayerCount, modeConfig.playerCount]);
 
   // Update own ready status
   useEffect(() => {

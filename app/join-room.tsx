@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSocketConnection, useRoom, useGameStateSync } from '../hooks/multiplayer';
+import { useSocketConnection, useRoom } from '../hooks/multiplayer';
 import type { GameMode } from '../hooks/multiplayer';
 
 export const options = {
@@ -15,27 +15,25 @@ export default function JoinRoomScreen() {
   
   // Determine game mode from params
   const gameMode: GameMode = params.mode === 'party' ? 'party' : (params.mode === 'three-hands' ? 'three-hands' : 'two-hands');
-  const maxPlayers = gameMode === 'party' ? 4 : (gameMode === 'three-hands' ? 3 : 2);
-  const modeLabel = gameMode === 'party' ? 'Party Mode (4 Players)' : (gameMode === 'three-hands' ? 'Three Hands (3 Players)' : 'Two Hands (2 Players)');
 
   const [roomCode, setRoomCode] = useState(params.code || '');
   const [isJoining, setIsJoining] = useState(!!params.code);
 
-  // Connect to server
-  const { socket, isConnected, error: connectionError } = useSocketConnection({ mode: gameMode });
+  // Connect to server (use 'private' mode to skip auto-queue joining)
+  const { socket, isConnected, error: connectionError } = useSocketConnection({ mode: 'private' });
   
   // Room management
   const { room, error: roomError, joinRoom, leaveRoom } = useRoom(socket);
-  
-  // Game state sync (for when game starts)
-  const gameSync = useGameStateSync(socket);
+
+  // Track if we've already navigated to prevent double navigation
+  const hasNavigatedRef = useRef(false);
 
   // Auto-join when code is provided and connected
   useEffect(() => {
-    if (isConnected && params.code && !room.roomCode && !roomError) {
+    if (isConnected && params.code && !room.roomCode && !roomError && !hasNavigatedRef.current) {
       joinRoom(params.code.toUpperCase());
     }
-  }, [isConnected, params.code]);
+  }, [isConnected, params.code, room.roomCode, roomError]);
 
   // Handle connection error
   useEffect(() => {
@@ -44,7 +42,7 @@ export default function JoinRoomScreen() {
         { text: 'OK', onPress: () => router.back() }
       ]);
     }
-  }, [connectionError]);
+  }, [connectionError, router]);
 
   // Handle room error
   useEffect(() => {
@@ -56,17 +54,20 @@ export default function JoinRoomScreen() {
     }
   }, [roomError]);
 
-  // Navigate to game when room game starts
+  // Navigate to shared lobby once room is joined
   useEffect(() => {
-    if (room.status === 'started' && gameSync.gameState) {
-      router.replace('/online-play');
+    if (room.roomCode && !hasNavigatedRef.current) {
+      hasNavigatedRef.current = true;
+      console.log('[JoinRoom] Room joined, navigating to shared lobby:', room.roomCode);
+      router.replace(`/online-play?mode=${gameMode}&roomCode=${room.roomCode}` as any);
     }
-  }, [room.status, gameSync.gameState]);
+  }, [room.roomCode, gameMode, router]);
 
   const handleBack = () => {
     if (room.roomCode) {
       leaveRoom();
     }
+    hasNavigatedRef.current = true;
     router.back();
   };
 
@@ -84,61 +85,25 @@ export default function JoinRoomScreen() {
     joinRoom(roomCode.trim().toUpperCase());
   };
 
-  // Auto-navigate to lobby when joined
-  useEffect(() => {
-    if (room.roomCode && isJoining) {
-      setIsJoining(false);
-    }
-  }, [room.roomCode]);
-
-  // Show room lobby if joined
-  if (room.roomCode) {
+  // Show loading state while joining
+  if (isJoining && !room.roomCode) {
     return (
       <View style={styles.container}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
+        <ActivityIndicator size="large" color="#FFD700" />
+        <Text style={styles.loadingText}>Joining room...</Text>
+      </View>
+    );
+  }
 
-        <Text style={styles.title}>{modeLabel}</Text>
-
-        {/* Room Code Display */}
-        <View style={styles.roomCodeContainer}>
-          <Text style={styles.roomCodeLabel}>Room Code</Text>
-          <Text style={styles.roomCode}>{room.roomCode}</Text>
-        </View>
-
-        {/* Players List */}
-        <View style={styles.playersContainer}>
-          <Text style={styles.playersTitle}>
-            Players ({room.playerCount}/{room.maxPlayers})
-          </Text>
-          {room.players.map((player, index) => (
-            <View key={player.socketId} style={styles.playerRow}>
-              <Text style={styles.playerName}>
-                {player.isHost ? '👑 ' : ''}Player {index + 1}
-              </Text>
-              {player.isHost && <Text style={styles.hostBadge}>HOST</Text>}
-            </View>
-          ))}
-          {/* Empty slots */}
-          {Array.from({ length: room.maxPlayers - room.playerCount }).map((_, i) => (
-            <View key={`empty-${i}`} style={styles.playerRow}>
-              <Text style={styles.emptySlot}>Waiting for player...</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Status */}
-        <Text style={styles.statusText}>
-          {room.status === 'ready' 
-            ? 'Room is full! Game starting...' 
-            : room.isHost 
-              ? 'Waiting for host to start game...'
-              : 'Waiting for players...'}
-        </Text>
-
-        {/* Waiting indicator */}
-        <ActivityIndicator size="small" color="#FFD700" style={styles.loader} />
+  // If already in room (shouldn't happen since we navigate to lobby)
+  if (room.roomCode) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#FFD700" />
+        <Text style={styles.loadingText}>Entering lobby...</Text>
       </View>
     );
   }
@@ -153,7 +118,7 @@ export default function JoinRoomScreen() {
       </TouchableOpacity>
 
       <Text style={styles.title}>Join Private Room</Text>
-      <Text style={styles.subtitle}>{modeLabel}</Text>
+      <Text style={styles.subtitle}>Enter a room code to join</Text>
 
       {/* Room Code Input */}
       <View style={styles.inputContainer}>
@@ -220,6 +185,11 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)',
     marginBottom: 40,
   },
+  loadingText: {
+    color: 'white',
+    fontSize: 18,
+    marginTop: 16,
+  },
   inputContainer: {
     width: '100%',
     alignItems: 'center',
@@ -264,72 +234,5 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 14,
     marginTop: 20,
-  },
-  // Lobby styles
-  roomCodeContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    padding: 20,
-    borderRadius: 15,
-    alignItems: 'center',
-    marginBottom: 30,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-  },
-  roomCodeLabel: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  roomCode: {
-    color: '#FFD700',
-    fontSize: 42,
-    fontWeight: 'bold',
-    letterSpacing: 4,
-  },
-  playersContainer: {
-    width: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 20,
-  },
-  playersTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  playerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  playerName: {
-    color: 'white',
-    fontSize: 16,
-  },
-  hostBadge: {
-    color: '#FFD700',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  emptySlot: {
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontSize: 16,
-    fontStyle: 'italic',
-  },
-  statusText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  loader: {
-    marginTop: 10,
   },
 });

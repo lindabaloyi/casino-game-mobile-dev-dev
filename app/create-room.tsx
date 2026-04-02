@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSocketConnection, useRoom, useGameStateSync } from '../hooks/multiplayer';
+import { useSocketConnection, useRoom } from '../hooks/multiplayer';
 import type { GameMode } from '../hooks/multiplayer';
 
 export const options = {
@@ -16,30 +16,31 @@ export default function CreateRoomScreen() {
   // Determine game mode from params
   const gameMode: GameMode = params.mode === 'party' ? 'party' : (params.mode === 'three-hands' ? 'three-hands' : 'two-hands');
   const maxPlayers = gameMode === 'party' ? 4 : (gameMode === 'three-hands' ? 3 : 2);
-  const modeLabel = gameMode === 'party' ? 'Party Mode (4 Players)' : (gameMode === 'three-hands' ? 'Three Hands (3 Players)' : 'Two Hands (2 Players)');
 
-  // Connect to server
-  const { socket, isConnected, error: connectionError } = useSocketConnection({ mode: gameMode });
+  // Connect to server (use 'private' mode to skip auto-queue joining)
+  const { socket, isConnected, error: connectionError } = useSocketConnection({ mode: 'private' });
   
   // Room management
-  const { room, error: roomError, createRoom, leaveRoom, startGame } = useRoom(socket);
-  
-  // Game state sync (for when game starts)
-  const gameSync = useGameStateSync(socket);
+  const { room, error: roomError, createRoom, leaveRoom } = useRoom(socket);
+
+  // Track if we've already navigated to prevent double navigation
+  const hasNavigatedRef = useRef(false);
 
   // Create room on mount if connected
   useEffect(() => {
-    if (isConnected && room.status === 'none') {
+    if (isConnected && room.status === 'none' && !hasNavigatedRef.current) {
       createRoom(gameMode, maxPlayers);
     }
-  }, [isConnected]);
+  }, [isConnected, room.status, gameMode, maxPlayers, createRoom]);
 
-  // Navigate to game when room game starts
+  // Navigate to shared lobby once room is created
   useEffect(() => {
-    if (room.status === 'started' && gameSync.gameState) {
-      router.replace('/online-play');
+    if (room.roomCode && !hasNavigatedRef.current) {
+      hasNavigatedRef.current = true;
+      console.log('[CreateRoom] Room created, navigating to shared lobby:', room.roomCode);
+      router.replace(`/online-play?mode=${gameMode}&roomCode=${room.roomCode}` as any);
     }
-  }, [room.status, gameSync.gameState]);
+  }, [room.roomCode, gameMode, router]);
 
   // Handle connection error
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function CreateRoomScreen() {
         { text: 'OK', onPress: () => router.back() }
       ]);
     }
-  }, [connectionError]);
+  }, [connectionError, router]);
 
   // Handle room error
   useEffect(() => {
@@ -57,45 +58,15 @@ export default function CreateRoomScreen() {
         { text: 'OK', onPress: () => router.back() }
       ]);
     }
-  }, [roomError]);
+  }, [roomError, router]);
 
   const handleBack = () => {
     if (room.roomCode) {
       leaveRoom();
     }
+    hasNavigatedRef.current = true;
     router.back();
   };
-
-  const handleStartGame = () => {
-    // For 2-hands mode, can start with 2 players
-    // For party mode, need 4 players
-    if (gameMode === 'two-hands' && room.playerCount < 2) {
-      Alert.alert('Cannot Start', 'Need at least 2 players to start');
-      return;
-    }
-    if (gameMode === 'party' && room.playerCount < 4) {
-      Alert.alert('Cannot Start', 'Need 4 players to start party mode');
-      return;
-    }
-    if (gameMode === 'three-hands' && room.playerCount < 3) {
-      Alert.alert('Cannot Start', 'Need 3 players to start three-hands mode');
-      return;
-    }
-    startGame();
-  };
-
-  // Loading state
-  if (!isConnected || room.status === 'none') {
-    return (
-      <View style={styles.container}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>Creating room...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -103,61 +74,12 @@ export default function CreateRoomScreen() {
         <Ionicons name="arrow-back" size={24} color="white" />
       </TouchableOpacity>
 
-      <Text style={styles.title}>{modeLabel}</Text>
-
-      {/* Room Code Display */}
-      <View style={styles.roomCodeContainer}>
-        <Text style={styles.roomCodeLabel}>Room Code</Text>
-        <Text style={styles.roomCode}>{room.roomCode}</Text>
-      </View>
-
-      {/* Players List */}
-      <View style={styles.playersContainer}>
-        <Text style={styles.playersTitle}>
-          Players ({room.playerCount}/{room.maxPlayers})
-        </Text>
-        {room.players.map((player, index) => (
-          <View key={player.socketId} style={styles.playerRow}>
-            <Text style={styles.playerName}>
-              {player.isHost ? '👑 ' : ''}Player {index + 1}
-            </Text>
-            {player.isHost && <Text style={styles.hostBadge}>HOST</Text>}
-          </View>
-        ))}
-        {/* Empty slots */}
-        {Array.from({ length: room.maxPlayers - room.playerCount }).map((_, i) => (
-          <View key={`empty-${i}`} style={styles.playerRow}>
-            <Text style={styles.emptySlot}>Waiting for player...</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Status */}
-      <Text style={styles.statusText}>
-        {room.status === 'ready' ? 'Room is full! Press Start Game.' : 'Waiting for players to join...'}
+      <ActivityIndicator size="large" color="#FFD700" />
+      <Text style={styles.loadingText}>
+        {room.roomCode ? 'Joining lobby...' : 'Creating room...'}
       </Text>
-
-      {/* Start Button (Host only) */}
-      {room.isHost && (
-        <TouchableOpacity
-          style={[
-            styles.startButton,
-            (room.playerCount < 2 || (gameMode === 'party' && room.playerCount < 4)) && styles.disabledButton
-          ]}
-          onPress={handleStartGame}
-          disabled={room.playerCount < 2 || (gameMode === 'party' && room.playerCount < 4)}
-        >
-          <Text style={styles.startButtonText}>
-            {gameMode === 'party' && room.playerCount < 4 
-              ? `Need ${4 - room.playerCount} more player(s)` 
-              : 'Start Game'}
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Waiting indicator */}
-      {room.status !== 'ready' && (
-        <ActivityIndicator size="small" color="#FFD700" style={styles.loader} />
+      {room.roomCode && (
+        <Text style={styles.roomCodeHint}>Room code: {room.roomCode}</Text>
       )}
     </View>
   );
@@ -180,95 +102,14 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 30,
-  },
   loadingText: {
     color: 'white',
     fontSize: 18,
     marginTop: 16,
   },
-  roomCodeContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    padding: 20,
-    borderRadius: 15,
-    alignItems: 'center',
-    marginBottom: 30,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-  },
-  roomCodeLabel: {
-    color: 'rgba(255, 255, 255, 0.7)',
+  roomCodeHint: {
+    color: 'rgba(255, 215, 0, 0.7)',
     fontSize: 14,
-    marginBottom: 8,
-  },
-  roomCode: {
-    color: '#FFD700',
-    fontSize: 42,
-    fontWeight: 'bold',
-    letterSpacing: 4,
-  },
-  playersContainer: {
-    width: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 20,
-  },
-  playersTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  playerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  playerName: {
-    color: 'white',
-    fontSize: 16,
-  },
-  hostBadge: {
-    color: '#FFD700',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  emptySlot: {
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontSize: 16,
-    fontStyle: 'italic',
-  },
-  statusText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  startButton: {
-    backgroundColor: '#FFD700',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 10,
-  },
-  disabledButton: {
-    backgroundColor: 'rgba(255, 215, 0, 0.5)',
-  },
-  startButtonText: {
-    color: '#0f4d0f',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  loader: {
-    marginTop: 20,
+    marginTop: 8,
   },
 });

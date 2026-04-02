@@ -287,7 +287,10 @@ class RoomService {
       for (let i = 0; i < 4; i++) {
         const socket = sockets[i];
         this.gameManager.addPlayerToGame(gameId, socket.id, i, socket.userId || null);
-        this.unifiedMatchmaking.socketGameMap.set(socket.id, gameId);
+        // Store socket mapping as object with gameId, gameType, and userId
+        // This matches the format expected by GameCoordinator._resolvePlayer()
+        this.unifiedMatchmaking.socketGameMap.set(socket.id, { gameId, gameType: room.gameMode, userId: socket.userId || null });
+        console.log(`[RoomService] socketGameMap set for socket ${socket.id}: gameId=${gameId}, gameType=${room.gameMode}, userId=${socket.userId || null}`);
         this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
         // Set userId on gameState players for persistence
         if (socket.userId) {
@@ -298,12 +301,22 @@ class RoomService {
       gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
       room.status = 'started';
       
-      // Emit game-start to all players - include gameState so clients can render
+      // Build playerInfos for game-start event
+      const playerInfos = sockets.map((socket, index) => ({
+        playerNumber: index,
+        userId: socket.userId || null,
+        username: socket.username || null,
+        avatar: socket.avatar || null,
+      }));
+      console.log(`[RoomService] Broadcasting game-start for party game ${gameId} with playerInfos:`, JSON.stringify(playerInfos));
+      
+      // Emit game-start to all players - include gameState and playerInfos
       sockets.forEach(socket => {
         socket.emit('game-start', { 
           gameId, 
-          gameState,  // Include gameState for frontend
-          playerNumber: sockets.indexOf(socket) 
+          gameState,
+          playerNumber: sockets.indexOf(socket),
+          playerInfos,
         });
       });
     } else {
@@ -315,7 +328,10 @@ class RoomService {
       for (let i = 0; i < playerCount; i++) {
         const socket = sockets[i];
         this.gameManager.addPlayerToGame(gameId, socket.id, i, socket.userId || null);
-        this.unifiedMatchmaking.socketGameMap.set(socket.id, gameId);
+        // Store socket mapping as object with gameId, gameType, and userId
+        // This matches the format expected by GameCoordinator._resolvePlayer()
+        this.unifiedMatchmaking.socketGameMap.set(socket.id, { gameId, gameType: room.gameMode, userId: socket.userId || null });
+        console.log(`[RoomService] socketGameMap set for socket ${socket.id}: gameId=${gameId}, gameType=${room.gameMode}, userId=${socket.userId || null}`);
         this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
         // Set userId on gameState players for persistence
         if (socket.userId) {
@@ -326,12 +342,22 @@ class RoomService {
       gameResult = { gameId, gameState, players: sockets.map((socket, index) => ({ socket, playerNumber: index })) };
       room.status = 'started';
 
-      // Emit game-start to all players - include gameState so clients can render
+      // Build playerInfos for game-start event
+      const playerInfos = sockets.map((socket, index) => ({
+        playerNumber: index,
+        userId: socket.userId || null,
+        username: socket.username || null,
+        avatar: socket.avatar || null,
+      }));
+      console.log(`[RoomService] Broadcasting game-start for ${room.gameMode} game ${gameId} with playerInfos:`, JSON.stringify(playerInfos));
+
+      // Emit game-start to all players - include gameState and playerInfos
       sockets.forEach(socket => {
         socket.emit('game-start', { 
           gameId, 
-          gameState,  // Include gameState for frontend
-          playerNumber: sockets.indexOf(socket) 
+          gameState,
+          playerNumber: sockets.indexOf(socket),
+          playerInfos,
         });
       });
     }

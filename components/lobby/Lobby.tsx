@@ -35,6 +35,8 @@ interface LobbyProps {
   notification: string | null;
   notificationAnim: Animated.Value;
   onCopyRoomCode?: () => void;
+  /** Real room code for private rooms (overrides mode-derived display) */
+  roomCode?: string | null;
 }
 
 export const Lobby: React.FC<LobbyProps> = ({
@@ -47,6 +49,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   notification,
   notificationAnim,
   onCopyRoomCode,
+  roomCode,
 }) => {
   const { height, width } = useWindowDimensions();
   const needsScroll = height < 600;
@@ -123,9 +126,13 @@ export const Lobby: React.FC<LobbyProps> = ({
           <View style={styles.roomCodeContent}>
             <Text style={styles.roomCodeLabel}>Room Code</Text>
             <Text style={styles.roomCodeValue}>
-              {getRoomCodeDisplay()}
+              {roomCode || getRoomCodeDisplay()}
             </Text>
           </View>
+          <TouchableOpacity style={styles.copyButton} onPress={onCopyRoomCode}>
+            <Ionicons name="copy-outline" size={20} color="#FFD700" />
+          </TouchableOpacity>
+        </View>
           <TouchableOpacity style={styles.copyButton} onPress={onCopyRoomCode}>
             <Ionicons name="copy-outline" size={20} color="#FFD700" />
           </TouchableOpacity>

@@ -2,25 +2,25 @@
  * useSocketConnection
  * 
  * Handles Socket.IO connection lifecycle with auto-detection of server URL.
- * Supports both desktop (localhost) and mobile (LAN IP) connections.
+ * Uses the SocketManager singleton to ensure only ONE socket exists across
+ * the entire app - navigating between screens won't disconnect/reconnect.
  * 
  * Responsibilities:
- *  - Resolve optimal server URL based on network context
- *  - Establish socket connection
- *  - Handle connection/disconnection events
- *  - Manage reconnection settings
+ *  - Get shared socket from SocketManager
+ *  - Authenticate the socket on first connect
+ *  - Auto-join matchmaking queue based on mode (except private mode)
+ *  - Expose socket state to components
  * 
  * Usage:
- *   const { socket, isConnected } = useSocketConnection({ mode: '2-hands' });
+ *   const { socket, isConnected } = useSocketConnection({ mode: 'two-hands' });
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Socket } from 'socket.io-client';
-import { io } from 'socket.io-client';
-import { getOptimalServerUrl } from '../../utils/serverUrl';
+import { getSocket, getCurrentSocket, isSocketConnected, disconnectSocket, onSocketStateChange } from './socketManager';
 import { useAuth } from '../useAuth';
 
-export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament';
+export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament' | 'private';
 
 export interface UseSocketConnectionOptions {
   mode: GameMode;
@@ -45,154 +45,137 @@ export function useSocketConnection(
   const { mode } = options;
   const isPartyMode = mode === 'party';
   const isTwoHandsMode = mode === 'two-hands';
+  const isPrivateMode = mode === 'private';
   
   // Get user authentication info
   const { user } = useAuth();
   
-  const socketRef = useRef<Socket | null>(null);
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const [socket, setSocket] = useState<Socket | null>(getCurrentSocket());
+  const [isConnected, setIsConnected] = useState(isSocketConnected());
   const [error, setError] = useState<string | null>(null);
   
-  // Track mount state to prevent state updates after unmount
-  const isMounted = useRef(true);
+  // Track whether we've already authenticated and joined queues on this socket
+  const hasSetupRef = useRef(false);
+  const lastUserIdRef = useRef<string | null>(null);
 
-  const connect = useCallback(() => {
-    // Prevent multiple simultaneous connections
-    if (socketRef.current?.connected) {
-      console.log('[useSocketConnection] Already connected, skipping...');
+  // Setup the socket: authenticate, join queues (only once per socket lifecycle)
+  const setupSocket = useCallback((sock: Socket) => {
+    if (!sock?.connected) return;
+    
+    // Authenticate after connecting if user is logged in
+    if (user?._id && lastUserIdRef.current !== user._id) {
+      sock.emit('authenticate', user._id);
+      console.log(`[useSocketConnection] Authenticated with userId: ${user._id}`);
+      lastUserIdRef.current = user._id;
+    }
+    
+    // Skip auto-queue for private mode (room-based games handle their own flow)
+    if (isPrivateMode) {
+      console.log('[useSocketConnection] Private mode - skipping auto-queue (room-based flow)');
       return;
     }
     
-    console.log('[useSocketConnection] Starting connection process...');
+    // Only join queues once per socket connection
+    if (hasSetupRef.current) return;
+    hasSetupRef.current = true;
     
-    getOptimalServerUrl()
-      .then(socketUrl => {
-        if (!isMounted.current) return;
-        
-        console.log(`[useSocketConnection] ==========================================`);
-        console.log(`[useSocketConnection] >>>>>> CONNECTING TO: ${socketUrl} <<<<<<`);
-        console.log(`[useSocketConnection] ==========================================`);
-        console.log(`[useSocketConnection] If on mobile/physical device, this should be your computer's LAN IP (e.g., 192.168.x.x:3001)`);
-        console.log(`[useSocketConnection] NOT localhost (that only works in web/simulator)`);
-        
-        const socket = io(socketUrl, {
-          // Try WebSocket first, fall back to polling if needed
-          transports: ['websocket'],
-          reconnection: true,
-          reconnectionAttempts: 5,
-          reconnectionDelay: 1000,
-          reconnectionAttemptsMax: 5,
-          timeout: 15000,
-          forceNew: true,
-        });
-        
-        socketRef.current = socket;
-        
-        socket.on('connect', () => {
-          console.log('[useSocketConnection] Connected successfully!');
-          setSocket(socket); // Set socket as state to trigger re-render
-          setIsConnected(true);
-          setError(null);
-          
-          // Authenticate after connecting if user is logged in
-          if (user?._id) {
-            socket.emit('authenticate', user._id);
-            console.log(`[useSocketConnection] Authenticated with userId: ${user._id}`);
-          }
-          
-          // Two-hands mode: join the two-hands queue when connected
-          if (isTwoHandsMode) {
-            socket.emit('join-two-hands-queue');
-            console.log('[useSocketConnection] Joined two-hands queue');
-          }
-          
-          // Party mode: join the party queue when connected
-          if (isPartyMode) {
-            socket.emit('join-party-queue');
-            console.log('[useSocketConnection] Joined party queue');
-          }
-          
-          // Three-hands mode: join the three-hands queue when connected
-          if (mode === 'three-hands') {
-            socket.emit('join-three-hands-queue');
-            console.log('[useSocketConnection] Joined three-hands queue');
-          }
-          
-          // Four-hands mode: join the four-hands queue when connected
-          if (mode === 'four-hands') {
-            socket.emit('join-four-hands-queue');
-            console.log('[useSocketConnection] Joined four-hands queue');
-          }
-          
-          // Free-for-all mode: join the freeforall queue when connected
-          if (mode === 'freeforall') {
-            socket.emit('join-freeforall-queue');
-            console.log('[useSocketConnection] Joined freeforall queue');
-          }
-          
-          // Tournament mode: join the tournament queue when connected
-          if (mode === 'tournament') {
-            socket.emit('join-tournament-queue');
-            console.log('[useSocketConnection] Joined tournament queue');
-          }
-        });
-        
-        socket.on('disconnect', () => {
-          console.log('[useSocketConnection] Disconnected');
-          setIsConnected(false);
-        });
-        
-        socket.on('connect_error', (err) => {
-          console.error('[useSocketConnection] Connection error:', err.message);
-          console.error('[useSocketConnection] This usually means:');
-          console.error('  1. Server is not running - start it with: npm run server');
-          console.error('  2. Wrong IP address - check your network configuration');
-          console.error('  3. Firewall blocking port 3001');
-          setError(err.message);
-        });
-        
-        // If WebSocket fails, log it and let Socket.IO handle fallback
-        socket.io.on('reconnect_attempt', (attempt) => {
-          console.log(`[useSocketConnection] Reconnection attempt ${attempt}`);
-        });
+    // Two-hands mode: join the two-hands queue when connected
+    if (isTwoHandsMode) {
+      sock.emit('join-two-hands-queue');
+      console.log('[useSocketConnection] Joined two-hands queue');
+    }
+    
+    // Party mode: join the party queue when connected
+    if (isPartyMode) {
+      sock.emit('join-party-queue');
+      console.log('[useSocketConnection] Joined party queue');
+    }
+    
+    // Three-hands mode: join the three-hands queue when connected
+    if (mode === 'three-hands') {
+      sock.emit('join-three-hands-queue');
+      console.log('[useSocketConnection] Joined three-hands queue');
+    }
+    
+    // Four-hands mode: join the four-hands queue when connected
+    if (mode === 'four-hands') {
+      sock.emit('join-four-hands-queue');
+      console.log('[useSocketConnection] Joined four-hands queue');
+    }
+    
+    // Free-for-all mode: join the freeforall queue when connected
+    if (mode === 'freeforall') {
+      sock.emit('join-freeforall-queue');
+      console.log('[useSocketConnection] Joined freeforall queue');
+    }
+    
+    // Tournament mode: join the tournament queue when connected
+    if (mode === 'tournament') {
+      sock.emit('join-tournament-queue');
+      console.log('[useSocketConnection] Joined tournament queue');
+    }
+  }, [mode, isPartyMode, isTwoHandsMode, isPrivateMode, user]);
+
+  // Connect the shared socket on mount
+  useEffect(() => {
+    console.log('[useSocketConnection] Requesting shared socket connection...');
+    
+    getSocket()
+      .then(sock => {
+        setSocket(sock);
+        setIsConnected(true);
+        setError(null);
+        setupSocket(sock);
       })
       .catch(err => {
-        console.error('[useSocketConnection] Failed to resolve URL:', err);
-        setError('Failed to resolve server URL. Please check network configuration.');
+        console.error('[useSocketConnection] Failed to connect:', err);
+        setError('Failed to connect to server. Please check network configuration.');
       });
-  }, [mode, isPartyMode, isTwoHandsMode, user]);
+    
+    // Subscribe to connection state changes from the SocketManager
+    const unsubscribe = onSocketStateChange((connected, sock) => {
+      setSocket(sock);
+      setIsConnected(connected);
+      if (connected && sock) {
+        setupSocket(sock);
+      }
+    });
+    
+    return () => {
+      // DO NOT disconnect the shared socket on unmount.
+      // Other screens may still need it.
+      unsubscribe();
+    };
+  }, [setupSocket]);
 
   const disconnect = useCallback(() => {
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
-      setSocket(null); // Clear state too
-      setIsConnected(false);
-    }
+    disconnectSocket();
+    setSocket(null);
+    setIsConnected(false);
+    hasSetupRef.current = false;
   }, []);
 
   const reconnect = useCallback(() => {
-    disconnect();
-    connect();
-  }, [connect, disconnect]);
-
-  useEffect(() => {
-    isMounted.current = true;
-    connect();
+    disconnectSocket();
+    hasSetupRef.current = false;
+    setSocket(null);
+    setIsConnected(false);
     
-    return () => {
-      isMounted.current = false;
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-        setSocket(null); // Clear state on unmount
-      }
-    };
-  }, [connect]);
+    getSocket()
+      .then(sock => {
+        setSocket(sock);
+        setIsConnected(true);
+        setError(null);
+        setupSocket(sock);
+      })
+      .catch(err => {
+        console.error('[useSocketConnection] Reconnect failed:', err);
+        setError('Failed to reconnect to server.');
+      });
+  }, [setupSocket]);
 
   return {
-    socket, // Now returns state, not ref - this triggers re-render when socket connects!
+    socket,
     isConnected,
     error,
     reconnect,

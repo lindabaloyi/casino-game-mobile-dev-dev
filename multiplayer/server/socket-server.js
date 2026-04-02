@@ -261,7 +261,9 @@ io.on('connection', socket => {
   });
 
   // Private Room: join room
-  socket.on('join-room', (data) => {
+  socket.on('join-room', async (data) => {
+    console.log(`[Socket] join-room received from ${socket.id}, roomCode=${data.roomCode}`);
+    
     // Remove from matchmaking queues if present
     unifiedMatchmaking.socketGameMap.delete(socket.id);
     unifiedMatchmaking.waitingQueues['two-hands'] = unifiedMatchmaking.waitingQueues['two-hands'].filter(s => s.id !== socket.id);
@@ -284,6 +286,25 @@ io.on('connection', socket => {
             playerSocket.emit('room-updated', { room });
           }
         });
+        
+        // AUTO-START: If room is now full, start the game automatically
+        if (room.status === 'ready') {
+          console.log(`[Socket] Room ${room.code} is full (${room.playerCount}/${room.maxPlayers}) - auto-starting game`);
+          const startResult = roomService.startRoomGame(room.code, io);
+          console.log(`[Socket] Auto-start result:`, JSON.stringify(startResult));
+          if (!startResult.success) {
+            console.log(`[Socket] ❌ Auto-start failed: ${startResult.error}`);
+            // Notify all players in the room
+            room.players.forEach(player => {
+              const playerSocket = io.sockets.sockets.get(player.socketId);
+              if (playerSocket) {
+                playerSocket.emit('room-error', { message: `Failed to start game: ${startResult.error}` });
+              }
+            });
+          } else {
+            console.log(`[Socket] ✅ Game auto-started successfully, gameId=${startResult.gameId}`);
+          }
+        }
       }
     } else {
       socket.emit('room-error', { message: result.error });
@@ -322,22 +343,32 @@ io.on('connection', socket => {
 
   // Private Room: start game (host only)
   socket.on('start-room-game', (data) => {
+    console.log(`[Socket] start-room-game received from ${socket.id}, userId=${socket.userId}`);
+    
     const room = roomService.getRoomBySocket(socket.id);
+    console.log(`[Socket] Room lookup for socket ${socket.id}:`, room ? `found room ${room.code}, mode=${room.gameMode}, players=${room.playerCount}` : 'NOT FOUND');
     
     if (!room) {
+      console.log(`[Socket] ❌ start-room-game failed: not in a room`);
       socket.emit('room-error', { message: 'Not in a room' });
       return;
     }
     
     if (room.hostSocketId !== socket.id) {
+      console.log(`[Socket] ❌ start-room-game failed: not host (host=${room.hostSocketId}, requester=${socket.id})`);
       socket.emit('room-error', { message: 'Only the host can start the game' });
       return;
     }
     
+    console.log(`[Socket] ✅ Calling RoomService.startRoomGame for room ${room.code}`);
     const result = roomService.startRoomGame(room.code, io);
+    console.log(`[Socket] startRoomGame result:`, JSON.stringify(result));
     
     if (!result.success) {
+      console.log(`[Socket] ❌ start-room-game failed: ${result.error}`);
       socket.emit('room-error', { message: result.error });
+    } else {
+      console.log(`[Socket] ✅ Room game started successfully, gameId=${result.gameId}`);
     }
   });
 
@@ -358,8 +389,10 @@ io.on('connection', socket => {
 
   // ── State sync (client can request the current state at any time) ─────────
   socket.on('request-sync', () => {
+    console.log(`[Socket] request-sync received from ${socket.id}`);
     // Check unified matchmaking for any game type
     const socketInfo = unifiedMatchmaking.socketGameMap.get(socket.id);
+    console.log(`[Socket] socketGameMap entry for ${socket.id}:`, socketInfo ? JSON.stringify(socketInfo) : 'NOT FOUND');
     let gameId = null;
     let gameType = null;
     

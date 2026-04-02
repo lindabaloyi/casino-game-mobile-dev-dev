@@ -36,6 +36,7 @@ class GameCoordinatorService {
   _resolvePlayer(socket) {
     // Check unified matchmaking for any game type
     const socketInfo = this.unifiedMatchmaking.socketGameMap.get(socket.id);
+    console.log(`[Coordinator] _resolvePlayer for socket ${socket.id}: socketInfo =`, socketInfo ? JSON.stringify(socketInfo) : 'NOT FOUND');
     let gameId = null;
     let isPartyGame = false;
     
@@ -45,10 +46,12 @@ class GameCoordinatorService {
     }
     
     if (!gameId) {
+      console.log(`[Coordinator] ❌ _resolvePlayer failed: no gameId for socket ${socket.id}`);
       this.broadcaster.sendError(socket, 'Not in an active game');
       return null;
     }
     const playerIndex = this.gameManager.getPlayerIndex(gameId, socket.id);
+    console.log(`[Coordinator] _resolvePlayer: gameId=${gameId}, playerIndex=${playerIndex}, isPartyGame=${isPartyGame}`);
     if (playerIndex === null) {
       this.broadcaster.sendError(socket, 'Player not found in game');
       return null;
