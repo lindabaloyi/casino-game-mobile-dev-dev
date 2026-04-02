@@ -13,8 +13,8 @@ export default function JoinRoomScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: GameMode; code?: string }>();
   
-  // Determine game mode from params
-  const gameMode: GameMode = params.mode === 'party' ? 'party' : (params.mode === 'three-hands' ? 'three-hands' : 'two-hands');
+  // Determine game mode from params - support all game modes
+  const gameMode: GameMode = ((params.mode as string) || 'two-hands') as GameMode;
 
   const [roomCode, setRoomCode] = useState(params.code || '');
   const [isJoining, setIsJoining] = useState(!!params.code);
@@ -58,10 +58,12 @@ export default function JoinRoomScreen() {
   useEffect(() => {
     if (room.roomCode && !hasNavigatedRef.current) {
       hasNavigatedRef.current = true;
-      console.log('[JoinRoom] Room joined, navigating to shared lobby:', room.roomCode);
-      router.replace(`/online-play?mode=${gameMode}&roomCode=${room.roomCode}` as any);
+      // Use the room's actual game mode from server response, not URL params
+      const actualGameMode = room.gameMode || gameMode;
+      console.log('[JoinRoom] Room joined, navigating to shared lobby:', room.roomCode, 'mode:', actualGameMode);
+      router.replace(`/online-play?mode=${actualGameMode}&roomCode=${room.roomCode}` as any);
     }
-  }, [room.roomCode, gameMode, router]);
+  }, [room.roomCode, room.gameMode, gameMode, router]);
 
   const handleBack = () => {
     if (room.roomCode) {

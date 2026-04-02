@@ -90,6 +90,13 @@ io.on('connection', socket => {
   // Players must explicitly join a queue via join-two-hands-queue, join-party-queue, etc.
   // The previous auto-add to 'two-hands' was causing issues with other game modes.
 
+  // Handle room mode connections - don't auto-join queues, just authenticate
+  socket.on('room-mode-connected', (data) => {
+    console.log(`[Socket] room-mode-connected: socket.id = ${socket.id}, mode = ${data?.mode}`);
+    // Just store the mode for reference - actual room joining happens separately
+    socket.roomMode = data?.mode;
+  });
+
   // Two-Hands Matchmaking: add player to two-hands queue; start 2-player game when ready
   socket.on('join-two-hands-queue', async () => {
     console.log(`[Socket] join-two-hands-queue received from ${socket.id}, userId=${socket.userId}, authenticated=${!!socket.userId}`);
@@ -433,40 +440,53 @@ io.on('connection', socket => {
 
   // ── Lobby status request (for polling) ───────────────────────────────────────
   socket.on('request-lobby-status', async () => {
-    // Check all queues - include player info
-    console.log(`[Socket] request-lobby-status received from ${socket.id}, userId=${socket.userId}`);
+    // Only emit events for queues the user is actually in
+    // This prevents confusing log spam from queues the user hasn't joined
     
-    // Party queue
-    const partyQueue = unifiedMatchmaking.waitingQueues.party || [];
-    const partyWaitingCount = partyQueue.length;
-    const partyUserIds = partyQueue.map(entry => entry.userId).filter(Boolean);
-    console.log(`[Socket] party queue: ${partyWaitingCount} players, userIds:`, partyUserIds);
-    const partyPlayers = await PlayerProfile.getPlayerInfos(partyUserIds);
-    socket.emit('party-waiting', { 
-      playersJoined: partyWaitingCount,
-      players: partyPlayers
-    });
+    // Two-hands queue
+    const twoHandsQueue = unifiedMatchmaking.waitingQueues['two-hands'] || [];
+    if (twoHandsQueue.some(entry => entry.socket.id === socket.id)) {
+      const twoHandsUserIds = twoHandsQueue.map(entry => entry.userId).filter(Boolean);
+      const twoHandsPlayers = await PlayerProfile.getPlayerInfos(twoHandsUserIds);
+      const roomCode = unifiedMatchmaking.getQueueRoomCode('two-hands');
+      socket.emit('duel-waiting', { 
+        playersJoined: twoHandsQueue.length,
+        players: twoHandsPlayers,
+        roomCode: roomCode,
+      });
+    }
     
     // Three-hands queue
     const threeHandsQueue = unifiedMatchmaking.waitingQueues['three-hands'] || [];
-    const threeHandsWaitingCount = threeHandsQueue.length;
-    if (threeHandsWaitingCount > 0) {
+    if (threeHandsQueue.some(entry => entry.socket.id === socket.id)) {
       const threeHandsUserIds = threeHandsQueue.map(entry => entry.userId).filter(Boolean);
       const threeHandsPlayers = await PlayerProfile.getPlayerInfos(threeHandsUserIds);
+      const roomCode = unifiedMatchmaking.getQueueRoomCode('three-hands');
       socket.emit('three-hands-waiting', { 
-        playersJoined: threeHandsWaitingCount,
-        players: threeHandsPlayers
+        playersJoined: threeHandsQueue.length,
+        players: threeHandsPlayers,
+        roomCode: roomCode,
+      });
+    }
+    
+    // Party queue
+    const partyQueue = unifiedMatchmaking.waitingQueues.party || [];
+    if (partyQueue.some(entry => entry.socket.id === socket.id)) {
+      const partyUserIds = partyQueue.map(entry => entry.userId).filter(Boolean);
+      const partyPlayers = await PlayerProfile.getPlayerInfos(partyUserIds);
+      const roomCode = unifiedMatchmaking.getQueueRoomCode('party');
+      socket.emit('party-waiting', { 
+        playersJoined: partyQueue.length,
+        players: partyPlayers,
+        roomCode: roomCode,
       });
     }
     
     // Four-hands queue
     const fourHandsQueue = unifiedMatchmaking.waitingQueues['four-hands'] || [];
-    const fourHandsWaitingCount = fourHandsQueue.length;
-    console.log(`[Socket] four-hands queue: ${fourHandsWaitingCount} players, userIds:`, fourHandsQueue.map(e => e.userId));
-    if (fourHandsWaitingCount > 0) {
+    if (fourHandsQueue.some(entry => entry.socket.id === socket.id)) {
       const fourHandsUserIds = fourHandsQueue.map(entry => entry.userId).filter(Boolean);
       const fourHandsPlayers = await PlayerProfile.getPlayerInfos(fourHandsUserIds);
-      console.log(`[Socket] four-hands playerInfos:`, JSON.stringify(fourHandsPlayers));
       
       // CRITICAL: Create entries for ALL players in queue
       const allFourHandsPlayers = fourHandsQueue.map((entry, index) => {
@@ -479,47 +499,38 @@ io.on('connection', socket => {
           displayName: entry.userId ? 'Unknown' : `Player ${index + 1}`
         };
       });
-      console.log(`[Socket] four-hands ALL players (including guests):`, JSON.stringify(allFourHandsPlayers));
       
+      const roomCode = unifiedMatchmaking.getQueueRoomCode('four-hands');
       socket.emit('four-hands-waiting', { 
-        playersJoined: fourHandsWaitingCount,
-        players: allFourHandsPlayers
+        playersJoined: fourHandsQueue.length,
+        players: allFourHandsPlayers,
+        roomCode: roomCode,
       });
     }
     
     // Free-for-all queue
     const freeForAllQueue = unifiedMatchmaking.waitingQueues.freeforall || [];
-    const freeForAllWaitingCount = freeForAllQueue.length;
-    if (freeForAllWaitingCount > 0) {
+    if (freeForAllQueue.some(entry => entry.socket.id === socket.id)) {
       const freeForAllUserIds = freeForAllQueue.map(entry => entry.userId).filter(Boolean);
       const freeForAllPlayers = await PlayerProfile.getPlayerInfos(freeForAllUserIds);
+      const roomCode = unifiedMatchmaking.getQueueRoomCode('freeforall');
       socket.emit('freeforall-waiting', { 
-        playersJoined: freeForAllWaitingCount,
-        players: freeForAllPlayers
-      });
-    }
-    
-    // Two-hands queue
-    const twoHandsQueue = unifiedMatchmaking.waitingQueues['two-hands'] || [];
-    const twoHandsWaitingCount = twoHandsQueue.length;
-    if (twoHandsWaitingCount > 0) {
-      const twoHandsUserIds = twoHandsQueue.map(entry => entry.userId).filter(Boolean);
-      const twoHandsPlayers = await PlayerProfile.getPlayerInfos(twoHandsUserIds);
-      socket.emit('duel-waiting', { 
-        playersJoined: twoHandsWaitingCount,
-        players: twoHandsPlayers
+        playersJoined: freeForAllQueue.length,
+        players: freeForAllPlayers,
+        roomCode: roomCode,
       });
     }
     
     // Tournament queue
     const tournamentQueue = unifiedMatchmaking.waitingQueues.tournament || [];
-    const tournamentWaitingCount = tournamentQueue.length;
-    if (tournamentWaitingCount > 0) {
+    if (tournamentQueue.some(entry => entry.socket.id === socket.id)) {
       const tournamentUserIds = tournamentQueue.map(entry => entry.userId).filter(Boolean);
       const tournamentPlayers = await PlayerProfile.getPlayerInfos(tournamentUserIds);
+      const roomCode = unifiedMatchmaking.getQueueRoomCode('tournament');
       socket.emit('tournament-waiting', { 
-        playersJoined: tournamentWaitingCount,
-        players: tournamentPlayers
+        playersJoined: tournamentQueue.length,
+        players: tournamentPlayers,
+        roomCode: roomCode,
       });
     }
   });

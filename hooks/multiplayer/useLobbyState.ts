@@ -256,13 +256,13 @@ export function useLobbyState(
     
     socket.on('game-start', handleGameStart);
 
-    // Start polling for lobby status every 2 seconds
+    // Start polling for lobby status every 5 seconds (reduced from 2s to reduce server load)
     // This ensures all players get updates even if they miss a broadcast
     pollingIntervalRef.current = setInterval(() => {
-      if (socket?.connected) {
+      if (socket?.connected && !gameStartedRef.current) {
         socket.emit('request-lobby-status');
       }
-    }, 2000);
+    }, 5000);
 
     // Request initial status
     socket.emit('request-lobby-status');

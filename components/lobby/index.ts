@@ -10,3 +10,5 @@ export { StatusSection } from './StatusSection';
 export { NotificationBanner } from './NotificationBanner';
 export { DuelCard } from './DuelCard';
 export { Lobby } from './Lobby';
+export { GameRoomContainer } from './GameRoomContainer';
+export { ErrorScreen } from './ErrorScreen';

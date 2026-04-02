@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert } fr
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSocketConnection, useRoom } from '../hooks/multiplayer';
-import type { GameMode } from '../hooks/multiplayer';
+import type { GameMode } from '../hooks/multiplayer/useRoom';
 
 export const options = {
   headerShown: false,
@@ -13,9 +13,13 @@ export default function CreateRoomScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: GameMode }>();
   
-  // Determine game mode from params
-  const gameMode: GameMode = params.mode === 'party' ? 'party' : (params.mode === 'three-hands' ? 'three-hands' : 'two-hands');
-  const maxPlayers = gameMode === 'party' ? 4 : (gameMode === 'three-hands' ? 3 : 2);
+  // Determine game mode from params - support all game modes
+  const gameMode: GameMode = ((params.mode as string) || 'two-hands') as GameMode;
+  
+  // Map game mode to max players
+  const maxPlayers = (gameMode === 'party' || gameMode === 'four-hands' || gameMode === 'freeforall') 
+    ? 4 
+    : (gameMode === 'three-hands' ? 3 : 2);
 
   // Connect to server (use 'private' mode to skip auto-queue joining)
   const { socket, isConnected, error: connectionError } = useSocketConnection({ mode: 'private' });

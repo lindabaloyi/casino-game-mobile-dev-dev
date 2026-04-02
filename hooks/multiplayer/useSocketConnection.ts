@@ -24,6 +24,8 @@ export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'f
 
 export interface UseSocketConnectionOptions {
   mode: GameMode;
+  /** Room code for private room mode - when provided, won't auto-join queues */
+  roomCode?: string | null;
 }
 
 export interface UseSocketConnectionResult {
@@ -42,10 +44,11 @@ export interface UseSocketConnectionResult {
 export function useSocketConnection(
   options: UseSocketConnectionOptions
 ): UseSocketConnectionResult {
-  const { mode } = options;
+  const { mode, roomCode } = options;
   const isPartyMode = mode === 'party';
   const isTwoHandsMode = mode === 'two-hands';
   const isPrivateMode = mode === 'private';
+  const isPrivateRoomGame = !!roomCode; // Private room with actual game mode
   
   // Get user authentication info
   const { user } = useAuth();
@@ -69,9 +72,11 @@ export function useSocketConnection(
       lastUserIdRef.current = user._id;
     }
     
-    // Skip auto-queue for private mode (room-based games handle their own flow)
-    if (isPrivateMode) {
-      console.log('[useSocketConnection] Private mode - skipping auto-queue (room-based flow)');
+    // Skip auto-queue for private mode or private room games (room-based games handle their own flow)
+    if (isPrivateMode || isPrivateRoomGame) {
+      console.log(`[useSocketConnection] Private mode${isPrivateRoomGame ? ' room game' : ''} - skipping auto-queue (room-based flow)`);
+      // Emit room mode so server knows this socket is for private room gameplay
+      sock.emit('room-mode-connected', { mode, roomCode });
       return;
     }
     
@@ -114,7 +119,7 @@ export function useSocketConnection(
       sock.emit('join-tournament-queue');
       console.log('[useSocketConnection] Joined tournament queue');
     }
-  }, [mode, isPartyMode, isTwoHandsMode, isPrivateMode, user]);
+  }, [mode, isPartyMode, isTwoHandsMode, isPrivateMode, isPrivateRoomGame, roomCode, user]);
 
   // Connect the shared socket on mount
   useEffect(() => {

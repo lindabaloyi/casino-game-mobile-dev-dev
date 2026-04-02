@@ -51,18 +51,25 @@ class RoomService {
    * @returns {object} { roomCode, room }
    */
   createRoom(hostSocket, gameMode, maxPlayers) {
-    // Map gameMode to default maxPlayers if not provided
+    // CRITICAL: Clean up any previous room association before creating new room
+    // This prevents room code mixing when the same socket creates multiple rooms
+    const previousRoomCode = this.socketRoomMap.get(hostSocket.id);
+    if (previousRoomCode) {
+      console.log(`[RoomService] Socket ${hostSocket.id} was previously in room ${previousRoomCode} - cleaning up before creating new room`);
+      // Remove from previous room if still in waiting state
+      this.leaveRoom(hostSocket);
+    }
+    
+    // Map gameMode to maxPlayers - explicit handling of all 5 game modes
     if (!maxPlayers) {
-      switch (gameMode) {
-        case 'party':
-        case 'four-hands':
-          maxPlayers = 4;
-          break;
-        case 'three-hands':
-          maxPlayers = 3;
-          break;
-        default:
-          maxPlayers = 2;
+      if (gameMode === 'two-hands') {
+        maxPlayers = 2;
+      } else if (gameMode === 'three-hands') {
+        maxPlayers = 3;
+      } else if (gameMode === 'four-hands' || gameMode === 'party' || gameMode === 'freeforall') {
+        maxPlayers = 4;
+      } else {
+        throw new Error(`Unknown game mode: ${gameMode}`);
       }
     }
     
@@ -242,23 +249,33 @@ class RoomService {
       return { success: false, error: 'Need at least 2 players to start' };
     }
 
-    // Determine which game manager method to use
-    const isPartyGame = room.gameMode === 'party';
-    const isFourHands = room.gameMode === 'four-hands';
+    // Explicitly handle all 5 game modes - no fallbacks
+    const isTwoHands = room.gameMode === 'two-hands';
     const isThreeHands = room.gameMode === 'three-hands';
+    const isFourHands = room.gameMode === 'four-hands';
+    const isParty = room.gameMode === 'party';
+    const isFreeForAll = room.gameMode === 'freeforall';
     
-    // Determine required players based on game mode
+    // Determine required players based on game mode - explicit handling
     let requiredPlayers;
     let playerCount;
-    if (isPartyGame || isFourHands) {
-      requiredPlayers = 4;
-      playerCount = 4;
+    if (isTwoHands) {
+      requiredPlayers = 2;
+      playerCount = 2;
     } else if (isThreeHands) {
       requiredPlayers = 3;
       playerCount = 3;
+    } else if (isFourHands) {
+      requiredPlayers = 4;
+      playerCount = 4;
+    } else if (isParty) {
+      requiredPlayers = 4;
+      playerCount = 4;
+    } else if (isFreeForAll) {
+      requiredPlayers = 4;
+      playerCount = 4;
     } else {
-      requiredPlayers = 2;
-      playerCount = 2;
+      throw new Error(`Unknown game mode: ${room.gameMode}`);
     }
 
     if (room.players.length !== requiredPlayers) {
@@ -278,8 +295,8 @@ class RoomService {
 
     // Start game via appropriate method
     let gameResult;
-    if (isPartyGame) {
-      // For party games
+    if (isParty) {
+      // For party games (2v2 team mode)
       const { gameId, gameState } = this.gameManager.startPartyGame();
       room.gameId = gameId;
 
