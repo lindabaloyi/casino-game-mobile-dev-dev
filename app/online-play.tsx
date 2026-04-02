@@ -49,9 +49,12 @@ export default function OnlinePlayScreen() {
       console.log('[OnlinePlay] Hardware back button pressed');
       if (router.canGoBack()) {
         router.back();
-        return true;
+      } else {
+        // No back history (entered via replace) - navigate to home instead of exiting
+        console.log('[OnlinePlay] No back history - navigating to home');
+        router.replace('/(tabs)');
       }
-      return false;
+      return true; // Always consume the event to prevent app exit
     });
 
     return () => backHandler.remove();
