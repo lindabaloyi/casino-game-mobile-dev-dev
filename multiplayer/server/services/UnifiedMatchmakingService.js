@@ -7,6 +7,9 @@
  * - Free-for-all (4-player without teams)
  */
 
+const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const CODE_LENGTH = 6;
+
 class UnifiedMatchmakingService {
   constructor(gameManager, io = null) {
     this.gameManager = gameManager;
@@ -15,14 +18,51 @@ class UnifiedMatchmakingService {
     // Map of gameType → waiting players queue
     this.waitingQueues = {};
 
+    // Room codes for each matchmaking queue (gameType → roomCode)
+    this.queueRoomCodes = {};
+
     // Initialize queues for all game types
     Object.keys(GAME_TYPES).forEach(type => {
       this.waitingQueues[type] = [];
+      this.queueRoomCodes[type] = null;
     });
 
     // Shared mappings
     this.socketGameMap = new Map();      // socketId → {gameId, gameType}
     this.gameSocketsMap = new Map();     // gameId → [socketIds]
+  }
+
+  // Generate a unique 6-character room code for matchmaking queues
+  _generateQueueRoomCode() {
+    let code;
+    let attempts = 0;
+    do {
+      code = '';
+      for (let i = 0; i < CODE_LENGTH; i++) {
+        code += CHARS[Math.floor(Math.random() * CHARS.length)];
+      }
+      attempts++;
+    } while (this._isCodeTaken(code) && attempts < 100);
+    return code;
+  }
+
+  _isCodeTaken(code) {
+    // Check if code is already used in any queue
+    return Object.values(this.queueRoomCodes).includes(code);
+  }
+
+  // Get or create a room code for a specific game type queue
+  getQueueRoomCode(gameType) {
+    if (!this.queueRoomCodes[gameType]) {
+      this.queueRoomCodes[gameType] = this._generateQueueRoomCode();
+      console.log(`[UnifiedMatchmaking] Generated room code ${this.queueRoomCodes[gameType]} for ${gameType} queue`);
+    }
+    return this.queueRoomCodes[gameType];
+  }
+
+  // Clear room code when queue is emptied (game started)
+  clearQueueRoomCode(gameType) {
+    this.queueRoomCodes[gameType] = null;
   }
 
   // Add player to specific game type queue

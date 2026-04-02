@@ -38,6 +38,8 @@ export interface UseLobbyStateResult {
   toggleReady: () => void;
   /** Player info from server (when available) */
   lobbyPlayers: LobbyPlayerInfo[];
+  /** Room code for sharing with friends */
+  roomCode: string | null;
 }
 
 export function useLobbyState(
@@ -48,6 +50,7 @@ export function useLobbyState(
   const [playersInLobby, setPlayersInLobby] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [lobbyPlayers, setLobbyPlayers] = useState<LobbyPlayerInfo[]>([]);
+  const [roomCode, setRoomCode] = useState<string | null>(null);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Use ref to track if game has started (avoids stale closure in event handlers)
@@ -103,6 +106,9 @@ export function useLobbyState(
       if (data.players) {
         setLobbyPlayers(data.players);
       }
+      if ((data as any).roomCode) {
+        setRoomCode((data as any).roomCode);
+      }
     };
 
     // Handle three-hands-waiting (3-player mode)
@@ -120,6 +126,9 @@ export function useLobbyState(
       if (data.players) {
         setLobbyPlayers(data.players);
       }
+      if ((data as any).roomCode) {
+        setRoomCode((data as any).roomCode);
+      }
     };
 
     // Handle freeforall-waiting (4-player free-for-all mode)
@@ -133,6 +142,9 @@ export function useLobbyState(
       setPlayersInLobby(data.playersJoined);
       if (data.players) {
         setLobbyPlayers(data.players);
+      }
+      if ((data as any).roomCode) {
+        setRoomCode((data as any).roomCode);
       }
     };
 
@@ -149,6 +161,9 @@ export function useLobbyState(
       if (data.players) {
         setLobbyPlayers(data.players);
       }
+      if ((data as any).roomCode) {
+        setRoomCode((data as any).roomCode);
+      }
     };
 
     // Handle tournament-party waiting (server sends party-waiting for all 4-player modes)
@@ -162,6 +177,9 @@ export function useLobbyState(
       setPlayersInLobby(data.playersJoined);
       if (data.players) {
         setLobbyPlayers(data.players);
+      }
+      if ((data as any).roomCode) {
+        setRoomCode((data as any).roomCode);
       }
     };
 
@@ -177,6 +195,9 @@ export function useLobbyState(
       setPlayersInLobby(data.playersJoined);
       if (data.players) {
         setLobbyPlayers(data.players);
+      }
+      if ((data as any).roomCode) {
+        setRoomCode((data as any).roomCode);
       }
     };
 
@@ -195,6 +216,9 @@ export function useLobbyState(
       setPlayersInLobby(data.playersJoined);
       if (data.players) {
         setLobbyPlayers(data.players);
+      }
+      if ((data as any).roomCode) {
+        setRoomCode((data as any).roomCode);
       }
     };
 
@@ -267,6 +291,7 @@ export function useLobbyState(
     allPlayersReady,
     toggleReady,
     lobbyPlayers,
+    roomCode,
   };
 }
 

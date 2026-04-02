@@ -552,10 +552,11 @@ io.on('connection', socket => {
   });
 });
 
-// Helper functions for broadcasting waiting counts with player info
+// Helper functions for broadcasting waiting counts with player info and room code
 async function broadcastTwoHandsWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('two-hands');
-  console.log(`[UnifiedMatchmaking] Broadcasting two-hands-waiting: ${count} players`);
+  const roomCode = unifiedMatchmaking.getQueueRoomCode('two-hands');
+  console.log(`[UnifiedMatchmaking] Broadcasting two-hands-waiting: ${count} players, roomCode=${roomCode}`);
   
   // Get player info for all waiting players
   const queue = unifiedMatchmaking.waitingQueues['two-hands'];
@@ -568,14 +569,16 @@ async function broadcastTwoHandsWaiting(io) {
     // Include player info for all players in the queue
     entry.socket.emit('duel-waiting', { 
       playersJoined: count,
-      players: players
+      players: players,
+      roomCode: roomCode,
     });
   });
 }
 
 async function broadcastPartyWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('party');
-  console.log(`[UnifiedMatchmaking] Broadcasting party-waiting: ${count} players`);
+  const roomCode = unifiedMatchmaking.getQueueRoomCode('party');
+  console.log(`[UnifiedMatchmaking] Broadcasting party-waiting: ${count} players, roomCode=${roomCode}`);
   
   // Get player info for all waiting players
   const queue = unifiedMatchmaking.waitingQueues.party;
@@ -587,14 +590,16 @@ async function broadcastPartyWaiting(io) {
   queue.forEach(entry => {
     entry.socket.emit('party-waiting', { 
       playersJoined: count,
-      players: players
+      players: players,
+      roomCode: roomCode,
     });
   });
 }
 
 async function broadcastThreeHandsWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('three-hands');
-  console.log(`[UnifiedMatchmaking] Broadcasting three-hands-waiting: ${count} players`);
+  const roomCode = unifiedMatchmaking.getQueueRoomCode('three-hands');
+  console.log(`[UnifiedMatchmaking] Broadcasting three-hands-waiting: ${count} players, roomCode=${roomCode}`);
   
   // Get player info for all waiting players
   const queue = unifiedMatchmaking.waitingQueues['three-hands'];
@@ -606,14 +611,16 @@ async function broadcastThreeHandsWaiting(io) {
   queue.forEach(entry => {
     entry.socket.emit('three-hands-waiting', { 
       playersJoined: count,
-      players: players
+      players: players,
+      roomCode: roomCode,
     });
   });
 }
 
 async function broadcastFourHandsWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('four-hands');
-  console.log(`[UnifiedMatchmaking] Broadcasting four-hands-waiting: ${count} players`);
+  const roomCode = unifiedMatchmaking.getQueueRoomCode('four-hands');
+  console.log(`[UnifiedMatchmaking] Broadcasting four-hands-waiting: ${count} players, roomCode=${roomCode}`);
   
   // Get player info for all waiting players
   const queue = unifiedMatchmaking.waitingQueues['four-hands'];
@@ -640,14 +647,16 @@ async function broadcastFourHandsWaiting(io) {
   queue.forEach(entry => {
     entry.socket.emit('four-hands-waiting', { 
       playersJoined: count,
-      players: allPlayers
+      players: allPlayers,
+      roomCode: roomCode,
     });
   });
 }
 
 async function broadcastFreeForAllWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('freeforall');
-  console.log(`[UnifiedMatchmaking] Broadcasting free-for-all-waiting: ${count} players`);
+  const roomCode = unifiedMatchmaking.getQueueRoomCode('freeforall');
+  console.log(`[UnifiedMatchmaking] Broadcasting free-for-all-waiting: ${count} players, roomCode=${roomCode}`);
   
   // Get player info for all waiting players
   const queue = unifiedMatchmaking.waitingQueues.freeforall;
@@ -657,14 +666,16 @@ async function broadcastFreeForAllWaiting(io) {
   queue.forEach(entry => {
     entry.socket.emit('freeforall-waiting', { 
       playersJoined: count,
-      players: players
+      players: players,
+      roomCode: roomCode,
     });
   });
 }
 
 async function broadcastTournamentWaiting(io) {
   const count = unifiedMatchmaking.getWaitingCount('tournament');
-  console.log(`[UnifiedMatchmaking] Broadcasting tournament-waiting: ${count} players`);
+  const roomCode = unifiedMatchmaking.getQueueRoomCode('tournament');
+  console.log(`[UnifiedMatchmaking] Broadcasting tournament-waiting: ${count} players, roomCode=${roomCode}`);
   
   // Ensure tournament queue exists
   if (!unifiedMatchmaking.waitingQueues.tournament) {
@@ -679,7 +690,8 @@ async function broadcastTournamentWaiting(io) {
   queue.forEach(entry => {
     entry.socket.emit('tournament-waiting', { 
       playersJoined: count,
-      players: players
+      players: players,
+      roomCode: roomCode,
     });
   });
 }

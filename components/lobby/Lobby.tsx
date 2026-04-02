@@ -92,13 +92,6 @@ export const Lobby: React.FC<LobbyProps> = ({
     return placeholders[mode]?.[slotIndex] || `Player ${slotIndex + 1}`;
   };
 
-  // Get room code display
-  const getRoomCodeDisplay = () => {
-    if (mode === 'party') return 'PARTY';
-    if (mode === 'tournament') return 'TOURN';
-    return mode.toUpperCase().slice(0, 4);
-  };
-
   return (
     <View style={styles.container}>
       <NotificationBanner
@@ -122,21 +115,17 @@ export const Lobby: React.FC<LobbyProps> = ({
         contentContainerStyle={[styles.lobbyContent, needsScroll && styles.lobbyContentScrollable]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.roomCodeCard}>
-          <View style={styles.roomCodeContent}>
-            <Text style={styles.roomCodeLabel}>Room Code</Text>
-            <Text style={styles.roomCodeValue}>
-              {roomCode || getRoomCodeDisplay()}
-            </Text>
+        {roomCode && (
+          <View style={styles.roomCodeCard}>
+            <View style={styles.roomCodeContent}>
+              <Text style={styles.roomCodeLabel}>Room Code</Text>
+              <Text style={styles.roomCodeValue}>{roomCode}</Text>
+            </View>
+            <TouchableOpacity style={styles.copyButton} onPress={onCopyRoomCode}>
+              <Ionicons name="copy-outline" size={20} color="#FFD700" />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.copyButton} onPress={onCopyRoomCode}>
-            <Ionicons name="copy-outline" size={20} color="#FFD700" />
-          </TouchableOpacity>
-        </View>
-          <TouchableOpacity style={styles.copyButton} onPress={onCopyRoomCode}>
-            <Ionicons name="copy-outline" size={20} color="#FFD700" />
-          </TouchableOpacity>
-        </View>
+        )}
 
         <View style={styles.playersSection}>
           <Text style={styles.sectionTitle}>

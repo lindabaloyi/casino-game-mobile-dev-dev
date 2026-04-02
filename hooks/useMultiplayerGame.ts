@@ -44,7 +44,7 @@ export interface UseMultiplayerGameResult {
   isConnected: boolean;
   /** Whether we're in the lobby waiting for players (multiplayer modes) */
   isInLobby: boolean;
-  /** Number of players currently in the lobby (multiplayer modes) */
+  /** Number of players currently in the lobby */
   playersInLobby: number;
   /** Required number of players to start the game */
   requiredPlayers: number;
@@ -56,6 +56,8 @@ export interface UseMultiplayerGameResult {
   toggleReady: () => void;
   /** Player info from server lobby (when available) */
   lobbyPlayers: ReturnType<typeof useLobbyState>['lobbyPlayers'];
+  /** Room code for sharing with friends (null for private rooms - use room hook instead) */
+  roomCode: string | null;
   /** Whether the opponent disconnected */
   opponentDisconnected: boolean;
   /** Whether a player disconnected (party mode) */
@@ -142,6 +144,7 @@ export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMulti
     allPlayersReady: lobby.allPlayersReady,
     toggleReady: lobby.toggleReady,
     lobbyPlayers: lobby.lobbyPlayers,
+    roomCode: lobby.roomCode,
     playerDisconnected: false, // TODO: Add to gameSync if needed
     
     // Actions
