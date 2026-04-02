@@ -56,6 +56,8 @@ export interface UseOnlinePlayConnectionResult {
   roomStatus: string | null;
   /** Whether this is a private room connection */
   isPrivateRoom: boolean;
+  /** Player info from server lobby (when available) */
+  lobbyPlayers: Array<{ userId: string; username: string; avatar: string; displayName: string }>;
 }
 
 // No-op functions - defined outside component to avoid recreation
@@ -155,6 +157,10 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     }
   }, [isPrivateRoom, room?.room.status, roomGameSync?.gameState]);
 
+  const lobbyPlayers = isPrivateRoom
+    ? [] // Private rooms don't use matchmaking lobby players
+    : (multiplayerResult?.lobbyPlayers ?? []);
+
   return useMemo(() => ({
     gameState,
     gameOverData,
@@ -174,6 +180,7 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     roomCode: resolvedRoomCode,
     roomStatus,
     isPrivateRoom,
+    lobbyPlayers,
   }), [
     gameState,
     gameOverData,
@@ -193,6 +200,7 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     resolvedRoomCode,
     roomStatus,
     isPrivateRoom,
+    lobbyPlayers,
   ]);
 }
 

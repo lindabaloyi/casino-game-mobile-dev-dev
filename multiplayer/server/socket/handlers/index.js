@@ -55,9 +55,9 @@ function attachSocketHandlers(socket, services) {
     const result = unifiedMatchmaking.addToQueue(socket, 'two-hands', socket.userId);
     if (result) {
       await broadcaster.broadcastGameStart(result);
-    } else {
-      await broadcastTwoHandsWaiting();
     }
+    // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
+    // This ensures event listeners are registered before the broadcast is received
   });
 
   socket.on('join-party-queue', async () => {
@@ -65,9 +65,9 @@ function attachSocketHandlers(socket, services) {
     const result = unifiedMatchmaking.addToQueue(socket, 'party', socket.userId);
     if (result) {
       await broadcaster.broadcastPartyGameStart(result);
-    } else {
-      await broadcastPartyWaiting();
     }
+    // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
+    // This ensures event listeners are registered before the broadcast is received
   });
 
   socket.on('join-three-hands-queue', async () => {
@@ -76,9 +76,9 @@ function attachSocketHandlers(socket, services) {
     const result = unifiedMatchmaking.addToQueue(socket, 'three-hands', socket.userId);
     if (result) {
       await broadcaster.broadcastThreeHandsGameStart(result);
-    } else {
-      await broadcastThreeHandsWaiting();
     }
+    // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
+    // This ensures event listeners are registered before the broadcast is received
   });
 
   socket.on('join-four-hands-queue', async () => {
@@ -87,9 +87,9 @@ function attachSocketHandlers(socket, services) {
     const result = unifiedMatchmaking.addToQueue(socket, 'four-hands', socket.userId);
     if (result) {
       await broadcaster.broadcastFourHandsGameStart(result);
-    } else {
-      await broadcastFourHandsWaiting();
     }
+    // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
+    // This ensures event listeners are registered before the broadcast is received
   });
 
   socket.on('join-freeforall-queue', async () => {
@@ -97,9 +97,9 @@ function attachSocketHandlers(socket, services) {
     const result = unifiedMatchmaking.addToQueue(socket, 'freeforall', socket.userId);
     if (result) {
       await broadcaster.broadcastFreeForAllGameStart(result);
-    } else {
-      await broadcastFreeForAllWaiting();
     }
+    // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
+    // This ensures event listeners are registered before the broadcast is received
   });
 
   socket.on('join-tournament-queue', async () => {
@@ -111,9 +111,9 @@ function attachSocketHandlers(socket, services) {
     const result = unifiedMatchmaking.addToQueue(socket, 'tournament', socket.userId);
     if (result) {
       await broadcaster.broadcastTournamentGameStart(result);
-    } else {
-      await broadcastTournamentWaiting();
     }
+    // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
+    // This ensures event listeners are registered before the broadcast is received
   });
 
   // ── Room Management Handlers ──────────────────────────────────────────

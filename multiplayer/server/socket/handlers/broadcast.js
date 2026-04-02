@@ -17,10 +17,23 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const players = await PlayerProfile.getPlayerInfos(userIds);
     console.log(`[UnifiedMatchmaking] two-hands playerInfos:`, JSON.stringify(players));
     
+// CRITICAL: Map players to match queue order to prevent slot replacement
+    const orderedPlayers = queue.map((entry, index) => {
+      const playerInfo = players.find(p => p.userId === entry.userId);
+      if (playerInfo) return playerInfo;
+      // Fallback for guest players - use the userId as username if available
+      return {
+        userId: entry.userId || `guest-${index + 1}`,
+        username: entry.userId || `Player ${index + 1}`,
+        avatar: 'lion',
+        displayName: entry.userId || `Player ${index + 1}`
+      };
+    });
+    
     queue.forEach(entry => {
       entry.socket.emit('duel-waiting', { 
         playersJoined: count,
-        players: players,
+        players: orderedPlayers,
         roomCode: roomCode,
       });
     });
@@ -35,10 +48,23 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     
+    // CRITICAL: Map players to match queue order to prevent slot replacement
+    const orderedPlayers = queue.map((entry, index) => {
+      const playerInfo = players.find(p => p.userId === entry.userId);
+      if (playerInfo) return playerInfo;
+      // Fallback for guest players
+      return {
+        userId: entry.userId || `guest-${index + 1}`,
+        username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+        avatar: 'lion',
+        displayName: entry.userId ? 'Unknown' : `Player ${index + 1}`
+      };
+    });
+    
     queue.forEach(entry => {
       entry.socket.emit('party-waiting', { 
         playersJoined: count,
-        players: players,
+        players: orderedPlayers,
         roomCode: roomCode,
       });
     });
@@ -53,10 +79,23 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     
+    // CRITICAL: Map players to match queue order to prevent slot replacement
+    const orderedPlayers = queue.map((entry, index) => {
+      const playerInfo = players.find(p => p.userId === entry.userId);
+      if (playerInfo) return playerInfo;
+      // Fallback for guest players
+      return {
+        userId: entry.userId || `guest-${index + 1}`,
+        username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+        avatar: 'lion',
+        displayName: entry.userId ? 'Unknown' : `Player ${index + 1}`
+      };
+    });
+    
     queue.forEach(entry => {
       entry.socket.emit('three-hands-waiting', { 
         playersJoined: count,
-        players: players,
+        players: orderedPlayers,
         roomCode: roomCode,
       });
     });
@@ -100,10 +139,23 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     
+    // CRITICAL: Map players to match queue order to prevent slot replacement
+    const orderedPlayers = queue.map((entry, index) => {
+      const playerInfo = players.find(p => p.userId === entry.userId);
+      if (playerInfo) return playerInfo;
+      // Fallback for guest players
+      return {
+        userId: entry.userId || `guest-${index + 1}`,
+        username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+        avatar: 'lion',
+        displayName: entry.userId ? 'Unknown' : `Player ${index + 1}`
+      };
+    });
+    
     queue.forEach(entry => {
       entry.socket.emit('freeforall-waiting', { 
         playersJoined: count,
-        players: players,
+        players: orderedPlayers,
         roomCode: roomCode,
       });
     });
@@ -122,10 +174,23 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     
+    // CRITICAL: Map players to match queue order to prevent slot replacement
+    const orderedPlayers = queue.map((entry, index) => {
+      const playerInfo = players.find(p => p.userId === entry.userId);
+      if (playerInfo) return playerInfo;
+      // Fallback for guest players
+      return {
+        userId: entry.userId || `guest-${index + 1}`,
+        username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+        avatar: 'lion',
+        displayName: entry.userId ? 'Unknown' : `Player ${index + 1}`
+      };
+    });
+    
     queue.forEach(entry => {
       entry.socket.emit('tournament-waiting', { 
         playersJoined: count,
-        players: players,
+        players: orderedPlayers,
         roomCode: roomCode,
       });
     });

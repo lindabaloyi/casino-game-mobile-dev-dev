@@ -44,7 +44,8 @@ export interface UseLobbyStateResult {
 
 export function useLobbyState(
   socket: Socket | null,
-  playerCount: number
+  playerCount: number,
+  gameMode?: string
 ): UseLobbyStateResult {
   const [isInLobby, setIsInLobby] = useState(false);
   const [playersInLobby, setPlayersInLobby] = useState(0);
@@ -89,9 +90,7 @@ export function useLobbyState(
     const handlePartyWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
       // Ignore party-waiting for four-hands mode to prevent conflicts
       // four-hands mode should only listen to four-hands-waiting
-      if (requiredPlayers === 4 && playerCount === 4) {
-        // Check if this is actually a party queue or four-hands queue
-        // For now, skip party-waiting in four-hands mode to avoid conflicts
+      if (gameMode === 'four-hands') {
         console.log('[useLobbyState] Skipping party-waiting for four-hands mode (using four-hands-waiting instead)');
         return;
       }

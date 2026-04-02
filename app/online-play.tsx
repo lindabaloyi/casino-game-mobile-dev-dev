@@ -90,7 +90,7 @@ export default function OnlinePlayScreen() {
     };
   }, [connection.gameState, setInGameMode]);
 
-  // Mock lobby data (for display while waiting)
+// Mock lobby data (for display while waiting)
   const {
     lobbyPlayers,
     notification,
@@ -101,11 +101,36 @@ export default function OnlinePlayScreen() {
     modeConfig,
     playersInLobby: connection.playersInLobby,
     profile,
-    serverLobbyPlayers: undefined, // TODO: Pass from connection if needed
+    serverLobbyPlayers: connection.lobbyPlayers,
     initialReady: false,
     roomPlayers: connection.isPrivateRoom ? undefined : undefined,
     roomPlayerCount: connection.isPrivateRoom ? undefined : undefined,
   });
+
+  // DEBUG: Log connection state and lobby data
+  console.log('[OnlinePlay] ========== DEBUG LOBBY DATA ==========');
+  console.log('[OnlinePlay] Connection state:', JSON.stringify({
+    mode,
+    roomCode: connection.roomCode,
+    isPrivateRoom: connection.isPrivateRoom,
+    isConnected: connection.isConnected,
+    playersInLobby: connection.playersInLobby,
+    gameState: connection.gameState,
+    playerDisconnected: connection.playerDisconnected,
+    error: connection.error,
+  }, null, 2));
+  console.log('[OnlinePlay] Lobby data from useLobbyMock:', JSON.stringify({
+    lobbyPlayers: lobbyPlayers.map(p => ({ id: p.id, username: p.username, avatar: p.avatar, isReady: p.isReady })),
+    playersInLobby: lobbyPlayers.length,
+  }, null, 2));
+  console.log('[OnlinePlay] Lobby props passed to Lobby component:', JSON.stringify({
+    mode,
+    modeConfig: modeConfig.title,
+    playersInLobby: connection.playersInLobby,
+    lobbyPlayers: lobbyPlayers.length,
+    isReady,
+    roomCode: connection.roomCode,
+  }, null, 2));
 
   // Copy room code to clipboard
   const handleCopyRoomCode = () => {

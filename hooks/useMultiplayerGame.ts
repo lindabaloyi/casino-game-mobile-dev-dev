@@ -109,7 +109,7 @@ export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMulti
   // Compose smaller, focused hooks
   const { socket, isConnected, error: socketError } = useSocketConnection({ mode });
   const gameSync = useGameStateSync(socket);
-  const lobby = useLobbyState(socket, playerCount);
+  const lobby = useLobbyState(socket, playerCount, mode);
   const opponentDrag = useOpponentDrag(socket);
 
   // Debug: Log lobby state values
