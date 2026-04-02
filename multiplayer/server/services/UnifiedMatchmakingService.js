@@ -139,12 +139,14 @@ class UnifiedMatchmakingService {
       return null;
     }
 
-    // Map sockets → gameId
-    for (const socket of players) {
-      const userId = userIds[players.indexOf(socket)];
-      this.socketGameMap.set(socket.id, { gameId, gameType, userId });
+    // Map sockets → gameId (overwrite entries that had gameId: null from joining queue)
+    for (let i = 0; i < players.length; i++) {
+      this.socketGameMap.set(players[i].id, { gameId, gameType, userId: userIds[i] });
     }
     this.gameSocketsMap.set(gameId, players.map(p => p.id));
+    
+    console.log(`[UnifiedMatchmaking] socketGameMap updated for ${gameType} game ${gameId}:`, 
+      players.map((socket, i) => `${socket.id.substr(0,8)}→{gameId:${gameId}, gameType:${gameType}}`).join(', '));
 
     // Register players (pass userIds)
     config.playerRegistration(gameId, players, this.gameManager, userIds);
