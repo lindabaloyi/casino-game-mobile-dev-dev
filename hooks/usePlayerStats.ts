@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
+import { GAME_MODE_KEYS } from '../shared/config/gameModes';
 
 // Get the socket URL from environment or use default
 const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:3001';
@@ -23,14 +24,7 @@ export interface PlayerStatsData {
   totalGames: number;
   wins: number;
   losses: number;
-  modeStats: {
-    'twoHands': ModeStats;
-    'threeHands': ModeStats;
-    'fourHands': ModeStats;
-    'party': ModeStats;
-    'freeforall': ModeStats;
-    'tournament': ModeStats;
-  };
+  modeStats: Record<typeof GAME_MODE_KEYS[number], ModeStats>;
   totalPointsKept: number;
   pointRetentionPerGame: number;
   acesKept: number;

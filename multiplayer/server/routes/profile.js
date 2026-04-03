@@ -18,6 +18,7 @@ const {
 } = require('../services/PlayerProfileService');
 const { createLogger, LOG_LEVELS, createTimer } = require('../utils/debugLogger');
 const { validateAndSanitize, isValidObjectId } = require('../utils/validation');
+const { MODE_ID_TO_KEY, GAME_MODE_IDS, GAME_MODE_KEYS } = require('../../../shared/config/gameModes');
 
 const router = express.Router();
 const logger = createLogger('ProfileRoutes', LOG_LEVELS.DEBUG);
@@ -105,21 +106,17 @@ function errorHandler(error, req, res, next) {
  */
 router.get('/leaderboard', async (req, res) => {
   try {
+    const { MODE_ID_TO_KEY, GAME_MODE_IDS, GAME_MODE_KEYS } = require('../../../shared/config/gameModes');
+
     const limit = parseInt(req.query.limit) || 10;
     const offset = parseInt(req.query.offset) || 0;
     const mode = req.query.mode || 'all';
-    
-    // Map legacy mode names to camelCase for backward compatibility
-    const modeMap = {
-      'two-hands': 'twoHands',
-      'three-hands': 'threeHands',
-      'four-hands': 'fourHands',
-      // 'party', 'freeforall', 'tournament' remain the same
-    };
-    const mappedMode = modeMap[mode] || mode;
+
+    // Map mode ID to key for stats lookup
+    const mappedMode = MODE_ID_TO_KEY[mode] || mode;
 
     // Validate mode (accept both legacy and new format)
-    const validModes = ['all', 'two-hands', 'three-hands', 'four-hands', 'party', 'freeforall', 'tournament', 'twoHands', 'threeHands', 'fourHands'];
+    const validModes = ['all', ...GAME_MODE_IDS, ...GAME_MODE_KEYS];
     if (!validModes.includes(mode)) {
       return res.status(400).json({
         success: false,
@@ -349,17 +346,11 @@ router.get('/:userId/stats', async (req, res, next) => {
       throw new ValidationError('Invalid user ID format');
     }
 
-    // Map legacy mode names to camelCase for backward compatibility
-    const modeMap = {
-      'two-hands': 'twoHands',
-      'three-hands': 'threeHands',
-      'four-hands': 'fourHands',
-      // 'party', 'freeforall', 'tournament' remain the same
-    };
-    const mappedMode = modeMap[mode] || mode;
+    // Map mode ID to key for stats lookup
+    const mappedMode = MODE_ID_TO_KEY[mode] || mode;
 
     // Validate mode (accept both legacy and new format)
-    const validModes = ['all', 'two-hands', 'three-hands', 'four-hands', 'party', 'freeforall', 'tournament', 'twoHands', 'threeHands', 'fourHands'];
+    const validModes = ['all', ...GAME_MODE_IDS, ...GAME_MODE_KEYS];
     if (!validModes.includes(mode)) {
       throw new ValidationError(`Invalid mode: ${mode}`);
     }

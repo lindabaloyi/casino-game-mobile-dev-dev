@@ -31,13 +31,15 @@ const COLORS = {
   accent: '#9C27B0',
 };
 
-// Mode definitions for the toggle
+import { GAME_MODES } from '../shared/config/gameModes';
+
+// Mode definitions for the toggle - dynamically generated from centralized config
 const MODES = [
   { id: 'all', label: 'All' },
-  { id: 'twoHands', label: '2 Hands' },
-  { id: 'threeHands', label: '3 Hands' },
-  { id: 'fourHands', label: '4 Hands' },
-  { id: 'party', label: 'Party' },
+  ...GAME_MODES.filter(mode => mode.key !== 'tournament' && mode.key !== 'freeforall').map(mode => ({
+    id: mode.key,
+    label: mode.title
+  }))
 ] as const;
 
 type ModeId = typeof MODES[number]['id'];

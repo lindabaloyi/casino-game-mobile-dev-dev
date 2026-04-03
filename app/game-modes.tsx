@@ -27,36 +27,18 @@ interface GameModeInfo {
   players: string;
 }
 
-const GAME_MODES: GameModeInfo[] = [
-  {
-    id: 'two-hands',
-    title: '2 Hands',
-    subtitle: '1v1 Battle',
-    description: 'Classic duel against one opponent',
-    players: '2 Players',
-  },
-  {
-    id: 'three-hands',
-    title: '3 Hands',
-    subtitle: '3 Player battle',
-    description: 'Face off against two opponents',
-    players: '3 Players',
-  },
-  {
-    id: 'four-hands',
-    title: '4 Hands',
-    subtitle: '4 Player battle',
-    description: 'Every player for themselves!',
-    players: '4 Players',
-  },
-  {
-    id: 'party',
-    title: '4 Hands Party',
-    subtitle: '2v2 Team battle',
-    description: 'Team up with a friend for 2v2',
-    players: '4 Players',
-  },
-];
+import { GAME_MODES as CENTRAL_GAME_MODES } from '../shared/config/gameModes';
+
+// Filter out tournament and freeforall modes for the menu, map to GameModeInfo format
+const GAME_MODES: GameModeInfo[] = CENTRAL_GAME_MODES
+  .filter(mode => mode.key !== 'tournament' && mode.key !== 'freeforall')
+  .map(mode => ({
+    id: mode.id as GameModeOption,
+    title: mode.title,
+    subtitle: mode.subtitle,
+    description: mode.description,
+    players: mode.players,
+  }));
 
 // Simple icon components using Views and Ionicons
 const TwoHandsIcon = () => (

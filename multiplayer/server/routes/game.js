@@ -48,11 +48,14 @@ router.post('/stats', authenticate, async (req, res) => {
       gameMode 
     } = req.body;
 
-    // Map legacy mode names to new camelCase
+    const { MODE_ID_TO_KEY } = require('../../../shared/config/gameModes');
+
+    // Map legacy mode names and IDs to keys
     const modeMapping = {
       'twoPlayer': 'twoHands',
       'threePlayer': 'threeHands',
-      'fourPlayer': 'fourHands'
+      'fourPlayer': 'fourHands',
+      ...MODE_ID_TO_KEY
     };
     const mappedGameMode = modeMapping[gameMode] || gameMode || 'twoHands';
 

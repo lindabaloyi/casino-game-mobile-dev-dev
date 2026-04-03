@@ -38,20 +38,18 @@
 const { ObjectId } = require('mongodb');
 const db = require('../db/connection');
 
+const { GAME_MODE_KEYS, MODE_ID_TO_KEY, MODE_KEY_TO_ID } = require('../../../shared/config/gameModes');
+
 const COLLECTION_NAME = 'gameStats';
 
-// Valid game modes
-const GAME_MODES = ['twoHands', 'threeHands', 'fourHands', 'party', 'freeforall', 'tournament'];
+// Use centralized game mode keys
+const GAME_MODES = GAME_MODE_KEYS;
 
-// Default mode stats structure
-const DEFAULT_MODE_STATS = {
-  'twoHands': { games: 0, wins: 0, losses: 0 },
-  'threeHands': { games: 0, wins: 0, losses: 0 },
-  'fourHands': { games: 0, wins: 0, losses: 0 },
-  'party': { games: 0, wins: 0, losses: 0 },
-  'freeforall': { games: 0, wins: 0, losses: 0 },
-  'tournament': { games: 0, wins: 0, losses: 0 }
-};
+// Default mode stats structure - dynamically generated from centralized config
+const DEFAULT_MODE_STATS = GAME_MODE_KEYS.reduce((acc, key) => {
+  acc[key] = { games: 0, wins: 0, losses: 0 };
+  return acc;
+}, {});
 
 class GameStats {
   /**

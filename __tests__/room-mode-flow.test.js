@@ -80,13 +80,14 @@ describe('RoomService - Game Mode Handling', () => {
   });
 
   describe('createRoom()', () => {
-    const MODES = [
-      { mode: 'two-hands', expectedPlayers: 2 },
-      { mode: 'three-hands', expectedPlayers: 3 },
-      { mode: 'four-hands', expectedPlayers: 4 },
-      { mode: 'party', expectedPlayers: 4 },
-      { mode: 'freeforall', expectedPlayers: 4 },
-    ];
+    const { GAME_MODES } = require('../shared/config/gameModes');
+
+    const MODES = GAME_MODES
+      .filter(mode => mode.key !== 'tournament') // Exclude tournament for this test
+      .map(mode => ({
+        mode: mode.id,
+        expectedPlayers: mode.expectedPlayers
+      }));
 
     test.each(MODES)(
       'createRoom("$mode") → maxPlayers=$expectedPlayers',

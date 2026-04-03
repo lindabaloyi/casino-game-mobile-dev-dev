@@ -26,32 +26,17 @@ interface ModeInfo {
   players: string;
 }
 
-const GAME_MODES: ModeInfo[] = [
-  {
-    id: 'two-hands',
-    title: '2 Hands',
-    subtitle: '1v1 Battle',
-    players: '2 Players',
-  },
-  {
-    id: 'three-hands',
-    title: '3 Hands',
-    subtitle: '3 Player battle',
-    players: '3 Players',
-  },
-  {
-    id: 'four-hands',
-    title: '4 Hands',
-    subtitle: '4 Player battle',
-    players: '4 Players',
-  },
-  {
-    id: 'party',
-    title: '4 Hands Party',
-    subtitle: '2v2 Team battle',
-    players: '4 Players',
-  },
-];
+import { GAME_MODES as CENTRAL_GAME_MODES } from '../shared/config/gameModes';
+
+// Filter out tournament and freeforall modes for private rooms, map to ModeInfo format
+const GAME_MODES: ModeInfo[] = CENTRAL_GAME_MODES
+  .filter(mode => mode.key !== 'tournament' && mode.key !== 'freeforall')
+  .map(mode => ({
+    id: mode.id,
+    title: mode.title,
+    subtitle: mode.subtitle,
+    players: mode.players,
+  }));
 
 export const options = {
   headerShown: false,
