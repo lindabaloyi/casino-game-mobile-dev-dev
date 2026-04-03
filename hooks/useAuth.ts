@@ -97,10 +97,25 @@ export function useAuth() {
 
   const verifySessionServer = async (userId: string): Promise<boolean> => {
     try {
-      // For now, just check if user exists in local storage
-      // In production, you'd verify with the server
-      return true;
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      if (!token) {
+        debugLog('verifySessionServer', 'No token found');
+        return false;
+      }
+
+      const response = await fetch(`${API_BASE}/api/auth/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      debugLog('verifySessionServer', 'Verify response', { success: data.success });
+      return data.success === true;
     } catch (error) {
+      debugLog('verifySessionServer', 'Verify failed', error);
       return false;
     }
   };

@@ -515,12 +515,8 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       };
       await saveProfile(newProfile);
       
-      // Sync with server - pass mode to API
-      const token = await getAuthToken();
-      if (token) {
-        const queryMode = mode || 'two-hands';
-        await apiCall(`/api/profile/stats/win?mode=${queryMode}`, { method: 'POST' }, 3, 500);
-      }
+      // Stats are updated server-side by GamePersistenceService.saveGame()
+      // No client API call needed - this prevents duplicate stats
       
       debugLog('recordWin', 'Win recorded successfully');
       return true;
@@ -547,12 +543,8 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       };
       await saveProfile(newProfile);
       
-      // Sync with server - pass mode to API
-      const token = await getAuthToken();
-      if (token) {
-        const queryMode = mode || 'two-hands';
-        await apiCall(`/api/profile/stats/loss?mode=${queryMode}`, { method: 'POST' }, 3, 500);
-      }
+      // Stats are updated server-side by GamePersistenceService.saveGame()
+      // No client API call needed - this prevents duplicate stats
       
       debugLog('recordLoss', 'Loss recorded successfully');
       return true;

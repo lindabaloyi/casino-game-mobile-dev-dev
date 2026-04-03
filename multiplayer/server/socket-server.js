@@ -14,7 +14,7 @@ const os = require('os');
 const db = require('./db/connection');
 
 // Routes
-const { authRoutes, profileRoutes, gameRoutes, friendsRoutes, usersRoutes } = require('./routes');
+const { authRoutes, profileRoutes, gameRoutes, friendsRoutes, usersRoutes, statsRoutes } = require('./routes');
 
 // Services
 const UnifiedMatchmakingService = require('./services/UnifiedMatchmakingService');
@@ -45,6 +45,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/friends', friendsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/stats', statsRoutes);
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 const PORT = process.env.PORT || 3001;

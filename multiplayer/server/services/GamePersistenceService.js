@@ -14,8 +14,7 @@ class GamePersistenceService {
    */
   async saveGame(gameId, gameState, isPartyGame) {
     try {
-      const playerCount = gameState.playerCount || 2;
-      const gameMode = isPartyGame ? 'party' : (playerCount === 4 ? 'fourPlayer' : 'twoPlayer');
+      const gameMode = this.getGameModeFromState(gameState);
       
       // Extract player info
       const players = gameState.players.map((p, index) => ({
@@ -59,22 +58,8 @@ class GamePersistenceService {
 
       console.log(`[Persistence] 📊 Game ending - scores: ${JSON.stringify(scores)}, maxScore: ${maxScore}, isDraw: ${isDraw}`);
       
-      console.log(`[Persistence] 📊 Players in gameState:`, gameState.players.map((p, i) => ({
-        index: i,
-        name: p.name,
-        userId: p.userId,
-        userIdType: typeof p.userId,
-        hasUserId: !!p.userId
-      })));
-      
       for (let i = 0; i < playerCount; i++) {
         const player = gameState.players[i];
-        console.log(`[Persistence] 📊 Processing player ${i}:`, {
-          name: player.name,
-          userId: player.userId,
-          userIdType: typeof player.userId,
-          hasUserId: !!player.userId
-        });
         
         if (!player?.userId) {
           console.log(`[Persistence] ⚠️ Player ${i} (${player?.name || 'unknown'}) has NO userId - skipping (likely CPU)`);
@@ -83,44 +68,49 @@ class GamePersistenceService {
         
         const won = !isDraw && scores[i] === maxScore;
         const lost = !isDraw && scores[i] < maxScore;
+        const playerScore = scores[i] || 0;
         
-        console.log(`[Persistence] 📊 Player ${i} (${player.name}): won=${won}, lost=${lost}, score=${scores[i]}`);
+        console.log(`[Persistence] 📊 Player ${i} (${player.name}): won=${won}, lost=${lost}, score=${playerScore}`);
         
-        // Calculate game-specific stats
+        // Calculate detailed stats from captures
         const captures = player.captures || [];
-        
-        // Get current stats before update
-        let currentStats;
-        try {
-          currentStats = await GameStats.findByUserId(player.userId.toString());
-        } catch (e) {
-          console.log(`[Persistence] ⚠️ Could not fetch current stats for ${player.userId}:`, e.message);
-        }
-        
-        console.log(`[Persistence] 📊 Stats BEFORE update for ${player.name}:`, {
-          totalGames: currentStats?.totalGames || 0,
-          wins: currentStats?.wins || 0,
-          losses: currentStats?.losses || 0
+        const scoreBreakdown = scoring.getScoreBreakdown(captures);
+
+        console.log(`[Persistence] 📊 Score breakdown for ${player.name}:`, {
+          aceCount: scoreBreakdown.aceCount,
+          tenDiamondCount: scoreBreakdown.tenDiamondCount,
+          twoSpadeCount: scoreBreakdown.twoSpadeCount,
+          spadeCount: scoreBreakdown.spadeCount,
+          spadeBonus: scoreBreakdown.spadeBonus,
+          cardCountBonus: scoreBreakdown.cardCountBonus,
+          totalScore: scoreBreakdown.totalScore
         });
-        
+
         try {
           const updatedStats = await GameStats.updateAfterGame(player.userId.toString(), {
             won,
             lost,
             draw: isDraw,
-            score: scores[i] || 0,
+            score: playerScore,
             cardsCaptured: captures.length,
-            buildsCreated: 0,
-            buildsStolen: 0,
-            trailsMade: 0,
-            perfectRound: false,
-            gameMode
-          });
+            // Point retention stats
+            pointsKept: playerScore,
+            acesKept: scoreBreakdown.aceCount || 0,
+            tenDiamondsKept: scoreBreakdown.tenDiamondCount || 0,
+            twoSpadesKept: scoreBreakdown.twoSpadeCount || 0,
+            spadesCountKept: scoreBreakdown.spadeCount || 0,
+            spadesBonusCount: scoreBreakdown.spadeBonus > 0 ? 1 : 0,
+            cardCountBonus20: scoreBreakdown.cardCountBonus === 1 ? 1 : 0,
+            cardCountBonus21: scoreBreakdown.cardCountBonus === 2 ? 1 : 0,
+            motoTrophyCount: playerScore >= 11 ? 1 : 0,
+          }, gameMode);
           
           console.log(`[Persistence] 📊 Stats AFTER update for ${player.name}:`, {
             totalGames: updatedStats?.totalGames || 0,
             wins: updatedStats?.wins || 0,
-            losses: updatedStats?.losses || 0
+            losses: updatedStats?.losses || 0,
+            totalPointsKept: updatedStats?.totalPointsKept || 0,
+            motoTrophyCount: updatedStats?.motoTrophyCount || 0
           });
         } catch (updateError) {
           console.error(`[Persistence] ❌ FAILED to update stats for ${player.name}:`, updateError.message);
@@ -131,6 +121,18 @@ class GamePersistenceService {
     } catch (error) {
       console.error(`[Persistence] ❌ Failed to update player stats:`, error.message);
     }
+  }
+
+  /**
+   * Get game mode from game state
+   */
+  getGameModeFromState(state) {
+    const playerCount = state.playerCount;
+    const isParty = playerCount === 4 && state.players?.some(p => p.team);
+    if (isParty) return 'party';
+    if (playerCount === 2) return 'twoHands';
+    if (playerCount === 3) return 'threeHands';
+    return 'fourHands';
   }
 }
 

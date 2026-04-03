@@ -18,6 +18,7 @@ const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn, forceEndTurn, fina
 const scoring = require('../game/scoring');
 const TournamentManager = require('./TournamentManager');
 const GamePersistenceService = require('./GamePersistenceService');
+const GameStats = require('../models/GameStats');
 
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, unifiedMatchmaking, broadcaster) {
@@ -479,6 +480,49 @@ class GameCoordinatorService {
     }
   }
 
+  /**
+   * Handle get-player-stats action from client.
+   * Returns player statistics and optionally leaderboard.
+   */
+  async handleGetPlayerStats(socket, data) {
+    try {
+      const playerId = data?.payload?.playerId || socket.userId;
+      
+      if (!playerId) {
+        this.broadcaster.sendError(socket, 'Player ID required');
+        return;
+      }
+
+      console.log(`[Coordinator] handleGetPlayerStats - playerId: ${playerId}`);
+
+      // Get player stats from GameStats model
+      let stats = await GameStats.findByUserId(playerId);
+      if (!stats) {
+        // Create new stats record if doesn't exist
+        stats = GameStats.create(playerId);
+      }
+      
+      // Get leaderboard (top players by point retention)
+      const leaderboard = await GameStats.getTopPlayers('pointRetentionPerGame', 10);
+
+      // Send stats to the requesting client
+      socket.emit('player-stats-response', {
+        success: true,
+        stats,
+        leaderboard,
+      });
+
+      console.log(`[Coordinator] Sent stats for player ${playerId}:`, {
+        totalGames: stats.totalGames,
+        pointRetentionPerGame: stats.pointRetentionPerGame,
+        motoTrophyCount: stats.motoTrophyCount,
+      });
+    } catch (err) {
+      console.error(`[Coordinator] handleGetPlayerStats failed: ${err.message}`);
+      this.broadcaster.sendError(socket, err.message);
+    }
+  }
+
   // ── Game Over Handling ─────────────────────────────────────────────────────────────
 
   /**
@@ -522,7 +566,7 @@ class GameCoordinatorService {
     
     console.log(`[Coordinator] 🎮 Game over detected for game ${gameId}! Calling persistence service...`);
     
-    // Save to MongoDB using persistence service
+    // Save to MongoDB using persistence service (includes player stats update)
     this.persistence.saveGame(gameId, finalizedState, isPartyGame);
     
     console.log(`[Coordinator] Broadcasting game-over for ${playerCount}-player mode, winner: ${RoundValidator.determineRoundWinner(finalizedState)}`);

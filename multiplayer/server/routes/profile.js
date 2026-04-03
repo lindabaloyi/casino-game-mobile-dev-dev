@@ -109,18 +109,27 @@ router.get('/leaderboard', async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
     const mode = req.query.mode || 'all';
     
-    // Validate mode
-    const validModes = ['all', 'two-hands', 'three-hands', 'four-hands', 'party', 'freeforall', 'tournament'];
+    // Map legacy mode names to camelCase for backward compatibility
+    const modeMap = {
+      'two-hands': 'twoHands',
+      'three-hands': 'threeHands',
+      'four-hands': 'fourHands',
+      // 'party', 'freeforall', 'tournament' remain the same
+    };
+    const mappedMode = modeMap[mode] || mode;
+
+    // Validate mode (accept both legacy and new format)
+    const validModes = ['all', 'two-hands', 'three-hands', 'four-hands', 'party', 'freeforall', 'tournament', 'twoHands', 'threeHands', 'fourHands'];
     if (!validModes.includes(mode)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: `Invalid mode: ${mode}. Valid modes: ${validModes.join(', ')}` 
+      return res.status(400).json({
+        success: false,
+        error: `Invalid mode: ${mode}. Valid modes: ${validModes.join(', ')}`
       });
     }
-    
-    console.log(`[Leaderboard] Fetching leaderboard for mode: ${mode}, limit: ${limit}`);
-    
-    const leaderboard = await GameStats.getLeaderboardByMode(mode, limit);
+
+    console.log(`[Leaderboard] Fetching leaderboard for mode: ${mode} (mapped: ${mappedMode}), limit: ${limit}`);
+
+    const leaderboard = await GameStats.getLeaderboardByMode(mappedMode, limit);
     
     // Handle empty result
     if (!leaderboard || leaderboard.length === 0) {
@@ -140,10 +149,10 @@ router.get('/leaderboard', async (req, res) => {
         const profile = await PlayerProfileService.findByUserId(stat.userId.toString());
         
         // Get rank for the requested mode (or overall)
-        const rank = await GameStats.getPlayerRank(stat.userId.toString(), mode === 'all' ? 'all' : mode);
-        
+        const rank = await GameStats.getPlayerRank(stat.userId.toString(), mode === 'all' ? 'all' : mappedMode);
+
         // Extract mode-specific stats if filtering by mode
-        const modeStats = mode === 'all' ? null : stat.modeStats?.[mode];
+        const modeStats = mode === 'all' ? null : stat.modeStats?.[mappedMode];
         
         return {
           rank,
@@ -340,8 +349,17 @@ router.get('/:userId/stats', async (req, res, next) => {
       throw new ValidationError('Invalid user ID format');
     }
 
-    // Validate mode
-    const validModes = ['all', 'two-hands', 'three-hands', 'four-hands', 'party', 'freeforall', 'tournament'];
+    // Map legacy mode names to camelCase for backward compatibility
+    const modeMap = {
+      'two-hands': 'twoHands',
+      'three-hands': 'threeHands',
+      'four-hands': 'fourHands',
+      // 'party', 'freeforall', 'tournament' remain the same
+    };
+    const mappedMode = modeMap[mode] || mode;
+
+    // Validate mode (accept both legacy and new format)
+    const validModes = ['all', 'two-hands', 'three-hands', 'four-hands', 'party', 'freeforall', 'tournament', 'twoHands', 'threeHands', 'fourHands'];
     if (!validModes.includes(mode)) {
       throw new ValidationError(`Invalid mode: ${mode}`);
     }
@@ -356,15 +374,15 @@ router.get('/:userId/stats', async (req, res, next) => {
     if (mode === 'all') {
       // Overall stats
       rank = await GameStats.getPlayerRank(userId, 'all');
-      winRate = stats.totalGames > 0 
-        ? Math.round((stats.wins / stats.totalGames) * 100) 
+      winRate = stats.totalGames > 0
+        ? Math.round((stats.wins / stats.totalGames) * 100)
         : 0;
     } else {
       // Mode-specific stats
-      const modeStats = stats.modeStats?.[mode] || { games: 0, wins: 0, losses: 0 };
-      rank = await GameStats.getPlayerRank(userId, mode);
-      winRate = modeStats.games > 0 
-        ? Math.round((modeStats.wins / modeStats.games) * 100) 
+      const modeStats = stats.modeStats?.[mappedMode] || { games: 0, wins: 0, losses: 0 };
+      rank = await GameStats.getPlayerRank(userId, mappedMode);
+      winRate = modeStats.games > 0
+        ? Math.round((modeStats.wins / modeStats.games) * 100)
         : 0;
     }
 
@@ -378,9 +396,9 @@ router.get('/:userId/stats', async (req, res, next) => {
         rank,
         lastGameAt: stats.lastGameAt
       } : {
-        wins: stats.modeStats?.[mode]?.wins || 0,
-        losses: stats.modeStats?.[mode]?.losses || 0,
-        totalGames: stats.modeStats?.[mode]?.games || 0,
+        wins: stats.modeStats?.[mappedMode]?.wins || 0,
+        losses: stats.modeStats?.[mappedMode]?.losses || 0,
+        totalGames: stats.modeStats?.[mappedMode]?.games || 0,
         winRate,
         rank,
         mode: mode

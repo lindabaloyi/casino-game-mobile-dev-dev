@@ -1,6 +1,6 @@
 /**
  * GameStats Model
- * Tracks game statistics by game mode
+ * Tracks game statistics by game mode and point retention
  * 
  * Schema:
  * {
@@ -10,13 +10,26 @@
  *   wins: number,
  *   losses: number,
  *   modeStats: {
- *     'two-hands': { games: number, wins: number, losses: number },
- *     'three-hands': { games: number, wins: number, losses: number },
- *     'four-hands': { games: number, wins: number, losses: number },
+ *     'twoHands': { games: number, wins: number, losses: number },
+ *     'threeHands': { games: number, wins: number, losses: number },
+ *     'fourHands': { games: number, wins: number, losses: number },
  *     'party': { games: number, wins: number, losses: number },
  *     'freeforall': { games: number, wins: number, losses: number },
  *     'tournament': { games: number, wins: number, losses: number }
  *   },
+ *   // Point retention stats
+ *   totalPointsKept: number,
+ *   pointRetentionPerGame: number,
+ *   // Card-specific stats
+ *   acesKept: number,
+ *   tenDiamondsKept: number,
+ *   twoSpadesKept: number,
+ *   // Bonus tracking
+ *   spadesBonusCount: number,
+ *   cardCountBonus20: number,
+ *   cardCountBonus21: number,
+ *   // Moto Trophy (score >= 11)
+ *   motoTrophyCount: number,
  *   createdAt: Date,
  *   updatedAt: Date
  * }
@@ -28,13 +41,13 @@ const db = require('../db/connection');
 const COLLECTION_NAME = 'gameStats';
 
 // Valid game modes
-const GAME_MODES = ['two-hands', 'three-hands', 'four-hands', 'party', 'freeforall', 'tournament'];
+const GAME_MODES = ['twoHands', 'threeHands', 'fourHands', 'party', 'freeforall', 'tournament'];
 
 // Default mode stats structure
 const DEFAULT_MODE_STATS = {
-  'two-hands': { games: 0, wins: 0, losses: 0 },
-  'three-hands': { games: 0, wins: 0, losses: 0 },
-  'four-hands': { games: 0, wins: 0, losses: 0 },
+  'twoHands': { games: 0, wins: 0, losses: 0 },
+  'threeHands': { games: 0, wins: 0, losses: 0 },
+  'fourHands': { games: 0, wins: 0, losses: 0 },
   'party': { games: 0, wins: 0, losses: 0 },
   'freeforall': { games: 0, wins: 0, losses: 0 },
   'tournament': { games: 0, wins: 0, losses: 0 }
@@ -55,6 +68,20 @@ class GameStats {
       wins: 0,
       losses: 0,
       modeStats: { ...DEFAULT_MODE_STATS },
+      // Point retention stats
+      totalPointsKept: 0,
+      pointRetentionPerGame: 0,
+      // Card-specific stats
+      acesKept: 0,
+      tenDiamondsKept: 0,
+      twoSpadesKept: 0,
+      spadesCountKept: 0,   // Count of all spade cards captured
+      // Bonus tracking
+      spadesBonusCount: 0,
+      cardCountBonus20: 0,
+      cardCountBonus21: 0,
+      // Moto Trophy (score >= 11)
+      motoTrophyCount: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -99,14 +126,28 @@ class GameStats {
    * @param {string} mode - Game mode (defaults to 'two-hands')
    * @returns {Promise<Object|null>} Updated stats
    */
-  static async updateAfterGame(userId, gameResult, mode = 'two-hands') {
+  static async updateAfterGame(userId, gameResult, mode = 'twoHands') {
     const database = await db.getDb();
-    const { won = false, lost = false, draw = false } = gameResult;
+    const { 
+      won = false, 
+      lost = false, 
+      draw = false,
+      // New point retention fields
+      pointsKept = 0,
+      acesKept = 0,
+      tenDiamondsKept = 0,
+      twoSpadesKept = 0,
+      spadesCountKept = 0,
+      spadesBonusCount = 0,
+      cardCountBonus20 = 0,
+      cardCountBonus21 = 0,
+      motoTrophyCount = 0
+    } = gameResult;
     
     // Validate mode
     if (!GAME_MODES.includes(mode)) {
-      console.log(`[GameStats] ⚠️ Invalid game mode: ${mode}, defaulting to 'two-hands'`);
-      mode = 'two-hands';
+      console.log(`[GameStats] ⚠️ Invalid game mode: ${mode}, defaulting to 'twoHands'`);
+      mode = 'twoHands';
     }
 
     console.log(`[GameStats] 📝 updateAfterGame called for userId: ${userId}, mode: ${mode}`);
@@ -134,12 +175,19 @@ class GameStats {
         modeGames: stats.modeStats[mode]?.games
       });
       
-      // Get current mode stats
-      const currentModeStats = stats.modeStats[mode] || { games: 0, wins: 0, losses: 0 };
-      
       // Build update fields using $inc for atomic updates
       const incrementObj = {
         totalGames: 1,
+        // Point retention stats
+        totalPointsKept: pointsKept,
+        acesKept: acesKept,
+        tenDiamondsKept: tenDiamondsKept,
+        twoSpadesKept: twoSpadesKept,
+        spadesCountKept: spadesCountKept,
+        spadesBonusCount: spadesBonusCount,
+        cardCountBonus20: cardCountBonus20,
+        cardCountBonus21: cardCountBonus21,
+        motoTrophyCount: motoTrophyCount,
       };
       
       // Increment overall wins/losses
@@ -179,10 +227,22 @@ class GameStats {
         { returnDocument: 'after' }
       );
 
+      // Calculate pointRetentionPerGame
+      if (result && result.totalGames > 0) {
+        const pointRetentionPerGame = result.totalPointsKept / result.totalGames;
+        await database.collection(COLLECTION_NAME).updateOne(
+          { userId: new ObjectId(userId) },
+          { $set: { pointRetentionPerGame } }
+        );
+        result.pointRetentionPerGame = pointRetentionPerGame;
+      }
+
       console.log(`[GameStats] ✅ Stats updated successfully, result:`, {
         totalGames: result?.totalGames,
         wins: result?.wins,
         losses: result?.losses,
+        totalPointsKept: result?.totalPointsKept,
+        motoTrophyCount: result?.motoTrophyCount,
         modeStats: result?.modeStats?.[mode]
       });
 
@@ -285,7 +345,7 @@ class GameStats {
    * @param {string} mode - Game mode (defaults to 'two-hands')
    * @returns {Promise<Object|null>} Updated stats
    */
-  static async recordWin(userId, mode = 'two-hands') {
+  static async recordWin(userId, mode = 'twoHands') {
     return this.updateAfterGame(userId, { won: true, lost: false, draw: false }, mode);
   }
 
@@ -295,7 +355,7 @@ class GameStats {
    * @param {string} mode - Game mode (defaults to 'two-hands')
    * @returns {Promise<Object|null>} Updated stats
    */
-  static async recordLoss(userId, mode = 'two-hands') {
+  static async recordLoss(userId, mode = 'twoHands') {
     return this.updateAfterGame(userId, { won: false, lost: true, draw: false }, mode);
   }
 
@@ -315,6 +375,29 @@ class GameStats {
     }
     
     return stats.modeStats?.[mode] || { games: 0, wins: 0, losses: 0 };
+  }
+
+  /**
+   * Get top players by a specific stat
+   * @param {string} statKey - Stat key to sort by (e.g., 'pointRetentionPerGame', 'motoTrophyCount')
+   * @param {number} limit - Number of top players to return
+   * @returns {Promise<Array>} Array of top player stats
+   */
+  static async getTopPlayers(statKey = 'pointRetentionPerGame', limit = 10) {
+    const database = await db.getDb();
+    
+    try {
+      const topPlayers = await database.collection(COLLECTION_NAME)
+        .find({ totalGames: { $gt: 0 } }) // Only players who have played games
+        .sort({ [statKey]: -1 })
+        .limit(limit)
+        .toArray();
+      
+      return topPlayers;
+    } catch (error) {
+      console.error('[GameStats] getTopPlayers error:', error);
+      return [];
+    }
   }
 
   /**

@@ -205,6 +205,7 @@ function attachSocketHandlers(socket, services) {
   socket.on('drag-start', (data) => coordinator.handleDragStart(socket, data));
   socket.on('drag-move', (data) => coordinator.handleDragMove(socket, data));
   socket.on('drag-end', (data) => coordinator.handleDragEnd(socket, data));
+  socket.on('get-player-stats', (data) => coordinator.handleGetPlayerStats(socket, data));
 
   // ── Client Ready Handler ──────────────────────────────────────────────
   socket.on('client-ready', (data) => {

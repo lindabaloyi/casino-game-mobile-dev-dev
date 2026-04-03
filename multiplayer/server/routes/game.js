@@ -48,6 +48,14 @@ router.post('/stats', authenticate, async (req, res) => {
       gameMode 
     } = req.body;
 
+    // Map legacy mode names to new camelCase
+    const modeMapping = {
+      'twoPlayer': 'twoHands',
+      'threePlayer': 'threeHands',
+      'fourPlayer': 'fourHands'
+    };
+    const mappedGameMode = modeMapping[gameMode] || gameMode || 'twoHands';
+
     const result = await GameStats.updateAfterGame(req.userId, {
       won,
       lost,
@@ -57,9 +65,8 @@ router.post('/stats', authenticate, async (req, res) => {
       buildsCreated: buildsCreated || 0,
       buildsStolen: buildsStolen || 0,
       trailsMade: trailsMade || 0,
-      perfectRound,
-      gameMode: gameMode || 'twoPlayer'
-    });
+      perfectRound
+    }, mappedGameMode);
 
     if (!result) {
       return res.status(500).json({ error: 'Failed to update stats' });
