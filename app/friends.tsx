@@ -78,13 +78,25 @@ export default function FriendsScreen() {
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
+            showsVerticalScrollIndicator={false}
           >
-            {/* Pending Requests (received) */}
-            {pendingRequests.length > 0 && (
-              <View style={styles.requestSection}>
-                <Text style={styles.sectionTitle}>Pending Requests</Text>
-                {pendingRequests.map((request) => (
-                  <View key={request._id} style={styles.requestItem}>
+            {/* Incoming Requests Section */}
+            <View style={styles.requestSection}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleContainer}>
+                  <Ionicons name="arrow-down-circle" size={18} color="#4CAF50" />
+                  <Text style={styles.sectionTitle}>Incoming Requests</Text>
+                </View>
+                {pendingRequests.length > 0 && (
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countBadgeText}>{pendingRequests.length}</Text>
+                  </View>
+                )}
+              </View>
+              
+              {pendingRequests.length > 0 ? (
+                pendingRequests.map((request, index) => (
+                  <View key={request._id} style={[styles.requestItem, index === 0 && styles.requestItemFirst]}>
                     <View style={styles.requestAvatar}>
                       <Text style={styles.requestEmoji}>
                         {getAvatarEmoji(request.fromUser?.avatar)}
@@ -92,35 +104,55 @@ export default function FriendsScreen() {
                     </View>
                     <View style={styles.requestInfo}>
                       <Text style={styles.requestName}>{request.fromUser?.username}</Text>
-                      <Text style={styles.requestTime}>
-                        {new Date(request.createdAt).toLocaleDateString()}
-                      </Text>
+                      <View style={styles.requestMeta}>
+                        <Ionicons name="time-outline" size={12} color={COLORS.textMuted} />
+                        <Text style={styles.requestTime}>
+                          {new Date(request.createdAt).toLocaleDateString()}
+                        </Text>
+                      </View>
                     </View>
                     <View style={styles.requestActions}>
                       <TouchableOpacity
                         style={[styles.requestButton, styles.acceptButton]}
                         onPress={() => acceptRequest(request._id)}
                       >
-                        <Ionicons name="checkmark" size={18} color="white" />
+                        <Ionicons name="checkmark" size={20} color="white" />
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.requestButton, styles.declineButton]}
                         onPress={() => declineRequest(request._id)}
                       >
-                        <Ionicons name="close" size={18} color="white" />
+                        <Ionicons name="close" size={20} color="white" />
                       </TouchableOpacity>
                     </View>
                   </View>
-                ))}
-              </View>
-            )}
+                ))
+              ) : (
+                <View style={styles.emptySection}>
+                  <Ionicons name="people-outline" size={36} color="rgba(255, 255, 255, 0.2)" />
+                  <Text style={styles.emptySectionText}>No incoming requests</Text>
+                  <Text style={styles.emptySectionSubtext}>When someone sends you a friend request, it will appear here</Text>
+                </View>
+              )}
+            </View>
 
-            {/* Sent Requests */}
-            {sentRequests.length > 0 && (
-              <View style={styles.requestSection}>
-                <Text style={styles.sectionTitle}>Sent Requests</Text>
-                {sentRequests.map((request) => (
-                  <View key={request._id} style={styles.requestItem}>
+            {/* Outgoing Requests Section */}
+            <View style={styles.requestSection}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleContainer}>
+                  <Ionicons name="arrow-up-circle" size={18} color="#FFD700" />
+                  <Text style={styles.sectionTitle}>Sent Requests</Text>
+                </View>
+                {sentRequests.length > 0 && (
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countBadgeText}>{sentRequests.length}</Text>
+                  </View>
+                )}
+              </View>
+              
+              {sentRequests.length > 0 ? (
+                sentRequests.map((request, index) => (
+                  <View key={request._id} style={[styles.requestItem, index === 0 && styles.requestItemFirst]}>
                     <View style={styles.requestAvatar}>
                       <Text style={styles.requestEmoji}>
                         {getAvatarEmoji(request.toUser?.avatar)}
@@ -128,23 +160,38 @@ export default function FriendsScreen() {
                     </View>
                     <View style={styles.requestInfo}>
                       <Text style={styles.requestName}>{request.toUser?.username}</Text>
-                      <Text style={styles.requestTime}>Pending</Text>
+                      <View style={styles.requestMeta}>
+                        <View style={styles.pendingBadge}>
+                          <Text style={styles.pendingBadgeText}>Pending</Text>
+                        </View>
+                        <Text style={styles.requestTime}>
+                          • {new Date(request.createdAt).toLocaleDateString()}
+                        </Text>
+                      </View>
                     </View>
                     <TouchableOpacity
                       style={[styles.requestButton, styles.cancelButton]}
                       onPress={() => cancelRequest(request._id)}
                     >
-                      <Ionicons name="time" size={18} color="white" />
+                      <Ionicons name="close-circle" size={20} color="white" />
                     </TouchableOpacity>
                   </View>
-                ))}
-              </View>
-            )}
+                ))
+              ) : (
+                <View style={styles.emptySection}>
+                  <Ionicons name="paper-plane-outline" size={36} color="rgba(255, 255, 255, 0.2)" />
+                  <Text style={styles.emptySectionText}>No sent requests</Text>
+                  <Text style={styles.emptySectionSubtext}>Friend requests you send will appear here</Text>
+                </View>
+              )}
+            </View>
 
-            {pendingRequests.length === 0 && sentRequests.length === 0 && (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="mail-open-outline" size={48} color="rgba(255, 255, 255, 0.3)" />
-                <Text style={styles.emptyText}>No pending requests</Text>
+            {/* Summary Footer */}
+            {(pendingRequests.length > 0 || sentRequests.length > 0) && (
+              <View style={styles.summaryFooter}>
+                <Text style={styles.summaryText}>
+                  {pendingRequests.length + sentRequests.length} total request{pendingRequests.length + sentRequests.length !== 1 ? 's' : ''}
+                </Text>
               </View>
             )}
           </ScrollView>
@@ -368,7 +415,86 @@ const styles = StyleSheet.create({
     backgroundColor: '#f44336',
   },
   cancelButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: '#FF6B6B',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  countBadge: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  countBadgeText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  requestItemFirst: {
+    marginTop: 0,
+  },
+  requestMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  pendingBadge: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  pendingBadgeText: {
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  emptySection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.1)',
+    borderStyle: 'dashed',
+  },
+  emptySectionText: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 12,
+  },
+  emptySectionSubtext: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  summaryFooter: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginTop: 8,
+  },
+  summaryText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: '500',
   },
   emptyContainer: {
     alignItems: 'center',
