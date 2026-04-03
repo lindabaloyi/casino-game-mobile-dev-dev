@@ -330,6 +330,15 @@ class BroadcasterService {
       gameSocket.emit(event, data);
     });
   }
+
+  /**
+   * Broadcast that all clients are ready and game can start
+   * @param {number} gameId - Game ID
+   */
+  broadcastAllClientsReady(gameId) {
+    console.log(`[Broadcaster] Broadcasting all-clients-ready for game ${gameId}`);
+    this.io.to(gameId).emit('all-clients-ready', { gameId });
+  }
 }
 
 module.exports = BroadcasterService;

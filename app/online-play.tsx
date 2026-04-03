@@ -161,8 +161,9 @@ export default function OnlinePlayScreen() {
     return <ErrorScreen type="disconnected" />;
   }
 
-  // Show lobby if game hasn't started
-  if (connection.gameState == null) {
+  // Show lobby if game hasn't started OR if game isn't fully ready
+  // This ensures all players' games are initialized before navigation
+  if (connection.gameState == null || !connection.gameReady || !connection.allClientsReady) {
     return (
       <Lobby
         mode={mode}
@@ -175,6 +176,8 @@ export default function OnlinePlayScreen() {
         notificationAnim={notificationAnim}
         onCopyRoomCode={handleCopyRoomCode}
         roomCode={connection.roomCode}
+        // Show loading state when game is initializing
+        isGameStarting={connection.gameState != null && (!connection.gameReady || !connection.allClientsReady)}
       />
     );
   }

@@ -384,6 +384,9 @@ class RoomService {
       this.socketRoomMap.delete(player.socketId);
     }
 
+    // Clear client ready status for this game (in case of reconnection)
+    this.gameManager.clearClientReadyStatus(room.gameId);
+
     return { success: true, gameId: room.gameId };
   }
 

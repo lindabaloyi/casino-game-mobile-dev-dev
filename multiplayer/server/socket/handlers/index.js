@@ -206,6 +206,39 @@ function attachSocketHandlers(socket, services) {
   socket.on('drag-move', (data) => coordinator.handleDragMove(socket, data));
   socket.on('drag-end', (data) => coordinator.handleDragEnd(socket, data));
 
+  // ── Client Ready Handler ──────────────────────────────────────────────
+  socket.on('client-ready', (data) => {
+    const { gameId, playerIndex } = data;
+    console.log(`[Socket] client-ready received: gameId=${gameId}, playerIndex=${playerIndex}, socket=${socket.id}`);
+    
+    if (!gameId || playerIndex === undefined) {
+      socket.emit('error', { message: 'client-ready: gameId and playerIndex are required' });
+      return;
+    }
+    
+    // Mark client as ready in GameManager
+    gameManager.markClientReady(gameId, playerIndex);
+    
+    // Get game state to check player count
+    const gameState = gameManager.getGameState(gameId);
+    if (!gameState) {
+      socket.emit('error', { message: 'client-ready: Game not found' });
+      return;
+    }
+    
+    // Check if all clients are now ready
+    const playerCount = gameState.playerCount || gameState.players?.length || 0;
+    const allReady = gameManager.areAllClientsReady(gameId, playerCount);
+    const readyCount = gameManager.getReadyClientCount(gameId);
+    
+    console.log(`[Socket] Game ${gameId}: ${readyCount}/${playerCount} clients ready`);
+    
+    if (allReady) {
+      console.log(`[Socket] ✅ All clients ready for game ${gameId} - broadcasting all-clients-ready`);
+      broadcaster.broadcastAllClientsReady(gameId);
+    }
+  });
+
   // ── State Sync & Lobby ────────────────────────────────────────────────
   socket.on('request-sync', () => {
     const socketInfo = unifiedMatchmaking.socketGameMap.get(socket.id);

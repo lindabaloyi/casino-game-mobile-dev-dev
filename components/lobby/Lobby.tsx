@@ -37,6 +37,8 @@ interface LobbyProps {
   onCopyRoomCode?: () => void;
   /** Real room code for private rooms (overrides mode-derived display) */
   roomCode?: string | null;
+  /** Whether game is starting (waiting for all clients to be ready) */
+  isGameStarting?: boolean;
 }
 
 export const Lobby: React.FC<LobbyProps> = ({
@@ -50,6 +52,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   notificationAnim,
   onCopyRoomCode,
   roomCode,
+  isGameStarting,
 }) => {
   const { height, width } = useWindowDimensions();
   const needsScroll = height < 600;
@@ -191,7 +194,12 @@ export const Lobby: React.FC<LobbyProps> = ({
         </View>
 
         <View style={styles.statusSection}>
-          {playersNeeded > 0 ? (
+          {isGameStarting ? (
+            <View style={styles.readyStatus}>
+              <ActivityIndicator size="small" color="#4CAF50" />
+              <Text style={styles.readyStatusText}>Initializing game...</Text>
+            </View>
+          ) : playersNeeded > 0 ? (
             <View style={styles.waitingStatus}>
               <ActivityIndicator size="small" color="#FFD700" />
               <Text style={styles.waitingText}>

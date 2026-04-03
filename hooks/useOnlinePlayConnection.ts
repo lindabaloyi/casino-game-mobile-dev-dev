@@ -34,6 +34,10 @@ export interface UseOnlinePlayConnectionResult {
   playerDisconnected: boolean;
   /** Last error message from the server */
   error: string | null;
+  /** Whether local game is ready (cards dealt) */
+  gameReady: boolean;
+  /** Whether all clients are ready */
+  allClientsReady: boolean;
   /** Send any game action to the server */
   sendAction: (action: { type: string; payload?: Record<string, unknown> }) => void;
   /** Manually request the current server state (sync) */
@@ -161,6 +165,15 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     ? [] // Private rooms don't use matchmaking lobby players
     : (multiplayerResult?.lobbyPlayers ?? []);
 
+  // Game ready state for multiplayer
+  const gameReady = isPrivateRoom 
+    ? (roomGameSync?.gameReady ?? false) 
+    : (multiplayerResult?.gameReady ?? false);
+    
+  const allClientsReady = isPrivateRoom 
+    ? (roomGameSync?.allClientsReady ?? false) 
+    : (multiplayerResult?.allClientsReady ?? false);
+
   return useMemo(() => ({
     gameState,
     gameOverData,
@@ -169,6 +182,8 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     playersInLobby,
     playerDisconnected,
     error,
+    gameReady,
+    allClientsReady,
     sendAction,
     requestSync,
     clearError,
@@ -189,6 +204,8 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     playersInLobby,
     playerDisconnected,
     error,
+    gameReady,
+    allClientsReady,
     sendAction,
     requestSync,
     clearError,

@@ -19,6 +19,9 @@ class GameManager {
     /** gameId → Map(socketId → userId) */
     this.socketUserIdMap = new Map();
 
+    /** gameId → Set(playerIndex) - tracks which clients are ready */
+    this.clientReadyMap = new Map();
+
     this._nextId = 1;
   }
 
@@ -192,6 +195,51 @@ class GameManager {
   getGameSockets(gameId) {
     const map = this.socketPlayerMap.get(gameId);
     return map ? Array.from(map.keys()) : [];
+  }
+
+  // ── Client Ready Tracking ───────────────────────────────────────────────────
+
+  /**
+   * Mark a client as ready for a specific game
+   * @param {number} gameId - Game ID
+   * @param {number} playerIndex - Player index (0-3)
+   */
+  markClientReady(gameId, playerIndex) {
+    if (!this.clientReadyMap.has(gameId)) {
+      this.clientReadyMap.set(gameId, new Set());
+    }
+    this.clientReadyMap.get(gameId).add(playerIndex);
+    console.log(`[GameManager] Client ${playerIndex} marked ready for game ${gameId}`);
+  }
+
+  /**
+   * Check if all clients are ready for a specific game
+   * @param {number} gameId - Game ID
+   * @param {number} playerCount - Total number of players
+   * @returns {boolean} True if all clients are ready
+   */
+  areAllClientsReady(gameId, playerCount) {
+    const readySet = this.clientReadyMap.get(gameId);
+    if (!readySet) return false;
+    return readySet.size >= playerCount;
+  }
+
+  /**
+   * Get ready status for a specific game
+   * @param {number} gameId - Game ID
+   * @returns {number} Number of ready clients
+   */
+  getReadyClientCount(gameId) {
+    const readySet = this.clientReadyMap.get(gameId);
+    return readySet ? readySet.size : 0;
+  }
+
+  /**
+   * Clear ready status for a specific game (cleanup)
+   * @param {number} gameId - Game ID
+   */
+  clearClientReadyStatus(gameId) {
+    this.clientReadyMap.delete(gameId);
   }
 
   // ── Diagnostics ─────────────────────────────────────────────────────────────

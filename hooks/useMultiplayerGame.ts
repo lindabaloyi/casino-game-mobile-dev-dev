@@ -64,6 +64,10 @@ export interface UseMultiplayerGameResult {
   playerDisconnected: boolean;
   /** Last error message from the server */
   error: string | null;
+  /** Whether the local game is fully initialized and ready */
+  gameReady: boolean;
+  /** Whether all clients have confirmed they're ready */
+  allClientsReady: boolean;
   /** Send any game action to the server */
   sendAction: (action: { type: string; payload?: Record<string, unknown> }) => void;
   /** Manually request the current server state (sync) */
@@ -146,6 +150,10 @@ export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMulti
     lobbyPlayers: lobby.lobbyPlayers,
     roomCode: lobby.roomCode,
     playerDisconnected: false, // TODO: Add to gameSync if needed
+    
+    // Game ready state
+    gameReady: gameSync.gameReady,
+    allClientsReady: gameSync.allClientsReady,
     
     // Actions
     sendAction: gameSync.sendAction,

@@ -142,6 +142,9 @@ class UnifiedMatchmakingService {
     // Map sockets → gameId (overwrite entries that had gameId: null from joining queue)
     for (let i = 0; i < players.length; i++) {
       this.socketGameMap.set(players[i].id, { gameId, gameType, userId: userIds[i] });
+      // Join socket to game room for room-based broadcasts (e.g., all-clients-ready)
+      players[i].join(gameId);
+      console.log(`[UnifiedMatchmaking] Socket ${players[i].id.substr(0,8)} joined game room ${gameId}`);
     }
     this.gameSocketsMap.set(gameId, players.map(p => p.id));
     

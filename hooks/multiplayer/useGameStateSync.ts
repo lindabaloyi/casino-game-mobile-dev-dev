@@ -19,6 +19,7 @@ import { Socket } from 'socket.io-client';
 
 // Import player profile for win/loss tracking
 import { usePlayerProfile } from '../usePlayerProfile';
+import { useGameReady } from './useGameReady';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -209,6 +210,10 @@ export interface UseGameStateSyncResult {
   opponentDisconnected: boolean;
   /** Error message */
   error: string | null;
+  /** Whether the local game is fully initialized and ready */
+  gameReady: boolean;
+  /** Whether all clients have confirmed they're ready */
+  allClientsReady: boolean;
   /** Send game action to server */
   sendAction: (action: { type: string; payload?: Record<string, unknown> }) => void;
   /** Request state sync from server */
@@ -279,6 +284,12 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
   // Player profile for win/loss tracking
   const { recordWin, recordLoss } = usePlayerProfile();
 
+  // Game ready validation
+  const { gameReady, allClientsReady, validateGameReady, emitClientReady } = useGameReady(socket);
+  
+  // Store gameId for emitClientReady
+  const gameIdRef = useRef<number | null>(null);
+
   // Handle game-start event
   useEffect(() => {
     if (!socket) {
@@ -289,11 +300,18 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       console.log('[useGameStateSync] 🔥 game-start RECEIVED from server!');
       console.log('[useGameStateSync] gameState playerCount:', data.gameState?.playerCount);
       console.log('[useGameStateSync] playerNumber:', data.playerNumber);
+      console.log('[useGameStateSync] gameId:', data.gameId);
       setGameState(data.gameState);
       setPlayerNumber(data.playerNumber);
       setOpponentDisconnected(false);
       setError(null);
       setGameOverData(null);
+      
+      // Store gameId for emitClientReady
+      if (data.gameId !== undefined && data.gameId !== null) {
+        gameIdRef.current = data.gameId;
+        console.log(`[useGameStateSync] 📦 Stored gameId: ${data.gameId}`);
+      }
     };
 
     socket.on('game-start', handleGameStart);
@@ -302,6 +320,19 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       socket.off('game-start', handleGameStart);
     };
   }, [socket]);
+
+  // Trigger game ready validation when gameState or playerNumber changes
+  useEffect(() => {
+    if (!gameState || playerNumber === null) return;
+    
+    // Validate game state is ready
+    const isValid = validateGameReady(gameState, playerNumber);
+    
+    if (isValid && gameIdRef.current !== null) {
+      console.log(`[useGameStateSync] ✅ Game validated, emitting client-ready for game ${gameIdRef.current}`);
+      emitClientReady(gameIdRef.current, playerNumber);
+    }
+  }, [gameState, playerNumber, validateGameReady, emitClientReady]);
 
   // ── Card Count Validation ───────────────────────────────────────────────────
   // Validate card inventory on every state update to detect desync early
@@ -511,6 +542,8 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     playerNumber,
     opponentDisconnected,
     error,
+    gameReady,
+    allClientsReady,
     sendAction,
     requestSync,
     clearError,
