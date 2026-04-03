@@ -127,14 +127,35 @@ export default function UserProfilePage() {
   const isIncomingRequest = pendingRequests.some((r: any) => r.fromUser?._id === userId);
 
   const handleAddFriend = async () => {
-    if (!userId) return;
+    if (!userId) {
+      console.log('[UserProfilePage] ❌ Cannot send request: userId is null');
+      return;
+    }
 
+    console.log('[UserProfilePage] 📤 Add Friend button clicked for userId:', userId);
     setActionLoading(true);
-    const result = await sendRequest(userId);
-    setActionLoading(false);
-
-    if (result.success) {
-      setFriendStatus('pending');
+    
+    try {
+      const result = await sendRequest(userId);
+      console.log('[UserProfilePage] 📥 sendRequest result:', result);
+      
+      if (result.success) {
+        console.log('[UserProfilePage] ✅ Friend request sent successfully');
+        setFriendStatus('pending');
+      } else {
+        console.log('[UserProfilePage] ❌ Friend request failed:', result.error);
+        // Show error to user
+        if (typeof window !== 'undefined') {
+          window.alert(result.error || 'Failed to send friend request');
+        }
+      }
+    } catch (error) {
+      console.error('[UserProfilePage] ❌ Exception in handleAddFriend:', error);
+      if (typeof window !== 'undefined') {
+        window.alert('An error occurred while sending friend request');
+      }
+    } finally {
+      setActionLoading(false);
     }
   };
 
