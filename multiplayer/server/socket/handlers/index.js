@@ -36,7 +36,7 @@ function attachSocketHandlers(socket, services) {
 
   // ── Helper: Remove socket from all queues ─────────────────────────────
   const removeFromAllQueues = () => {
-    unifiedMatchmaking.socketGameMap.delete(socket.id);
+    unifiedMatchmaking.socketRegistry.delete(socket.id);
     unifiedMatchmaking.queueManager.removeFromQueue(socket.id);
   };
 
@@ -237,7 +237,7 @@ function attachSocketHandlers(socket, services) {
 
   // ── State Sync & Lobby ────────────────────────────────────────────────
   socket.on('request-sync', () => {
-    const socketInfo = unifiedMatchmaking.socketGameMap.get(socket.id);
+    const socketInfo = unifiedMatchmaking.socketRegistry.get(socket.id);
     let gameId = socketInfo?.gameId;
     if (!gameId) {
       socket.emit('error', { message: 'Not in a game' });

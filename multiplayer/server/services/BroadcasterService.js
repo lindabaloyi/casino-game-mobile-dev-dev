@@ -256,7 +256,7 @@ class BroadcasterService {
       
       // Filter to only sockets that are in party games
       const partySockets = gameSockets.filter(socketId => {
-        const socketInfo = this.matchmaking.socketGameMap.get(socketId);
+        const socketInfo = this.matchmaking.socketRegistry.get(socketId);
         return socketInfo && socketInfo.gameType === 'party';
       }).map(socketId => this.io.sockets.sockets.get(socketId)).filter(Boolean);
 

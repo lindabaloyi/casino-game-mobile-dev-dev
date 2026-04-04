@@ -1,10 +1,11 @@
 /**
  * UnifiedMatchmakingService
  * Centralized matchmaking service that handles all game types
- * Uses QueueManager for queue operations
+ * Uses QueueManager for queue operations and SocketRegistry for socket mappings
  */
 
 const QueueManager = require("./QueueManager");
+const SocketRegistry = require("./SocketRegistry");
 
 const GAME_TYPES = {
   'two-hands': {
@@ -69,8 +70,15 @@ class UnifiedMatchmakingService {
     this.io = io;
 
     this.queueManager = new QueueManager(gameManager);
-    this.socketGameMap = new Map();
-    this.gameSocketsMap = new Map();
+    this.socketRegistry = new SocketRegistry();
+  }
+
+  get socketGameMap() {
+    return this.socketRegistry.socketGameMap;
+  }
+
+  get gameSocketsMap() {
+    return this.socketRegistry.gameSocketsMap;
   }
 
   get waitingQueues() {
@@ -86,12 +94,12 @@ class UnifiedMatchmakingService {
   }
 
   addToQueue(socket, gameType, userId = null) {
-    if (this.socketGameMap.has(socket.id)) {
+    if (this.socketRegistry.get(socket.id)) {
       console.log(`[UnifiedMatchmaking] Socket ${socket.id} already in queue/game, skipping`);
       return null;
     }
 
-    this.socketGameMap.set(socket.id, { gameId: null, gameType, userId });
+    this.socketRegistry.set(socket.id, null, gameType, userId);
     const playerEntries = this.queueManager.addToQueue(socket, gameType, userId);
 
     if (!playerEntries) {
@@ -119,12 +127,14 @@ class UnifiedMatchmakingService {
       return null;
     }
 
+    const socketIds = [];
     for (let i = 0; i < players.length; i++) {
-      this.socketGameMap.set(players[i].id, { gameId, gameType, userId: userIds[i] });
+      this.socketRegistry.set(players[i].id, gameId, gameType, userIds[i]);
       players[i].join(gameId);
+      socketIds.push(players[i].id);
       console.log(`[UnifiedMatchmaking] Socket ${players[i].id.substr(0,8)} joined game room ${gameId}`);
     }
-    this.gameSocketsMap.set(gameId, players.map(p => p.id));
+    this.socketRegistry.setGameSockets(gameId, socketIds);
 
     console.log(`[UnifiedMatchmaking] socketGameMap updated for ${gameType} game ${gameId}:`,
       players.map((socket, i) => `${socket.id.substr(0,8)}→{gameId:${gameId}, gameType:${gameType}}`).join(', '));
@@ -149,51 +159,21 @@ class UnifiedMatchmakingService {
   }
 
   handleDisconnection(socket) {
-    const socketInfo = this.socketGameMap.get(socket.id);
-    if (!socketInfo) {
-      return null;
-    }
-
-    const { gameId, gameType } = socketInfo;
-
-    if (!gameType) {
-      console.log(`[UnifiedMatchmaking] Unknown gameType on disconnect: ${gameType}, socket: ${socket.id}`);
-      this.socketGameMap.delete(socket.id);
-      return null;
-    }
-
-    if (!gameId) {
-      this.queueManager.removeFromQueueByGameType(socket.id, gameType);
-      this.socketGameMap.delete(socket.id);
-      return null;
-    }
-
-    this.socketGameMap.delete(socket.id);
-
-    const sockets = (this.gameSocketsMap.get(gameId) || []).filter(id => id !== socket.id);
-
-    if (sockets.length === 0) {
-      this.gameSocketsMap.delete(gameId);
-      this.gameManager.endGame(gameId);
-    } else {
-      this.gameSocketsMap.set(gameId, sockets);
-    }
-
-    return { gameId, remainingSockets: sockets };
+    return this.socketRegistry.handleDisconnection(socket, this.gameManager);
   }
 
   getGameId(socketId) {
-    const info = this.socketGameMap.get(socketId);
+    const info = this.socketRegistry.get(socketId);
     return info ? info.gameId : null;
   }
 
   getGameType(socketId) {
-    const info = this.socketGameMap.get(socketId);
+    const info = this.socketRegistry.get(socketId);
     return info ? info.gameType : null;
   }
 
   getGameSockets(gameId, io) {
-    const socketIds = this.gameSocketsMap.get(gameId) || [];
+    const socketIds = this.socketRegistry.getGameSockets(gameId);
     return socketIds
       .map(id => io.sockets.sockets.get(id))
       .filter(Boolean);
@@ -212,8 +192,7 @@ class UnifiedMatchmakingService {
   }
 
   getActiveGamesCount() {
-    const unique = new Set([...this.socketGameMap.values()].filter(Boolean).map(info => info.gameId));
-    return unique.size;
+    return this.socketRegistry.getActiveGamesCount();
   }
 
   getQueueStatus(gameType) {
@@ -226,6 +205,14 @@ class UnifiedMatchmakingService {
 
   broadcastWaitingUpdate(gameType) {
     return this.queueManager.broadcastWaitingUpdate(gameType);
+  }
+
+  isUserInQueue(userId) {
+    return this.socketRegistry.isUserInQueue(userId, this.queueManager);
+  }
+
+  isUserInGame(userId) {
+    return this.socketRegistry.isUserInGame(userId);
   }
 }
 

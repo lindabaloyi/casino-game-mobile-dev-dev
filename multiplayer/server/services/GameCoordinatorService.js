@@ -35,24 +35,21 @@ class GameCoordinatorService {
 
   /** Resolve which game + player this socket belongs to, or send error. */
   _resolvePlayer(socket) {
-    // Check unified matchmaking for any game type
-    let socketInfo = this.unifiedMatchmaking.socketGameMap.get(socket.id);
+    let socketInfo = this.unifiedMatchmaking.socketRegistry.get(socket.id);
     let gameId = socketInfo?.gameId || null;
     let isPartyGame = socketInfo?.gameType === 'party';
     let gameType = socketInfo?.gameType || null;
     
-    // Fallback: Try to find socket in any active game via gameManager
     if (!gameId) {
-      for (const [gid, sockets] of this.unifiedMatchmaking.gameSocketsMap.entries()) {
+      for (const [gid, sockets] of this.unifiedMatchmaking.socketRegistry.gameSocketsMap.entries()) {
         if (sockets.includes(socket.id)) {
           gameId = gid;
           const game = this.gameManager.getGameState(gid);
           if (game) {
             isPartyGame = game.players.some(p => p.team);
             gameType = game.playerCount === 2 ? 'two-hands' : game.playerCount === 3 ? 'three-hands' : game.playerCount === 4 && isPartyGame ? 'party' : 'four-hands';
-            // Update socketGameMap with correct gameId
-            this.unifiedMatchmaking.socketGameMap.set(socket.id, { gameId, gameType, userId: socket.userId || null });
-            console.log(`[Coordinator] _resolvePlayer: Fallback lookup - socket ${socket.id} found in game ${gameId}, updated socketGameMap`);
+            this.unifiedMatchmaking.socketRegistry.set(socket.id, gameId, gameType, socket.userId || null);
+            console.log(`[Coordinator] _resolvePlayer: Fallback lookup - socket ${socket.id} found in game ${gameId}, updated socketRegistry`);
             socketInfo = { gameId, gameType, userId: socket.userId || null };
           }
           break;
@@ -278,7 +275,7 @@ class GameCoordinatorService {
     for (const socketId of toDelete) {
       const playerIndex = socketMap.get(socketId);
       socketMap.delete(socketId);
-      this.unifiedMatchmaking.socketGameMap.delete(socketId);
+      this.unifiedMatchmaking.socketRegistry.delete(socketId);
       console.log(`[Coordinator] Eliminated socket ${socketId.substr(0,8)} (was player ${playerIndex})`);
     }
     

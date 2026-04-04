@@ -306,9 +306,9 @@ class RoomService {
         this.gameManager.addPlayerToGame(gameId, socket.id, i, socket.userId || null);
         // Store socket mapping as object with gameId, gameType, and userId
         // This matches the format expected by GameCoordinator._resolvePlayer()
-        this.unifiedMatchmaking.socketGameMap.set(socket.id, { gameId, gameType: room.gameMode, userId: socket.userId || null });
-        console.log(`[RoomService] socketGameMap set for socket ${socket.id}: gameId=${gameId}, gameType=${room.gameMode}, userId=${socket.userId || null}`);
-        this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
+        this.unifiedMatchmaking.socketRegistry.set(socket.id, gameId, room.gameMode, socket.userId || null);
+        console.log(`[RoomService] socketRegistry set for socket ${socket.id}: gameId=${gameId}, gameType=${room.gameMode}, userId=${socket.userId || null}`);
+        this.unifiedMatchmaking.socketRegistry.setGameSockets(gameId, sockets.map(s => s.id));
         // Set userId on gameState players for persistence
         if (socket.userId) {
           this.gameManager.setPlayerUserId(gameId, i, socket.userId);
@@ -347,9 +347,9 @@ class RoomService {
         this.gameManager.addPlayerToGame(gameId, socket.id, i, socket.userId || null);
         // Store socket mapping as object with gameId, gameType, and userId
         // This matches the format expected by GameCoordinator._resolvePlayer()
-        this.unifiedMatchmaking.socketGameMap.set(socket.id, { gameId, gameType: room.gameMode, userId: socket.userId || null });
-        console.log(`[RoomService] socketGameMap set for socket ${socket.id}: gameId=${gameId}, gameType=${room.gameMode}, userId=${socket.userId || null}`);
-        this.unifiedMatchmaking.gameSocketsMap.set(gameId, sockets.map(s => s.id));
+        this.unifiedMatchmaking.socketRegistry.set(socket.id, gameId, room.gameMode, socket.userId || null);
+        console.log(`[RoomService] socketRegistry set for socket ${socket.id}: gameId=${gameId}, gameType=${room.gameMode}, userId=${socket.userId || null}`);
+        this.unifiedMatchmaking.socketRegistry.setGameSockets(gameId, sockets.map(s => s.id));
         // Set userId on gameState players for persistence
         if (socket.userId) {
           this.gameManager.setPlayerUserId(gameId, i, socket.userId);
