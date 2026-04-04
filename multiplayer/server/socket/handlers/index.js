@@ -9,7 +9,6 @@ const { createBroadcastHelpers } = require('./broadcast');
 function attachSocketHandlers(socket, services) {
   const { unifiedMatchmaking, roomService, gameManager, broadcaster, coordinator } = services;
   const {
-    broadcastWaiting,
     broadcastTwoHandsWaiting,
     broadcastPartyWaiting,
     broadcastThreeHandsWaiting,
@@ -70,11 +69,25 @@ function attachSocketHandlers(socket, services) {
         await broadcaster.broadcastGameStart(result);
       } else {
         // Broadcast waiting state immediately after joining queue
-        broadcastWaiting('two-hands').catch(err => console.error('[Socket] Error broadcasting two-hands waiting:', err));
+        broadcastTwoHandsWaiting().catch(err => console.error('[Socket] Error broadcasting two-hands waiting:', err));
       }
     });
 
   socket.on('join-party-queue', async () => {
+    console.log(`[Socket] join-party-queue received from ${socket.id}, userId=${socket.userId}`);
+    socket.lastActivity = Date.now();
+
+    if (!socket.userId) {
+      socket.emit('error', { message: 'Please authenticate before joining queue' });
+      return;
+    }
+
+    // Check if already in this queue to prevent duplicate joins
+    if (unifiedMatchmaking.isInQueue(socket.id) && unifiedMatchmaking.getQueueType(socket.id) === 'party') {
+      console.log(`[Socket] Socket ${socket.id} already in party queue, ignoring duplicate join`);
+      return;
+    }
+
     removeFromAllQueues();
     const result = unifiedMatchmaking.addToQueue(socket, 'party', socket.userId);
     if (result) {
@@ -113,13 +126,25 @@ function attachSocketHandlers(socket, services) {
         console.log(`[Socket] Added to three-hands queue, broadcasting waiting state`);
         // Broadcast waiting state immediately after joining queue
         // This ensures the player sees the updated lobby state
-        broadcastWaiting('three-hands').catch(err => console.error('[Socket] Error broadcasting three-hands waiting:', err));
+        broadcastThreeHandsWaiting().catch(err => console.error('[Socket] Error broadcasting three-hands waiting:', err));
       }
     });
 
    socket.on('join-four-hands-queue', async () => {
-     console.log(`[Socket] join-four-hands-queue:socket.id = ${socket.id}`);
+     console.log(`[Socket] join-four-hands-queue received from ${socket.id}, userId=${socket.userId}`);
      socket.lastActivity = Date.now();
+
+     if (!socket.userId) {
+       socket.emit('error', { message: 'Please authenticate before joining queue' });
+       return;
+     }
+
+     // Check if already in this queue to prevent duplicate joins
+     if (unifiedMatchmaking.isInQueue(socket.id) && unifiedMatchmaking.getQueueType(socket.id) === 'four-hands') {
+       console.log(`[Socket] Socket ${socket.id} already in four-hands queue, ignoring duplicate join`);
+       return;
+     }
+
      removeFromAllQueues();
      const result = unifiedMatchmaking.addToQueue(socket, 'four-hands', socket.userId);
      if (result) {
@@ -130,7 +155,20 @@ function attachSocketHandlers(socket, services) {
    });
 
    socket.on('join-freeforall-queue', async () => {
+     console.log(`[Socket] join-freeforall-queue received from ${socket.id}, userId=${socket.userId}`);
      socket.lastActivity = Date.now();
+
+     if (!socket.userId) {
+       socket.emit('error', { message: 'Please authenticate before joining queue' });
+       return;
+     }
+
+     // Check if already in this queue to prevent duplicate joins
+     if (unifiedMatchmaking.isInQueue(socket.id) && unifiedMatchmaking.getQueueType(socket.id) === 'freeforall') {
+       console.log(`[Socket] Socket ${socket.id} already in freeforall queue, ignoring duplicate join`);
+       return;
+     }
+
      removeFromAllQueues();
      const result = unifiedMatchmaking.addToQueue(socket, 'freeforall', socket.userId);
      if (result) {
@@ -140,17 +178,29 @@ function attachSocketHandlers(socket, services) {
      // This ensures event listeners are registered before the broadcast is received
    });
 
-    socket.on('join-tournament-queue', async () => {
-      console.log(`[Socket] join-tournament-queue:socket.id = ${socket.id}`);
-      socket.lastActivity = Date.now();
-      removeFromAllQueues();
-     const result = unifiedMatchmaking.addToQueue(socket, 'tournament', socket.userId);
-     if (result) {
-       await broadcaster.broadcastTournamentGameStart(result);
-     }
-     // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
-     // This ensures event listeners are registered before the broadcast is received
-   });
+     socket.on('join-tournament-queue', async () => {
+       console.log(`[Socket] join-tournament-queue received from ${socket.id}, userId=${socket.userId}`);
+       socket.lastActivity = Date.now();
+
+       if (!socket.userId) {
+         socket.emit('error', { message: 'Please authenticate before joining queue' });
+         return;
+       }
+
+       // Check if already in this queue to prevent duplicate joins
+       if (unifiedMatchmaking.isInQueue(socket.id) && unifiedMatchmaking.getQueueType(socket.id) === 'tournament') {
+         console.log(`[Socket] Socket ${socket.id} already in tournament queue, ignoring duplicate join`);
+         return;
+       }
+
+       removeFromAllQueues();
+       const result = unifiedMatchmaking.addToQueue(socket, 'tournament', socket.userId);
+       if (result) {
+         await broadcaster.broadcastTournamentGameStart(result);
+       }
+       // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
+       // This ensures event listeners are registered before the broadcast is received
+     });
 
    // ── Leave Queue Handlers ──────────────────────────────────────────────
    socket.on('leave-two-hands-queue', () => {
@@ -159,9 +209,9 @@ function attachSocketHandlers(socket, services) {
      const beforeCount = unifiedMatchmaking.getWaitingCount('two-hands');
      unifiedMatchmaking.leaveQueue(socket, 'two-hands');
      const afterCount = unifiedMatchmaking.getWaitingCount('two-hands');
-     console.log(`[${new Date().toISOString()}] [Socket] LEAVE-QUEUE RESULT: two-hands queue ${beforeCount} → ${afterCount} players`);
-     // Broadcast updated waiting state
-      broadcastWaiting('two-hands').catch(err => console.error('[Socket] Error broadcasting two-hands waiting:', err));
+      console.log(`[${new Date().toISOString()}] [Socket] LEAVE-QUEUE RESULT: two-hands queue ${beforeCount} → ${afterCount} players`);
+      // Broadcast updated waiting state
+       broadcastTwoHandsWaiting().catch(err => console.error('[Socket] Error broadcasting two-hands waiting:', err));
    });
 
    socket.on('leave-three-hands-queue', () => {
@@ -170,9 +220,9 @@ function attachSocketHandlers(socket, services) {
      const beforeCount = unifiedMatchmaking.getWaitingCount('three-hands');
      unifiedMatchmaking.leaveQueue(socket, 'three-hands');
      const afterCount = unifiedMatchmaking.getWaitingCount('three-hands');
-     console.log(`[${new Date().toISOString()}] [Socket] LEAVE-QUEUE RESULT: three-hands queue ${beforeCount} → ${afterCount} players`);
-     // Broadcast updated waiting state
-      broadcastWaiting('three-hands').catch(err => console.error('[Socket] Error broadcasting three-hands waiting:', err));
+      console.log(`[${new Date().toISOString()}] [Socket] LEAVE-QUEUE RESULT: three-hands queue ${beforeCount} → ${afterCount} players`);
+      // Broadcast updated waiting state
+       broadcastThreeHandsWaiting().catch(err => console.error('[Socket] Error broadcasting three-hands waiting:', err));
    });
 
    socket.on('leave-four-hands-queue', () => {
@@ -181,9 +231,9 @@ function attachSocketHandlers(socket, services) {
      const beforeCount = unifiedMatchmaking.getWaitingCount('four-hands');
      unifiedMatchmaking.leaveQueue(socket, 'four-hands');
      const afterCount = unifiedMatchmaking.getWaitingCount('four-hands');
-     console.log(`[${new Date().toISOString()}] [Socket] LEAVE-QUEUE RESULT: four-hands queue ${beforeCount} → ${afterCount} players`);
-     // Broadcast updated waiting state
-      broadcastWaiting('four-hands').catch(err => console.error('[Socket] Error broadcasting four-hands waiting:', err));
+      console.log(`[${new Date().toISOString()}] [Socket] LEAVE-QUEUE RESULT: four-hands queue ${beforeCount} → ${afterCount} players`);
+      // Broadcast updated waiting state
+       broadcastFourHandsWaiting().catch(err => console.error('[Socket] Error broadcasting four-hands waiting:', err));
    });
 
    socket.on('leave-party-queue', () => {
@@ -192,9 +242,9 @@ function attachSocketHandlers(socket, services) {
      const beforeCount = unifiedMatchmaking.getWaitingCount('party');
      unifiedMatchmaking.leaveQueue(socket, 'party');
      const afterCount = unifiedMatchmaking.getWaitingCount('party');
-     console.log(`[${new Date().toISOString()}] [Socket] LEAVE-QUEUE RESULT: party queue ${beforeCount} → ${afterCount} players`);
-     // Broadcast updated waiting state
-      broadcastWaiting('party').catch(err => console.error('[Socket] Error broadcasting party waiting:', err));
+      console.log(`[${new Date().toISOString()}] [Socket] LEAVE-QUEUE RESULT: party queue ${beforeCount} → ${afterCount} players`);
+      // Broadcast updated waiting state
+       broadcastPartyWaiting().catch(err => console.error('[Socket] Error broadcasting party waiting:', err));
    });
 
    socket.on('leave-freeforall-queue', () => {
@@ -203,9 +253,9 @@ function attachSocketHandlers(socket, services) {
      const beforeCount = unifiedMatchmaking.getWaitingCount('freeforall');
      unifiedMatchmaking.leaveQueue(socket, 'freeforall');
      const afterCount = unifiedMatchmaking.getWaitingCount('freeforall');
-     console.log(`[${new Date().toISOString()}] [Socket] LEAVE-QUEUE RESULT: freeforall queue ${beforeCount} → ${afterCount} players`);
-     // Broadcast updated waiting state
-      broadcastWaiting('freeforall').catch(err => console.error('[Socket] Error broadcasting freeforall waiting:', err));
+      console.log(`[${new Date().toISOString()}] [Socket] LEAVE-QUEUE RESULT: freeforall queue ${beforeCount} → ${afterCount} players`);
+      // Broadcast updated waiting state
+       broadcastFreeForAllWaiting().catch(err => console.error('[Socket] Error broadcasting freeforall waiting:', err));
    });
 
    socket.on('leave-tournament-queue', () => {
@@ -214,9 +264,9 @@ function attachSocketHandlers(socket, services) {
      const beforeCount = unifiedMatchmaking.getWaitingCount('tournament');
      unifiedMatchmaking.leaveQueue(socket, 'tournament');
      const afterCount = unifiedMatchmaking.getWaitingCount('tournament');
-     console.log(`[${new Date().toISOString()}] [Socket] LEAVE-QUEUE RESULT: tournament queue ${beforeCount} → ${afterCount} players`);
-     // Broadcast updated waiting state
-      broadcastWaiting('tournament').catch(err => console.error('[Socket] Error broadcasting tournament waiting:', err));
+      console.log(`[${new Date().toISOString()}] [Socket] LEAVE-QUEUE RESULT: tournament queue ${beforeCount} → ${afterCount} players`);
+      // Broadcast updated waiting state
+       broadcastTournamentWaiting().catch(err => console.error('[Socket] Error broadcasting tournament waiting:', err));
    });
 
    // ── Room Management Handlers ──────────────────────────────────────────
@@ -335,7 +385,18 @@ function attachSocketHandlers(socket, services) {
 
       if (unifiedMatchmaking.isInQueue(socket.id)) {
         const gameType = unifiedMatchmaking.getQueueType(socket.id);
-        await broadcastWaiting(gameType);
+        const broadcastMap = {
+          'two-hands': broadcastTwoHandsWaiting,
+          'three-hands': broadcastThreeHandsWaiting,
+          'four-hands': broadcastFourHandsWaiting,
+          'party': broadcastPartyWaiting,
+          'freeforall': broadcastFreeForAllWaiting,
+          'tournament': broadcastTournamentWaiting,
+        };
+        const broadcastFn = broadcastMap[gameType];
+        if (broadcastFn) {
+          await broadcastFn();
+        }
       }
   });
 

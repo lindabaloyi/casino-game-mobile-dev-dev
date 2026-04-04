@@ -13,7 +13,7 @@
  * - ErrorScreen for error states
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -324,6 +324,12 @@ export default function OnlinePlayScreen() {
     };
   }, [mode, connection.socket, connection.gameState]);
 
+  // Memoize serverLobbyPlayers to prevent unnecessary re-renders
+  const serverLobbyPlayers = useMemo(() =>
+    connection.lobbyPlayers.map(player => ({ ...player, displayName: player.username })),
+    [connection.lobbyPlayers]
+  );
+
 // Mock lobby data (for display while waiting)
   const {
     lobbyPlayers,
@@ -335,7 +341,7 @@ export default function OnlinePlayScreen() {
     modeConfig,
     playersInLobby: connection.playersInLobby,
     profile,
-    serverLobbyPlayers: connection.lobbyPlayers,
+    serverLobbyPlayers,
     initialReady: false,
     roomPlayers: connection.isPrivateRoom ? undefined : undefined,
     roomPlayerCount: connection.isPrivateRoom ? undefined : undefined,
