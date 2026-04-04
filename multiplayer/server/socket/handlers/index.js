@@ -52,8 +52,20 @@ function attachSocketHandlers(socket, services) {
       console.log(`[Socket] join-two-hands-queue received from ${socket.id}, userId=${socket.userId}`);
       socket.lastActivity = Date.now();
 
+      // Check if socket is already in an active game
+      if (unifiedMatchmaking.getGameId(socket.id) !== null) {
+        console.log(`[Socket] Socket ${socket.id} is already in a game, ignoring join request`);
+        return;
+      }
+
       if (!socket.userId) {
         socket.emit('error', { message: 'Please authenticate before joining queue' });
+        return;
+      }
+
+      // Check if socket is already in an active game
+      if (unifiedMatchmaking.getGameId(socket.id) !== null) {
+        console.log(`[Socket] Socket ${socket.id} is already in a game, ignoring join request`);
         return;
       }
 
@@ -65,24 +77,41 @@ function attachSocketHandlers(socket, services) {
 
       removeFromAllQueues();
       const result = unifiedMatchmaking.addToQueue(socket, 'two-hands', socket.userId);
-      if (result) {
-        await broadcaster.broadcastGameStart(result);
-      } else {
+       if (result) {
+         await broadcaster.broadcastTwoHandsGameStart(result);
+       } else {
         // Broadcast waiting state immediately after joining queue
         broadcastTwoHandsWaiting().catch(err => console.error('[Socket] Error broadcasting two-hands waiting:', err));
       }
     });
 
-  socket.on('join-party-queue', async () => {
+   socket.on('join-party-queue', async () => {
     console.log(`[Socket] join-party-queue received from ${socket.id}, userId=${socket.userId}`);
     socket.lastActivity = Date.now();
+
+    // Check if socket is already in an active game
+    if (unifiedMatchmaking.getGameId(socket.id) !== null) {
+      console.log(`[Socket] Socket ${socket.id} is already in a game, ignoring join request`);
+      return;
+    }
 
     if (!socket.userId) {
       socket.emit('error', { message: 'Please authenticate before joining queue' });
       return;
     }
 
-    // Check if already in this queue to prevent duplicate joins
+      if (!socket.userId) {
+        socket.emit('error', { message: 'Please authenticate before joining queue' });
+        return;
+      }
+
+      // Check if socket is already in an active game
+      if (unifiedMatchmaking.getGameId(socket.id) !== null) {
+        console.log(`[Socket] Socket ${socket.id} is already in a game, ignoring join request`);
+        return;
+      }
+
+      // Check if already in this queue to prevent duplicate joins
     if (unifiedMatchmaking.isInQueue(socket.id) && unifiedMatchmaking.getQueueType(socket.id) === 'party') {
       console.log(`[Socket] Socket ${socket.id} already in party queue, ignoring duplicate join`);
       return;
@@ -101,14 +130,20 @@ function attachSocketHandlers(socket, services) {
       console.log(`[Socket] join-three-hands-queue:socket.id = ${socket.id}, userId = ${socket.userId} (type: ${typeof socket.userId})`);
       socket.lastActivity = Date.now();
 
-      if (!socket.userId) {
-        console.log(`[Socket] Rejecting join-three-hands-queue: not authenticated, socket.userId = ${socket.userId} (falsy check: ${!socket.userId})`);
-        socket.emit('error', { message: 'Please authenticate before joining queue' });
-        console.log(`[Socket] Error emitted to client for unauthenticated join`);
-        return;
-      }
+       if (!socket.userId) {
+         console.log(`[Socket] Rejecting join-three-hands-queue: not authenticated, socket.userId = ${socket.userId} (falsy check: ${!socket.userId})`);
+         socket.emit('error', { message: 'Please authenticate before joining queue' });
+         console.log(`[Socket] Error emitted to client for unauthenticated join`);
+         return;
+       }
 
-      // Check if already in this queue to prevent duplicate joins
+       // Check if socket is already in an active game
+       if (unifiedMatchmaking.getGameId(socket.id) !== null) {
+         console.log(`[Socket] Socket ${socket.id} is already in a game, ignoring join request`);
+         return;
+       }
+
+       // Check if already in this queue to prevent duplicate joins
       if (unifiedMatchmaking.isInQueue(socket.id) && unifiedMatchmaking.getQueueType(socket.id) === 'three-hands') {
         console.log(`[Socket] Socket ${socket.id} already in three-hands queue, ignoring duplicate join`);
         return;
@@ -120,8 +155,8 @@ function attachSocketHandlers(socket, services) {
       const result = unifiedMatchmaking.addToQueue(socket, 'three-hands', socket.userId);
       console.log(`[Socket] addToQueue result:`, result);
       if (result) {
-        console.log(`[Socket] Game started for three-hands, broadcasting game start`);
-        await broadcaster.broadcastThreeHandsGameStart(result);
+        console.log(`[Socket] Game created for three-hands, starting handshake`);
+        await broadcaster.broadcastThreeHandsGameStart(result); // This now starts the handshake
       } else {
         console.log(`[Socket] Added to three-hands queue, broadcasting waiting state`);
         // Broadcast waiting state immediately after joining queue
@@ -182,12 +217,18 @@ function attachSocketHandlers(socket, services) {
        console.log(`[Socket] join-tournament-queue received from ${socket.id}, userId=${socket.userId}`);
        socket.lastActivity = Date.now();
 
-       if (!socket.userId) {
-         socket.emit('error', { message: 'Please authenticate before joining queue' });
-         return;
-       }
+        if (!socket.userId) {
+          socket.emit('error', { message: 'Please authenticate before joining queue' });
+          return;
+        }
 
-       // Check if already in this queue to prevent duplicate joins
+        // Check if socket is already in an active game
+        if (unifiedMatchmaking.getGameId(socket.id) !== null) {
+          console.log(`[Socket] Socket ${socket.id} is already in a game, ignoring join request`);
+          return;
+        }
+
+        // Check if already in this queue to prevent duplicate joins
        if (unifiedMatchmaking.isInQueue(socket.id) && unifiedMatchmaking.getQueueType(socket.id) === 'tournament') {
          console.log(`[Socket] Socket ${socket.id} already in tournament queue, ignoring duplicate join`);
          return;
@@ -380,10 +421,10 @@ function attachSocketHandlers(socket, services) {
      socket.emit('game-state-sync', { gameState: state, serverTime: Date.now() });
    });
 
-   socket.on('request-lobby-status', async () => {
-     socket.lastActivity = Date.now();
+    socket.on('request-lobby-status', async () => {
+      socket.lastActivity = Date.now();
 
-      if (unifiedMatchmaking.isInQueue(socket.id)) {
+       if (unifiedMatchmaking.isInQueue(socket.id)) {
         const gameType = unifiedMatchmaking.getQueueType(socket.id);
         const broadcastMap = {
           'two-hands': broadcastTwoHandsWaiting,

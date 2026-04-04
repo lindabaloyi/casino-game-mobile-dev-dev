@@ -12,6 +12,12 @@ class BroadcasterService {
     this.matchmaking = matchmakingService;
     this.gameManager = gameManager;
     this.io = io;
+
+    // Track client ready states for game handshake
+    this.clientReadyStates = new Map(); // gameId -> Set of ready client socket IDs
+
+    // Set up timeout for handshake completion
+    this.handshakeTimeouts = new Map(); // gameId -> timeout ID
   }
 
   /**
@@ -29,64 +35,205 @@ class BroadcasterService {
     return PlayerProfile.getPlayerInfos(userIds);
   }
 
-  /**
-   * Broadcast game start to all players in a new game
-   */
-  async broadcastGameStart(gameResult) {
-    const { gameId, gameState, players } = gameResult;
 
-    // Fetch player profile info
+
+  /**
+    * Broadcast two-hands game start with handshake
+    */
+  async broadcastTwoHandsGameStart(gameResult) {
+    const { gameId, gameState, players } = gameResult;
+    console.log(`[Broadcaster] Starting two-hands game handshake for ${players.length} players`);
+
     const playerInfos = await this._getPlayerInfos(players);
 
+    if (!this.clientReadyStates.has(gameId)) {
+      this.clientReadyStates.set(gameId, new Set());
+    }
+    const readyClients = this.clientReadyStates.get(gameId);
+    readyClients.clear();
+
     players.forEach(({ socket, playerNumber }) => {
-      socket.emit("game-start", {
+      socket.emit("game-init", {
         gameId,
         gameState,
         playerNumber,
         playerInfos,
+        gameMode: 'two-hands',
+        expectedClients: players.length,
       });
     });
+
+    console.log(`[Broadcaster] Sent game-init to ${players.length} players for two-hands, waiting for client-ready`);
+
+    const timeoutId = setTimeout(() => {
+      console.error(`[Broadcaster] Two-hands handshake timeout for game ${gameId}, forcing start`);
+      this._completeHandshake(gameId);
+    }, 30000);
+
+    this.handshakeTimeouts.set(gameId, timeoutId);
   }
 
   /**
-   * Broadcast party game start to all 4 players in a new party game
-   */
+    * Broadcast party game start to all 4 players in a new party game
+    */
   async broadcastPartyGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
+    console.log(`[Broadcaster] Starting party game handshake for ${players.length} players`);
 
     // Fetch player profile info
     const playerInfos = await this._getPlayerInfos(players);
 
+    // Initialize client ready tracking for this game
+    if (!this.clientReadyStates.has(gameId)) {
+      this.clientReadyStates.set(gameId, new Set());
+    }
+    const readyClients = this.clientReadyStates.get(gameId);
+    readyClients.clear(); // Reset for new game
+
+    // Send game-init to all players
     players.forEach(({ socket, playerNumber }) => {
-      socket.emit("game-start", {
+      socket.emit("game-init", {
         gameId,
         gameState,
         playerNumber,
         playerInfos,
         isPartyGame: true,
+        expectedClients: players.length,
       });
     });
+
+    console.log(`[Broadcaster] Sent game-init to ${players.length} players for party game, waiting for client-ready responses`);
+
+    // Set timeout for handshake completion (30 seconds)
+    const timeoutId = setTimeout(() => {
+      console.error(`[Broadcaster] Party game handshake timeout for game ${gameId}, forcing game start`);
+      this._completeHandshake(gameId);
+    }, 30000);
+
+    this.handshakeTimeouts.set(gameId, timeoutId);
   }
 
   /**
-   * Broadcast three-hands game start to all 3 players in a new three-hands game
-   */
+    * Broadcast three-hands game init and start handshake
+    */
   async broadcastThreeHandsGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
-    console.log(`[Broadcaster] Broadcasting three-hands game start to ${players.length} players`);
+    console.log(`[Broadcaster] Starting three-hands game handshake for ${players.length} players`);
 
     // Fetch player profile info
     const playerInfos = await this._getPlayerInfos(players);
 
+    // Initialize client ready tracking for this game
+    if (!this.clientReadyStates.has(gameId)) {
+      this.clientReadyStates.set(gameId, new Set());
+    }
+    const readyClients = this.clientReadyStates.get(gameId);
+    readyClients.clear(); // Reset for new game
+
+    // Send game-init to all players
     players.forEach(({ socket, playerNumber }) => {
-      socket.emit("game-start", {
+      socket.emit("game-init", {
         gameId,
         gameState,
         playerNumber,
         playerInfos,
         isThreeHandsGame: true,
+        expectedClients: players.length,
       });
     });
+
+    console.log(`[Broadcaster] Sent game-init to ${players.length} players, waiting for client-ready responses`);
+
+    // Set timeout for handshake completion (30 seconds)
+    const timeoutId = setTimeout(() => {
+      console.error(`[Broadcaster] Game handshake timeout for game ${gameId}, forcing game start`);
+      this._completeHandshake(gameId);
+    }, 30000);
+
+    this.handshakeTimeouts.set(gameId, timeoutId);
+  }
+
+  /**
+   * Handle client ready response from a player
+   */
+  handleClientReady(gameId, socketId, playerNumber) {
+    console.log(`[Broadcaster] Client ready received: gameId=${gameId}, socketId=${socketId}, playerNumber=${playerNumber}`);
+
+    if (!this.clientReadyStates.has(gameId)) {
+      console.warn(`[Broadcaster] No handshake in progress for game ${gameId}`);
+      return;
+    }
+
+    const readyClients = this.clientReadyStates.get(gameId);
+    readyClients.add(socketId);
+
+    // Get game info to check if all clients are ready
+    const game = this.gameManager.getGame(gameId);
+    if (!game) {
+      console.error(`[Broadcaster] Game ${gameId} not found during handshake`);
+      return;
+    }
+
+    const expectedClients = game.players.length;
+    const readyCount = readyClients.size;
+
+    console.log(`[Broadcaster] Game ${gameId}: ${readyCount}/${expectedClients} clients ready`);
+
+    if (readyCount >= expectedClients) {
+      console.log(`[Broadcaster] All clients ready for game ${gameId}, completing handshake`);
+      this._completeHandshake(gameId);
+    }
+  }
+
+  /**
+   * Complete the game handshake and start the game
+   */
+  _completeHandshake(gameId) {
+    // Clear timeout
+    const timeoutId = this.handshakeTimeouts.get(gameId);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      this.handshakeTimeouts.delete(gameId);
+    }
+
+    // Get game info
+    const game = this.gameManager.getGame(gameId);
+    if (!game) {
+      console.error(`[Broadcaster] Cannot complete handshake - game ${gameId} not found`);
+      return;
+    }
+
+    const players = game.players;
+    const readyClients = this.clientReadyStates.get(gameId) || new Set();
+    const readyCount = readyClients.size;
+
+    console.log(`[Broadcaster] Completing handshake for game ${gameId} with ${readyCount}/${players.length} ready clients`);
+
+    // Broadcast all-clients-ready
+    players.forEach(({ socket, playerNumber }) => {
+      socket.emit("all-clients-ready", {
+        gameId,
+        readyCount,
+        totalClients: players.length,
+      });
+    });
+
+    // Small delay before game start to ensure all-clients-ready is processed
+    setTimeout(() => {
+      // Broadcast game-start
+      players.forEach(({ socket, playerNumber }) => {
+        socket.emit("game-start", {
+          gameId,
+          playerNumber,
+          finalReady: true, // Indicates this is the final game start after handshake
+        });
+      });
+
+      console.log(`[Broadcaster] Game ${gameId} handshake completed, game officially started`);
+    }, 500);
+
+    // Clean up tracking
+    this.clientReadyStates.delete(gameId);
   }
 
   /**
@@ -94,20 +241,39 @@ class BroadcasterService {
    */
   async broadcastFreeForAllGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
-    console.log(`[Broadcaster] Broadcasting free-for-all game start to ${players.length} players`);
+    console.log(`[Broadcaster] Starting free-for-all game handshake for ${players.length} players`);
 
     // Fetch player profile info
     const playerInfos = await this._getPlayerInfos(players);
 
+    // Initialize client ready tracking for this game
+    if (!this.clientReadyStates.has(gameId)) {
+      this.clientReadyStates.set(gameId, new Set());
+    }
+    const readyClients = this.clientReadyStates.get(gameId);
+    readyClients.clear(); // Reset for new game
+
+    // Send game-init to all players
     players.forEach(({ socket, playerNumber }) => {
-      socket.emit("game-start", {
+      socket.emit("game-init", {
         gameId,
         gameState,
         playerNumber,
         playerInfos,
         gameMode: 'freeforall',
+        expectedClients: players.length,
       });
     });
+
+    console.log(`[Broadcaster] Sent game-init to ${players.length} players for free-for-all game, waiting for client-ready responses`);
+
+    // Set timeout for handshake completion (30 seconds)
+    const timeoutId = setTimeout(() => {
+      console.error(`[Broadcaster] Free-for-all game handshake timeout for game ${gameId}, forcing game start`);
+      this._completeHandshake(gameId);
+    }, 30000);
+
+    this.handshakeTimeouts.set(gameId, timeoutId);
   }
 
   /**
@@ -115,20 +281,39 @@ class BroadcasterService {
    */
   async broadcastFourHandsGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
-    console.log(`[Broadcaster] Broadcasting four-hands game start to ${players.length} players`);
+    console.log(`[Broadcaster] Starting four-hands game handshake for ${players.length} players`);
 
     // Fetch player profile info
     const playerInfos = await this._getPlayerInfos(players);
 
+    // Initialize client ready tracking for this game
+    if (!this.clientReadyStates.has(gameId)) {
+      this.clientReadyStates.set(gameId, new Set());
+    }
+    const readyClients = this.clientReadyStates.get(gameId);
+    readyClients.clear(); // Reset for new game
+
+    // Send game-init to all players
     players.forEach(({ socket, playerNumber }) => {
-      socket.emit("game-start", {
+      socket.emit("game-init", {
         gameId,
         gameState,
         playerNumber,
         playerInfos,
         gameMode: 'four-hands',
+        expectedClients: players.length,
       });
     });
+
+    console.log(`[Broadcaster] Sent game-init to ${players.length} players for four-hands game, waiting for client-ready responses`);
+
+    // Set timeout for handshake completion (30 seconds)
+    const timeoutId = setTimeout(() => {
+      console.error(`[Broadcaster] Four-hands game handshake timeout for game ${gameId}, forcing game start`);
+      this._completeHandshake(gameId);
+    }, 30000);
+
+    this.handshakeTimeouts.set(gameId, timeoutId);
   }
 
   /**
@@ -136,20 +321,39 @@ class BroadcasterService {
    */
   async broadcastTournamentGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
-    console.log(`[Broadcaster] Broadcasting tournament game start to ${players.length} players`);
+    console.log(`[Broadcaster] Starting tournament game handshake for ${players.length} players`);
 
     // Fetch player profile info
     const playerInfos = await this._getPlayerInfos(players);
 
+    // Initialize client ready tracking for this game
+    if (!this.clientReadyStates.has(gameId)) {
+      this.clientReadyStates.set(gameId, new Set());
+    }
+    const readyClients = this.clientReadyStates.get(gameId);
+    readyClients.clear(); // Reset for new game
+
+    // Send game-init to all players
     players.forEach(({ socket, playerNumber }) => {
-      socket.emit("game-start", {
+      socket.emit("game-init", {
         gameId,
         gameState,
         playerNumber,
         playerInfos,
         gameMode: 'tournament',
+        expectedClients: players.length,
       });
     });
+
+    console.log(`[Broadcaster] Sent game-init to ${players.length} players for tournament game, waiting for client-ready responses`);
+
+    // Set timeout for handshake completion (30 seconds)
+    const timeoutId = setTimeout(() => {
+      console.error(`[Broadcaster] Tournament game handshake timeout for game ${gameId}, forcing game start`);
+      this._completeHandshake(gameId);
+    }, 30000);
+
+    this.handshakeTimeouts.set(gameId, timeoutId);
   }
 
   /**
@@ -332,12 +536,24 @@ class BroadcasterService {
   }
 
   /**
-   * Broadcast that all clients are ready and game can start
-   * @param {number} gameId - Game ID
-   */
+    * Broadcast that all clients are ready and game can start
+    * @param {number} gameId - Game ID
+    */
   broadcastAllClientsReady(gameId) {
     console.log(`[Broadcaster] Broadcasting all-clients-ready for game ${gameId}`);
     this.io.to(gameId).emit('all-clients-ready', { gameId });
+  }
+
+  /**
+   * Broadcast final game-start after handshake completion
+   * @param {number} gameId - Game ID
+   */
+  broadcastGameStartAfterHandshake(gameId) {
+    console.log(`[Broadcaster] Broadcasting final game-start for game ${gameId}`);
+    this.io.to(gameId).emit('game-start', {
+      gameId,
+      handshakeCompleted: true,
+    });
   }
 }
 

@@ -28,6 +28,8 @@ export interface UseOnlinePlayConnectionResult {
   playerNumber: number;
   /** Whether the socket is currently connected */
   isConnected: boolean;
+  /** Socket instance for direct access */
+  socket: any;
   /** Number of players currently in the lobby */
   playersInLobby: number;
   /** Whether the local player is disconnected */
@@ -165,13 +167,18 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     ? [] // Private rooms don't use matchmaking lobby players
     : (multiplayerResult?.lobbyPlayers ?? []);
 
+  // Socket for direct access
+  const socket = isPrivateRoom
+    ? roomSocket?.socket ?? null
+    : multiplayerResult?.socket ?? null;
+
   // Game ready state for multiplayer
-  const gameReady = isPrivateRoom 
-    ? (roomGameSync?.gameReady ?? false) 
+  const gameReady = isPrivateRoom
+    ? (roomGameSync?.gameReady ?? false)
     : (multiplayerResult?.gameReady ?? false);
-    
-  const allClientsReady = isPrivateRoom 
-    ? (roomGameSync?.allClientsReady ?? false) 
+
+  const allClientsReady = isPrivateRoom
+    ? (roomGameSync?.allClientsReady ?? false)
     : (multiplayerResult?.allClientsReady ?? false);
 
   return useMemo(() => ({
@@ -179,6 +186,7 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     gameOverData,
     playerNumber,
     isConnected,
+    socket,
     playersInLobby,
     playerDisconnected,
     error,
@@ -201,6 +209,7 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     gameOverData,
     playerNumber,
     isConnected,
+    socket,
     playersInLobby,
     playerDisconnected,
     error,

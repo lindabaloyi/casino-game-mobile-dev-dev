@@ -42,16 +42,19 @@ interface UseLobbyMockProps {
   /** Room-based player data for private rooms (overrides serverLobbyPlayers) */
   roomPlayers?: Array<{ socketId: string; isHost: boolean }>;
   roomPlayerCount?: number;
+  /** Whether the game has started (prevents lobby processing) */
+  gameStarted?: boolean;
 }
 
-export const useLobbyMock = ({ 
-  modeConfig, 
-  playersInLobby, 
+export const useLobbyMock = ({
+  modeConfig,
+  playersInLobby,
   profile,
   serverLobbyPlayers,
   initialReady = false,
   roomPlayers,
   roomPlayerCount,
+  gameStarted = false,
 }: UseLobbyMockProps) => {
   const [lobbyPlayers, setLobbyPlayers] = useState<LobbyPlayer[]>([]);
   const [notification, setNotification] = useState<string | null>(null);
@@ -61,6 +64,7 @@ export const useLobbyMock = ({
 // Initialize with self and merge with server/room players when available
   useEffect(() => {
     console.log('[useLobbyMock] ========== EFFECT TRIGGERED ==========');
+    console.log('[useLobbyMock] gameStarted:', gameStarted);
     console.log('[useLobbyMock] serverLobbyPlayers exists:', !!serverLobbyPlayers);
     console.log('[useLobbyMock] serverLobbyPlayers length:', serverLobbyPlayers?.length || 0);
     console.log('[useLobbyMock] serverLobbyPlayers value:', JSON.stringify(serverLobbyPlayers));
@@ -68,6 +72,12 @@ export const useLobbyMock = ({
     console.log('[useLobbyMock] profile.userId:', profile.userId);
     console.log('[useLobbyMock] playersInLobby:', playersInLobby);
     console.log('[useLobbyMock] modeConfig.playerCount:', modeConfig.playerCount);
+
+    // STATE MACHINE GUARD: Do not process lobby data if game has started
+    if (gameStarted) {
+      console.log('[useLobbyMock] ⚠️ Game has started, skipping lobby processing');
+      return;
+    }
 
     // Priority 1: Room-based players (private rooms)
     if (roomPlayers !== undefined && roomPlayerCount !== undefined) {
@@ -190,7 +200,7 @@ export const useLobbyMock = ({
         ping: 45,
       },
     ]);
-  }, [profile, isReady, serverLobbyPlayers, roomPlayers, roomPlayerCount, modeConfig.playerCount]);
+  }, [profile, isReady, serverLobbyPlayers, roomPlayers, roomPlayerCount, modeConfig.playerCount, gameStarted]);
 
   // Update own ready status
   useEffect(() => {

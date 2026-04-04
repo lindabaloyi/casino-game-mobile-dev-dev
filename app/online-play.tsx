@@ -345,6 +345,7 @@ export default function OnlinePlayScreen() {
     initialReady: false,
     roomPlayers: connection.isPrivateRoom ? undefined : undefined,
     roomPlayerCount: connection.isPrivateRoom ? undefined : undefined,
+    gameStarted: connection.gameReady && connection.allClientsReady,
   });
 
   // DEBUG: Log connection state and lobby data

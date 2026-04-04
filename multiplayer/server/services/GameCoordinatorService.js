@@ -161,6 +161,12 @@ class GameCoordinatorService {
     if (allReady) {
       console.log(`[Coordinator] ✅ All clients ready for game ${gameId} - broadcasting all-clients-ready`);
       this.broadcaster.broadcastAllClientsReady(gameId);
+
+      // After handshake completion, broadcast game-start
+      console.log(`[Coordinator] Broadcasting game-start for game ${gameId} after handshake`);
+      setTimeout(() => {
+        this.broadcaster.broadcastGameStartAfterHandshake(gameId);
+      }, 500); // Small delay to ensure all-clients-ready is processed
     }
   }
 

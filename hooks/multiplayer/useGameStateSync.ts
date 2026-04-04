@@ -290,34 +290,86 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
   // Store gameId for emitClientReady
   const gameIdRef = useRef<number | null>(null);
 
-  // Handle game-start event
+  // Handle game-init event (replaces old game-start)
   useEffect(() => {
     if (!socket) {
       return;
     }
 
-    const handleGameStart = (data: any) => {
-      console.log('[useGameStateSync] 🔥 game-start RECEIVED from server!');
+    const handleGameInit = (data: any) => {
+      console.log('[useGameStateSync] 🎯 game-init RECEIVED from server - starting handshake');
       console.log('[useGameStateSync] gameState playerCount:', data.gameState?.playerCount);
       console.log('[useGameStateSync] playerNumber:', data.playerNumber);
       console.log('[useGameStateSync] gameId:', data.gameId);
+
+      // Set initial game state
       setGameState(data.gameState);
       setPlayerNumber(data.playerNumber);
       setOpponentDisconnected(false);
       setError(null);
       setGameOverData(null);
-      
+
+      // Store gameId for handshake
+      if (data.gameId !== undefined && data.gameId !== null) {
+        gameIdRef.current = data.gameId;
+        console.log(`[useGameStateSync] 📦 Stored gameId: ${data.gameId} for handshake`);
+      }
+
+      // Send client-ready after processing (useGameReady handles the rest)
+      setTimeout(() => {
+        if (gameIdRef.current !== null && data.playerNumber !== undefined) {
+          console.log(`[useGameStateSync] 📤 Triggering client-ready for game ${gameIdRef.current}, player ${data.playerNumber}`);
+          emitClientReady(gameIdRef.current, data.playerNumber);
+        }
+      }, 100); // Small delay to ensure state is set
+    };
+
+    socket.on('game-init', handleGameInit);
+
+    return () => {
+      socket.off('game-init', handleGameInit);
+    };
+  }, [socket, emitClientReady]);
+
+  // Handle legacy game-start events (for games without handshake)
+  useEffect(() => {
+    if (!socket) {
+      return;
+    }
+
+    const handleLegacyGameStart = (data: any) => {
+      // Only handle if this is NOT a handshake completion (check for handshakeCompleted flag)
+      if (data.handshakeCompleted) {
+        console.log('[useGameStateSync] Skipping legacy handler - this is handshake completion');
+        return;
+      }
+
+      console.log('[useGameStateSync] 🔥 LEGACY game-start RECEIVED from server (no handshake)');
+      console.log('[useGameStateSync] gameState playerCount:', data.gameState?.playerCount);
+      console.log('[useGameStateSync] playerNumber:', data.playerNumber);
+      console.log('[useGameStateSync] gameId:', data.gameId);
+
+      // Set initial game state (legacy path - no handshake)
+      setGameState(data.gameState);
+      setPlayerNumber(data.playerNumber);
+      setOpponentDisconnected(false);
+      setError(null);
+      setGameOverData(null);
+
       // Store gameId for emitClientReady
       if (data.gameId !== undefined && data.gameId !== null) {
         gameIdRef.current = data.gameId;
-        console.log(`[useGameStateSync] 📦 Stored gameId: ${data.gameId}`);
+        console.log(`[useGameStateSync] 📦 Stored gameId: ${data.gameId} (legacy)`);
       }
+
+      // For legacy games without handshake, the client is considered ready immediately
+      // (states are managed by useGameReady hook based on gameState presence)
     };
 
-    socket.on('game-start', handleGameStart);
+    socket.on('game-start', handleLegacyGameStart);
 
     return () => {
-      socket.off('game-start', handleGameStart);
+      socket.off('game-start', handleLegacyGameStart);
     };
   }, [socket]);
 

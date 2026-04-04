@@ -4,7 +4,7 @@ const GAME_TYPES = {
     minPlayers: 2,
     maxPlayers: 2,
     createGame: (gameManager) => gameManager.startGame(2, false),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
+    registerPlayers: (gameId, players, gameManager, userIds = []) => {
       // Register players 0, 1
       for (let i = 0; i < 2; i++) {
         gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
@@ -15,7 +15,7 @@ const GAME_TYPES = {
     minPlayers: 3,
     maxPlayers: 3,
     createGame: (gameManager) => gameManager.startGame(3, false),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
+    registerPlayers: (gameId, players, gameManager, userIds = []) => {
       // Register players 0, 1, 2
       for (let i = 0; i < 3; i++) {
         gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
@@ -26,7 +26,7 @@ const GAME_TYPES = {
     minPlayers: 4,
     maxPlayers: 4,
     createGame: (gameManager) => gameManager.startGame(4, false),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
+    registerPlayers: (gameId, players, gameManager, userIds = []) => {
       // Register players 0, 1, 2, 3
       for (let i = 0; i < 4; i++) {
         gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
@@ -37,7 +37,7 @@ const GAME_TYPES = {
     minPlayers: 4,
     maxPlayers: 4,
     createGame: (gameManager) => gameManager.startGame(4, true),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
+    registerPlayers: (gameId, players, gameManager, userIds = []) => {
       // Register players 0, 1, 2, 3
       for (let i = 0; i < 4; i++) {
         gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
@@ -49,7 +49,7 @@ const GAME_TYPES = {
     minPlayers: 4,
     maxPlayers: 4,
     createGame: (gameManager) => gameManager.startGame(4, false),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
+    registerPlayers: (gameId, players, gameManager, userIds = []) => {
       // Register players 0, 1, 2, 3
       for (let i = 0; i < 4; i++) {
         gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
@@ -61,7 +61,7 @@ const GAME_TYPES = {
     minPlayers: 4,
     maxPlayers: 4,
     createGame: (gameManager) => gameManager.startTournamentGame(),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
+    registerPlayers: (gameId, players, gameManager, userIds = []) => {
       // Register players 0, 1, 2, 3
       for (let i = 0; i < 4; i++) {
         gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);

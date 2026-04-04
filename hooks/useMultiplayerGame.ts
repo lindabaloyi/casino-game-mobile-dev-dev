@@ -42,6 +42,8 @@ export interface UseMultiplayerGameResult {
   playerNumber: ReturnType<typeof useGameStateSync>['playerNumber'];
   /** Whether the socket is currently connected */
   isConnected: boolean;
+  /** Socket instance */
+  socket: any;
   /** Whether we're in the lobby waiting for players (multiplayer modes) */
   isInLobby: boolean;
   /** Number of players currently in the lobby */
@@ -138,6 +140,7 @@ export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMulti
     
     // Connection state
     isConnected,
+    socket,
     error: socketError || gameSync.error,
     
     // Lobby state (multiplayer modes)

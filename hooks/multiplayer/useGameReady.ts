@@ -117,21 +117,40 @@ export function useGameReady(socket: Socket | null): UseGameReadyResult {
     return true;
   }, []);
 
-  // Listen for all-clients-ready event from server
+  // Listen for handshake events from server
   useEffect(() => {
     if (!socket) {
       return;
     }
 
-    const handleAllClientsReady = (data: { gameId: number }) => {
-      console.log('[useGameReady] ✅ all-clients-ready received from server:', data);
+    const handleGameInit = (data: any) => {
+      console.log('[useGameReady] 🎯 game-init received - resetting for handshake');
+      // Reset ready states for new handshake
+      setGameReady(false);
+      setAllClientsReady(false);
+      hasSentReadyRef.current = false;
+      lastValidatedStateRef.current = null;
+    };
+
+    const handleAllClientsReady = (data: { gameId: number; readyCount: number; totalClients: number }) => {
+      console.log('[useGameReady] ✅ all-clients-ready received:', data);
       setAllClientsReady(true);
     };
 
+    const handleGameStart = (data: { gameId: number; handshakeCompleted: boolean }) => {
+      console.log('[useGameReady] 🔥 Final game-start received - handshake complete');
+      setGameReady(true);
+      setAllClientsReady(true);
+    };
+
+    socket.on('game-init', handleGameInit);
     socket.on('all-clients-ready', handleAllClientsReady);
+    socket.on('game-start', handleGameStart);
 
     return () => {
+      socket.off('game-init', handleGameInit);
       socket.off('all-clients-ready', handleAllClientsReady);
+      socket.off('game-start', handleGameStart);
     };
   }, [socket]);
 
