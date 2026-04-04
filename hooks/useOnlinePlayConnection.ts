@@ -166,13 +166,18 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     : (multiplayerResult?.lobbyPlayers ?? []);
 
   // Game ready state for multiplayer
-  const gameReady = isPrivateRoom 
-    ? (roomGameSync?.gameReady ?? false) 
+  const gameReady = isPrivateRoom
+    ? (roomGameSync?.gameReady ?? false)
     : (multiplayerResult?.gameReady ?? false);
-    
-  const allClientsReady = isPrivateRoom 
-    ? (roomGameSync?.allClientsReady ?? false) 
+
+  const allClientsReady = isPrivateRoom
+    ? (roomGameSync?.allClientsReady ?? false)
     : (multiplayerResult?.allClientsReady ?? false);
+
+  // Debug: Log game ready state changes
+  useEffect(() => {
+    console.log(`[useOnlinePlayConnection] DEBUG: mode=${mode}, gameState=${!!gameState}, gameReady=${gameReady}, allClientsReady=${allClientsReady}, isPrivateRoom=${isPrivateRoom}`);
+  }, [mode, gameState, gameReady, allClientsReady, isPrivateRoom]);
 
   return useMemo(() => ({
     gameState,

@@ -138,6 +138,7 @@ export function useGameReady(socket: Socket | null): UseGameReadyResult {
   // Export function to emit client-ready event
   const emitClientReady = useCallback((gameId: number, playerIndex: number) => {
     if (!socket || hasSentReadyRef.current) {
+      console.log(`[useGameReady] ⚠️ Skipping client-ready: socket=${!!socket}, alreadySent=${hasSentReadyRef.current}`);
       return;
     }
 

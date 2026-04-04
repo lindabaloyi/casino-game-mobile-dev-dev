@@ -71,7 +71,7 @@ export function useSocketConnection(
       console.log(`[useSocketConnection] Authenticated with userId: ${user._id}`);
       lastUserIdRef.current = user._id;
     }
-    
+
     // Skip auto-queue for private mode or private room games (room-based games handle their own flow)
     if (isPrivateMode || isPrivateRoomGame) {
       console.log(`[useSocketConnection] Private mode${isPrivateRoomGame ? ' room game' : ''} - skipping auto-queue (room-based flow)`);
@@ -79,16 +79,49 @@ export function useSocketConnection(
       sock.emit('room-mode-connected', { mode, roomCode });
       return;
     }
-    
+
     // Only join queues once per socket connection
     if (hasSetupRef.current) return;
     hasSetupRef.current = true;
-    
-    // Two-hands mode: join the two-hands queue when connected
-    if (isTwoHandsMode) {
-      sock.emit('join-two-hands-queue');
-      console.log('[useSocketConnection] Joined two-hands queue');
-    }
+
+    // Delay queue join to ensure authentication is processed
+    setTimeout(() => {
+      // Two-hands mode: join the two-hands queue when connected
+      if (isTwoHandsMode) {
+        sock.emit('join-two-hands-queue');
+        console.log('[useSocketConnection] Joined two-hands queue');
+      }
+
+      // Party mode: join the party queue when connected
+      if (isPartyMode) {
+        sock.emit('join-party-queue');
+        console.log('[useSocketConnection] Joined party queue');
+      }
+
+      // Three-hands mode: join the three-hands queue when connected
+      if (mode === 'three-hands') {
+        sock.emit('join-three-hands-queue');
+        console.log('[useSocketConnection] Joined three-hands queue');
+      }
+
+      // Four-hands mode: join the four-hands queue when connected
+      if (mode === 'four-hands') {
+        sock.emit('join-four-hands-queue');
+        console.log('[useSocketConnection] Joined four-hands queue');
+      }
+
+      // Free-for-all mode: join the freeforall queue when connected
+      if (mode === 'freeforall') {
+        sock.emit('join-freeforall-queue');
+        console.log('[useSocketConnection] Joined freeforall queue');
+      }
+
+      // Tournament mode: join the tournament queue when connected
+      if (mode === 'tournament') {
+        sock.emit('join-tournament-queue');
+        console.log('[useSocketConnection] Joined tournament queue');
+      }
+    }, 200);
     
     // Party mode: join the party queue when connected
     if (isPartyMode) {
