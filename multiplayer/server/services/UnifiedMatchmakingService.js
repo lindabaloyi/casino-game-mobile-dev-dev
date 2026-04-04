@@ -1,243 +1,331 @@
 /**
- * UnifiedMatchmakingService
- * Centralized matchmaking service that handles all game types:
- * - Duel (2-player)
- * - Three-hands (3-player)
- * - Party (4-player with teams)
- * - Free-for-all (4-player without teams)
+ * UnifiedMatchmakingService - Refactored Orchestrator
+ *
+ * Thin coordinator that delegates to specialized components:
+ * - QueueManager: queue storage and management
+ * - SocketRegistry: socket ↔ game mappings and room management
+ * - CleanupScheduler: periodic cleanup coordination
+ * - GameFactory: game creation per type
  */
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const CODE_LENGTH = 6;
 
+const QueueManager = require('./QueueManager');
+const SocketRegistry = require('./SocketRegistry');
+const CleanupScheduler = require('./CleanupScheduler');
+const GameFactory = require('./GameFactory');
+const GAME_TYPES = require('../config/gameTypes');
+
+// Game configurations are now registered with GameFactory in constructor
+
 class UnifiedMatchmakingService {
-  constructor(gameManager, io = null) {
+  constructor(gameManager, io) {
     this.gameManager = gameManager;
     this.io = io;
 
-    // Map of gameType → waiting players queue
-    this.waitingQueues = {};
+    // Initialize separated components
+    this.queueManager = new QueueManager();
+    this.socketRegistry = new SocketRegistry(io);
+    this.cleanupScheduler = new CleanupScheduler(this.queueManager, this.socketRegistry, io);
+    this.gameFactory = new GameFactory();
 
-    // Room codes for each matchmaking queue (gameType → roomCode)
-    this.queueRoomCodes = {};
-
-    // Initialize queues for all game types
-    Object.keys(GAME_TYPES).forEach(type => {
-      this.waitingQueues[type] = [];
-      this.queueRoomCodes[type] = null;
+    // Register game types with factory
+    Object.entries(GAME_TYPES).forEach(([type, config]) => {
+      this.gameFactory.register(type, config);
     });
 
-    // Shared mappings
-    this.socketGameMap = new Map();      // socketId → {gameId, gameType}
-    this.gameSocketsMap = new Map();     // gameId → [socketIds]
+    // Prevent concurrent game creation per type
+    this.creatingGame = new Set();
+
+    // Start the cleanup scheduler
+    this.cleanupScheduler.start();
   }
 
-  // Generate a unique 6-character room code for matchmaking queues
-  _generateQueueRoomCode() {
-    let code;
-    let attempts = 0;
-    do {
-      code = '';
-      for (let i = 0; i < CODE_LENGTH; i++) {
-        code += CHARS[Math.floor(Math.random() * CHARS.length)];
-      }
-      attempts++;
-    } while (this._isCodeTaken(code) && attempts < 100);
-    return code;
-  }
 
-  _isCodeTaken(code) {
-    // Check if code is already used in any queue
-    return Object.values(this.queueRoomCodes).includes(code);
-  }
-
-  // Get or create a room code for a specific game type queue
-  getQueueRoomCode(gameType) {
-    if (!this.queueRoomCodes[gameType]) {
-      this.queueRoomCodes[gameType] = this._generateQueueRoomCode();
-      console.log(`[UnifiedMatchmaking] Generated room code ${this.queueRoomCodes[gameType]} for ${gameType} queue`);
-    }
-    return this.queueRoomCodes[gameType];
-  }
-
-  // Clear room code when queue is emptied (game started)
-  clearQueueRoomCode(gameType) {
-    this.queueRoomCodes[gameType] = null;
-  }
 
   // Add player to specific game type queue
   addToQueue(socket, gameType, userId = null) {
-    console.log(`[UnifiedMatchmaking] addToQueue called: gameType=${gameType}, userId=${userId}, socket.id=${socket.id}`);
-    
-    // Validation: not already in queue/game
-    if (this.socketGameMap.has(socket.id)) {
-      console.log(`[UnifiedMatchmaking] Socket ${socket.id} already in queue/game, skipping`);
+    this._log('INFO', 'Adding player to queue', {
+      socketId: socket.id,
+      userId,
+      gameType,
+      socketConnected: socket.connected,
+      socketDisconnected: socket.disconnected
+    });
+
+    // Check if socket is already registered
+    if (this.socketRegistry.get(socket.id)) {
+      this._log('WARN', 'Socket already in queue/game, rejecting', {
+        socketId: socket.id,
+        userId,
+        existingInfo: this.socketRegistry.get(socket.id)
+      });
       return null;
     }
 
-    // Store socket with userId metadata
-    const socketEntry = { 
-      id: socket.id, 
+    // Create socket entry for queue
+    const socketEntry = {
+      id: socket.id,
       socket: socket,
-      userId: userId 
+      userId: userId,
+      joinedAt: Date.now()
     };
-    
-    console.log(`[UnifiedMatchmaking] Adding to ${gameType} queue:`, socketEntry);
-    this.waitingQueues[gameType].push(socketEntry);
-    this.socketGameMap.set(socket.id, { gameId: null, gameType, userId });
 
-    console.log(`[UnifiedMatchmaking] ${gameType} queue now has ${this.waitingQueues[gameType].length} players`);
+    // Mark socket as recently active
+    socket.lastActivity = Date.now();
+
+    // Add to queue and register socket
+    this.queueManager.add(gameType, socketEntry);
+    this.socketRegistry.set(socket.id, null, gameType, userId);
+
+    this._log('INFO', 'Successfully added to queue', {
+      socketId: socket.id,
+      userId,
+      gameType,
+      newQueueSize: this.queueManager.getSize(gameType)
+    });
+
     return this._tryCreateGame(gameType);
   }
 
   // Try to create game for specific type when enough players
   _tryCreateGame(gameType) {
-    const config = GAME_TYPES[gameType];
-    const queue = this.waitingQueues[gameType];
-    
-    console.log(`[UnifiedMatchmaking] _tryCreateGame for ${gameType}: queue.length=${queue.length}, minPlayers=${config.minPlayers}`);
-
-    if (queue.length < config.minPlayers) {
-      console.log(`[UnifiedMatchmaking] Not enough players for ${gameType}, need ${config.minPlayers}, have ${queue.length}`);
+    // Prevent concurrent game creation for same type
+    if (this.creatingGame.has(gameType)) {
+      console.log(`[UnifiedMatchmaking] Already creating game for ${gameType}, skipping`);
       return null;
     }
+    this.creatingGame.add(gameType);
 
-    // Validate we have exactly the required number
-    if (queue.length !== config.minPlayers) {
-      console.error(`[UnifiedMatchmaking] Expected ${config.minPlayers} players for ${gameType}, have ${queue.length}`);
-      return null;
-    }
+    try {
+      // Clean up stale sockets first
+      this.queueManager.cleanup(gameType, (entry) => this.queueManager.isSocketValid(entry));
 
-    // Extract players (socketEntry objects)
-    const playerEntries = queue.splice(0, config.minPlayers);
-    console.log(`[UnifiedMatchmaking] Extracted ${playerEntries.length} players from ${gameType} queue`);
+      const queueSize = this.queueManager.getSize(gameType);
+      const gameConfig = this.gameFactory.getConfig(gameType);
 
-    // Validate sockets
-    for (const entry of playerEntries) {
-      if (!entry || !entry.socket || !entry.socket.id) {
-        console.error(`[UnifiedMatchmaking] Invalid socket in ${gameType} queue`);
+      console.log(`[UnifiedMatchmaking] _tryCreateGame for ${gameType}: queueSize=${queueSize}, minPlayers=${gameConfig?.minPlayers}`);
+
+      if (!gameConfig || queueSize < gameConfig.minPlayers) {
+        console.log(`[UnifiedMatchmaking] Not enough players for ${gameType}, need ${gameConfig?.minPlayers}, have ${queueSize}`);
         return null;
       }
-      console.log(`[UnifiedMatchmaking] Player entry: socket.id=${entry.socket.id}, userId=${entry.userId}`);
-    }
 
-    // Extract actual sockets and userIds
-    const players = playerEntries.map(e => e.socket);
-    const userIds = playerEntries.map(e => e.userId);
-    console.log(`[UnifiedMatchmaking] Ready to create ${gameType} game with userIds:`, userIds);
-
-    // Create game
-    const { gameId, gameState } = config.createGame(this.gameManager);
-    if (!gameState) {
-      console.error(`[UnifiedMatchmaking] Failed to create ${gameType} game state`);
-      return null;
-    }
-
-    // Validate player count
-    if (gameState.players.length !== config.minPlayers) {
-      console.error(`[UnifiedMatchmaking] ${gameType} game has wrong player count: ${gameState.players.length}`);
-      return null;
-    }
-
-    // Map sockets → gameId (overwrite entries that had gameId: null from joining queue)
-    for (let i = 0; i < players.length; i++) {
-      this.socketGameMap.set(players[i].id, { gameId, gameType, userId: userIds[i] });
-      // Join socket to game room for room-based broadcasts (e.g., all-clients-ready)
-      players[i].join(gameId);
-      console.log(`[UnifiedMatchmaking] Socket ${players[i].id.substr(0,8)} joined game room ${gameId}`);
-    }
-    this.gameSocketsMap.set(gameId, players.map(p => p.id));
-    
-    console.log(`[UnifiedMatchmaking] socketGameMap updated for ${gameType} game ${gameId}:`, 
-      players.map((socket, i) => `${socket.id.substr(0,8)}→{gameId:${gameId}, gameType:${gameType}}`).join(', '));
-
-    // Register players (pass userIds)
-    config.playerRegistration(gameId, players, this.gameManager, userIds);
-    
-    // Also set userId on gameState players directly (for persistence)
-    for (let i = 0; i < players.length; i++) {
-      if (userIds[i]) {
-        this.gameManager.setPlayerUserId(gameId, i, userIds[i]);
+      // Atomic pop of required players
+      const playerEntries = this.queueManager.pop(gameType, gameConfig.minPlayers);
+      if (playerEntries.length !== gameConfig.minPlayers) {
+        console.error(`[UnifiedMatchmaking] Failed to pop ${gameConfig.minPlayers} players from ${gameType} queue`);
+        return null;
       }
-    }
 
-    return {
-      gameId,
-      gameState,
-      players: players.map((socket, index) => ({ 
-        socket, 
-        playerNumber: index,
-        userId: userIds[index] 
-      }))
-    };
+      console.log(`[UnifiedMatchmaking] Extracted ${playerEntries.length} players from ${gameType} queue`);
+
+      // Validate player entries
+      for (const entry of playerEntries) {
+        if (!entry || !entry.socket || !entry.socket.id) {
+          console.error(`[UnifiedMatchmaking] Invalid socket in ${gameType} queue`);
+          // Rollback - put players back
+          playerEntries.forEach(entry => this.queueManager.add(gameType, entry));
+          return null;
+        }
+        console.log(`[UnifiedMatchmaking] Player entry: socket.id=${entry.socket.id}, userId=${entry.userId}`);
+      }
+
+      // Check for existing game registrations
+      for (const entry of playerEntries) {
+        const existing = this.socketRegistry.get(entry.id);
+        if (existing && existing.gameId !== null) {
+          console.error(`[UnifiedMatchmaking] Socket ${entry.id} is already in active game ${existing.gameId}, cannot reuse for ${gameType}!`);
+          // Rollback - put players back
+          playerEntries.forEach(entry => this.queueManager.add(gameType, entry));
+          return null;
+        }
+      }
+
+      // Create the game using the factory
+      const gameResult = this.gameFactory.createAndRegister(gameType, playerEntries, this.gameManager, this.socketRegistry);
+      if (!gameResult) {
+        console.error(`[UnifiedMatchmaking] Game creation failed for ${gameType}`);
+        // Rollback - put players back
+        playerEntries.forEach(entry => this.queueManager.add(gameType, entry));
+        return null;
+      }
+
+      this._log('INFO', 'Successfully created game', {
+        gameId: gameResult.gameId,
+        gameType,
+        playerCount: gameResult.players.length,
+        userIds: gameResult.players.map(p => p.userId),
+        socketIds: gameResult.players.map(p => p.socket.id)
+      });
+
+      return gameResult;
+    } finally {
+      this.creatingGame.delete(gameType);
+    }
   }
 
   // Handle disconnection for any game type
   handleDisconnection(socket) {
-    const socketInfo = this.socketGameMap.get(socket.id);
-    if (!socketInfo) {
-      // Not in any queue/game
-      return null;
-    }
+    this._log('INFO', 'Handling socket disconnection', {
+      socketId: socket.id,
+      userId: socket.userId,
+      socketConnected: socket.connected,
+      socketDisconnected: socket.disconnected
+    });
 
-    const { gameId, gameType } = socketInfo;
-
-    // Safety check: ensure gameType is valid
-    if (!gameType || !this.waitingQueues[gameType]) {
-      console.log(`[UnifiedMatchmaking] Unknown gameType on disconnect: ${gameType}, socket: ${socket.id}`);
-      this.socketGameMap.delete(socket.id);
-      return null;
-    }
-
-    // Remove from waiting queue if still waiting
-    if (!gameId) {
-      this.waitingQueues[gameType] = this.waitingQueues[gameType].filter(s => s.id !== socket.id);
-      this.socketGameMap.delete(socket.id);
-      return null;
-    }
-
-    // Handle in-game disconnection
-    this.socketGameMap.delete(socket.id);
-
-    const sockets = (this.gameSocketsMap.get(gameId) || []).filter(id => id !== socket.id);
-
-    if (sockets.length === 0) {
-      // Game ended
-      this.gameSocketsMap.delete(gameId);
+    // Delegate to socket registry
+    const result = this.socketRegistry.handleDisconnection(socket, (gameId) => {
       this.gameManager.endGame(gameId);
+    });
+
+    if (result) {
+      this._log('INFO', 'Player disconnected from active game', {
+        socketId: socket.id,
+        gameId: result.gameId,
+        gameType: result.gameType,
+        userId: result.userId,
+        remainingSockets: result.remainingSockets
+      });
     } else {
-      this.gameSocketsMap.set(gameId, sockets);
+      // Check if socket was in a queue and remove it
+      const gameType = this.getQueueType(socket.id);
+      if (gameType) {
+        const queueBefore = this.queueManager.getSize(gameType);
+        const removed = this.queueManager.remove(gameType, socket.id);
+        const queueAfter = this.queueManager.getSize(gameType);
+
+        if (removed) {
+          this.socketRegistry.delete(socket.id);
+          this._log('INFO', 'Removed disconnected socket from queue', {
+            socketId: socket.id,
+            userId: socket.userId,
+            gameType,
+            queueBefore,
+            queueAfter
+          });
+        }
+      } else {
+        this._log('INFO', 'Socket disconnected from queue/lobby', {
+          socketId: socket.id,
+          userId: socket.userId
+        });
+      }
     }
 
-    return { gameId, remainingSockets: sockets };
+    return result;
+  }
+
+  // Allow clients to explicitly leave the queue
+  leaveQueue(socket, gameType) {
+    this._log('INFO', 'Player explicitly leaving queue', {
+      socketId: socket.id,
+      userId: socket.userId,
+      gameType,
+      currentQueueSize: this.queueManager.getSize(gameType),
+      socketIdsInQueue: [] // Could add getter if needed
+    });
+
+    if (!gameType) {
+      this._log('ERROR', 'Invalid game type for leave queue', {
+        socketId: socket.id,
+        userId: socket.userId,
+        requestedGameType: gameType,
+        availableTypes: this.queueManager.getActiveGameTypes()
+      });
+      return;
+    }
+
+    const queueBefore = this.queueManager.getSize(gameType);
+    const removed = this.queueManager.remove(gameType, socket.id);
+    const queueAfter = this.queueManager.getSize(gameType);
+
+    if (removed) {
+      this.socketRegistry.delete(socket.id);
+    }
+
+    this._log('INFO', 'Player left queue result', {
+      socketId: socket.id,
+      userId: socket.userId,
+      gameType,
+      queueBefore,
+      queueAfter,
+      removed: removed ? 1 : 0,
+      socketFoundInQueue: removed
+    });
+  }
+
+  // Clean up mappings when a game ends normally
+  onGameEnd(gameId) {
+    this._log('INFO', 'Starting cleanup for ended game', { gameId });
+
+    // Delegate to socket registry
+    this.socketRegistry.cleanupGame(gameId);
+
+    // Clean up any queue entries that might reference the ended game
+    let totalQueueCleaned = 0;
+    const activeTypes = this.queueManager.getActiveGameTypes();
+
+    for (const gameType of activeTypes) {
+      const cleaned = this.queueManager.cleanup(gameType, (entry) => {
+        // Check if socket is still registered with this game
+        const socketInfo = this.socketRegistry.get(entry.id);
+        return !socketInfo || socketInfo.gameId !== gameId;
+      });
+
+      if (cleaned > 0) {
+        totalQueueCleaned += cleaned;
+        this._log('WARN', 'Removed stale queue entries during game cleanup', {
+          gameId,
+          gameType,
+          cleaned
+        });
+      }
+    }
+
+    this._log('INFO', 'Completed cleanup for ended game', {
+      gameId,
+      queueEntriesCleaned: totalQueueCleaned
+    });
   }
 
   // Lookup methods
   getGameId(socketId) {
-    const info = this.socketGameMap.get(socketId);
+    const info = this.socketRegistry.get(socketId);
     return info ? info.gameId : null;
   }
 
   getGameType(socketId) {
-    const info = this.socketGameMap.get(socketId);
+    const info = this.socketRegistry.get(socketId);
     return info ? info.gameType : null;
   }
 
   getGameSockets(gameId, io) {
-    const socketIds = this.gameSocketsMap.get(gameId) || [];
+    const socketIds = this.socketRegistry.getGameSockets(gameId);
     return socketIds
       .map(id => io.sockets.sockets.get(id))
       .filter(Boolean);
   }
 
   getWaitingCount(gameType) {
-    return this.waitingQueues[gameType]?.length || 0;
+    return this.queueManager.getSize(gameType);
+  }
+
+  getWaitingQueue(gameType) {
+    return this.queueManager.getQueue(gameType);
+  }
+
+  getQueueRoomCode(gameType) {
+    // Room codes are no longer used in the refactored implementation
+    // Return null for backward compatibility
+    return null;
   }
 
   getPlayersNeeded(gameType) {
-    const config = GAME_TYPES[gameType];
+    const config = this.gameFactory.getConfig(gameType);
     const waiting = this.getWaitingCount(gameType);
-    return Math.max(0, config.minPlayers - waiting);
+    return Math.max(0, (config?.minPlayers || 0) - waiting);
   }
 
   // Convenience methods for backward compatibility
@@ -246,81 +334,62 @@ class UnifiedMatchmakingService {
   }
 
   getActiveGamesCount() {
-    const unique = new Set([...this.socketGameMap.values()].filter(Boolean).map(info => info.gameId));
-    return unique.size;
+    return this.socketRegistry.getActiveGames().length;
+  }
+
+  // Centralized socket removal from all queues and mappings
+  removeSocketFromAllQueues(socketId) {
+    const activeTypes = this.queueManager.getActiveGameTypes();
+    for (const gameType of activeTypes) {
+      this.queueManager.remove(gameType, socketId);
+    }
+    this.socketRegistry.delete(socketId);
+  }
+
+  // Update userId for a socket that's already in a queue
+  updateQueuedSocketUserId(socketId, newUserId) {
+    const socketInfo = this.socketRegistry.get(socketId);
+    if (!socketInfo || socketInfo.gameId !== null) {
+      // Not in queue or already in game
+      return false;
+    }
+
+    const gameType = socketInfo.gameType;
+
+    // Update the queue entry
+    const queue = this.queueManager.getQueue(gameType);
+    const entry = queue.find(e => e.id === socketId);
+    if (entry) {
+      entry.userId = newUserId;
+      this._log('INFO', 'Updated userId for queued socket', {
+        socketId,
+        oldUserId: socketInfo.userId,
+        newUserId
+      });
+    }
+
+    // Update the registry
+    this.socketRegistry.set(socketId, null, gameType, newUserId);
+
+    return true;
+  }
+
+  // Check if socket is waiting in any queue
+  isInQueue(socketId) {
+    const info = this.socketRegistry.get(socketId);
+    return info !== null && info.gameId === null;
+  }
+
+  // Get queue type for socket (null if not in queue)
+  getQueueType(socketId) {
+    const info = this.socketRegistry.get(socketId);
+    return info?.gameType || null;
+  }
+
+  // Logging utility method
+  _log(level, message, data = {}) {
+    console.log(`[UnifiedMatchmaking] ${level}: ${message}`, data);
   }
 }
-
-// Game type configurations - using client terminology
-const GAME_TYPES = {
-  'two-hands': { 
-    minPlayers: 2, 
-    maxPlayers: 2,
-    createGame: (gameManager) => gameManager.startGame(2, false),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
-      // Register players 0, 1
-      for (let i = 0; i < 2; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
-      }
-    }
-  },
-  'three-hands': {
-    minPlayers: 3,
-    maxPlayers: 3,
-    createGame: (gameManager) => gameManager.startGame(3, false),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
-      // Register players 0, 1, 2
-      for (let i = 0; i < 3; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
-      }
-    }
-  },
-  'four-hands': {
-    minPlayers: 4,
-    maxPlayers: 4,
-    createGame: (gameManager) => gameManager.startGame(4, false),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
-      // Register players 0, 1, 2, 3
-      for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
-      }
-    }
-  },
-  party: {
-    minPlayers: 4,
-    maxPlayers: 4,
-    createGame: (gameManager) => gameManager.startGame(4, true),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
-      // Register players 0, 1, 2, 3
-      for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
-      }
-    }
-  },
-  // freeforall is kept for quick play matchmaking (same as four-hands but different queue)
-  freeforall: {
-    minPlayers: 4,
-    maxPlayers: 4,
-    createGame: (gameManager) => gameManager.startGame(4, false),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
-      // Register players 0, 1, 2, 3
-      for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
-      }
-    }
-  },
-  // Tournament mode - 4-player knockout
-  tournament: {
-    minPlayers: 4,
-    maxPlayers: 4,
-    createGame: (gameManager) => gameManager.startTournamentGame(),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
-      // Register players 0, 1, 2, 3
-      for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
-      }
-    }
-  }
-};
 
 module.exports = UnifiedMatchmakingService;

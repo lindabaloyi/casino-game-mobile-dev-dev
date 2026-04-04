@@ -1,0 +1,161 @@
+[MongoDB] Connecting to database...
+[MongoDB] Connected to database: casinodotza
+[MongoDB] Indexes created successfully
+[Server] ✅ MongoDB connected
+[CleanupScheduler] Starting periodic cleanup every 10000 ms
+[Server] ═══════════════════════════════════════
+[Server] 🎮 Casino Game Server Started!
+[Server] Local: http://localhost:3001
+[Server] LAN: http://192.168.18.14:3001
+[Server] ═══════════════════════════════════════
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[CleanupScheduler] Running periodic cleanup
+[CleanupScheduler] Cleaned 0 total entries from all queues
+[CleanupScheduler] Current state - Queues: [], Registry: 0 sockets, 0 games
+[Socket] join-two-hands-queue received from aSw8ymZrmtLUAkLiAAAB, userId=undefined
+[Socket] join-two-hands-queue received from aSw8ymZrmtLUAkLiAAAB, userId=undefined
+[35m[2026-04-03T15:14:26.874Z] [DEBUG] [ProfileRoutes] Authentication successful
+  Data: {
+  "userId": "69b6eb53b73ea3f62cffea12"
+}
+  Caller: C:\Users\LB\Desktop\Linda Baloyi\MadGames\dev\casino-game\multiplayer\server\utils\debugLogger.js:117[0m
+[35m[ENTER] ProfileRoutes[0m { userId: '69b6eb53b73ea3f62cffea12', method: 'GET' }
+[35m[ENTER] PlayerProfileService[0m { userId: '69b6eb53b73ea3f62cffea12' }
+[35m[ENTER] PlayerProfileService[0m { userId: '69b6eb53b73ea3f62cffea12' }
+C:\Users\LB\Desktop\Linda Baloyi\MadGames\dev\casino-game\multiplayer\server\socket\handlers\index.js:319
+     const socketInfo = unifiedMatchmaking.socketGameMap.get(socket.id);
+                                                         ^
+
+TypeError: Cannot read properties of undefined (reading 'get')
+    at Socket.<anonymous> (C:\Users\LB\Desktop\Linda Baloyi\MadGames\dev\casino-game\multiplayer\server\socket\handlers\index.js:319:58)
+    at Socket.emit (node:events:518:28)
+    at Socket.emitUntyped (C:\Users\LB\Desktop\Linda Baloyi\MadGames\dev\casino-game\node_modules\socket.io\dist\typed-events.js:69:22)
+    at C:\Users\LB\Desktop\Linda Baloyi\MadGames\dev\casino-game\node_modules\socket.io\dist\socket.js:697:39
+    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)
+
+Node.js v22.11.0

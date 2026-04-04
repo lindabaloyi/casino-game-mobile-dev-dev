@@ -113,6 +113,42 @@ class TournamentManager {
   }
 
   /**
+   * Compute player index mapping for tournament qualification
+   * @param {string[]|number[]} qualifiedPlayers - Array of player IDs or indices
+   * @returns {Object} - { oldIndex: newIndex } mapping
+   */
+  static computeIndexMapping(qualifiedPlayers) {
+    console.log(`[TournamentManager] Computing index mapping with qualified: ${JSON.stringify(qualifiedPlayers)}`);
+
+    // Handle both string playerId (e.g., 'player_0') and numeric indices
+    const qualifiedIndices = [];
+    for (const q of qualifiedPlayers) {
+      if (typeof q === 'string') {
+        // Extract numeric index from playerId string like 'player_0' -> 0
+        const match = q.match(/^player_(\d+)$/);
+        if (match) {
+          qualifiedIndices.push(parseInt(match[1], 10));
+        } else {
+          console.warn(`[TournamentManager] Could not parse playerId: ${q}`);
+        }
+      } else if (typeof q === 'number') {
+        qualifiedIndices.push(q);
+      }
+    }
+
+    console.log(`[TournamentManager] Qualified indices (numeric): ${JSON.stringify(qualifiedIndices)}`);
+
+    // Create mapping: old index -> new index
+    const indexMapping = {};
+    qualifiedIndices.forEach((oldIndex, newIndex) => {
+      indexMapping[oldIndex] = newIndex;
+    });
+
+    console.log(`[TournamentManager] Computed index mapping:`, indexMapping);
+    return indexMapping;
+  }
+
+  /**
    * Check if tournament phase transition requires player remapping
    */
   static needsPlayerRemap(newPhase) {

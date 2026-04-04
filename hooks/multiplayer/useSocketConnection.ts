@@ -61,17 +61,8 @@ export function useSocketConnection(
   const hasSetupRef = useRef(false);
   const lastUserIdRef = useRef<string | null>(null);
 
-  // Setup the socket: authenticate, join queues (only once per socket lifecycle)
-  const setupSocket = useCallback((sock: Socket) => {
-    if (!sock?.connected) return;
-    
-    // Authenticate after connecting if user is logged in
-    if (user?._id && lastUserIdRef.current !== user._id) {
-      sock.emit('authenticate', user._id);
-      console.log(`[useSocketConnection] Authenticated with userId: ${user._id}`);
-      lastUserIdRef.current = user._id;
-    }
-    
+  // Separate function for joining queues
+  const joinQueues = useCallback((sock: Socket) => {
     // Skip auto-queue for private mode or private room games (room-based games handle their own flow)
     if (isPrivateMode || isPrivateRoomGame) {
       console.log(`[useSocketConnection] Private mode${isPrivateRoomGame ? ' room game' : ''} - skipping auto-queue (room-based flow)`);
@@ -79,47 +70,84 @@ export function useSocketConnection(
       sock.emit('room-mode-connected', { mode, roomCode });
       return;
     }
-    
+
     // Only join queues once per socket connection
     if (hasSetupRef.current) return;
     hasSetupRef.current = true;
-    
+
     // Two-hands mode: join the two-hands queue when connected
     if (isTwoHandsMode) {
       sock.emit('join-two-hands-queue');
       console.log('[useSocketConnection] Joined two-hands queue');
     }
-    
+
     // Party mode: join the party queue when connected
     if (isPartyMode) {
       sock.emit('join-party-queue');
       console.log('[useSocketConnection] Joined party queue');
     }
-    
+
     // Three-hands mode: join the three-hands queue when connected
     if (mode === 'three-hands') {
       sock.emit('join-three-hands-queue');
       console.log('[useSocketConnection] Joined three-hands queue');
     }
-    
+
     // Four-hands mode: join the four-hands queue when connected
     if (mode === 'four-hands') {
       sock.emit('join-four-hands-queue');
       console.log('[useSocketConnection] Joined four-hands queue');
     }
-    
+
     // Free-for-all mode: join the freeforall queue when connected
     if (mode === 'freeforall') {
       sock.emit('join-freeforall-queue');
       console.log('[useSocketConnection] Joined freeforall queue');
     }
-    
+
     // Tournament mode: join the tournament queue when connected
     if (mode === 'tournament') {
       sock.emit('join-tournament-queue');
       console.log('[useSocketConnection] Joined tournament queue');
     }
-  }, [mode, isPartyMode, isTwoHandsMode, isPrivateMode, isPrivateRoomGame, roomCode, user]);
+  }, [mode, isPartyMode, isTwoHandsMode, isPrivateMode, isPrivateRoomGame, roomCode]);
+
+  // Setup the socket: authenticate, join queues (only once per socket lifecycle)
+  const setupSocket = useCallback((sock: Socket) => {
+    if (!sock?.connected) return;
+
+    // Skip setup if user is not yet loaded
+    if (!user?._id) {
+      console.log('[useSocketConnection] User not loaded yet, skipping socket setup');
+      return;
+    }
+
+    // Authenticate after connecting if user is logged in and not already authenticated
+    if (user._id && lastUserIdRef.current !== user._id) {
+      sock.emit('authenticate', user._id);
+      console.log(`[useSocketConnection] Sent authentication for userId: ${user._id}`);
+
+      // Listen for authentication confirmation before joining queues
+      const handleAuthenticated = (data: { userId: string }) => {
+        console.log(`[useSocketConnection] Authentication confirmed for userId: ${data.userId}`);
+        lastUserIdRef.current = data.userId;
+
+        // Now safe to join queues
+        joinQueues(sock);
+        sock.off('authenticated', handleAuthenticated);
+      };
+
+      sock.on('authenticated', handleAuthenticated);
+
+      // Clean up listener on disconnect
+      sock.on('disconnect', () => {
+        sock.off('authenticated', handleAuthenticated);
+      });
+    } else if (user._id && lastUserIdRef.current === user._id) {
+      // Already authenticated, can join queues immediately
+      joinQueues(sock);
+    }
+  }, [user, joinQueues]);
 
   // Connect the shared socket on mount
   useEffect(() => {

@@ -22,7 +22,17 @@ class GameManager {
     /** gameId → Set(playerIndex) - tracks which clients are ready */
     this.clientReadyMap = new Map();
 
+    /** Reference to matchmaking service for cleanup coordination */
+    this.matchmakingService = null;
+
     this._nextId = 1;
+  }
+
+  /**
+   * Set reference to matchmaking service for coordination
+   */
+  setMatchmakingService(matchmakingService) {
+    this.matchmakingService = matchmakingService;
   }
 
   // ── Game lifecycle ──────────────────────────────────────────────────────────
@@ -143,9 +153,21 @@ class GameManager {
    * Remove a game from memory.
    */
   endGame(gameId) {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [GameManager] Ending game ${gameId}, activeGames: ${this.activeGames.size - 1}`);
+
     this.activeGames.delete(gameId);
     this.socketPlayerMap.delete(gameId);
     this.socketUserIdMap.delete(gameId);
+    this.clearClientReadyStatus(gameId);
+
+    // Notify matchmaking service to clean up its mappings
+    if (this.matchmakingService) {
+      console.log(`[${timestamp}] [GameManager] Notifying matchmaking service to clean up game ${gameId}`);
+      this.matchmakingService.onGameEnd(gameId);
+    } else {
+      console.log(`[${timestamp}] [GameManager] Warning: No matchmaking service available for cleanup of game ${gameId}`);
+    }
   }
 
   // ── Player ↔ Socket mapping ─────────────────────────────────────────────────
@@ -242,10 +264,65 @@ class GameManager {
     this.clientReadyMap.delete(gameId);
   }
 
+  // ── Player index remapping ──────────────────────────────────────────────────
+
+  /**
+   * Remap player indices for tournament qualification
+   * @param {number} gameId - Game ID
+   * @param {Object} indexMapping - { oldIndex: newIndex } mapping
+   * @returns {boolean} Success status
+   */
+  remapPlayerIndices(gameId, indexMapping) {
+    const socketMap = this.socketPlayerMap.get(gameId);
+    if (!socketMap) {
+      console.warn(`[GameManager] No socket map found for game ${gameId}`);
+      return false;
+    }
+
+    // Update socketPlayerMap with new indices
+    const newSocketMap = new Map();
+    for (const [socketId, oldIndex] of socketMap.entries()) {
+      const newIndex = indexMapping[oldIndex];
+      if (newIndex !== undefined) {
+        newSocketMap.set(socketId, newIndex);
+      } else {
+        console.warn(`[GameManager] No mapping found for player ${oldIndex} in game ${gameId}`);
+        newSocketMap.set(socketId, oldIndex); // Keep original if no mapping
+      }
+    }
+    this.socketPlayerMap.set(gameId, newSocketMap);
+
+    // Update game state player indices
+    const gameState = this.activeGames.get(gameId);
+    if (gameState?.players) {
+      const newPlayers = [...gameState.players];
+      Object.entries(indexMapping).forEach(([oldIndexStr, newIndex]) => {
+        const oldIndex = parseInt(oldIndexStr);
+        if (oldIndex !== newIndex && newPlayers[oldIndex] && newPlayers[newIndex]) {
+          // Swap players in the array
+          [newPlayers[oldIndex], newPlayers[newIndex]] = [newPlayers[newIndex], newPlayers[oldIndex]];
+        }
+      });
+      gameState.players = newPlayers;
+    }
+
+    console.log(`[GameManager] Remapped player indices for game ${gameId}:`, indexMapping);
+    return true;
+  }
+
   // ── Diagnostics ─────────────────────────────────────────────────────────────
 
   getActiveGamesCount() {
     return this.activeGames.size;
+  }
+
+  /**
+   * Get socket-to-player mapping for a game (for logging/debugging)
+   * @param {number} gameId - Game ID
+   * @returns {Map|null} Socket ID to player index mapping
+   */
+  getSocketPlayerMap(gameId) {
+    return this.socketPlayerMap.get(gameId) || null;
   }
 }
 

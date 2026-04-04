@@ -32,6 +32,16 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
+  pingInterval: 10000,   // Reduced from default 25000ms
+  pingTimeout: 15000,    // Reduced from default 20000ms
+});
+
+// Socket.IO middleware to track activity on all incoming packets
+io.use((socket, next) => {
+  socket.onAny((event, ...args) => {
+    socket.lastActivity = Date.now();
+  });
+  next();
 });
 
 // Middleware
@@ -46,6 +56,37 @@ app.use('/api/game', gameRoutes);
 app.use('/api/friends', friendsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/stats', statsRoutes);
+
+// HTTP Beacon endpoint for instant leave-queue on page close
+app.post('/beacon/leave-queue', (req, res) => {
+  try {
+    const { event, socketId } = req.body;
+    console.log(`[${new Date().toISOString()}] [Beacon] Received leave-queue beacon: event=${event}, socketId=${socketId}`);
+
+    if (!event || !socketId) {
+      return res.status(400).json({ error: 'Missing event or socketId' });
+    }
+
+    // Find the socket and emit the leave event
+    const socket = io.sockets.sockets.get(socketId);
+    if (socket && socket.connected) {
+      console.log(`[${new Date().toISOString()}] [Beacon] Processing leave-queue for connected socket ${socketId}`);
+      socket.emit(event);
+
+      // Mark as active to prevent immediate cleanup
+      socket.lastActivity = Date.now();
+    } else {
+      console.log(`[${new Date().toISOString()}] [Beacon] Socket ${socketId} not found or not connected`);
+    }
+
+    // Always respond quickly for beacons
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] [Beacon] Error processing leave-queue beacon:`, error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 const PORT = process.env.PORT || 3001;
@@ -77,6 +118,7 @@ async function startServer() {
   gameManager = new GameManager();
   actionRouter = new ActionRouter(gameManager);
   unifiedMatchmaking = new UnifiedMatchmakingService(gameManager, io);
+  gameManager.setMatchmakingService(unifiedMatchmaking); // Wire matchmaking service for cleanup coordination
   roomService = new RoomService(gameManager, unifiedMatchmaking, null, io);
   broadcaster = new BroadcasterService(unifiedMatchmaking, gameManager, io);
   coordinator = new GameCoordinatorService(gameManager, actionRouter, unifiedMatchmaking, broadcaster);

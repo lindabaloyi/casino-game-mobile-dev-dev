@@ -189,15 +189,16 @@ function createLogger(moduleName, logLevel = LOG_LEVELS.INFO) {
  */
 function createTimer() {
   const startTime = Date.now();
-  
+
   return {
+    startTime,
     /**
      * Get elapsed time in milliseconds
      */
     elapsed() {
       return Date.now() - startTime;
     },
-    
+
     /**
      * Log elapsed time with message
      */

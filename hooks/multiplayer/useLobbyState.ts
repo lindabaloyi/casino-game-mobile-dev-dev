@@ -76,29 +76,27 @@ export function useLobbyState(
   };
 
   useEffect(() => {
+    console.log('[useLobbyState] Setting up listeners - socket:', !!socket, 'isMultiplayerMode:', isMultiplayerMode, 'playerCount:', playerCount, 'requiredPlayers:', requiredPlayers);
     // Only listen to lobby events in multiplayer mode (3+ players)
     if (!socket || !isMultiplayerMode) {
+      console.log('[useLobbyState] NOT setting up listeners - socket:', !!socket, 'isMultiplayerMode:', isMultiplayerMode);
       // Reset state when not in multiplayer mode
       setIsInLobby(false);
       setPlayersInLobby(0);
       return;
     }
 
-    // Handle party-waiting (4-player mode)
-    // Only handle if we're in party mode specifically - avoid conflict with four-hands
-    const handlePartyWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
-      // Ignore party-waiting for four-hands mode to prevent conflicts
-      // four-hands mode should only listen to four-hands-waiting
-      if (gameMode === 'four-hands') {
-        console.log('[useLobbyState] Skipping party-waiting for four-hands mode (using four-hands-waiting instead)');
-        return;
-      }
-      
+    // Generic handler for all game mode waiting events
+    const handleWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
       // Ignore lobby updates after game has started
       if (gameStartedRef.current) {
+        console.log(`[useLobbyState] ⚠️ Ignoring ${gameMode}-waiting after game started`);
         return;
       }
-      console.log('[useLobbyState] party-waiting received:', data);
+      console.log(`[useLobbyState] ${gameMode}-waiting received:`, data);
+      if (data.players) {
+        console.log('[useLobbyState] Players data received:', JSON.stringify(data.players));
+      }
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
       if (data.players) {
@@ -209,7 +207,7 @@ export function useLobbyState(
       if (gameStartedRef.current) {
         return;
       }
-      console.log('[useLobbyState] duel-waiting received:', data);
+      console.log('[useLobbyState] duel-waiting received:', data, 'for mode:', gameMode, 'requiredPlayers:', requiredPlayers);
       setIsInLobby(true);
       setPlayersInLobby(data.playersJoined);
       if (data.players) {
@@ -239,18 +237,8 @@ export function useLobbyState(
     // For 4-player games, listen to party-waiting, freeforall-waiting, four-hands-waiting, AND tournament-waiting
     // CRITICAL: For tournament mode, we MUST also listen to party-waiting because
     // the server sends party-waiting for ALL 4-player modes including tournament
-    if (requiredPlayers === 4) {
-      socket.on('party-waiting', handlePartyWaiting);
-      socket.on('freeforall-waiting', handleFreeForAllWaiting);
-      socket.on('four-hands-waiting', handleFourHandsWaiting);
-      socket.on('tournament-waiting', handleTournamentWaiting);
-      // Make tournament mode also respond to party-waiting messages
-      // This handles the case where server sends party-waiting for tournament queues
-    } else if (requiredPlayers === 3) {
-      socket.on('three-hands-waiting', handleThreeHandsWaiting);
-    } else if (requiredPlayers === 2) {
-      socket.on('duel-waiting', handleTwoHandsWaiting);
-    }
+    // Listen for the dynamic waiting event for this game mode
+    socket.on(`${gameMode}-waiting`, handleWaiting);
     
     socket.on('game-start', handleGameStart);
 
@@ -266,12 +254,7 @@ export function useLobbyState(
     socket.emit('request-lobby-status');
 
     return () => {
-      socket.off('party-waiting', handlePartyWaiting);
-      socket.off('three-hands-waiting', handleThreeHandsWaiting);
-      socket.off('duel-waiting', handleTwoHandsWaiting);
-      socket.off('freeforall-waiting', handleFreeForAllWaiting);
-      socket.off('four-hands-waiting', handleFourHandsWaiting);
-      socket.off('tournament-waiting', handleTournamentWaiting);
+      socket.off(`${gameMode}-waiting`, handleWaiting);
       socket.off('game-start', handleGameStart);
       // Clean up polling interval
       if (pollingIntervalRef.current) {

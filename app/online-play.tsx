@@ -24,6 +24,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Lobby } from '../components/lobby/Lobby';
 import { GameRoomContainer } from '../components/lobby/GameRoomContainer';
 import { ErrorScreen } from '../components/lobby/ErrorScreen';
@@ -44,21 +45,7 @@ export default function OnlinePlayScreen() {
   const roomCodeParam = params.roomCode || null;
   const modeConfig = MODE_CONFIG[mode];
 
-  // Handle hardware back button (Android)
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      console.log('[OnlinePlay] Hardware back button pressed');
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        console.log('[OnlinePlay] No back history - navigating to home');
-        router.replace('/(tabs)');
-      }
-      return true;
-    });
 
-    return () => backHandler.remove();
-  }, [router]);
 
   // Set in-game mode for lower background music volume
   const { setInGameMode } = useSoundContext();
@@ -70,25 +57,272 @@ export default function OnlinePlayScreen() {
     roomCode: roomCodeParam,
   });
 
-  // Debug logging to help track game mode
+  // Debug: Track connection state changes
   useEffect(() => {
-    console.log('[OnlinePlay] Screen params:', JSON.stringify({ mode, roomCode: roomCodeParam }));
-    console.log('[OnlinePlay] Connection state:', JSON.stringify({
-      mode: mode,
-      roomCode: roomCodeParam,
+    console.log('[OnlinePlay] 🔄 Connection state changed:', {
+      isConnected: connection.isConnected,
+      socket: !!connection.socket,
+      socketId: connection.socket?.id,
+      socketConnected: connection.socket?.connected,
+      gameState: !!connection.gameState,
       isPrivateRoom: connection.isPrivateRoom,
-    }));
-  }, [mode, roomCodeParam, connection.isPrivateRoom]);
+      playersInLobby: connection.playersInLobby
+    });
+  }, [connection.isConnected, connection.socket, connection.gameState, connection.isPrivateRoom, connection.playersInLobby]);
 
-  // Set in-game mode when game starts
+  // Debug: Add global socket event listeners
   useEffect(() => {
-    if (connection.gameState != null) {
-      setInGameMode(true);
-    }
+    if (!connection.socket) return;
+
+    console.log('[OnlinePlay] 🔌 Setting up global socket event listeners');
+
+    const handleConnect = () => console.log('[OnlinePlay] 🔌 Socket CONNECT event');
+    const handleDisconnect = (reason: any) => console.log('[OnlinePlay] 🔌 Socket DISCONNECT event, reason:', reason);
+    const handleConnectError = (error: any) => console.log('[OnlinePlay] 🔌 Socket CONNECT_ERROR event:', error);
+    const handleReconnect = () => console.log('[OnlinePlay] 🔌 Socket RECONNECT event');
+    const handleReconnectAttempt = (attempt: number) => console.log('[OnlinePlay] 🔌 Socket RECONNECT_ATTEMPT event, attempt:', attempt);
+
+    connection.socket.on('connect', handleConnect);
+    connection.socket.on('disconnect', handleDisconnect);
+    connection.socket.on('connect_error', handleConnectError);
+    connection.socket.on('reconnect', handleReconnect);
+    connection.socket.on('reconnect_attempt', handleReconnectAttempt);
+
     return () => {
-      setInGameMode(false);
+      console.log('[OnlinePlay] 🔌 Removing global socket event listeners');
+      if (connection.socket) {
+        connection.socket.off('connect', handleConnect);
+        connection.socket.off('disconnect', handleDisconnect);
+        connection.socket.off('connect_error', handleConnectError);
+        connection.socket.off('reconnect', handleReconnect);
+        connection.socket.off('reconnect_attempt', handleReconnectAttempt);
+      }
     };
-  }, [connection.gameState, setInGameMode]);
+  }, [connection.socket]);
+
+  // Send leave-queue event when navigating away from lobby
+  const sendLeaveQueueEvent = React.useCallback((reason: string, forceSend: boolean = false) => {
+    console.log(`[OnlinePlay] 🔍 DEBUG: Attempting leave-queue event (${reason}) - forceSend: ${forceSend}`);
+    console.log(`[OnlinePlay] 🔍 DEBUG: Connection state - socket:`, !!connection.socket, 'gameState:', !!connection.gameState, 'isPrivateRoom:', connection.isPrivateRoom);
+
+    if (connection.socket) {
+      console.log(`[OnlinePlay] 🔍 DEBUG: Socket details - id:`, connection.socket.id, 'connected:', connection.socket.connected, 'disconnected:', connection.socket.disconnected);
+    } else {
+      console.log(`[OnlinePlay] 🔍 DEBUG: No socket available`);
+    }
+
+    // Check if we should send the event (forceSend bypasses connection checks)
+    const shouldSend = forceSend || (connection.socket && connection.socket.connected && !connection.gameState && !connection.isPrivateRoom);
+
+    if (shouldSend) {
+      try {
+        const leaveEvent = `leave-${mode}-queue`;
+        console.log(`[OnlinePlay] 🔍 DEBUG: About to emit ${leaveEvent} on socket ${connection.socket?.id || 'unknown'}`);
+
+        // Use synchronous emit if possible
+        if (connection.socket && connection.socket.connected) {
+          console.log('[OnlinePlay] 📤 CLIENT SENDING: leave-queue event', leaveEvent, 'to server (reason:', reason, ')');
+          connection.socket.emit(leaveEvent);
+          console.log('[OnlinePlay] ✅ Sent leave-queue event:', leaveEvent, 'reason:', reason, 'socket connected:', connection.socket.connected);
+        } else {
+          console.log('[OnlinePlay] ⚠️ Socket not connected, skipping emit');
+          return false;
+        }
+
+        // Verify the event was queued for sending
+        console.log(`[OnlinePlay] 🔍 DEBUG: Event emitted, socket still connected:`, connection.socket.connected);
+
+        // Add temporary socket event listeners to track disconnect timing
+        if (connection.socket) {
+          const disconnectHandler = () => {
+            console.log(`[OnlinePlay] 🔌 Socket disconnected AFTER leave-queue event (${reason})`);
+          };
+          const connectHandler = () => {
+            console.log(`[OnlinePlay] 🔌 Socket reconnected AFTER leave-queue event (${reason})`);
+          };
+
+          connection.socket.once('disconnect', disconnectHandler);
+          connection.socket.once('connect', connectHandler);
+
+          // Clean up listeners after a short delay
+          setTimeout(() => {
+            if (connection.socket) {
+              connection.socket.off('disconnect', disconnectHandler);
+              connection.socket.off('connect', connectHandler);
+            }
+          }, 5000);
+        }
+
+        return true;
+      } catch (error) {
+        console.error('[OnlinePlay] ❌ Error sending leave-queue event:', error);
+        return false;
+      }
+    }
+
+    console.log('[OnlinePlay] ❌ Skip leave-queue event - reason:', reason, 'socket:', !!connection.socket, 'connected:', connection.socket?.connected, 'gameState:', !!connection.gameState, 'isPrivateRoom:', connection.isPrivateRoom);
+    return false;
+  }, [connection.socket, connection.gameState, connection.isPrivateRoom, mode]);
+
+  // Handle hardware back button (Android)
+  useEffect(() => {
+    console.log('[OnlinePlay] 🔧 Setting up hardware back button handler');
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      console.log('[OnlinePlay] 📱 Hardware back button pressed - IMMEDIATE leave-queue send');
+
+      // CRITICAL: Send leave-queue event SYNCHRONOUSLY before any navigation
+      sendLeaveQueueEvent('hardware back button', true); // forceSend = true
+
+      console.log('[OnlinePlay] 📱 Hardware back - navigation starting after leave-queue');
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        console.log('[OnlinePlay] No back history - navigating to home');
+        router.replace('/(tabs)');
+      }
+      return true;
+    });
+
+    return () => {
+      console.log('[OnlinePlay] 🔧 Removing hardware back button handler');
+      backHandler.remove();
+    };
+  }, [router, sendLeaveQueueEvent]);
+
+  // Handle browser/app close or navigation away
+  useEffect(() => {
+    console.log('[OnlinePlay] 🌐 Setting up browser navigation handlers');
+
+    let navigationEventSent = false;
+
+    const sendNavigationEvent = (reason: string) => {
+      if (!navigationEventSent) {
+        console.log(`[OnlinePlay] 🚨 CRITICAL: Sending leave-queue on ${reason} - BEFORE any disconnection`);
+        const sent = sendLeaveQueueEvent(reason, true); // forceSend = true
+        if (sent) {
+          navigationEventSent = true;
+          console.log(`[OnlinePlay] ✅ Leave-queue sent successfully on ${reason}`);
+        } else {
+          console.log(`[OnlinePlay] ❌ Failed to send leave-queue on ${reason}`);
+        }
+      } else {
+        console.log(`[OnlinePlay] ℹ️ Leave-queue already sent, skipping ${reason}`);
+      }
+    };
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      console.log('[OnlinePlay] 🚪 Browser beforeunload triggered - USING HTTP BEACON');
+
+      // Use HTTP beacon for guaranteed delivery on page close
+      if (connection.socket && connection.socket.id && !connection.gameState && !connection.isPrivateRoom) {
+        const leaveEvent = `leave-${mode}-queue`;
+        const beaconUrl = `http://localhost:3001/beacon/leave-queue`;
+
+        try {
+          const beaconData = JSON.stringify({
+            event: leaveEvent,
+            socketId: connection.socket.id
+          });
+
+          console.log('[OnlinePlay] 📡 Sending HTTP beacon for leave-queue:', leaveEvent);
+
+          // navigator.sendBeacon returns true if successfully queued
+          const beaconSent = navigator.sendBeacon(beaconUrl, beaconData);
+
+          if (beaconSent) {
+            console.log('[OnlinePlay] ✅ HTTP beacon queued successfully');
+          } else {
+            console.log('[OnlinePlay] ⚠️ HTTP beacon failed to queue, falling back to socket emit');
+            sendLeaveQueueEvent('beforeunload', true);
+          }
+        } catch (error) {
+          console.error('[OnlinePlay] ❌ HTTP beacon error:', error);
+          // Fallback to socket emit
+          sendLeaveQueueEvent('beforeunload', true);
+        }
+      }
+
+      // Note: some browsers may not wait for async operations
+      // The event.returnValue is set for older browsers
+      event.returnValue = '';
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        console.log('[OnlinePlay] 👁️ Page becoming hidden - POTENTIAL NAVIGATION');
+
+        // Use HTTP beacon for visibility change to ensure leave-queue is processed
+        // even if the page is about to be closed
+        if (connection.socket && connection.socket.id && !connection.gameState && !connection.isPrivateRoom) {
+          const leaveEvent = `leave-${mode}-queue`;
+          const beaconUrl = `http://localhost:3001/beacon/leave-queue`;
+
+          try {
+            const beaconData = JSON.stringify({
+              event: leaveEvent,
+              socketId: connection.socket.id
+            });
+
+            console.log('[OnlinePlay] 📡 Sending HTTP beacon for visibility change:', leaveEvent);
+
+            const beaconSent = navigator.sendBeacon(beaconUrl, beaconData);
+
+            if (beaconSent) {
+              console.log('[OnlinePlay] ✅ HTTP beacon queued for visibility change');
+            } else {
+              console.log('[OnlinePlay] ⚠️ HTTP beacon failed for visibility change, using socket emit');
+              sendLeaveQueueEvent('visibility hidden', true);
+            }
+          } catch (error) {
+            console.error('[OnlinePlay] ❌ HTTP beacon error for visibility change:', error);
+            sendLeaveQueueEvent('visibility hidden', true);
+          }
+        } else {
+          // Fallback to regular navigation event
+          sendNavigationEvent('visibility hidden');
+        }
+      }
+    };
+
+    const handlePopState = (event: PopStateEvent) => {
+      console.log('[OnlinePlay] 🔄 Browser popstate triggered - BACK BUTTON PRESSED');
+      // This is the critical moment for browser back button
+      sendNavigationEvent('popstate');
+    };
+
+    // CRITICAL: Listen for popstate FIRST and immediately
+    window.addEventListener('popstate', handlePopState, { capture: true, passive: true });
+
+    // Listen for page visibility changes
+    document.addEventListener('visibilitychange', handleVisibilityChange, { capture: true, passive: true });
+
+    // Listen for beforeunload
+    window.addEventListener('beforeunload', handleBeforeUnload, { capture: true, passive: true });
+
+    console.log('[OnlinePlay] 🌐 Browser navigation handlers set up with capture phase');
+
+    return () => {
+      console.log('[OnlinePlay] 🌐 Removing browser navigation handlers');
+      window.removeEventListener('popstate', handlePopState, { capture: true });
+      document.removeEventListener('visibilitychange', handleVisibilityChange, { capture: true });
+      window.removeEventListener('beforeunload', handleBeforeUnload, { capture: true });
+    };
+  }, [sendLeaveQueueEvent]);
+
+  // Leave queue when component unmounts (user closes lobby screen)
+  useEffect(() => {
+    return () => {
+      console.log('[OnlinePlay] Leaving lobby screen, sending leave-queue event for mode:', mode);
+      // Send leave-queue event when user navigates away from lobby
+      if (connection.socket && !connection.gameState) {
+        // Only send leave-queue if we're still in the lobby (not in a game)
+        const leaveEvent = `leave-${mode}-queue`;
+        connection.socket.emit(leaveEvent);
+        console.log('[OnlinePlay] Sent leave-queue event:', leaveEvent);
+      }
+    };
+  }, [mode, connection.socket, connection.gameState]);
 
 // Mock lobby data (for display while waiting)
   const {
