@@ -7,63 +7,7 @@
 const QueueManager = require("./QueueManager");
 const SocketRegistry = require("./SocketRegistry");
 const CleanupScheduler = require("./CleanupScheduler");
-
-const GAME_TYPES = {
-  'two-hands': {
-    minPlayers: 2,
-    createGame: (gameManager) => gameManager.startGame(2, false),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
-      for (let i = 0; i < 2; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
-      }
-    }
-  },
-  'three-hands': {
-    minPlayers: 3,
-    createGame: (gameManager) => gameManager.startGame(3, false),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
-      for (let i = 0; i < 3; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
-      }
-    }
-  },
-  'four-hands': {
-    minPlayers: 4,
-    createGame: (gameManager) => gameManager.startGame(4, false),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
-      for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
-      }
-    }
-  },
-  'party': {
-    minPlayers: 4,
-    createGame: (gameManager) => gameManager.startGame(4, true),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
-      for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
-      }
-    }
-  },
-  'freeforall': {
-    minPlayers: 4,
-    createGame: (gameManager) => gameManager.startGame(4, false),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
-      for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
-      }
-    }
-  },
-  'tournament': {
-    minPlayers: 4,
-    createGame: (gameManager) => gameManager.startTournamentGame(),
-    playerRegistration: (gameId, players, gameManager, userIds = []) => {
-      for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, players[i].id, i, userIds[i] || null);
-      }
-    }
-  }
-};
+const GameFactory = require("./GameFactory");
 
 class UnifiedMatchmakingService {
   constructor(gameManager, io = null) {
@@ -72,6 +16,7 @@ class UnifiedMatchmakingService {
 
     this.queueManager = new QueueManager(gameManager);
     this.socketRegistry = new SocketRegistry();
+    this.gameFactory = new GameFactory(gameManager);
     this.cleanupScheduler = new CleanupScheduler(this.queueManager, this.socketRegistry);
     this.cleanupScheduler.start();
   }
@@ -113,52 +58,27 @@ class UnifiedMatchmakingService {
   }
 
   _createGame(gameType, playerEntries) {
-    const config = GAME_TYPES[gameType];
-    const players = playerEntries.map(e => e.socket);
-    const userIds = playerEntries.map(e => e.userId);
-
-    console.log(`[UnifiedMatchmaking] Ready to create ${gameType} game with userIds:`, userIds);
-
-    const { gameId, gameState } = config.createGame(this.gameManager);
-    if (!gameState) {
-      console.error(`[UnifiedMatchmaking] Failed to create ${gameType} game state`);
+    const result = this.gameFactory.createGame(gameType, playerEntries);
+    if (!result) {
       return null;
     }
 
-    if (gameState.players.length !== config.minPlayers) {
-      console.error(`[UnifiedMatchmaking] ${gameType} game has wrong player count: ${gameState.players.length}`);
-      return null;
-    }
+    const { gameId, gameState, players } = result;
 
     const socketIds = [];
     for (let i = 0; i < players.length; i++) {
-      this.socketRegistry.set(players[i].id, gameId, gameType, userIds[i]);
-      players[i].join(gameId);
-      socketIds.push(players[i].id);
-      console.log(`[UnifiedMatchmaking] Socket ${players[i].id.substr(0,8)} joined game room ${gameId}`);
+      const { socket, userId } = players[i];
+      this.socketRegistry.set(socket.id, gameId, gameType, userId);
+      socket.join(gameId);
+      socketIds.push(socket.id);
+      console.log(`[UnifiedMatchmaking] Socket ${socket.id.substr(0,8)} joined game room ${gameId}`);
     }
     this.socketRegistry.setGameSockets(gameId, socketIds);
 
     console.log(`[UnifiedMatchmaking] socketGameMap updated for ${gameType} game ${gameId}:`,
-      players.map((socket, i) => `${socket.id.substr(0,8)}→{gameId:${gameId}, gameType:${gameType}}`).join(', '));
+      players.map(p => `${p.socket.id.substr(0,8)}→{gameId:${gameId}, gameType:${gameType}}`).join(', '));
 
-    config.playerRegistration(gameId, players, this.gameManager, userIds);
-
-    for (let i = 0; i < players.length; i++) {
-      if (userIds[i]) {
-        this.gameManager.setPlayerUserId(gameId, i, userIds[i]);
-      }
-    }
-
-    return {
-      gameId,
-      gameState,
-      players: players.map((socket, index) => ({
-        socket,
-        playerNumber: index,
-        userId: userIds[index]
-      }))
-    };
+    return { gameId, gameState, players };
   }
 
   handleDisconnection(socket) {
