@@ -94,7 +94,12 @@ async function startServer() {
   return { app, server, io, gameManager, actionRouter };
 }
 
-function stopServer() { if (server.listening) server.close(); }
+function stopServer() { 
+  if (unifiedMatchmaking) {
+    unifiedMatchmaking.shutdown();
+  }
+  if (server.listening) server.close(); 
+}
 function getIO() { return io; }
 
 module.exports = { startServer, stopServer, getIO };

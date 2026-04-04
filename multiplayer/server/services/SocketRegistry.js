@@ -45,6 +45,28 @@ class SocketRegistry {
     this.gameSocketsMap.delete(gameId);
   }
 
+  cleanupEmptyGames(gameManager) {
+    let cleanedCount = 0;
+    const emptyGames = [];
+
+    for (const [gameId, socketIds] of this.gameSocketsMap) {
+      if (!socketIds || socketIds.length === 0) {
+        emptyGames.push(gameId);
+      }
+    }
+
+    for (const gameId of emptyGames) {
+      this.gameSocketsMap.delete(gameId);
+      cleanedCount++;
+      console.log(`[SocketRegistry] Cleaned empty game ${gameId}`);
+    }
+
+    if (cleanedCount > 0) {
+      console.log(`[SocketRegistry] Cleaned ${cleanedCount} empty game(s)`);
+    }
+    return cleanedCount;
+  }
+
   isUserInQueue(userId, queueManager) {
     if (!queueManager || !userId) return false;
     const allQueues = queueManager.getAllQueues();

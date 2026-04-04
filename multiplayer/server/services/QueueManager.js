@@ -5,6 +5,8 @@
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const CODE_LENGTH = 6;
+const QUEUE_TIMEOUT_MS = 10 * 60 * 1000;
+const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000;
 
 const GAME_TYPES = {
   'two-hands': { minPlayers: 2, maxPlayers: 2 },
@@ -59,10 +61,13 @@ class QueueManager {
   addToQueue(socket, gameType, userId = null) {
     console.log(`[QueueManager] addToQueue called: gameType=${gameType}, userId=${userId}, socket.id=${socket.id}`);
 
+    const now = Date.now();
     const socketEntry = {
       id: socket.id,
       socket: socket,
-      userId: userId
+      userId: userId,
+      joinedAt: now,
+      lastActivity: now
     };
 
     console.log(`[QueueManager] Adding to ${gameType} queue:`, socketEntry);
@@ -134,6 +139,35 @@ class QueueManager {
         return true;
       });
     }
+  }
+
+  cleanup(gameType, isSocketValid) {
+    if (!this.waitingQueues[gameType]) {
+      return 0;
+    }
+
+    const beforeCount = this.waitingQueues[gameType].length;
+    this.waitingQueues[gameType] = this.waitingQueues[gameType].filter(entry => {
+      if (!entry.socket || !isSocketValid(entry.socket, entry)) {
+        console.log(`[QueueManager] Removing stale socket ${entry.id} from ${gameType} queue (cleanup)`);
+        return false;
+      }
+      return true;
+    });
+
+    const removed = beforeCount - this.waitingQueues[gameType].length;
+    if (removed > 0) {
+      console.log(`[QueueManager] Cleaned ${removed} stale entries from ${gameType} queue`);
+    }
+    return removed;
+  }
+
+  cleanupAll(isSocketValid) {
+    let totalRemoved = 0;
+    for (const gameType of Object.keys(this.waitingQueues)) {
+      totalRemoved += this.cleanup(gameType, isSocketValid);
+    }
+    return totalRemoved;
   }
 
   broadcastWaitingUpdate(gameType) {

@@ -6,6 +6,7 @@
 
 const QueueManager = require("./QueueManager");
 const SocketRegistry = require("./SocketRegistry");
+const CleanupScheduler = require("./CleanupScheduler");
 
 const GAME_TYPES = {
   'two-hands': {
@@ -71,6 +72,8 @@ class UnifiedMatchmakingService {
 
     this.queueManager = new QueueManager(gameManager);
     this.socketRegistry = new SocketRegistry();
+    this.cleanupScheduler = new CleanupScheduler(this.queueManager, this.socketRegistry);
+    this.cleanupScheduler.start();
   }
 
   get socketGameMap() {
@@ -199,10 +202,6 @@ class UnifiedMatchmakingService {
     return this.queueManager.getQueueStatus(gameType);
   }
 
-  cleanupStaleQueues() {
-    return this.queueManager.cleanupStaleQueues();
-  }
-
   broadcastWaitingUpdate(gameType) {
     return this.queueManager.broadcastWaitingUpdate(gameType);
   }
@@ -213,6 +212,10 @@ class UnifiedMatchmakingService {
 
   isUserInGame(userId) {
     return this.socketRegistry.isUserInGame(userId);
+  }
+
+  shutdown() {
+    this.cleanupScheduler.stop();
   }
 }
 
