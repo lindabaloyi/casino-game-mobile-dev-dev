@@ -37,9 +37,7 @@ function attachSocketHandlers(socket, services) {
   // ── Helper: Remove socket from all queues ─────────────────────────────
   const removeFromAllQueues = () => {
     unifiedMatchmaking.socketGameMap.delete(socket.id);
-    for (const key of Object.keys(unifiedMatchmaking.waitingQueues)) {
-      unifiedMatchmaking.waitingQueues[key] = unifiedMatchmaking.waitingQueues[key].filter(s => s.id !== socket.id);
-    }
+    unifiedMatchmaking.queueManager.removeFromQueue(socket.id);
   };
 
   // ── Matchmaking Queue Handlers ────────────────────────────────────────
@@ -104,9 +102,6 @@ function attachSocketHandlers(socket, services) {
 
   socket.on('join-tournament-queue', async () => {
     console.log(`[Socket] join-tournament-queue:socket.id = ${socket.id}`);
-    if (!unifiedMatchmaking.waitingQueues.tournament) {
-      unifiedMatchmaking.waitingQueues.tournament = [];
-    }
     removeFromAllQueues();
     const result = unifiedMatchmaking.addToQueue(socket, 'tournament', socket.userId);
     if (result) {
@@ -267,8 +262,8 @@ function attachSocketHandlers(socket, services) {
     };
     
     for (const [mode, config] of Object.entries(queueMap)) {
-      const queue = unifiedMatchmaking.waitingQueues[mode];
-      if (queue?.some(entry => entry.socket.id === socket.id)) {
+      const inQueue = unifiedMatchmaking.queueManager.isInQueue(socket.id);
+      if (inQueue && inQueue.gameType === mode) {
         await config.broadcast();
         break;
       }

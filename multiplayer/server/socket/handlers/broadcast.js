@@ -6,12 +6,14 @@
 const PlayerProfile = require('../../models/PlayerProfile');
 
 function createBroadcastHelpers(unifiedMatchmaking, io) {
+  const queueManager = unifiedMatchmaking.queueManager;
+
   async function broadcastTwoHandsWaiting() {
     const count = unifiedMatchmaking.getWaitingCount('two-hands');
     const roomCode = unifiedMatchmaking.getQueueRoomCode('two-hands');
     console.log(`[UnifiedMatchmaking] Broadcasting two-hands-waiting: ${count} players, roomCode=${roomCode}`);
     
-    const queue = unifiedMatchmaking.waitingQueues['two-hands'];
+    const queue = queueManager.waitingQueues['two-hands'];
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     console.log(`[UnifiedMatchmaking] two-hands queue userIds:`, userIds);
     const players = await PlayerProfile.getPlayerInfos(userIds);
@@ -43,7 +45,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const roomCode = unifiedMatchmaking.getQueueRoomCode('party');
     console.log(`[UnifiedMatchmaking] Broadcasting party-waiting: ${count} players, roomCode=${roomCode}`);
     
-    const queue = unifiedMatchmaking.waitingQueues.party;
+    const queue = queueManager.waitingQueues.party;
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     
@@ -74,7 +76,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const roomCode = unifiedMatchmaking.getQueueRoomCode('three-hands');
     console.log(`[UnifiedMatchmaking] Broadcasting three-hands-waiting: ${count} players, roomCode=${roomCode}`);
     
-    const queue = unifiedMatchmaking.waitingQueues['three-hands'];
+    const queue = queueManager.waitingQueues['three-hands'];
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     
@@ -105,7 +107,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const roomCode = unifiedMatchmaking.getQueueRoomCode('four-hands');
     console.log(`[UnifiedMatchmaking] Broadcasting four-hands-waiting: ${count} players, roomCode=${roomCode}`);
     
-    const queue = unifiedMatchmaking.waitingQueues['four-hands'];
+    const queue = queueManager.waitingQueues['four-hands'];
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     
@@ -134,7 +136,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const roomCode = unifiedMatchmaking.getQueueRoomCode('freeforall');
     console.log(`[UnifiedMatchmaking] Broadcasting free-for-all-waiting: ${count} players, roomCode=${roomCode}`);
     
-    const queue = unifiedMatchmaking.waitingQueues.freeforall;
+    const queue = queueManager.waitingQueues.freeforall;
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     
@@ -165,11 +167,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const roomCode = unifiedMatchmaking.getQueueRoomCode('tournament');
     console.log(`[UnifiedMatchmaking] Broadcasting tournament-waiting: ${count} players, roomCode=${roomCode}`);
     
-    if (!unifiedMatchmaking.waitingQueues.tournament) {
-      unifiedMatchmaking.waitingQueues.tournament = [];
-    }
-    
-    const queue = unifiedMatchmaking.waitingQueues.tournament;
+    const queue = queueManager.waitingQueues.tournament;
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     
