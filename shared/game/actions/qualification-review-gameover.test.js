@@ -127,8 +127,8 @@ describe('Tournament: gameOver=true during QUALIFICATION_REVIEW', () => {
     console.log('  gameOver:', reviewState.gameOver);
     console.log('  qualifiedPlayers:', reviewState.qualifiedPlayers);
     
-    // Verify gameOver is true (this is the condition that was failing)
-    expect(reviewState.gameOver).toBe(true);
+    // gameOver should be false during qualification review to allow actions (like advanceFromQualificationReview)
+    expect(reviewState.gameOver).toBe(false);
     expect(reviewState.tournamentPhase).toBe('QUALIFICATION_REVIEW');
     expect(reviewState.qualifiedPlayers).toHaveLength(3);
     

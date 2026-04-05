@@ -69,6 +69,12 @@ function createActionRouter(config) {
       if (!canActOutOfTurn && state.currentPlayer !== playerIndex) {
         throw new Error(`Not your turn (current: ${state.currentPlayer}, your: ${playerIndex})`);
       }
+      
+      // FIXED: Check if player is ELIMINATED and reject action
+      const playerId = `player_${playerIndex}`;
+      if (state.playerStatuses?.[playerId] === 'ELIMINATED') {
+        throw new Error(`Player ${playerIndex} is ELIMINATED and cannot perform actions`);
+      }
 
       // 3. Smart routing: let Router decide what handler to call
       const router = new Router();

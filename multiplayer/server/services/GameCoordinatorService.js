@@ -17,8 +17,59 @@ const RoundValidator = require('../game/utils/RoundValidator');
 const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn, forceEndTurn, finalizeGame } = require('../../../shared/game');
 const scoring = require('../game/scoring');
 const TournamentManager = require('./TournamentManager');
+const TournamentTurnManager = require('./TournamentTurnManager');
+const TournamentSocketManager = require('./TournamentSocketManager');
+const TournamentPhaseManager = require('./TournamentPhaseManager');
 const GamePersistenceService = require('./GamePersistenceService');
 const GameStats = require('../models/GameStats');
+
+/**
+ * Debug helper to trace tournament state across transitions
+ * Logs player identity, socket, points, status, qualification, and ready state
+ */
+function debugTournamentState(gameId, gameState, socketPlayerMap, gameManager, context) {
+  if (!gameState || !gameState.tournamentMode) return;
+  
+  const players = gameState.players || [];
+  const playerStatuses = gameState.playerStatuses || {};
+  const tournamentScores = gameState.tournamentScores || {};
+  const qualifiedPlayers = gameState.qualifiedPlayers || [];
+  const readySet = gameManager.clientReadyMap.get(gameId) || new Set();
+
+  console.log(`\n🔍 TOURNAMENT DEBUG [${context}] — game ${gameId}`);
+  console.log(`Phase: ${gameState.tournamentPhase} | playerCount: ${gameState.playerCount}`);
+
+  // Loop over all possible slots 0..3 (original 4 players)
+  for (let i = 0; i < 4; i++) {
+    const playerId = `player_${i}`;
+    const playerObj = players.find(p => p.id === playerId) || null;
+    const username = playerObj?.username || playerObj?.displayName || 'unknown';
+    
+    // Find socket for this player index
+    let socketId = 'no-socket';
+    if (socketPlayerMap) {
+      for (const [sid, idx] of socketPlayerMap.entries()) {
+        if (idx === i) {
+          socketId = sid.substring(0, 8);
+          break;
+        }
+      }
+    }
+    
+    const status = playerStatuses[playerId] || 'N/A';
+    const points = tournamentScores[playerId] ?? 'N/A';
+    const isQualified = qualifiedPlayers.includes(playerId);
+    const isReady = readySet.has(i);
+    
+    console.log(
+      `  P${i}: ${playerId.padEnd(8)} | user: ${username.padEnd(12)} | socket: ${socketId.padEnd(10)} | ` +
+      `status: ${status.padEnd(10)} | pts: ${String(points).padEnd(4)} | qual: ${isQualified ? '✅' : '❌'} | ready: ${isReady ? '✅' : '❌'}`
+    );
+  }
+  console.log(`Qualified list: ${JSON.stringify(qualifiedPlayers)}`);
+  console.log(`Ready set: ${[...readySet].join(',') || '(empty)'}`);
+  console.log('----------------------------------------\n');
+}
 
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, unifiedMatchmaking, broadcaster) {
@@ -170,22 +221,18 @@ class GameCoordinatorService {
         if (oldTournamentPhase === 'QUALIFICATION_REVIEW' && 
             (newPhase === 'SEMI_FINAL' || newPhase === 'FINAL_SHOWDOWN')) {
           console.log(`[Coordinator] Tournament phase transition detected: ${oldTournamentPhase} -> ${newPhase}`);
-          console.log(`[Coordinator] Tournament phase transition detected: ${oldTournamentPhase} -> ${newPhase}`);
           const qualifiedPlayers = TournamentManager.getQualifiedPlayers(newState);
           console.log(`[Coordinator] Qualified players for socket cleanup: ${JSON.stringify(qualifiedPlayers)}`);
           
-          // CRITICAL FIX: Remap player indices so socket -> new index mapping is correct
-          const socketMap = this.gameManager.socketPlayerMap.get(gameId);
-          if (socketMap) {
-            // Log BEFORE remapping
-            console.log(`[Coordinator] Socket map BEFORE remap:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
-            
-            TournamentManager.remapPlayerIndices(socketMap, qualifiedPlayers);
-            
-            // Log AFTER remapping
-            console.log(`[Coordinator] Socket map AFTER remap:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
-            console.log(`[Coordinator] Socket indices remapped for tournament phase`);
-          }
+          // FIXED: Do NOT remap socket indices - keep player indices fixed throughout tournament
+          // Eliminated players will be handled by checking their status before allowing actions
+          
+          // CRITICAL: Clear client ready status before transition to force re-ready from active players only
+          this.gameManager.clearClientReadyStatus(gameId);
+          console.log(`[Coordinator] Cleared client ready status for tournament transition`);
+          
+          // DEBUG: Log tournament state after phase transition
+          debugTournamentState(gameId, newState, this.gameManager.socketPlayerMap.get(gameId), this.gameManager, 'AFTER PHASE TRANSITION');
         }
         
         this.broadcaster.broadcastGameUpdate(gameId, newState, this.unifiedMatchmaking);
@@ -238,49 +285,18 @@ class GameCoordinatorService {
    * Keeps qualified players at their original indices
    */
   _removeEliminatedPlayers(gameId, qualifiedPlayers) {
+    // FIXED: Do NOT remove sockets from map - keep all player indices fixed
+    // Instead, eliminated status is tracked via playerStatuses
     const socketMap = this.gameManager.socketPlayerMap.get(gameId);
     if (!socketMap) {
       console.log(`[Coordinator] No socket map found for game ${gameId}`);
       return;
     }
 
-    console.log(`[Coordinator] _removeEliminatedPlayers called with qualifiedPlayers: ${JSON.stringify(qualifiedPlayers)}`);
-    console.log(`[Coordinator] Current socketMap BEFORE removal:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
-    
-    // Handle both string playerId (e.g., 'player_0') and numeric indices
-    const qualifiedIndices = [];
-    for (const q of qualifiedPlayers) {
-      if (typeof q === 'string') {
-        // Extract numeric index from playerId string like 'player_0' -> 0
-        const match = q.match(/^player_(\d+)$/);
-        if (match) {
-          qualifiedIndices.push(parseInt(match[1], 10));
-        } else {
-          console.warn(`[Coordinator] Could not parse playerId: ${q}`);
-        }
-      } else if (typeof q === 'number') {
-        qualifiedIndices.push(q);
-      }
-    }
-    
-    console.log(`[Coordinator] Qualified indices (numeric): ${JSON.stringify(qualifiedIndices)}`);
-    
-    const toDelete = [];
-    for (const [socketId, playerIndex] of socketMap.entries()) {
-      if (!qualifiedIndices.includes(playerIndex)) {
-        toDelete.push(socketId);
-        console.log(`[Coordinator] Marking socket ${socketId.substr(0,8)} for elimination - playerIndex ${playerIndex} not in qualifiedIndices`);
-      }
-    }
-
-    for (const socketId of toDelete) {
-      const playerIndex = socketMap.get(socketId);
-      socketMap.delete(socketId);
-      this.unifiedMatchmaking.socketRegistry.delete(socketId);
-      console.log(`[Coordinator] Eliminated socket ${socketId.substr(0,8)} (was player ${playerIndex})`);
-    }
-    
-    console.log(`[Coordinator] Remaining sockets AFTER removal:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
+    console.log(`[Coordinator] _removeEliminatedPlayers called - sockets kept with original indices`);
+    console.log(`[Coordinator] Socket map:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
+    console.log(`[Coordinator] Qualified players: ${JSON.stringify(qualifiedPlayers)}`);
+    console.log(`[Coordinator] NOTE: Eliminated players are tracked via playerStatuses, not socket removal`);
   }
 
   /**
@@ -301,23 +317,15 @@ class GameCoordinatorService {
           return;
         }
 
-        // Remove eliminated players - now also remap indices for remaining players
+        // Remove eliminated players - do NOT remap indices for remaining players
         if (newState.tournamentPhase === 'SEMI_FINAL' || newState.tournamentPhase === 'FINAL_SHOWDOWN') {
           const qualifiedPlayers = TournamentManager.getQualifiedPlayers(newState);
           console.log(`[Coordinator] Transition to ${newState.tournamentPhase}, qualified players: ${JSON.stringify(qualifiedPlayers)}`);
           
-          // CRITICAL FIX: Remap player indices so socket -> new index mapping is correct
-          const socketMap = this.gameManager.socketPlayerMap.get(gameId);
-          if (socketMap) {
-            // Log BEFORE remapping
-            console.log(`[Coordinator] Socket map BEFORE remap:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
-            
-            TournamentManager.remapPlayerIndices(socketMap, qualifiedPlayers);
-            
-            // Log AFTER remapping
-            console.log(`[Coordinator] Socket map AFTER remap:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
-            console.log(`[Coordinator] Socket indices remapped for tournament phase`);
-          }
+          // FIXED: Do NOT remap socket indices - keep player indices fixed throughout tournament
+          
+          // DEBUG: Log tournament state after advance action
+          debugTournamentState(gameId, newState, this.gameManager.socketPlayerMap.get(gameId), this.gameManager, 'AFTER ADVANCE ACTION');
         }
 
         this.gameManager.saveGameState(gameId, newState);
@@ -353,21 +361,9 @@ class GameCoordinatorService {
         this.broadcaster.broadcastGameUpdate(gameId, tournamentState, this.unifiedMatchmaking);
       } else if (tournamentState.tournamentPhase === 'SEMI_FINAL' || 
                  tournamentState.tournamentPhase === 'FINAL_SHOWDOWN') {
-        // CRITICAL FIX: Remap player indices so socket -> new index mapping is correct
+        // FIXED: Do NOT remap socket indices - keep player indices fixed throughout tournament
         const qualifiedPlayers = TournamentManager.getQualifiedPlayers(tournamentState);
         console.log(`[Coordinator] Transition to ${tournamentState.tournamentPhase}, qualified players: ${JSON.stringify(qualifiedPlayers)}`);
-        
-        const socketMap = this.gameManager.socketPlayerMap.get(gameId);
-        if (socketMap) {
-          // Log BEFORE remapping
-          console.log(`[Coordinator] Socket map BEFORE remap:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
-          
-          TournamentManager.remapPlayerIndices(socketMap, qualifiedPlayers);
-          
-          // Log AFTER remapping
-          console.log(`[Coordinator] Socket map AFTER remap:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
-          console.log(`[Coordinator] Socket indices remapped for tournament phase`);
-        }
         
         this.gameManager.saveGameState(gameId, tournamentState);
         this.broadcaster.broadcastGameUpdate(gameId, tournamentState, this.unifiedMatchmaking);

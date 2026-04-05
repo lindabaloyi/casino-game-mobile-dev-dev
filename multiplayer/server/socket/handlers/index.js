@@ -5,6 +5,7 @@
 
 const PlayerProfile = require('../../models/PlayerProfile');
 const { createBroadcastHelpers } = require('./broadcast');
+const TournamentSocketManager = require('../../services/TournamentSocketManager');
 
 function attachSocketHandlers(socket, services) {
   const { unifiedMatchmaking, roomService, gameManager, broadcaster, coordinator } = services;
@@ -215,15 +216,43 @@ function attachSocketHandlers(socket, services) {
       return;
     }
     
-    // Mark client as ready in GameManager
-    gameManager.markClientReady(gameId, playerIndex);
-    
-    // Get game state to check player count
+    // Get game state to check player status
     const gameState = gameManager.getGameState(gameId);
     if (!gameState) {
       socket.emit('error', { message: 'client-ready: Game not found' });
       return;
     }
+    
+    // DEBUG: Log tournament state on client-ready
+    if (gameState.tournamentMode) {
+      const socketMap = gameManager.socketPlayerMap.get(gameId);
+      const playerStatuses = gameState.playerStatuses || {};
+      const qualifiedPlayers = gameState.qualifiedPlayers || [];
+      const readySet = gameManager.clientReadyMap.get(gameId) || new Set();
+      
+      console.log(`\n🔍 TOURNAMENT DEBUG [client-ready from P${playerIndex}] — game ${gameId}`);
+      console.log(`Phase: ${gameState.tournamentPhase} | playerCount: ${gameState.playerCount}`);
+      
+      for (let i = 0; i < 4; i++) {
+        const pid = `player_${i}`;
+        const status = playerStatuses[pid] || 'N/A';
+        const isQualified = qualifiedPlayers.includes(pid);
+        const isReady = readySet.has(i);
+        console.log(`  P${i}: ${pid} | status: ${status.padEnd(10)} | qual: ${isQualified ? '✅' : '❌'} | ready: ${isReady ? '✅' : '❌'}`);
+      }
+      console.log('----------------------------------------\n');
+    }
+    
+    // FIXED: Use TournamentSocketManager to check if player is ELIMINATED
+    const isEliminated = TournamentSocketManager.isEliminated(socket.id, gameState, gameManager);
+    if (isEliminated) {
+      console.log(`[Socket] ❌ Rejecting client-ready from ELIMINATED socket ${socket.id.substr(0,8)}`);
+      socket.emit('error', { message: 'client-ready: Player is eliminated and cannot rejoin' });
+      return;
+    }
+    
+    // Mark client as ready in GameManager
+    gameManager.markClientReady(gameId, playerIndex);
     
     // Check if all clients are now ready
     const playerCount = gameState.playerCount || gameState.players?.length || 0;

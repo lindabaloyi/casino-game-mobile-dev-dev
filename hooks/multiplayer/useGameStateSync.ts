@@ -323,14 +323,24 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
 
   // Trigger game ready validation when gameState or playerNumber changes
   useEffect(() => {
-    if (!gameState || playerNumber === null) return;
+    if (!gameState) return;
+    
+    // DEBUG: Log playerNumber and tournamentPhase
+    console.log(`[useGameStateSync] Ready check: playerNumber=${playerNumber}, tournamentPhase=${gameState.tournamentPhase}, playerCount=${gameState.playerCount}`);
+    
+    if (playerNumber === null) {
+      console.log(`[useGameStateSync] ⚠️ playerNumber is null - player is eliminated or not assigned, skipping client-ready`);
+      return;
+    }
     
     // Validate game state is ready
     const isValid = validateGameReady(gameState, playerNumber);
     
     if (isValid && gameIdRef.current !== null) {
-      console.log(`[useGameStateSync] ✅ Game validated, emitting client-ready for game ${gameIdRef.current}`);
+      console.log(`[useGameStateSync] ✅ Game validated, emitting client-ready for game ${gameIdRef.current}, player ${playerNumber}`);
       emitClientReady(gameIdRef.current, playerNumber);
+    } else {
+      console.log(`[useGameStateSync] ❌ Game not ready: isValid=${isValid}, gameId=${gameIdRef.current}`);
     }
   }, [gameState, playerNumber, validateGameReady, emitClientReady]);
 
@@ -392,7 +402,8 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       
       // CRITICAL: Update playerNumber if provided (e.g., after tournament phase transitions)
       // The server sends playerNumber in game-update after remapping indices
-      if (state.playerNumber !== undefined && state.playerNumber !== null) {
+      // FIXED: Handle null playerNumber for ELIMINATED players
+      if (state.playerNumber !== undefined) {
         const newPlayerNumber = state.playerNumber;
         if (newPlayerNumber !== playerNumber) {
           console.log(`[useGameStateSync] 🔄 Player number updated: ${playerNumber} -> ${newPlayerNumber}`);

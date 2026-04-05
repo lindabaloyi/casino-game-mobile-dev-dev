@@ -230,8 +230,19 @@ function startSemifinal(state) {
   semifinalState.tournamentPhase = 'SEMI_FINAL';
   semifinalState.tournamentRound = newState.tournamentRound + 1;
   semifinalState.round = 1;
-  semifinalState.currentPlayer = 0;  // Winner starts
-  console.log('[startSemifinal] currentPlayer set to: 0');
+  
+  // FIXED: Set currentPlayer to the first ACTIVE player (not always 0)
+  let firstActivePlayer = 0;
+  for (let i = 0; i < qualifiedPlayers.length; i++) {
+    const playerId = qualifiedPlayers[i];
+    const status = semifinalState.playerStatuses?.[playerId];
+    if (status !== 'ELIMINATED') {
+      firstActivePlayer = i;
+      break;
+    }
+  }
+  semifinalState.currentPlayer = firstActivePlayer;
+  console.log(`[startSemifinal] currentPlayer set to: ${firstActivePlayer} (first active player)`);
   semifinalState.turnCounter = 1;
   semifinalState.moveCount = 0;
   semifinalState.gameOver = false;
@@ -354,8 +365,19 @@ function startFinalShowdown(state) {
   finalState.tournamentPhase = 'FINAL_SHOWDOWN';
   finalState.tournamentRound = newState.tournamentRound + 1;
   finalState.round = 1;
-  finalState.currentPlayer = 0;  // Winner starts
-  console.log('[startFinalShowdown] currentPlayer set to: 0');
+  
+  // FIXED: Set currentPlayer to the first ACTIVE player (not always 0)
+  let firstActivePlayer = 0;
+  for (let i = 0; i < qualifiedPlayers.length; i++) {
+    const playerId = qualifiedPlayers[i];
+    const status = finalState.playerStatuses?.[playerId];
+    if (status !== 'ELIMINATED') {
+      firstActivePlayer = i;
+      break;
+    }
+  }
+  finalState.currentPlayer = firstActivePlayer;
+  console.log(`[startFinalShowdown] currentPlayer set to: ${firstActivePlayer} (first active player)`);
   finalState.turnCounter = 1;
   finalState.moveCount = 0;
   finalState.gameOver = false;

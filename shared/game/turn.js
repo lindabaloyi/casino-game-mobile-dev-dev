@@ -97,9 +97,9 @@ function triggerAction(state, playerIndex) {
 
 /**
  * Check if all players have ended their turn.
- * @param {object} state - Game state
- * @returns {boolean} True if all players have turnEnded = true
- */
+  * @param {object} state - Game state
+  * @returns {boolean} True if all players have turnEnded = true
+  */
 function allPlayersTurnEnded(state) {
   if (!state.roundPlayers) {
     return false;
@@ -109,8 +109,41 @@ function allPlayersTurnEnded(state) {
     return false;
   }
 
-  const allEnded = playerIds.every(id => state.roundPlayers[id].turnEnded === true);
+  // FIXED: Skip eliminated players when checking if all turns ended
+  const allEnded = playerIds.every(id => {
+    const idx = parseInt(id);
+    const playerId = `player_${idx}`;
+    // Skip eliminated players
+    if (state.playerStatuses?.[playerId] === 'ELIMINATED') {
+      return true;
+    }
+    return state.roundPlayers[id].turnEnded === true;
+  });
   return allEnded;
+}
+
+/**
+ * Get the next active player, skipping eliminated players.
+ * @param {object} state - Game state
+ * @param {number} currentPlayer - Current player index
+ * @returns {number} Next active player index
+ */
+function getNextActivePlayer(state, currentPlayer) {
+  const totalPlayers = state.playerCount || state.players?.length || 2;
+  let next = (currentPlayer + 1) % totalPlayers;
+  const start = next;
+  
+  // Keep looking until we find an active player
+  do {
+    const playerId = `player_${next}`;
+    if (state.playerStatuses?.[playerId] !== 'ELIMINATED') {
+      return next;
+    }
+    next = (next + 1) % totalPlayers;
+  } while (next !== start);
+  
+  // No other active players, return current
+  return currentPlayer;
 }
 
 /**
@@ -252,6 +285,7 @@ function skipDisconnectedPlayer(state, disconnectedPlayerIndex) {
  * Also increments turnCounter to track total turns played
  * For party mode (gameMode === 'party'), uses team-based turn order: Team A P1 → Team B P1 → Team A P2 → Team B P2
  * For all other modes (freeforall, three-hands, tournament), uses simple sequential order: 0 → 1 → 2 → 3 (or 0 → 1 → 2 for 3 players)
+ * FIXED: Now skips eliminated players in tournament mode
  * @param {object} state - Game state
  * @returns {object} Updated state
  */
@@ -266,7 +300,8 @@ function nextTurn(state) {
   if (isPartyGame(state)) {
     newPlayer = getNextPartyPlayer(oldPlayer);
   } else {
-    newPlayer = (state.currentPlayer + 1) % totalPlayers;
+    // FIXED: Use getNextActivePlayer to skip eliminated players in tournament mode
+    newPlayer = getNextActivePlayer(state, oldPlayer);
   }
 
   state.currentPlayer = newPlayer;

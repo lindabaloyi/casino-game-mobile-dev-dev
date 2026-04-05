@@ -60,7 +60,8 @@ export function useTournamentStatus(
   } else {
     // Called with positional args: useTournamentStatus(gameState, playerIndex)
     gameState = gameStateOrOptions as GameState | null;
-    index = playerIndex ?? 0;
+    // FIXED: Handle null playerIndex for eliminated players
+    index = playerIndex ?? -1;
   }
   
   return useMemo(() => {
@@ -75,11 +76,9 @@ export function useTournamentStatus(
     
     const isInTournament = tournamentMode === 'knockout' && tournamentPhase !== null;
     
-    // qualifiedPlayers now contains playerId strings (e.g., 'player_0', 'player_1')
-    // The player's position in the players array corresponds to their playerId
-    // We get the player's playerId by looking at the players array at position 'index'
+    // FIXED: Handle null playerIndex for ELIMINATED players
     let myPlayerId: string | null = null;
-    if (gameState?.players && gameState.players[index]) {
+    if (index >= 0 && gameState?.players && gameState.players[index]) {
       // Get playerId from players array - it's stored as string (e.g., 'player_0')
       myPlayerId = String(gameState.players[index].id);
     }

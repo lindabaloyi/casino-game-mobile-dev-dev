@@ -221,6 +221,17 @@ class GameManager {
   areAllClientsReady(gameId, playerCount) {
     const readySet = this.clientReadyMap.get(gameId);
     if (!readySet) return false;
+    
+    // Get game state to check for tournament mode
+    const gameState = this.activeGames.get(gameId);
+    if (gameState?.tournamentMode) {
+      // FIXED: Count only ACTIVE players in tournament mode
+      const activePlayers = Object.entries(gameState.playerStatuses || {})
+        .filter(([_, status]) => status !== 'ELIMINATED')
+        .length;
+      return readySet.size >= activePlayers;
+    }
+    
     return readySet.size >= playerCount;
   }
 

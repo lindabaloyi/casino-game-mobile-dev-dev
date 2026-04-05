@@ -127,6 +127,9 @@ class GamePersistenceService {
    * Get game mode from game state
    */
   getGameModeFromState(state) {
+    // Check tournament mode first
+    if (state.tournamentMode) return 'tournament';
+    
     const playerCount = state.playerCount;
     const isParty = playerCount === 4 && state.players?.some(p => p.team);
     if (isParty) return 'party';

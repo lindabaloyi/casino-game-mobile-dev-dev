@@ -185,20 +185,43 @@ class BroadcasterService {
     
     if (isTournamentTransition) {
       console.log(`[Broadcaster] Tournament transition detected - sending updated playerNumber to each client`);
+      
+      // DEBUG: Log tournament state before broadcasting
+      const playerStatuses = gameState.playerStatuses || {};
+      const tournamentScores = gameState.tournamentScores || {};
+      const qualifiedPlayersList = gameState.qualifiedPlayers || [];
+      
+      console.log(`\n🔍 TOURNAMENT DEBUG [BEFORE BROADCAST] — game ${gameId}`);
+      console.log(`Phase: ${gameState.tournamentPhase} | playerCount: ${gameState.playerCount}`);
+      
+      for (let i = 0; i < 4; i++) {
+        const pid = `player_${i}`;
+        const status = playerStatuses[pid] || 'N/A';
+        const points = tournamentScores[pid] ?? 'N/A';
+        const isQualified = qualifiedPlayersList.includes(pid);
+        console.log(`  P${i}: ${pid} | status: ${status.padEnd(10)} | pts: ${String(points).padEnd(4)} | qual: ${isQualified ? '✅' : '❌'}`);
+      }
+      console.log(`Qualified list: ${JSON.stringify(qualifiedPlayersList)}`);
+      console.log('----------------------------------------\n');
     }
 
     gameSockets.forEach((gameSocket) => {
       // Include playerNumber for each socket - CRITICAL for tournament transitions
-      // The server has already remapped socket indices, so we look up the new index
+      // FIXED: Check playerStatuses instead of relying on remapped indices
       let playerNumber = null;
       
       if (socketPlayerMap && socketPlayerMap.size > 0) {
-        // Get this socket's player index from the remapped map
-        const mappedIndex = socketPlayerMap.get(gameSocket.id);
+        // Get this socket's player index from the map (no longer remapped)
+        const playerIndex = socketPlayerMap.get(gameSocket.id);
         
-        // Only set playerNumber if the socket is still in the map (not eliminated)
-        if (mappedIndex !== undefined && mappedIndex !== null) {
-          playerNumber = mappedIndex;
+        if (playerIndex !== undefined && playerIndex !== null) {
+          const playerId = `player_${playerIndex}`;
+          const playerStatus = gameState?.playerStatuses?.[playerId];
+          
+          // Only set playerNumber if player is not ELIMINATED
+          if (playerStatus !== 'ELIMINATED') {
+            playerNumber = playerIndex;
+          }
         }
       }
       
