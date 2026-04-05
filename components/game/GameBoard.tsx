@@ -185,6 +185,26 @@ export function GameBoard({
     (gameState.gameOver || !!gameOverData) || false,
     [gameState.gameOver, gameOverData]
   );
+
+  const shouldShowStandardGameOver = useMemo(() => {
+    if (!isGameOver) return false;
+    
+    // Suppress standard modal when tournament is in terminal phase
+    if (gameState.tournamentMode === 'knockout') {
+      const tournamentPhase = (gameState as any).tournamentPhase;
+      const tournamentWinner = (gameState as any).tournamentWinner;
+      const isTerminalPhase = 
+        tournamentPhase === 'QUALIFICATION_REVIEW' || 
+        tournamentPhase === 'COMPLETED' ||
+        tournamentWinner != null;
+      
+      if (isTerminalPhase) {
+        console.log('[GameBoard] Suppressing standard GameOverModal - tournament in terminal phase:', tournamentPhase);
+        return false;
+      }
+    }
+    return true;
+  }, [isGameOver, gameState.tournamentMode]);
   
   // Turn timer - 20 second countdown
   const turnTimer = useTurnTimer({
@@ -918,7 +938,7 @@ export function GameBoard({
       
       {/* GameOverModal - Tournament winner display */}
       <GameOverModal
-        visible={isGameOver}
+        visible={shouldShowStandardGameOver}
         scores={gameOverData?.finalScores || gameState.scores as number[]}
         playerCount={gameState.playerCount}
         capturedCards={gameOverData?.capturedCards || capturedCardCounts}

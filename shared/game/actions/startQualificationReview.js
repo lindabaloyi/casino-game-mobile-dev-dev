@@ -64,6 +64,8 @@ function calculateDetailedScore(captures) {
   let tenDiamondPoints = 0;
   let twoSpadePoints = 0;
   let acePoints = 0;
+  let spadeCount = 0;
+  const totalCards = captures?.length || 0;
   
   if (captures && Array.isArray(captures)) {
     for (const card of captures) {
@@ -79,6 +81,10 @@ function calculateDetailedScore(captures) {
       else if (card.rank === 'A') {
         acePoints += 1;
       }
+      // Count spades
+      if (card.suit === '♠') {
+        spadeCount++;
+      }
     }
   }
   
@@ -90,6 +96,8 @@ function calculateDetailedScore(captures) {
     acePoints: acePoints,
     spadeBonus: spadeBonus,
     cardCountBonus: cardCountBonus,
+    spadeCount: spadeCount,
+    totalCards: totalCards,
   };
 }
 
