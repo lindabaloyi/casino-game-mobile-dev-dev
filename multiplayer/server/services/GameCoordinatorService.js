@@ -189,6 +189,7 @@ class GameCoordinatorService {
         }
         
         this.broadcaster.broadcastGameUpdate(gameId, newState, this.unifiedMatchmaking);
+        console.log('[Coordinator] Broadcast complete, new phase:', newState.tournamentPhase);
       }
     } catch (err) {
       console.error(`[Coordinator] game-action failed: ${err.message}`);

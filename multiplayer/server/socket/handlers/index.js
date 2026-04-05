@@ -195,7 +195,10 @@ function attachSocketHandlers(socket, services) {
   });
 
   // ── Game Coordination Handlers ────────────────────────────────────────
-  socket.on('game-action', data => coordinator.handleGameAction(socket, data));
+  socket.on('game-action', data => {
+    console.log('[Socket] Received game-action:', data.type);
+    coordinator.handleGameAction(socket, data);
+  });
   socket.on('start-next-round', () => coordinator.handleStartNextRound(socket));
   socket.on('drag-start', (data) => coordinator.handleDragStart(socket, data));
   socket.on('drag-move', (data) => coordinator.handleDragMove(socket, data));

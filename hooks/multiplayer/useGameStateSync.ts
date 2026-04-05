@@ -400,11 +400,7 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
         }
       }
       
-      // DEBUG: Log gameState important fields for tournament transition
-      if (state.tournamentPhase === 'SEMI_FINAL' || state.tournamentPhase === 'FINAL_SHOWDOWN') {
-        console.log(`[useGameStateSync] 📡 Received ${state.tournamentPhase} state: playerCount=${state.playerCount}, gameMode=${state.gameMode}, players.length=${state.players?.length}`);
-      }
-      
+      console.log('[useGameStateSync] Received game-update, tournamentPhase:', state.tournamentPhase, 'playerCount:', state.playerCount);
       setGameState(state);
     };
 

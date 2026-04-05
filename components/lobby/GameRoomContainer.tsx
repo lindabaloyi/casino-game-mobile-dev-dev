@@ -108,8 +108,12 @@ export const GameRoomContainer: React.FC<GameRoomContainerProps> = ({
             }))}
           countdownSeconds={tournamentStatus.qualificationCountdown}
           onCountdownComplete={() => {
-            console.log('[GameRoomContainer] Qualification countdown complete, advancing to next phase');
+            console.log('[DEBUG] Qualification countdown complete!');
+            console.log('[DEBUG] sendAction exists:', typeof sendAction);
+            console.log('[DEBUG] tournamentPhase:', gameState?.tournamentPhase);
+            console.log('[DEBUG] qualifiedPlayers:', gameState?.qualifiedPlayers);
             sendAction({ type: 'advanceFromQualificationReview', payload: {} });
+            console.log('[DEBUG] sendAction called');
           }}
         />
         <GameBoard

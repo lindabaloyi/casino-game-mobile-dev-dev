@@ -195,6 +195,8 @@ export function GameBoard({
       const tournamentWinner = (gameState as any).tournamentWinner;
       const isTerminalPhase = 
         tournamentPhase === 'QUALIFICATION_REVIEW' || 
+        tournamentPhase === 'SEMI_FINAL' ||
+        tournamentPhase === 'FINAL_SHOWDOWN' ||
         tournamentPhase === 'COMPLETED' ||
         tournamentWinner != null;
       

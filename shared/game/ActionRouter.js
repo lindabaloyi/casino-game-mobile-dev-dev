@@ -41,8 +41,13 @@ function createActionRouter(config) {
      * @throws if action type is unknown or not player's turn
      */
     executeAction(state, playerIndex, actionType, payload) {
-      // 0. Guard: game is already over
-      if (state.gameOver) {
+      // 0. Guard: game is already over (but allow tournament qualification review actions)
+      // In tournament mode, gameOver is set after each round, but the tournament continues
+      // through QUALIFICATION_REVIEW phase
+      const isTournamentAction = actionType === 'advanceFromQualificationReview';
+      const isInTournamentPhase = state.tournamentPhase === 'QUALIFICATION_REVIEW';
+      
+      if (state.gameOver && !(isTournamentAction && isInTournamentPhase)) {
         throw new Error('Game is over - no more actions allowed');
       }
 
