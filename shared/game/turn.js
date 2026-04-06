@@ -97,53 +97,50 @@ function triggerAction(state, playerIndex) {
 
 /**
  * Check if all players have ended their turn.
-  * @param {object} state - Game state
-  * @returns {boolean} True if all players have turnEnded = true
-  */
+ * For standard mode with clean array indices: checks all players in roundPlayers.
+ * 
+ * NOTE: After tournament phase transitions, players array is clean (0-1-2 or 0-1),
+ * so we just check all entries in roundPlayers.
+ * 
+ * @param {object} state - Game state
+ * @returns {boolean} True if all players have turnEnded = true
+ */
 function allPlayersTurnEnded(state) {
   if (!state.roundPlayers) {
     return false;
   }
-  const playerIds = Object.keys(state.roundPlayers);
-  if (playerIds.length === 0) {
-    return false;
-  }
-
-  // FIXED: Skip eliminated players when checking if all turns ended
-  const allEnded = playerIds.every(id => {
-    const idx = parseInt(id);
-    const playerId = `player_${idx}`;
-    // Skip eliminated players
-    if (state.playerStatuses?.[playerId] === 'ELIMINATED') {
-      return true;
+  
+  // Simply check all players in the roundPlayers object
+  // After tournament phase transitions, we have clean indices
+  const playerCount = state.playerCount || state.players?.length || 2;
+  
+  for (let i = 0; i < playerCount; i++) {
+    if (state.roundPlayers[i]?.turnEnded !== true) {
+      return false;
     }
-    return state.roundPlayers[id].turnEnded === true;
-  });
-  return allEnded;
+  }
+  
+  return true;
 }
 
 /**
- * Get the next active player, skipping eliminated players.
+ * Get the next active player using simple sequential order.
+ * For 3-hand mode: 0 -> 1 -> 2 -> 0
+ * For 2-hand mode: 0 -> 1 -> 0
+ * 
+ * NOTE: After tournament phase transitions (QUALIFICATION -> SEMI_FINAL -> FINAL_SHOWDOWN),
+ * players are remapped to clean contiguous indices (0-1-2 or 0-1), so we simply use
+ * the players.length to determine the next player.
+ * 
  * @param {object} state - Game state
  * @param {number} currentPlayer - Current player index
- * @returns {number} Next active player index
+ * @returns {number} Next player index
  */
 function getNextActivePlayer(state, currentPlayer) {
+  // Simply use the current player count - no need to skip eliminated players
+  // because after tournament phase transitions, we have clean arrays with no holes
   const totalPlayers = state.playerCount || state.players?.length || 2;
-  let next = (currentPlayer + 1) % totalPlayers;
-  const start = next;
-  
-  // Keep looking until we find an active player
-  do {
-    const playerId = `player_${next}`;
-    if (state.playerStatuses?.[playerId] !== 'ELIMINATED') {
-      return next;
-    }
-    next = (next + 1) % totalPlayers;
-  } while (next !== start);
-  
-  // No other active players, return current
-  return currentPlayer;
+  return (currentPlayer + 1) % totalPlayers;
 }
 
 /**
@@ -284,23 +281,25 @@ function skipDisconnectedPlayer(state, disconnectedPlayerIndex) {
  * Advance turn to the next player
  * Also increments turnCounter to track total turns played
  * For party mode (gameMode === 'party'), uses team-based turn order: Team A P1 → Team B P1 → Team A P2 → Team B P2
- * For all other modes (freeforall, three-hands, tournament), uses simple sequential order: 0 → 1 → 2 → 3 (or 0 → 1 → 2 for 3 players)
- * FIXED: Now skips eliminated players in tournament mode
+ * For all other modes (freeforall, three-hands, tournament), uses simple sequential order
+ * 
+ * NOTE: After tournament phase transitions, indices are clean (0-1-2 or 0-1),
+ * so we use simple sequential order without any skipping logic.
+ * 
  * @param {object} state - Game state
  * @returns {object} Updated state
  */
 function nextTurn(state) {
-  const totalPlayers = state.players.length;
+  const totalPlayers = state.playerCount || state.players?.length || 2;
   const oldPlayer = state.currentPlayer;
   
   let newPlayer;
   
   // Use party turn order only for party mode (gameMode === 'party')
-  // For freeforall, three-hands, tournament - use simple sequential order
   if (isPartyGame(state)) {
     newPlayer = getNextPartyPlayer(oldPlayer);
   } else {
-    // FIXED: Use getNextActivePlayer to skip eliminated players in tournament mode
+    // Use simple sequential order (works for all modes after tournament transitions)
     newPlayer = getNextActivePlayer(state, oldPlayer);
   }
 

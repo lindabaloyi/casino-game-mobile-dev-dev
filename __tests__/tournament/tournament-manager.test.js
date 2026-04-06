@@ -11,8 +11,15 @@ describe('TournamentTurnManager', () => {
   describe('getNextPlayer', () => {
     test('returns next player when no eliminations', () => {
       const state = {
+        tournamentMode: 'knockout',
         playerCount: 4,
         currentPlayer: 0,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' },
+          { id: 'player_2' },
+          { id: 'player_3' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE',
           'player_1': 'ACTIVE',
@@ -29,8 +36,15 @@ describe('TournamentTurnManager', () => {
 
     test('skips eliminated player in 4-player game', () => {
       const state = {
+        tournamentMode: 'knockout',
         playerCount: 4,
         currentPlayer: 0,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' },
+          { id: 'player_2' },
+          { id: 'player_3' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE',
           'player_1': 'ELIMINATED',
@@ -49,8 +63,15 @@ describe('TournamentTurnManager', () => {
 
     test('skips multiple eliminated players', () => {
       const state = {
+        tournamentMode: 'knockout',
         playerCount: 4,
         currentPlayer: 0,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' },
+          { id: 'player_2' },
+          { id: 'player_3' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE',
           'player_1': 'ELIMINATED',
@@ -67,8 +88,15 @@ describe('TournamentTurnManager', () => {
 
     test('returns current player when only one active', () => {
       const state = {
+        tournamentMode: 'knockout',
         playerCount: 4,
         currentPlayer: 0,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' },
+          { id: 'player_2' },
+          { id: 'player_3' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE',
           'player_1': 'ELIMINATED',
@@ -82,8 +110,14 @@ describe('TournamentTurnManager', () => {
 
     test('handles 3-player game with elimination', () => {
       const state = {
+        tournamentMode: 'knockout',
         playerCount: 3,
         currentPlayer: 0,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' },
+          { id: 'player_2' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE',
           'player_1': 'ACTIVE',
@@ -103,6 +137,10 @@ describe('TournamentTurnManager', () => {
       const state = {
         currentPlayer: 0,
         tournamentPhase: 'SEMI_FINAL',
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE'
         }
@@ -116,6 +154,10 @@ describe('TournamentTurnManager', () => {
       const state = {
         currentPlayer: 0,
         tournamentPhase: 'SEMI_FINAL',
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' }
+        ],
         playerStatuses: {
           'player_0': 'ELIMINATED',
           'player_1': 'ACTIVE'
@@ -131,6 +173,10 @@ describe('TournamentTurnManager', () => {
       const state = {
         currentPlayer: 0,
         tournamentPhase: 'SEMI_FINAL',
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE',
           'player_1': 'ACTIVE'
@@ -146,6 +192,10 @@ describe('TournamentTurnManager', () => {
       const state = {
         currentPlayer: 0,
         tournamentPhase: 'QUALIFICATION_REVIEW',
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE',
           'player_1': 'ACTIVE'
@@ -162,6 +212,12 @@ describe('TournamentTurnManager', () => {
     test('returns only active player indices', () => {
       const state = {
         playerCount: 4,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' },
+          { id: 'player_2' },
+          { id: 'player_3' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE',
           'player_1': 'ELIMINATED',
@@ -179,6 +235,12 @@ describe('TournamentTurnManager', () => {
     test('returns true when all active players ended turn', () => {
       const state = {
         playerCount: 4,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' },
+          { id: 'player_2' },
+          { id: 'player_3' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE',
           'player_1': 'ELIMINATED',
@@ -199,6 +261,12 @@ describe('TournamentTurnManager', () => {
     test('returns false when active player has not ended turn', () => {
       const state = {
         playerCount: 4,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' },
+          { id: 'player_2' },
+          { id: 'player_3' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE',
           'player_1': 'ACTIVE',
@@ -222,10 +290,12 @@ describe('TournamentSocketManager', () => {
   describe('isEliminated', () => {
     const mockGameManager = {
       socketPlayerMap: new Map([
-        ['socket-0', 0],
-        ['socket-1', 1],
-        ['socket-2', 2],
-        ['socket-3', 3]
+        [1, new Map([
+          ['socket-0', 0],
+          ['socket-1', 1],
+          ['socket-2', 2],
+          ['socket-3', 3]
+        ])]
       ])
     };
 
@@ -233,6 +303,12 @@ describe('TournamentSocketManager', () => {
       const gameState = {
         tournamentMode: true,
         gameId: 1,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' },
+          { id: 'player_2' },
+          { id: 'player_3' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE'
         }
@@ -245,6 +321,12 @@ describe('TournamentSocketManager', () => {
       const gameState = {
         tournamentMode: true,
         gameId: 1,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' },
+          { id: 'player_2' },
+          { id: 'player_3' }
+        ],
         playerStatuses: {
           'player_0': 'ELIMINATED'
         }
@@ -257,6 +339,12 @@ describe('TournamentSocketManager', () => {
       const gameState = {
         tournamentMode: false,
         gameId: 1,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' },
+          { id: 'player_2' },
+          { id: 'player_3' }
+        ],
         playerStatuses: {}
       };
       
@@ -268,7 +356,7 @@ describe('TournamentSocketManager', () => {
     test('returns correct player index', () => {
       const mockGameManager = {
         socketPlayerMap: new Map([
-          ['socket-abc', 2]
+          [1, new Map([['socket-abc', 2]])]
         ])
       };
       
@@ -277,7 +365,9 @@ describe('TournamentSocketManager', () => {
 
     test('returns null for unknown socket', () => {
       const mockGameManager = {
-        socketPlayerMap: new Map()
+        socketPlayerMap: new Map([
+          [1, new Map()]
+        ])
       };
       
       expect(TournamentSocketManager.getPlayerIndex('unknown', 1, mockGameManager)).toBeNull();
@@ -288,12 +378,16 @@ describe('TournamentSocketManager', () => {
     test('returns original index for active player', () => {
       const mockGameManager = {
         socketPlayerMap: new Map([
-          ['socket-0', 0]
+          [1, new Map([['socket-0', 0]])]
         ])
       };
       const gameState = {
         tournamentMode: true,
         gameId: 1,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' }
+        ],
         playerStatuses: {
           'player_0': 'ACTIVE'
         }
@@ -305,12 +399,16 @@ describe('TournamentSocketManager', () => {
     test('returns null for eliminated player', () => {
       const mockGameManager = {
         socketPlayerMap: new Map([
-          ['socket-0', 0]
+          [1, new Map([['socket-0', 0]])]
         ])
       };
       const gameState = {
         tournamentMode: true,
         gameId: 1,
+        players: [
+          { id: 'player_0' },
+          { id: 'player_1' }
+        ],
         playerStatuses: {
           'player_0': 'ELIMINATED'
         }
@@ -323,8 +421,9 @@ describe('TournamentSocketManager', () => {
 
 describe('TournamentPhaseManager', () => {
   describe('getQualifiedPlayers', () => {
-    test('returns qualified players array', () => {
+    test('returns qualified players from state', () => {
       const gameState = {
+        qualifiedPlayers: ['player_2', 'player_0', 'player_3'],
         tournamentScores: {
           'player_0': 10,
           'player_1': 5,
@@ -421,6 +520,11 @@ describe('Tournament Turn Cycle Integration', () => {
     const state = {
       playerCount: 3,
       currentPlayer: 0,
+      players: [
+        { id: 'player_0' },
+        { id: 'player_1' },
+        { id: 'player_2' }
+      ],
       playerStatuses: {
         'player_0': 'ACTIVE',   // socket-0
         'player_1': 'ELIMINATED', // socket-1 - eliminated
@@ -442,8 +546,13 @@ describe('Tournament Turn Cycle Integration', () => {
 
   test('canAct rejects eliminated player trying to act', () => {
     const state = {
-      currentPlayer: 1,
+      currentPlayer: 2,
       tournamentPhase: 'SEMI_FINAL',
+      players: [
+        { id: 'player_0' },
+        { id: 'player_1' },
+        { id: 'player_2' }
+      ],
       playerStatuses: {
         'player_0': 'ACTIVE',
         'player_1': 'ELIMINATED',

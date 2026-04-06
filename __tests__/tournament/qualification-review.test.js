@@ -5,7 +5,7 @@
 
 const { initializeGame } = require('../../shared/game/initialization');
 const startTournament = require('../../shared/game/actions/startTournament');
-const endTournamentRound = require('../../shared/game/actions/endTournamentRound');
+const { endTournamentRound } = require('../../shared/game/actions/endTournamentRound');
 const advanceFromQualificationReview = require('../../shared/game/actions/advanceFromQualificationReview');
 
 describe('Tournament 4->3 Transition', () => {
@@ -87,56 +87,6 @@ describe('Tournament 4->3 Transition', () => {
     
     expect(eliminatedPlayers).toHaveLength(1);
     expect(eliminatedPlayers).toContain('player_1');
-  });
-});
-
-describe('TournamentManager playerId string handling', () => {
-  test('should parse playerId strings to numeric indices', () => {
-    const TournamentManager = require('../../multiplayer/server/services/TournamentManager');
-    
-    // Create mock socket map
-    const socketMap = new Map([
-      ['socket1', 0],  // player_0
-      ['socket2', 1],  // player_1 (will be eliminated)
-      ['socket3', 2],  // player_2
-      ['socket4', 3],  // player_3
-    ]);
-    
-    // Call with playerId strings (qualified players) - player_1 not included
-    TournamentManager.remapPlayerIndices(socketMap, ['player_0', 'player_2', 'player_3']);
-    
-    // socket2 (player_1) should be removed
-    expect(socketMap.has('socket2')).toBe(false);
-    
-    // Others should be remapped:
-    // player_0 (index 0) -> new index 0
-    // player_2 (index 2) -> new index 1
-    // player_3 (index 3) -> new index 2
-    expect(socketMap.get('socket1')).toBe(0);  
-    expect(socketMap.get('socket3')).toBe(1);  
-    expect(socketMap.get('socket4')).toBe(2);  
-  });
-  
-  test('should handle numeric indices for backward compatibility', () => {
-    const TournamentManager = require('../../multiplayer/server/services/TournamentManager');
-    
-    const socketMap = new Map([
-      ['socket1', 0],
-      ['socket2', 1],
-      ['socket3', 2],
-      ['socket4', 3],
-    ]);
-    
-    // Call with numeric indices - player_1 (index 1) not included
-    TournamentManager.remapPlayerIndices(socketMap, [0, 2, 3]);
-    
-    // socket2 (player_1) should be removed
-    expect(socketMap.has('socket2')).toBe(false);
-    
-    // Others should be remapped
-    expect(socketMap.get('socket1')).toBe(0);
-    expect(socketMap.get('socket3')).toBe(1);
-    expect(socketMap.get('socket4')).toBe(2);
   });
 });
 

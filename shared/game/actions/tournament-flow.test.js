@@ -7,7 +7,7 @@
 
 const { cloneState } = require('../clone');
 const startTournament = require('./startTournament');
-const endTournamentRound = require('./endTournamentRound');
+const { endTournamentRound } = require('./endTournamentRound');
 const startQualificationReview = require('./startQualificationReview');
 const advanceFromQualificationReview = require('./advanceFromQualificationReview');
 const { createDeck } = require('../deck');
@@ -184,28 +184,25 @@ describe('Tournament Flow Integration', () => {
     it('Advances from SEMI_FINAL QUALIFICATION_REVIEW to FINAL_SHOWDOWN', () => {
       console.log('\n=== SEMI_FINAL → FINAL_SHOWDOWN TEST ===');
       
-      // Start with a 3-player semifinal state
+      // Start with a 3-player semifinal state - only 2 qualify for FINAL_SHOWDOWN
       let state = cloneState({
         tournamentPhase: 'QUALIFICATION_REVIEW',
         tournamentRound: 2,
-        qualifiedPlayers: ['player_0', 'player_2', 'player_3'],
+        qualifiedPlayers: ['player_0', 'player_2'], // 2 players = FINAL_SHOWDOWN
         players: [
           { id: 'player_0', index: 0, hand: [], captures: [], score: 0 },
-          { id: 'player_1', index: 1, hand: [], captures: [], score: 0 },
           { id: 'player_2', index: 2, hand: [], captures: [], score: 0 }
         ],
-        playerCount: 3,
+        playerCount: 2,
         playerStatuses: {
           player_0: 'ACTIVE',
-          player_1: 'ACTIVE', 
           player_2: 'ACTIVE'
         },
         tournamentScores: {
           player_0: 15,
-          player_1: 10,
           player_2: 12
         },
-        eliminationOrder: ['player_3'],
+        eliminationOrder: ['player_1', 'player_3'],
         gameOver: false,
         round: 1
       });

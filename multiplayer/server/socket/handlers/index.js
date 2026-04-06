@@ -5,7 +5,6 @@
 
 const PlayerProfile = require('../../models/PlayerProfile');
 const { createBroadcastHelpers } = require('./broadcast');
-const TournamentSocketManager = require('../../services/TournamentSocketManager');
 
 function attachSocketHandlers(socket, services) {
   const { unifiedMatchmaking, roomService, gameManager, broadcaster, coordinator } = services;
@@ -233,8 +232,11 @@ function attachSocketHandlers(socket, services) {
       console.log(`\n🔍 TOURNAMENT DEBUG [client-ready from P${playerIndex}] — game ${gameId}`);
       console.log(`Phase: ${gameState.tournamentPhase} | playerCount: ${gameState.playerCount}`);
       
-      for (let i = 0; i < 4; i++) {
-        const pid = `player_${i}`;
+      const players = gameState.players || [];
+      for (let i = 0; i < players.length; i++) {
+        const player = players[i];
+        if (!player) continue;
+        const pid = player.id;
         const status = playerStatuses[pid] || 'N/A';
         const isQualified = qualifiedPlayers.includes(pid);
         const isReady = readySet.has(i);
@@ -243,12 +245,15 @@ function attachSocketHandlers(socket, services) {
       console.log('----------------------------------------\n');
     }
     
-    // FIXED: Use TournamentSocketManager to check if player is ELIMINATED
-    const isEliminated = TournamentSocketManager.isEliminated(socket.id, gameState, gameManager);
-    if (isEliminated) {
-      console.log(`[Socket] ❌ Rejecting client-ready from ELIMINATED socket ${socket.id.substr(0,8)}`);
-      socket.emit('error', { message: 'client-ready: Player is eliminated and cannot rejoin' });
-      return;
+    // Check if eliminated using playerStatuses (works for tournament and non-tournament)
+    if (gameState.playerStatuses) {
+      const socketMap = gameManager.socketPlayerMap.get(gameId);
+      const playerId = socketMap?.get(socket.id);
+      if (playerId && gameState.playerStatuses[playerId] === 'ELIMINATED') {
+        console.log(`[Socket] ❌ Rejecting client-ready from ELIMINATED socket ${socket.id.substr(0,8)}`);
+        socket.emit('error', { message: 'client-ready: Player is eliminated and cannot rejoin' });
+        return;
+      }
     }
     
     // Mark client as ready in GameManager

@@ -14,18 +14,30 @@ class TournamentTurnManager {
    * @returns {number} Next active player index
    */
   static getNextPlayer(state, currentPlayer) {
-    const total = state.playerCount || state.players?.length || 2;
+    // For tournament mode with reduced playerCount, we need to check all original indices
+    // to find the next active player (skipping eliminated ones)
+    const isTournament = state.tournamentMode && state.playerStatuses;
+    const total = isTournament ? 4 : (state.playerCount || state.players?.length || 2);
+    
     let next = (currentPlayer + 1) % total;
     const start = next;
     
     // Keep looking until we find an active player
     do {
-      const playerId = `player_${next}`;
+      const player = state.players?.[next];
+      const playerId = player?.id || `player_${next}`;
+      
+      // If no player exists at this index (e.g., players[3] in semi-final), skip
+      if (!player) {
+        next = (next + 1) % total;
+        continue;
+      }
+      
       if (state.playerStatuses?.[playerId] !== 'ELIMINATED') {
-        console.log(`[TournamentTurnManager] getNextPlayer: ${currentPlayer} -> ${next} (active)`);
+        console.log(`[TournamentTurnManager] getNextPlayer: ${currentPlayer} -> ${next} (${playerId} active)`);
         return next;
       }
-      console.log(`[TournamentTurnManager] getNextPlayer: skipping eliminated player ${next}`);
+      console.log(`[TournamentTurnManager] getNextPlayer: skipping ${playerId} (index ${next}) - ELIMINATED`);
       next = (next + 1) % total;
     } while (next !== start);
     
@@ -41,10 +53,19 @@ class TournamentTurnManager {
    * @returns {object} { canAct: boolean, reason?: string }
    */
   static canAct(state, playerIndex) {
-    const playerId = `player_${playerIndex}`;
+    // Get the actual playerId from the players array (contains original playerId like 'player_1')
+    // This is critical because after phase transitions, players array has NEW indices but OLD playerIds
+    const player = state.players?.[playerIndex];
+    const playerId = player?.id;
     
-    // Check if eliminated
+    if (!playerId) {
+      console.warn(`[TournamentTurnManager] canAct: No player found at index ${playerIndex}, players.length: ${state.players?.length}`);
+      return { canAct: false, reason: `Invalid player index ${playerIndex}` };
+    }
+    
+    // Check if eliminated - use the actual playerId from the players array
     if (state.playerStatuses?.[playerId] === 'ELIMINATED') {
+      console.log(`[TournamentTurnManager] canAct: Player at index ${playerIndex} (${playerId}) is ELIMINATED`);
       return { 
         canAct: false, 
         reason: `Player ${playerIndex} is ELIMINATED and cannot act` 

@@ -48,6 +48,26 @@ app.use('/api/users', usersRoutes);
 app.use('/api/stats', statsRoutes);
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+// Debug endpoints for tournament development
+const TournamentMaster = require('./services/TournamentMaster');
+app.get('/debug/tournament/pending', (req, res) => {
+  res.json(TournamentMaster.listPendingTransitions());
+});
+app.get('/debug/tournament/pending/:gameId', (req, res) => {
+  const gameId = parseInt(req.params.gameId, 10);
+  const pending = TournamentMaster.getPendingTransition(gameId);
+  if (!pending) {
+    return res.status(404).json({ error: 'No pending transition for this game' });
+  }
+  res.json({
+    newGameId: pending.newGameId,
+    phase: pending.phase,
+    qualifiedPlayers: pending.qualifiedPlayers,
+    storedAt: new Date(pending.storedAt).toISOString(),
+    players: pending.newState?.players?.map(p => ({ id: p.id, handSize: p.hand?.length })) || []
+  });
+});
+
 const PORT = process.env.PORT || 3001;
 
 // ── Service instances ──

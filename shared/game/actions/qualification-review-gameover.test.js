@@ -9,7 +9,7 @@
 
 const { cloneState } = require('../clone');
 const startTournament = require('./startTournament');
-const endTournamentRound = require('./endTournamentRound');
+const { endTournamentRound } = require('./endTournamentRound');
 const advanceFromQualificationReview = require('./advanceFromQualificationReview');
 const { createDeck } = require('../deck');
 

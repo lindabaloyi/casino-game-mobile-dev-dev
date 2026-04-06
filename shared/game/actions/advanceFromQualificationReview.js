@@ -10,9 +10,11 @@ const { startSemifinal, startFinalShowdown } = require('./startQualificationRevi
 /**
  * Advance from qualification review to next phase
  * @param {Object} state - Current game state (should be in QUALIFICATION_REVIEW phase)
+ * @param {number} gameId - Game ID (optional, for socket remapping)
+ * @param {Object} gameManager - GameManager instance (optional, for socket remapping)
  * @returns {Object} Updated state for next phase
  */
-function advanceFromQualificationReview(state) {
+function advanceFromQualificationReview(state, gameId = null, gameManager = null) {
   const newState = cloneState(state);
   
   console.log('[advanceFromQualificationReview] Advancing from qualification review');
@@ -30,21 +32,22 @@ function advanceFromQualificationReview(state) {
   console.log(`[advanceFromQualificationReview] Players array BEFORE transition:`, newState.players?.map(p => p.id), ', length:', newState.players?.length);
   
   // Determine next phase based on qualified count
+  let resultState;
   if (qualifiedCount <= 2) {
     // 2 players qualified - go to final showdown
     console.log('[advanceFromQualificationReview] Advancing to FINAL_SHOWDOWN');
-    const resultState = startFinalShowdown(newState);
+    resultState = startFinalShowdown(newState);
     console.log(`[advanceFromQualificationReview] AFTER transition - players.length: ${resultState.players?.length}, playerCount: ${resultState.playerCount}`);
     console.log(`[advanceFromQualificationReview] Players array AFTER transition:`, resultState.players?.map(p => p.id));
-    return resultState;
   } else {
     // 3+ players qualified - go to semifinal
     console.log('[advanceFromQualificationReview] Advancing to SEMI_FINAL');
-    const resultState = startSemifinal(newState);
+    resultState = startSemifinal(newState);
     console.log(`[advanceFromQualificationReview] AFTER transition - players.length: ${resultState.players?.length}, playerCount: ${resultState.playerCount}`);
     console.log(`[advanceFromQualificationReview] Players array AFTER transition:`, resultState.players?.map(p => p.id));
-    return resultState;
   }
+
+  return resultState;
 }
 
 module.exports = advanceFromQualificationReview;

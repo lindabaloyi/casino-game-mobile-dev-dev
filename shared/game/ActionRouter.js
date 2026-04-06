@@ -70,9 +70,11 @@ function createActionRouter(config) {
         throw new Error(`Not your turn (current: ${state.currentPlayer}, your: ${playerIndex})`);
       }
       
-      // FIXED: Check if player is ELIMINATED and reject action
-      const playerId = `player_${playerIndex}`;
-      if (state.playerStatuses?.[playerId] === 'ELIMINATED') {
+      // Check if player is ELIMINATED - use actual playerId from players array
+      // This handles tournament phase transitions correctly
+      const player = state.players?.[playerIndex];
+      const playerId = player?.id;
+      if (playerId && state.playerStatuses?.[playerId] === 'ELIMINATED') {
         throw new Error(`Player ${playerIndex} is ELIMINATED and cannot perform actions`);
       }
 

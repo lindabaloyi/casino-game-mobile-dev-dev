@@ -3,11 +3,10 @@
  * Helper functions for testing tournament mode with playerId strings
  */
 
-const { initializeGame } = require('../../shared/game/initialization');
-const { startTournament } = require('../../shared/game/actions/startTournament');
-const { endTournamentRound } = require('../../shared/game/actions/endTournamentRound');
-const { startQualificationReview } = require('../../shared/game/actions/startQualificationReview');
-const { compressStateForNewPhase } = require('../../shared/game/actions/compressStateForNewPhase');
+const { initializeGame } = require('../../../shared/game/initialization');
+const { startTournament } = require('../../../shared/game/actions/startTournament');
+const { endTournamentRound, compressStateForNewPhase } = require('../../../shared/game/actions/endTournamentRound');
+const { startQualificationReview } = require('../../../shared/game/actions/startQualificationReview');
 
 /**
  * Creates a mock tournament state with playerId strings

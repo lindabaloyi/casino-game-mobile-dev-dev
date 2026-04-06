@@ -9,9 +9,9 @@
  * Qualifying → Semi-Final → Final Showdown
  */
 
-const { initializeGame } = require('../../shared/game/initialization');
-const { startTournament } = require('../../shared/game/actions/startTournament');
-const { compressStateForNewPhase } = require('../../shared/game/actions/compressStateForNewPhase');
+const { initializeGame } = require('../../../shared/game/initialization');
+const { startTournament } = require('../../../shared/game/actions/startTournament');
+const { compressStateForNewPhase } = require('../../../shared/game/actions/compressStateForNewPhase');
 const { 
   createMockTournamentState, 
   getPlayerNumber,

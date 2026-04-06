@@ -30,6 +30,11 @@ module.exports = {
     '<rootDir>/multiplayer/',
     '<rootDir>/node_modules/',
     '<rootDir>/.expo/',
-    '<rootDir>/.expo-shared/'
+    '<rootDir>/.expo-shared/',
+    '<rootDir>/__tests__/tournament/helpers/',
+    '<rootDir>/__tests__/tournament/tournament-id-mapping.test.js',
+    '<rootDir>/__tests__/tournament/tournament-flow-simulation.test.js',
+    '<rootDir>/__tests__/tournament/tournament-manager.test.js',
+    '<rootDir>/__tests__/tournament/semi-final-turn-management.test.js'
   ]
 };

@@ -217,42 +217,37 @@ function endTournamentRound(state, payload, playerIndex) {
   // Count active players
   const activePlayers = Object.values(newState.playerStatuses).filter(s => s === 'ACTIVE').length;
   console.log(`[endTournamentRound] Active players: ${activePlayers}`);
+
+  // BUG FIX 5: Use phase-based gating instead of arithmetic
+  // Only trigger qualification review for specific phase + player count combinations
+  // 1. QUALIFYING with 4 players: show scores, 3 qualify for SEMI_FINAL
+  // 2. SEMI_FINAL with 3 players: show scores, 2 qualify for FINAL_SHOWDOWN
   
-  // Check if we should start qualification review
-  // This shows qualified players with score breakdown before advancing to next round
-  // Trigger when:
-  // 1. Going from 4→3 in QUALIFYING - just compress state, go to SEMI_FINAL
-  // 2. Going from 3→2 in SEMI_FINAL - show top 2 qualified for final
-  const remainingAfterElimination = activePlayers - 1;
-  
-  // For QUALIFYING phase with 4 players: after elimination we go to SEMI_FINAL with 3 players
-  // Show qualification review with 3 players qualifying (to display scores and who advances)
+  // For QUALIFYING phase with 4 players: trigger qualification review
   if (newState.tournamentPhase === 'QUALIFYING' && activePlayers === 4) {
     console.log(`[endTournamentRound] QUALIFYING phase with 4 players - starting qualification review for 3 to advance`);
     
-    // Start qualification review with 3 players qualifying (not 2!)
-    // This will show the score breakdown and eliminate only the lowest scorer
+    // Start qualification review with 3 players qualifying
     const reviewState = startQualificationReview(newState, 3);
     
     console.log(`[endTournamentRound] Qualification review started (3 players will qualify for SEMI_FINAL)`);
     return reviewState;
   }
-  
-  // For SEMI_FINAL phase (3 players): trigger qualification review for top 2
-  // Trigger qualification review when going to 2 players (from 3)
-  if (remainingAfterElimination >= 2) {
-    console.log(`[endTournamentRound] ${remainingAfterElimination} players will remain - starting QUALIFICATION REVIEW`);
+
+  // For SEMI_FINAL phase with 3 players: trigger qualification review for 2
+  if (newState.tournamentPhase === 'SEMI_FINAL' && activePlayers === 3) {
+    console.log(`[endTournamentRound] SEMI_FINAL phase with 3 players - starting qualification review for 2 to advance`);
     
-    // Start qualification review phase (shows qualified players with score breakdown)
-    const reviewState = startQualificationReview(newState, remainingAfterElimination);
+    // Start qualification review with 2 players qualifying
+    const reviewState = startQualificationReview(newState, 2);
     
-    console.log(`[endTournamentRound] Qualification review started`);
+    console.log(`[endTournamentRound] Qualification review started (2 players will qualify for FINAL_SHOWDOWN)`);
     return reviewState;
   }
-  
-  // Otherwise, eliminate lowest scorer
-  const eliminatedPlayer = findLowestScorer(newState);
-  console.log(`[endTournamentRound] Eliminating player ${eliminatedPlayer} (lowest score)`);
+
+  // For any other case: eliminate lowest scorer directly
+  const remainingAfterElimination = activePlayers - 1;
+  console.log(`[endTournamentRound] ${remainingAfterElimination} players will remain after elimination`);
   
   // Update player status
   newState.playerStatuses[eliminatedPlayer] = 'ELIMINATED';
@@ -303,4 +298,8 @@ function endTournamentRound(state, payload, playerIndex) {
   return compressedState;
 }
 
-module.exports = endTournamentRound;
+module.exports = {
+  endTournamentRound,
+  compressStateForNewPhase,
+  startNewRound
+};

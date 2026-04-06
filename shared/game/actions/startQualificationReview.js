@@ -136,24 +136,25 @@ function startQualificationReview(state, qualifiedCount = 3) {
     // If less than qualifiedCount players, proceed directly
     return qualifiedCount === 2 ? startFinalShowdown(newState) : startSemifinal(newState);
   }
-  
-  // CRITICAL: Sort qualified players by their ORIGINAL playerId for consistent ordering
+
+  // FIX: Keep score-sorted order, don't sort by ID
+  // qualified[] is already sorted by score (highest first)
   const qualified = sortedPlayers.slice(0, qualifiedCount);
-  const qualifiedSortedById = [...qualified].sort((a, b) => a.playerId.localeCompare(b.playerId));
   
   console.log('[startQualificationReview] Qualified players:', qualified.map(p => `${p.playerId} (${p.score} pts)`));
-  
+
   // Calculate detailed score breakdowns for qualified players
+  // Store in score-sorted order so qualifiedPlayers[0] = highest scorer
   const qualificationScores = {};
   const qualifiedPlayers = [];
   
-  for (let rank = 0; rank < qualifiedSortedById.length; rank++) {
-    const player = qualifiedSortedById[rank];
+  for (let rank = 0; rank < qualified.length; rank++) {
+    const player = qualified[rank];
     const playerId = player.playerId;
     
     qualifiedPlayers.push(playerId);
     qualificationScores[playerId] = calculateDetailedScore(player.captures);
-    qualificationScores[playerId].rank = rank + 1; // 1st or 2nd place
+    qualificationScores[playerId].rank = rank + 1; // 1 = highest score
     
     console.log(`[startQualificationReview] Player ${playerId} (Rank ${rank + 1}):`, qualificationScores[playerId]);
   }
@@ -179,7 +180,19 @@ function startQualificationReview(state, qualifiedCount = 3) {
   for (const playerId of eliminatedPlayerIds) {
     newState.playerStatuses[playerId] = 'ELIMINATED';
   }
-  
+
+  // BUG FIX 1: Remove eliminated players from players array and reduce playerCount
+  // This ensures subsequent code sees the correct player count
+  const remainingPlayers = [];
+  for (const player of newState.players) {
+    if (newState.playerStatuses[player.id] === 'ACTIVE') {
+      remainingPlayers.push(player);
+    }
+  }
+  newState.players = remainingPlayers;
+  newState.playerCount = remainingPlayers.length;
+  console.log(`[startQualificationReview] Removed eliminated players - playerCount now ${newState.playerCount}`);
+
   console.log(`[startQualificationReview] Final playerStatuses:`, JSON.stringify(newState.playerStatuses));
   console.log(`[startQualificationReview] Qualified players:`, qualifiedPlayers);
   
@@ -199,9 +212,13 @@ function startQualificationReview(state, qualifiedCount = 3) {
  * Transition from qualification review to semifinal
  * Called when countdown reaches zero
  * 
- * IMPORTANT: Keeps original playerId strings in players array!
+ * SIMPLIFIED APPROACH:
+ * - Takes 3 qualified players from qualification phase
+ * - Reorders them: winner (highest score) at index 0, others by original index
+ * - Creates clean 0-1-2 array (no holes, no skipping)
+ * - Turn management uses standard 3-hand logic (0->1->2->0)
  * 
- * @param {Object} state - Current game state
+ * @param {Object} state - Current game state (should be in QUALIFICATION_REVIEW phase)
  * @returns {Object} Updated state ready for semifinal
  */
 function startSemifinal(state) {
@@ -210,39 +227,64 @@ function startSemifinal(state) {
   console.log('[startSemifinal] Starting semifinal phase');
   console.log('[startSemifinal] BEFORE - players.length:', newState.players?.length, ', playerCount:', newState.playerCount);
   
-  // Get qualified players (should already be set from qualification review - playerId strings!)
+  // Get qualified players from qualification review phase (playerId strings!)
   let qualifiedPlayers = newState.qualifiedPlayers || [];
   
-  if (qualifiedPlayers.length === 0) {
-    // Fallback: get top 2 from scores
+  if (qualifiedPlayers.length < 2) {
+    // Fallback: get top 3 from scores
     const sortedPlayers = getSortedPlayersByScore(newState);
-    qualifiedPlayers = sortedPlayers.slice(0, 2).map(p => p.playerId);
-    console.warn('[startSemifinal] Using fallback qualified players:', qualifiedPlayers);
+    qualifiedPlayers = sortedPlayers.slice(0, 3).map(p => p.playerId);
+    console.warn('[startSemifinal] Using fallback qualified players (top 3):', qualifiedPlayers);
   }
   
-  const playerCount = qualifiedPlayers.length;
+  console.log('[startSemifinal] Raw qualified players:', qualifiedPlayers);
+
+  // BUG FIX 3: Don't sort by ID - keep score-sorted order so qualifiedPlayers[0] = highest scorer
+  // The winner-first reordering happens below, so we just need to ensure qualifiedPlayers is score-ordered
+
+  // STEP 1: Reorder qualified players - winner first, then others by original index
+  // Find winner (highest score)
+  let winnerPlayerId = qualifiedPlayers[0];
+  let highestScore = newState.tournamentScores?.[winnerPlayerId] || 0;
+  
+  for (let i = 1; i < qualifiedPlayers.length; i++) {
+    const pid = qualifiedPlayers[i];
+    const score = newState.tournamentScores?.[pid] || 0;
+    if (score > highestScore) {
+      highestScore = score;
+      winnerPlayerId = pid;
+    }
+  }
+  
+  console.log(`[startSemifinal] Winner: ${winnerPlayerId} with ${highestScore} points`);
+  
+  // Build new order: winner first, then others sorted by original index
+  const otherPlayers = qualifiedPlayers
+    .filter(pid => pid !== winnerPlayerId)
+    .sort((a, b) => {
+      const idxA = parseInt(a.split('_')[1], 10);
+      const idxB = parseInt(b.split('_')[1], 10);
+      return idxA - idxB;
+    });
+  
+  const newOrder = [winnerPlayerId, ...otherPlayers];
+  console.log('[startSemifinal] New player order (winner first):', newOrder);
+  
+  const playerCount = newOrder.length; // Should be 3
   const isPartyMode = newState.gameMode === 'party';
   
   // Clone the state and set up for semifinal
   const semifinalState = cloneState(newState);
-  semifinalState.playerCount = playerCount;
+  semifinalState.playerCount = playerCount; // 3 for semifinal
   semifinalState.tournamentMode = newState.tournamentMode;
   semifinalState.tournamentPhase = 'SEMI_FINAL';
   semifinalState.tournamentRound = newState.tournamentRound + 1;
   semifinalState.round = 1;
   
-  // FIXED: Set currentPlayer to the first ACTIVE player (not always 0)
-  let firstActivePlayer = 0;
-  for (let i = 0; i < qualifiedPlayers.length; i++) {
-    const playerId = qualifiedPlayers[i];
-    const status = semifinalState.playerStatuses?.[playerId];
-    if (status !== 'ELIMINATED') {
-      firstActivePlayer = i;
-      break;
-    }
-  }
-  semifinalState.currentPlayer = firstActivePlayer;
-  console.log(`[startSemifinal] currentPlayer set to: ${firstActivePlayer} (first active player)`);
+  // Winner starts first (index 0)
+  semifinalState.currentPlayer = 0;
+  console.log(`[startSemifinal] currentPlayer set to: 0 (winner ${winnerPlayerId})`);
+  
   semifinalState.turnCounter = 1;
   semifinalState.moveCount = 0;
   semifinalState.gameOver = false;
@@ -250,7 +292,7 @@ function startSemifinal(state) {
   semifinalState.qualificationCountdown = 0;
   semifinalState.finalShowdownHandsPlayed = 0;
   semifinalState.tournamentWinner = newState.tournamentWinner;
-  semifinalState.qualifiedPlayers = qualifiedPlayers;  // Keep playerId strings!
+  semifinalState.qualifiedPlayers = newOrder; // Updated to new order (winner first)
   semifinalState.qualificationScores = newState.qualificationScores;
   semifinalState.eliminationOrder = [...newState.eliminationOrder];
   
@@ -264,21 +306,16 @@ function startSemifinal(state) {
   const { createDeck } = require('../deck');
   const deck = createDeck();
   
-  // For three-hands mode: place one random card on table as initial trail
-  if (playerCount === 3) {
-    const trailCard = deck.splice(0, 1)[0];
-    semifinalState.tableCards = [trailCard];
-  } else {
-    semifinalState.tableCards = deck.splice(0, 4);
-  }
-  
+  // For three-hands mode (3 players): place one random card on table as initial trail
+  const trailCard = deck.splice(0, 1)[0];
+  semifinalState.tableCards = [trailCard];
   semifinalState.deck = deck;
   
-  // Filter players to only keep qualified ones
-  // IMPORTANT: KEEP original playerId strings in the id field!
+  // STEP 2: Rebuild players array with new order (winner at index 0)
   semifinalState.players = [];
-  for (let j = 0; j < qualifiedPlayers.length; j++) {
-    const playerId = qualifiedPlayers[j];  // Original playerId string (e.g., 'player_2')
+  
+  for (let newIdx = 0; newIdx < newOrder.length; newIdx++) {
+    const playerId = newOrder[newIdx];
     
     // Find the player in the old array by their playerId
     const oldPlayer = newState.players.find(p => p.id === playerId);
@@ -287,36 +324,38 @@ function startSemifinal(state) {
       continue;
     }
     
-    const startingCards = playerCount === 3 ? 13 : 10;
+    // 13 cards for 3-player game
+    const startingCards = deck.splice(0, 13);
+    
     semifinalState.players.push({
       ...oldPlayer,
-      id: playerId,  // KEEP original playerId string!
-      index: j,  // Update index to new position
-      hand: deck.splice(0, startingCards),
+      id: playerId, // KEEP original playerId string!
+      index: newIdx, // New index (0 = winner, 1, 2 = others)
+      hand: startingCards,
       captures: [],
       score: 0
     });
-    console.log(`[startSemifinal] Created player at new index ${j} from playerId ${playerId}`);
+    console.log(`[startSemifinal] Created player at new index ${newIdx} from playerId ${playerId}`);
   }
   
   semifinalState.scores = new Array(playerCount).fill(0);
   
-  // Create round players for turn tracking
+  // Create round players for turn tracking (3 players)
   const { createRoundPlayers } = require('../turn');
   semifinalState.roundPlayers = createRoundPlayers(playerCount);
   
   // Set player statuses and scores using playerId strings
   for (let i = 0; i < playerCount; i++) {
-    const playerId = qualifiedPlayers[i];
+    const playerId = newOrder[i];
     semifinalState.playerStatuses[playerId] = 'ACTIVE';
     semifinalState.tournamentScores[playerId] = newState.tournamentScores[playerId] || 0;
     console.log(`[startSemifinal] Setting playerStatuses[${playerId}] = 'ACTIVE', tournamentScores[${playerId}] = ${semifinalState.tournamentScores[playerId]}`);
   }
   
-  // Preserve ELIMINATED status for players who didn't qualify for semifinal
+  // Preserve ELIMINATED status for players who didn't qualify
   for (let i = 0; i < newState.playerCount; i++) {
     const oldPlayerId = newState.players[i].id;
-    if (!qualifiedPlayers.includes(oldPlayerId) && newState.playerStatuses[oldPlayerId] === 'ELIMINATED') {
+    if (!newOrder.includes(oldPlayerId) && newState.playerStatuses[oldPlayerId] === 'ELIMINATED') {
       semifinalState.playerStatuses[oldPlayerId] = 'ELIMINATED';
       console.log(`[startSemifinal] Preserving ELIMINATED status for playerId ${oldPlayerId}`);
     }
@@ -334,9 +373,13 @@ function startSemifinal(state) {
  * Transition from qualification review to final showdown
  * Called when countdown reaches zero after semifinal (2 players qualify)
  * 
- * IMPORTANT: Keeps original playerId strings in players array!
+ * SIMPLIFIED APPROACH:
+ * - Takes 2 qualified players from semifinal phase
+ * - Reorders them: winner (highest score) at index 0, other at index 1
+ * - Creates clean 0-1 array (no holes, no skipping)
+ * - Turn management uses standard 2-hand logic (0->1->0)
  * 
- * @param {Object} state - Current game state
+ * @param {Object} state - Current game state (should be in SEMI_FINAL or qualification review)
  * @returns {Object} Updated state ready for final showdown
  */
 function startFinalShowdown(state) {
@@ -345,15 +388,39 @@ function startFinalShowdown(state) {
   console.log('[startFinalShowdown] Starting final showdown phase');
   console.log('[startFinalShowdown] BEFORE - players.length:', newState.players?.length, ', playerCount:', newState.playerCount);
   
-  // Get qualified players (should already be set from qualification review - playerId strings!)
+  // Get qualified players (should already be set - playerId strings!)
   let qualifiedPlayers = newState.qualifiedPlayers || [];
   
-  if (qualifiedPlayers.length === 0) {
+  if (qualifiedPlayers.length < 2) {
     // Fallback: get top 2 from scores
     const sortedPlayers = getSortedPlayersByScore(newState);
     qualifiedPlayers = sortedPlayers.slice(0, 2).map(p => p.playerId);
-    console.warn('[startFinalShowdown] Using fallback qualified players:', qualifiedPlayers);
+    console.warn('[startFinalShowdown] Using fallback qualified players (top 2):', qualifiedPlayers);
   }
+  
+  console.log('[startFinalShowdown] Raw qualified players:', qualifiedPlayers);
+  
+  // STEP 1: Reorder qualified players - winner first
+  // Find winner (highest score)
+  let winnerPlayerId = qualifiedPlayers[0];
+  let highestScore = newState.tournamentScores?.[winnerPlayerId] || 0;
+  
+  for (let i = 1; i < qualifiedPlayers.length; i++) {
+    const pid = qualifiedPlayers[i];
+    const score = newState.tournamentScores?.[pid] || 0;
+    if (score > highestScore) {
+      highestScore = score;
+      winnerPlayerId = pid;
+    }
+  }
+  
+  console.log(`[startFinalShowdown] Winner: ${winnerPlayerId} with ${highestScore} points`);
+  
+  // Build new order: winner first
+  const otherPlayer = qualifiedPlayers.find(pid => pid !== winnerPlayerId);
+  const newOrder = winnerPlayerId && otherPlayer ? [winnerPlayerId, otherPlayer] : qualifiedPlayers;
+  
+  console.log('[startFinalShowdown] New player order (winner first):', newOrder);
   
   const playerCount = 2; // Final showdown is always 2 players
   const isPartyMode = newState.gameMode === 'party';
@@ -366,18 +433,10 @@ function startFinalShowdown(state) {
   finalState.tournamentRound = newState.tournamentRound + 1;
   finalState.round = 1;
   
-  // FIXED: Set currentPlayer to the first ACTIVE player (not always 0)
-  let firstActivePlayer = 0;
-  for (let i = 0; i < qualifiedPlayers.length; i++) {
-    const playerId = qualifiedPlayers[i];
-    const status = finalState.playerStatuses?.[playerId];
-    if (status !== 'ELIMINATED') {
-      firstActivePlayer = i;
-      break;
-    }
-  }
-  finalState.currentPlayer = firstActivePlayer;
-  console.log(`[startFinalShowdown] currentPlayer set to: ${firstActivePlayer} (first active player)`);
+  // Winner starts first (index 0)
+  finalState.currentPlayer = 0;
+  console.log(`[startFinalShowdown] currentPlayer set to: 0 (winner ${winnerPlayerId})`);
+  
   finalState.turnCounter = 1;
   finalState.moveCount = 0;
   finalState.gameOver = false;
@@ -385,7 +444,7 @@ function startFinalShowdown(state) {
   finalState.qualificationCountdown = 0;
   finalState.finalShowdownHandsPlayed = 0;
   finalState.tournamentWinner = newState.tournamentWinner;
-  finalState.qualifiedPlayers = qualifiedPlayers;  // Keep playerId strings!
+  finalState.qualifiedPlayers = newOrder; // Updated to new order (winner first)
   finalState.qualificationScores = newState.qualificationScores;
   finalState.eliminationOrder = [...newState.eliminationOrder];
   
@@ -395,16 +454,17 @@ function startFinalShowdown(state) {
   finalState.teamCapturedBuilds = {};
   finalState.shiyaRecalls = {};
   
-  // Create deck
+  // Create deck and deal cards (20 cards each for 2-player game)
   const { createDeck } = require('../deck');
   const deck = createDeck();
   finalState.tableCards = deck.splice(0, 4);
   finalState.deck = deck;
   
-  // Keep players with original playerId strings
+  // STEP 2: Rebuild players array with new order (winner at index 0)
   finalState.players = [];
-  for (let j = 0; j < qualifiedPlayers.length; j++) {
-    const playerId = qualifiedPlayers[j];  // Original playerId string
+  
+  for (let newIdx = 0; newIdx < newOrder.length; newIdx++) {
+    const playerId = newOrder[newIdx];
     
     // Find the player in the old array by their playerId
     const oldPlayer = newState.players.find(p => p.id === playerId);
@@ -413,29 +473,41 @@ function startFinalShowdown(state) {
       continue;
     }
     
-    const startingCards = 10;
+    // 10 cards per player for 2-player game
+    const startingCards = deck.splice(0, 10);
+    
     finalState.players.push({
       ...oldPlayer,
-      id: playerId,  // KEEP original playerId string!
-      index: j,  // Update index to new position
-      hand: deck.splice(0, startingCards),
+      id: playerId, // KEEP original playerId string!
+      index: newIdx, // New index (0 = winner, 1 = other)
+      hand: startingCards,
       captures: [],
       score: 0
     });
-    console.log(`[startFinalShowdown] Created player at new index ${j} from playerId ${playerId}`);
+    console.log(`[startFinalShowdown] Created player at new index ${newIdx} from playerId ${playerId}`);
   }
   
   finalState.scores = new Array(playerCount).fill(0);
   
+  // Create round players for turn tracking (2 players)
   const { createRoundPlayers } = require('../turn');
   finalState.roundPlayers = createRoundPlayers(playerCount);
   
   // Set player statuses and scores using playerId strings
   for (let i = 0; i < playerCount; i++) {
-    const playerId = qualifiedPlayers[i];
+    const playerId = newOrder[i];
     finalState.playerStatuses[playerId] = 'ACTIVE';
     finalState.tournamentScores[playerId] = newState.tournamentScores[playerId] || 0;
     console.log(`[startFinalShowdown] Setting playerStatuses[${playerId}] = 'ACTIVE', tournamentScores[${playerId}] = ${finalState.tournamentScores[playerId]}`);
+  }
+  
+  // Preserve ELIMINATED status for players who didn't qualify
+  for (let i = 0; i < newState.playerCount; i++) {
+    const oldPlayerId = newState.players[i].id;
+    if (!newOrder.includes(oldPlayerId) && newState.playerStatuses[oldPlayerId] === 'ELIMINATED') {
+      finalState.playerStatuses[oldPlayerId] = 'ELIMINATED';
+      console.log(`[startFinalShowdown] Preserving ELIMINATED status for playerId ${oldPlayerId}`);
+    }
   }
   
   console.log('[startFinalShowdown] Players array (playerId strings):', finalState.players.map(p => p.id));

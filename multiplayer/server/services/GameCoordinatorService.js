@@ -8,68 +8,15 @@
  * - Round transitions
  * - Broadcasting game updates
  * 
- * Secondary concerns are delegated to:
- * - TournamentManager: Tournament-specific logic
- * - GamePersistenceService: MongoDB and stats updates
+ * Tournament logic: TournamentMaster (centralized)
  */
 
 const RoundValidator = require('../game/utils/RoundValidator');
 const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn, forceEndTurn, finalizeGame } = require('../../../shared/game');
 const scoring = require('../game/scoring');
-const TournamentManager = require('./TournamentManager');
-const TournamentTurnManager = require('./TournamentTurnManager');
-const TournamentSocketManager = require('./TournamentSocketManager');
-const TournamentPhaseManager = require('./TournamentPhaseManager');
+const TournamentMaster = require('./TournamentMaster');
 const GamePersistenceService = require('./GamePersistenceService');
 const GameStats = require('../models/GameStats');
-
-/**
- * Debug helper to trace tournament state across transitions
- * Logs player identity, socket, points, status, qualification, and ready state
- */
-function debugTournamentState(gameId, gameState, socketPlayerMap, gameManager, context) {
-  if (!gameState || !gameState.tournamentMode) return;
-  
-  const players = gameState.players || [];
-  const playerStatuses = gameState.playerStatuses || {};
-  const tournamentScores = gameState.tournamentScores || {};
-  const qualifiedPlayers = gameState.qualifiedPlayers || [];
-  const readySet = gameManager.clientReadyMap.get(gameId) || new Set();
-
-  console.log(`\n🔍 TOURNAMENT DEBUG [${context}] — game ${gameId}`);
-  console.log(`Phase: ${gameState.tournamentPhase} | playerCount: ${gameState.playerCount}`);
-
-  // Loop over all possible slots 0..3 (original 4 players)
-  for (let i = 0; i < 4; i++) {
-    const playerId = `player_${i}`;
-    const playerObj = players.find(p => p.id === playerId) || null;
-    const username = playerObj?.username || playerObj?.displayName || 'unknown';
-    
-    // Find socket for this player index
-    let socketId = 'no-socket';
-    if (socketPlayerMap) {
-      for (const [sid, idx] of socketPlayerMap.entries()) {
-        if (idx === i) {
-          socketId = sid.substring(0, 8);
-          break;
-        }
-      }
-    }
-    
-    const status = playerStatuses[playerId] || 'N/A';
-    const points = tournamentScores[playerId] ?? 'N/A';
-    const isQualified = qualifiedPlayers.includes(playerId);
-    const isReady = readySet.has(i);
-    
-    console.log(
-      `  P${i}: ${playerId.padEnd(8)} | user: ${username.padEnd(12)} | socket: ${socketId.padEnd(10)} | ` +
-      `status: ${status.padEnd(10)} | pts: ${String(points).padEnd(4)} | qual: ${isQualified ? '✅' : '❌'} | ready: ${isReady ? '✅' : '❌'}`
-    );
-  }
-  console.log(`Qualified list: ${JSON.stringify(qualifiedPlayers)}`);
-  console.log(`Ready set: ${[...readySet].join(',') || '(empty)'}`);
-  console.log('----------------------------------------\n');
-}
 
 class GameCoordinatorService {
   constructor(gameManager, actionRouter, unifiedMatchmaking, broadcaster) {
@@ -115,7 +62,22 @@ class GameCoordinatorService {
       this.broadcaster.sendError(socket, 'Not in an active game');
       return null;
     }
-    const playerIndex = this.gameManager.getPlayerIndex(gameId, socket.id);
+    
+    // Get player's original index from socket map
+    let playerIndex = this.gameManager.getPlayerIndex(gameId, socket.id);
+    
+    // Delegate tournament-specific index correction to TournamentMaster (centralized)
+    const gameState = this.gameManager.getGameState(gameId);
+    if (gameState?.tournamentMode && playerIndex !== null) {
+      playerIndex = TournamentMaster.ensureCorrectPlayerIndex(
+        gameState, socket.id, playerIndex, this.gameManager
+      );
+      if (playerIndex === null) {
+        this.broadcaster.sendError(socket, 'You have been eliminated from the tournament');
+        return null;
+      }
+    }
+    
     console.log(`[Coordinator] _resolvePlayer: gameId=${gameId}, playerIndex=${playerIndex}, isPartyGame=${isPartyGame}`);
     if (playerIndex === null) {
       this.broadcaster.sendError(socket, 'Player not found in game');
@@ -208,35 +170,12 @@ class GameCoordinatorService {
       if (roundCheck.ended) {
         this._handleRoundEnd(gameId, newState, isPartyGame, data, roundCheck);
       } else {
-        // Special handling: Check if tournament phase changed from QUALIFICATION_REVIEW
-        // This handles the case where advanceFromQualificationReview action is executed
-        // CRITICAL: Use oldTournamentPhase (saved before action) NOT newState.tournamentPhase
-        const newPhase = newState?.tournamentPhase;
-        console.log(`[Coordinator] Phase check - oldTournamentPhase (from before action): ${oldTournamentPhase}, newPhase: ${newPhase}`);
-        
-        // Log the socket mapping state
-        const socketMap = this.gameManager.socketPlayerMap.get(gameId);
-        console.log(`[Coordinator] Socket map at transition check:`, socketMap ? Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`) : 'no map');
-        
-        if (oldTournamentPhase === 'QUALIFICATION_REVIEW' && 
-            (newPhase === 'SEMI_FINAL' || newPhase === 'FINAL_SHOWDOWN')) {
-          console.log(`[Coordinator] Tournament phase transition detected: ${oldTournamentPhase} -> ${newPhase}`);
-          const qualifiedPlayers = TournamentManager.getQualifiedPlayers(newState);
-          console.log(`[Coordinator] Qualified players for socket cleanup: ${JSON.stringify(qualifiedPlayers)}`);
-          
-          // FIXED: Do NOT remap socket indices - keep player indices fixed throughout tournament
-          // Eliminated players will be handled by checking their status before allowing actions
-          
-          // CRITICAL: Clear client ready status before transition to force re-ready from active players only
-          this.gameManager.clearClientReadyStatus(gameId);
-          console.log(`[Coordinator] Cleared client ready status for tournament transition`);
-          
-          // DEBUG: Log tournament state after phase transition
-          debugTournamentState(gameId, newState, this.gameManager.socketPlayerMap.get(gameId), this.gameManager, 'AFTER PHASE TRANSITION');
+        // Use TournamentBroadcaster for tournament games
+        if (TournamentMaster.isTournamentActive(newState)) {
+          TournamentBroadcaster.broadcastGameUpdate(gameId, newState, this.gameManager, this.unifiedMatchmaking);
+        } else {
+          this.broadcaster.broadcastGameUpdate(gameId, newState, this.unifiedMatchmaking);
         }
-        
-        this.broadcaster.broadcastGameUpdate(gameId, newState, this.unifiedMatchmaking);
-        console.log('[Coordinator] Broadcast complete, new phase:', newState.tournamentPhase);
       }
     } catch (err) {
       console.error(`[Coordinator] game-action failed: ${err.message}`);
@@ -263,13 +202,33 @@ class GameCoordinatorService {
     // Check game over
     const gameOverCheck = RoundValidator.checkGameOver(newState);
     
-    // Tournament mode handling
-    if (TournamentManager.isTournamentActive(newState)) {
-      this._handleTournamentRoundEnd(gameId, newState, isPartyGame, lastAction);
-    } else if (gameOverCheck.gameOver) {
+    // Tournament handling - delegate entirely to TournamentMaster
+    if (TournamentMaster.isTournamentActive(newState)) {
+      const result = TournamentMaster.handleRoundEnd(
+        newState, 
+        gameId, 
+        this.gameManager,
+        this.unifiedMatchmaking,
+        this.broadcaster
+      );
+      
+      if (result.gameOver) {
+        this._handleGameOver(gameId, result.state || newState, isPartyGame, false);
+      } else if (result.newGameId) {
+        // TournamentMaster already handled transition (migrated sockets, broadcast)
+        console.log(`[Coordinator] Tournament transitioned to game ${result.newGameId}`);
+      } else {
+        // Same game continues
+        this.gameManager.saveGameState(gameId, result.state);
+        this.broadcaster.broadcastGameUpdate(gameId, result.state, this.unifiedMatchmaking);
+      }
+      return;
+    }
+    
+    // Non-tournament game handling
+    if (gameOverCheck.gameOver) {
       this._handleGameOver(gameId, newState, isPartyGame, false);
     } else {
-      // Regular game - auto-transition to next round
       const nextState = RoundValidator.prepareNextRound(newState);
       if (nextState) {
         this.gameManager.saveGameState(gameId, nextState);
@@ -277,107 +236,6 @@ class GameCoordinatorService {
       } else {
         this._handleGameOver(gameId, newState, isPartyGame, true);
       }
-    }
-  }
-
-  /**
-   * Remove eliminated players from socket maps
-   * Keeps qualified players at their original indices
-   */
-  _removeEliminatedPlayers(gameId, qualifiedPlayers) {
-    // FIXED: Do NOT remove sockets from map - keep all player indices fixed
-    // Instead, eliminated status is tracked via playerStatuses
-    const socketMap = this.gameManager.socketPlayerMap.get(gameId);
-    if (!socketMap) {
-      console.log(`[Coordinator] No socket map found for game ${gameId}`);
-      return;
-    }
-
-    console.log(`[Coordinator] _removeEliminatedPlayers called - sockets kept with original indices`);
-    console.log(`[Coordinator] Socket map:`, Array.from(socketMap.entries()).map(([id, idx]) => `${id.substr(0,8)}→P${idx}`));
-    console.log(`[Coordinator] Qualified players: ${JSON.stringify(qualifiedPlayers)}`);
-    console.log(`[Coordinator] NOTE: Eliminated players are tracked via playerStatuses, not socket removal`);
-  }
-
-  /**
-   * Handle tournament round end
-   */
-  _handleTournamentRoundEnd(gameId, gameState, isPartyGame, lastAction) {
-    try {
-      console.log(`[Coordinator] _handleTournamentRoundEnd called, lastAction: ${lastAction?.type}, tournamentPhase: ${gameState.tournamentPhase}`);
-      
-      // Handle special action transitions (from qualification review to semifinal/final)
-      if (lastAction?.type === 'advanceFromQualificationReview') {
-        console.log(`[Coordinator] Handling advanceFromQualificationReview action`);
-        const newState = TournamentManager.handleRoundTransition(gameState, 'advanceFromQualificationReview');
-        
-        if (newState.tournamentPhase === 'COMPLETED') {
-          console.log(`[Coordinator] Tournament COMPLETED! Winner: ${newState.tournamentWinner}`);
-          this._handleGameOver(gameId, newState, isPartyGame, false);
-          return;
-        }
-
-        // Remove eliminated players - do NOT remap indices for remaining players
-        if (newState.tournamentPhase === 'SEMI_FINAL' || newState.tournamentPhase === 'FINAL_SHOWDOWN') {
-          const qualifiedPlayers = TournamentManager.getQualifiedPlayers(newState);
-          console.log(`[Coordinator] Transition to ${newState.tournamentPhase}, qualified players: ${JSON.stringify(qualifiedPlayers)}`);
-          
-          // FIXED: Do NOT remap socket indices - keep player indices fixed throughout tournament
-          
-          // DEBUG: Log tournament state after advance action
-          debugTournamentState(gameId, newState, this.gameManager.socketPlayerMap.get(gameId), this.gameManager, 'AFTER ADVANCE ACTION');
-        }
-
-        this.gameManager.saveGameState(gameId, newState);
-        this.broadcaster.broadcastGameUpdate(gameId, newState, this.unifiedMatchmaking);
-        return;
-      }
-
-      // Handle final showdown round
-      if (gameState.tournamentPhase === 'FINAL_SHOWDOWN') {
-        const showdownState = TournamentManager.handleFinalShowdownRoundEnd(gameState);
-        
-        if (showdownState.tournamentPhase === 'COMPLETED') {
-          console.log(`[Coordinator] Tournament COMPLETED! Winner: ${showdownState.tournamentWinner}`);
-          this._handleGameOver(gameId, showdownState, isPartyGame, false);
-          return;
-        }
-
-        // Remove eliminated players for final showdown
-        const qualifiedPlayers = TournamentManager.getQualifiedPlayers(showdownState);
-        this._removeEliminatedPlayers(gameId, qualifiedPlayers);
-
-        this.gameManager.saveGameState(gameId, showdownState);
-        this.broadcaster.broadcastGameUpdate(gameId, showdownState, this.unifiedMatchmaking);
-        return;
-      }
-
-      // Handle regular tournament round
-      const tournamentState = TournamentManager.handleRoundEnd(gameState);
-      
-      if (tournamentState.tournamentPhase === 'QUALIFICATION_REVIEW') {
-        // Qualification review - just broadcast
-        this.gameManager.saveGameState(gameId, tournamentState);
-        this.broadcaster.broadcastGameUpdate(gameId, tournamentState, this.unifiedMatchmaking);
-      } else if (tournamentState.tournamentPhase === 'SEMI_FINAL' || 
-                 tournamentState.tournamentPhase === 'FINAL_SHOWDOWN') {
-        // FIXED: Do NOT remap socket indices - keep player indices fixed throughout tournament
-        const qualifiedPlayers = TournamentManager.getQualifiedPlayers(tournamentState);
-        console.log(`[Coordinator] Transition to ${tournamentState.tournamentPhase}, qualified players: ${JSON.stringify(qualifiedPlayers)}`);
-        
-        this.gameManager.saveGameState(gameId, tournamentState);
-        this.broadcaster.broadcastGameUpdate(gameId, tournamentState, this.unifiedMatchmaking);
-      } else if (tournamentState.tournamentPhase === 'COMPLETED') {
-        console.log(`[Coordinator] Tournament COMPLETED! Winner: ${tournamentState.tournamentWinner}`);
-        this._handleGameOver(gameId, tournamentState, isPartyGame, false);
-      } else {
-        // Continue tournament
-        this.gameManager.saveGameState(gameId, tournamentState);
-        this.broadcaster.broadcastGameUpdate(gameId, tournamentState, this.unifiedMatchmaking);
-      }
-    } catch (err) {
-      console.error(`[Coordinator] Tournament round transition failed: ${err.message}`);
-      this._handleGameOver(gameId, gameState, isPartyGame, false);
     }
   }
 

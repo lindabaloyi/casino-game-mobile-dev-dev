@@ -154,8 +154,7 @@ class BroadcasterService {
 
   /**
    * Broadcast game update to all players in a game
-   * CRITICAL: Include each socket's player index in the update so clients
-   * can update their playerNumber after tournament phase transitions
+   * For tournament games, use TournamentBroadcaster instead
    */
   broadcastGameUpdate(gameId, gameState, matchmakingService = null) {
     // Use the provided matchmaking service or default to regular matchmaking
@@ -175,58 +174,20 @@ class BroadcasterService {
 
     // Get socket->player index mapping from gameManager if available
     const socketPlayerMap = this.gameManager?.socketPlayerMap?.get(gameId);
-    const qualifiedPlayers = gameState?.qualifiedPlayers || null;
-    
-    // Check if this is a tournament phase transition (fewer players than original)
-    const isTournamentTransition = qualifiedPlayers && 
-      socketPlayerMap && 
-      gameState?.tournamentPhase && 
-      ['SEMI_FINAL', 'FINAL_SHOWDOWN'].includes(gameState.tournamentPhase);
-    
-    if (isTournamentTransition) {
-      console.log(`[Broadcaster] Tournament transition detected - sending updated playerNumber to each client`);
-      
-      // DEBUG: Log tournament state before broadcasting
-      const playerStatuses = gameState.playerStatuses || {};
-      const tournamentScores = gameState.tournamentScores || {};
-      const qualifiedPlayersList = gameState.qualifiedPlayers || [];
-      
-      console.log(`\n🔍 TOURNAMENT DEBUG [BEFORE BROADCAST] — game ${gameId}`);
-      console.log(`Phase: ${gameState.tournamentPhase} | playerCount: ${gameState.playerCount}`);
-      
-      for (let i = 0; i < 4; i++) {
-        const pid = `player_${i}`;
-        const status = playerStatuses[pid] || 'N/A';
-        const points = tournamentScores[pid] ?? 'N/A';
-        const isQualified = qualifiedPlayersList.includes(pid);
-        console.log(`  P${i}: ${pid} | status: ${status.padEnd(10)} | pts: ${String(points).padEnd(4)} | qual: ${isQualified ? '✅' : '❌'}`);
-      }
-      console.log(`Qualified list: ${JSON.stringify(qualifiedPlayersList)}`);
-      console.log('----------------------------------------\n');
-    }
 
     gameSockets.forEach((gameSocket) => {
-      // Include playerNumber for each socket - CRITICAL for tournament transitions
-      // FIXED: Check playerStatuses instead of relying on remapped indices
       let playerNumber = null;
       
       if (socketPlayerMap && socketPlayerMap.size > 0) {
-        // Get this socket's player index from the map (no longer remapped)
-        const playerIndex = socketPlayerMap.get(gameSocket.id);
+        const socketIndex = socketPlayerMap.get(gameSocket.id);
         
-        if (playerIndex !== undefined && playerIndex !== null) {
-          const playerId = `player_${playerIndex}`;
-          const playerStatus = gameState?.playerStatuses?.[playerId];
+        if (socketIndex !== undefined && socketIndex !== null) {
+          const player = gameState.players?.[socketIndex];
           
-          // Only set playerNumber if player is not ELIMINATED
-          if (playerStatus !== 'ELIMINATED') {
-            playerNumber = playerIndex;
+          if (player && player.id) {
+            playerNumber = socketIndex;
           }
         }
-      }
-      
-      if (isTournamentTransition) {
-        console.log(`[Broadcaster] Socket ${gameSocket.id.substr(0,8)} -> playerNumber: ${playerNumber}`);
       }
       
       // Emit with playerNumber so client can update their stored value
