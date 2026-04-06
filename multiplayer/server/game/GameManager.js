@@ -148,6 +148,18 @@ class GameManager {
     this.socketUserIdMap.delete(gameId);
   }
 
+  /**
+   * Mark a game as closed (for tournament transitions).
+   * Keeps the game state for reference but marks it as not active.
+   */
+  closeGame(gameId) {
+    const game = this.activeGames.get(gameId);
+    if (game) {
+      game.isClosed = true;
+      console.log(`[GameManager] Game ${gameId} marked as closed`);
+    }
+  }
+
   // ── Player ↔ Socket mapping ─────────────────────────────────────────────────
 
   addPlayerToGame(gameId, socketId, playerIndex, userId = null) {

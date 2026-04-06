@@ -5,10 +5,11 @@
 
 const PlayerProfile = require('../../models/PlayerProfile');
 const { createBroadcastHelpers } = require('./broadcast');
-const TournamentSocketManager = require('../../services/TournamentSocketManager');
+const TournamentCoordinator = require('../../services/TournamentCoordinator');
 
 function attachSocketHandlers(socket, services) {
   const { unifiedMatchmaking, roomService, gameManager, broadcaster, coordinator } = services;
+  const tournamentCoordinator = new TournamentCoordinator(gameManager, unifiedMatchmaking, broadcaster);
   const {
     broadcastTwoHandsWaiting,
     broadcastPartyWaiting,
@@ -243,8 +244,8 @@ function attachSocketHandlers(socket, services) {
       console.log('----------------------------------------\n');
     }
     
-    // FIXED: Use TournamentSocketManager to check if player is ELIMINATED
-    const isEliminated = TournamentSocketManager.isEliminated(socket.id, gameState, gameManager);
+    // Check if player is ELIMINATED
+    const isEliminated = !tournamentCoordinator.handleClientReady(socket.id, gameId, playerIndex);
     if (isEliminated) {
       console.log(`[Socket] ❌ Rejecting client-ready from ELIMINATED socket ${socket.id.substr(0,8)}`);
       socket.emit('error', { message: 'client-ready: Player is eliminated and cannot rejoin' });
