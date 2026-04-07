@@ -125,6 +125,12 @@ export interface GameOverData {
   playerStatuses?: { [playerId: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
   qualifiedPlayers?: string[];
   qualificationScores?: { [playerId: string]: { totalPoints: number; cardPoints: number; tenDiamondPoints: number; twoSpadePoints: number; acePoints: number; spadeBonus: number; cardCountBonus: number; rank?: number } };
+  // Tournament transition data
+  nextGameId?: number;
+  nextPhase?: string;
+  transitionType?: 'auto' | 'manual';
+  countdownSeconds?: number;
+  eliminatedPlayers?: string[];
 
   scoreBreakdowns?: Array<{
     totalCards: number;
@@ -450,6 +456,14 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
 
     const handleGameOver = (data: GameOverData) => {
       console.log('[useGameStateSync] Received game-over event:', JSON.stringify(data, null, 2));
+      console.log('[useGameStateSync] Tournament transition data:', {
+        nextGameId: data.nextGameId,
+        nextPhase: data.nextPhase,
+        transitionType: data.transitionType,
+        countdownSeconds: data.countdownSeconds,
+        eliminatedPlayers: data.eliminatedPlayers,
+        qualifiedPlayers: data.qualifiedPlayers
+      });
       console.log('[useGameStateSync] Final scores from server:', data.finalScores);
       console.log('[useGameStateSync] Score breakdowns from server:', JSON.stringify(data.scoreBreakdowns, null, 2));
       setGameOverData(data);

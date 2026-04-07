@@ -7,7 +7,7 @@
  * Uses centralized styling from shared/config/gameOverStyles.ts
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Modal, Animated, ViewStyle, TextStyle } from 'react-native';
 
 import {
@@ -71,8 +71,14 @@ interface GameOverModalProps {
   teamScoreBreakdowns?: TeamScoreBreakdowns;
   isPartyMode?: boolean;
   isTournamentMode?: boolean;
-  playerStatuses?: { [playerId: string]: string };  // Keys are now playerId strings
-  qualifiedPlayers?: string[];  // Now uses playerId strings
+  playerStatuses?: { [playerId: string]: string };
+  qualifiedPlayers?: string[];
+  nextGameId?: number;
+  nextPhase?: string;
+  transitionType?: 'auto' | 'manual';
+  countdownSeconds?: number;
+  eliminatedPlayers?: string[];
+  onTransitionToNextGame?: () => void;
   onPlayAgain?: () => void;
   onBackToMenu?: () => void;
 }
@@ -90,9 +96,17 @@ export function GameOverModal({
   isTournamentMode,
   playerStatuses,
   qualifiedPlayers,
+  nextGameId,
+  nextPhase,
+  transitionType,
+  countdownSeconds: initialCountdown = 5,
+  eliminatedPlayers,
+  onTransitionToNextGame,
   onPlayAgain,
   onBackToMenu,
 }: GameOverModalProps) {
+  const [countdown, setCountdown] = useState(initialCountdown);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Debug logging
   console.log('[GameOverModal] Props received:', {
     visible,
@@ -100,6 +114,13 @@ export function GameOverModal({
     isPartyMode,
     scores: scores?.slice(0, 4),
     teamScoreBreakdowns: teamScoreBreakdowns ? 'present' : 'null/undefined',
+    isTournamentMode,
+    nextGameId,
+    nextPhase,
+    transitionType,
+    countdownSeconds: initialCountdown,
+    eliminatedPlayers,
+    qualifiedPlayers
   });
   const score1 = scores[0] || 0;
   const score2 = scores[1] || 0;
@@ -170,7 +191,81 @@ export function GameOverModal({
     }
   }, [visible, fadeAnim, scaleAnim]);
 
+  // Countdown timer for tournament transition
+  useEffect(() => {
+    if (visible && isTournamentMode && nextGameId && transitionType === 'auto') {
+      setCountdown(initialCountdown);
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            timerRef.current = null;
+            onTransitionToNextGame?.();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [visible, isTournamentMode, nextGameId, transitionType, initialCountdown, onTransitionToNextGame]);
+
   const getWinnerText = () => (winnerText === 'Tie' ? "It's a Tie!" : `${winnerText} Wins!`);
+
+  const getPlayerName = (playerId: string): string => {
+    const match = playerId.match(/player_(\d+)/);
+    if (match) {
+      const num = parseInt(match[1], 10) + 1;
+      return `Player ${num}`;
+    }
+    return playerId;
+  };
+
+  const renderTournamentTransition = () => {
+    if (!isTournamentMode || !nextGameId) return null;
+    
+    return (
+      <View style={styles.tournamentTransitionSection}>
+        <Text style={styles.transitionTitle}>Advancing to {nextPhase || 'Next Phase'}</Text>
+        
+        {qualifiedPlayers && qualifiedPlayers.length > 0 && (
+          <View style={styles.listContainer}>
+            <Text style={styles.listTitle}>Qualified:</Text>
+            {qualifiedPlayers.map(pid => (
+              <Text key={pid} style={styles.qualifiedPlayer}>
+                ✓ {getPlayerName(pid)}
+              </Text>
+            ))}
+          </View>
+        )}
+        
+        {eliminatedPlayers && eliminatedPlayers.length > 0 && (
+          <View style={styles.listContainer}>
+            <Text style={styles.listTitle}>Eliminated:</Text>
+            {eliminatedPlayers.map(pid => (
+              <Text key={pid} style={styles.eliminatedPlayer}>
+                ✗ {getPlayerName(pid)}
+              </Text>
+            ))}
+          </View>
+        )}
+        
+        {transitionType === 'auto' && countdown > 0 && (
+          <Text style={styles.countdownText}>
+            Next phase starts in {countdown} seconds...
+          </Text>
+        )}
+      </View>
+    );
+  };
+
+  const showPlayAgain = !isTournamentMode || !nextGameId;
 
   // New minimal player breakdown: only positive points & bonuses, then separator, then cards/spades
   const renderPlayerBreakdown = (playerIndex: number, playerName: string, score: number) => {
@@ -508,8 +603,10 @@ export function GameOverModal({
 
           <Text style={styles.winnerText}>{getWinnerText()}</Text>
 
+          {renderTournamentTransition()}
+
           <View style={styles.buttons}>
-            {onPlayAgain && (
+            {showPlayAgain && onPlayAgain && (
               <View style={styles.button}>
                 <Text style={styles.buttonText} onPress={onPlayAgain}>
                   Play Again
@@ -581,6 +678,13 @@ const styles = StyleSheet.create<{
   qualifiedBadgeText: TextStyle;
   knockedOutBadge: ViewStyle;
   knockedOutBadgeText: TextStyle;
+  tournamentTransitionSection: ViewStyle;
+  transitionTitle: TextStyle;
+  listContainer: ViewStyle;
+  listTitle: TextStyle;
+  qualifiedPlayer: TextStyle;
+  eliminatedPlayer: TextStyle;
+  countdownText: TextStyle;
 }>({
   // ========================================
   // UNIFIED STYLES - Using centralized config
@@ -874,6 +978,47 @@ const styles = StyleSheet.create<{
     color: GAME_OVER_COLORS.textPrimary,
     fontSize: GAME_OVER_SIZES.badgeFontSize,
     fontWeight: '700',
+  },
+  // Tournament transition styles
+  tournamentTransitionSection: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 8,
+    width: '100%',
+  },
+  transitionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffd700',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  listContainer: {
+    marginBottom: 8,
+  },
+  listTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ccc',
+    marginBottom: 4,
+  },
+  qualifiedPlayer: {
+    fontSize: 14,
+    color: '#4caf50',
+    marginLeft: 8,
+  },
+  eliminatedPlayer: {
+    fontSize: 14,
+    color: '#f44336',
+    marginLeft: 8,
+  },
+  countdownText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffd700',
+    textAlign: 'center',
+    marginTop: 12,
   },
 });
 

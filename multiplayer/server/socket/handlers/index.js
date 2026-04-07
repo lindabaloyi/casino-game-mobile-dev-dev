@@ -107,7 +107,18 @@ function attachSocketHandlers(socket, services) {
     removeFromAllQueues();
     const result = unifiedMatchmaking.addToQueue(socket, 'tournament', socket.userId);
     if (result) {
-      await broadcaster.broadcastTournamentGameStart(result);
+      const players = result.players.map(p => ({
+        id: p.userId,
+        socketId: p.socket.id,
+        name: `Player ${p.playerNumber + 1}`
+      }));
+      console.log(`[Socket] 4 players ready, creating tournament with:`, players.map(p => p.id));
+      await tournamentCoordinator.createTournament(players, {
+        qualifyingHands: 4,
+        qualifyingPlayers: 3,
+        semifinalHands: 3,
+        finalHands: 2
+      });
     }
     // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
     // This ensures event listeners are registered before the broadcast is received

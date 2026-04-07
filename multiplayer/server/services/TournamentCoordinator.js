@@ -187,6 +187,10 @@ class TournamentCoordinator {
    */
   async handleHandComplete(gameState, results) {
     const tournament = this.activeTournaments.get(gameState.tournamentId);
+    console.log(`[TournamentCoordinator] handleHandComplete called, tournamentId: ${gameState.tournamentId}, found: ${!!tournament}`);
+    console.log(`[TournamentCoordinator] activeTournaments size: ${this.activeTournaments.size}`);
+    console.log(`[TournamentCoordinator] currentHand: ${tournament?.currentHand}, totalHands: ${tournament?.totalHands}`);
+    
     if (!tournament) return;
     
     console.log(`[TournamentCoordinator] Hand ${gameState.tournamentHand} complete in ${gameState.tournamentPhase}`);
@@ -204,8 +208,10 @@ class TournamentCoordinator {
     tournament.currentGameId = null;
     
     const phaseComplete = tournament.currentHand >= tournament.totalHands;
+    console.log(`[TournamentCoordinator] phaseComplete check: ${tournament.currentHand} >= ${tournament.totalHands} = ${phaseComplete}`);
+    
     if (phaseComplete) {
-      await this._endPhase(gameState.tournamentId);
+      await this._endPhase(gameState.tournamentId, gameState);
     } else {
       await this._startNextHand(gameState.tournamentId);
     }
@@ -214,7 +220,7 @@ class TournamentCoordinator {
   /**
    * End current phase - determine qualified/eliminated, start next phase
    */
-  async _endPhase(tournamentId) {
+  async _endPhase(tournamentId, gameState) {
     const tournament = this.activeTournaments.get(tournamentId);
     if (!tournament) return;
     
@@ -236,23 +242,33 @@ class TournamentCoordinator {
     
     const qualified = activePlayers.slice(0, qualifiedCount);
     const eliminated = activePlayers.slice(qualifiedCount);
+    const eliminatedIds = eliminated.map(p => p.id);
     
     eliminated.forEach(p => p.eliminated = true);
     
     console.log(`[TournamentCoordinator] ${tournament.phase} complete - Qualified: ${qualified.map(p => p.name).join(', ')}`);
     
     const lastRoom = `game-${tournament.previousGameId}`;
+    const lastGameState = this.gameManager.getGameState(tournament.previousGameId);
     
-    for (const player of eliminated) {
-      const socket = this._getSocketByPlayerId(player.id);
-      if (socket) {
-        const position = tournament.players.findIndex(p => p.id === player.id) + 1;
-        socket.emit('tournament-eliminated', {
-          message: `You finished in position ${position}`,
-          finalScore: player.cumulativeScore,
-          position: position
-        });
-      }
+    const gameOverPayload = {
+      winner: activePlayers[0].id.replace('player_', ''),
+      finalScores: activePlayers.map(p => p.cumulativeScore),
+      isTournamentMode: true,
+      playerStatuses: Object.fromEntries(tournament.players.map(p => [p.id, p.eliminated ? 'ELIMINATED' : 'ACTIVE'])),
+      qualifiedPlayers: qualified.map(p => p.id),
+      nextGameId: tournament.currentGameId,
+      nextPhase: nextPhase,
+      transitionType: 'auto',
+      countdownSeconds: 5,
+      eliminatedPlayers: eliminatedIds,
+      scoreBreakdowns: lastGameState?.scoreBreakdowns || []
+    };
+    
+    console.log(`[TournamentCoordinator] Emitting game-over with transition data:`, JSON.stringify(gameOverPayload, null, 2));
+    
+    if (lastGameState && lastRoom) {
+      this.io.to(lastRoom).emit('game-over', gameOverPayload);
     }
     
     tournament.phase = nextPhase;
@@ -327,12 +343,15 @@ class TournamentCoordinator {
    */
   _handleTournamentRoundEnd(gameState, gameId) {
     const tournament = this.activeTournaments.get(gameState.tournamentId);
+    console.log(`[TournamentCoordinator] _handleTournamentRoundEnd called, tournamentId: ${gameState.tournamentId}, found: ${!!tournament}`);
+    console.log(`[TournamentCoordinator] gameState.round: ${gameState.round}, gameState.gameOver: ${gameState.gameOver}`);
     
     if (!tournament) {
       return { state: gameState, gameOver: false };
     }
     
     const isHandComplete = gameState.round >= 13 && gameState.gameOver;
+    console.log(`[TournamentCoordinator] isHandComplete: ${isHandComplete} (round >= 13 && gameOver)`);
     
     if (isHandComplete) {
       const finalScores = gameState.scores || [];
@@ -344,6 +363,8 @@ class TournamentCoordinator {
         finalScores,
         scoreBreakdowns: gameState.scoreBreakdowns || []
       };
+      
+      console.log(`[TournamentCoordinator] Calling handleHandComplete with results:`, JSON.stringify(results));
       
       this.handleHandComplete(gameState, results);
       return { state: gameState, gameOver: true, nextHand: true };

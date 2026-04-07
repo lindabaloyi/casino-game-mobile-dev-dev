@@ -63,8 +63,13 @@ interface GameBoardProps {
     isPartyMode?: boolean;
     // Tournament-specific props
     isTournamentMode?: boolean;
-    playerStatuses?: { [playerId: string]: string };  // Keys are now playerId strings
-    qualifiedPlayers?: string[];  // Now uses playerId strings
+    playerStatuses?: { [playerId: string]: string };
+    qualifiedPlayers?: string[];
+    nextGameId?: number;
+    nextPhase?: string;
+    transitionType?: 'auto' | 'manual';
+    countdownSeconds?: number;
+    eliminatedPlayers?: string[];
   } | null;
   playerNumber: number;
   sendAction: (action: { type: string; payload?: Record<string, unknown> }) => void;
@@ -952,6 +957,17 @@ export function GameBoard({
         isTournamentMode={gameState.tournamentMode === 'knockout'}
         playerStatuses={gameState.playerStatuses}
         qualifiedPlayers={gameState.qualifiedPlayers}
+        nextGameId={gameOverData?.nextGameId}
+        nextPhase={gameOverData?.nextPhase}
+        transitionType={gameOverData?.transitionType}
+        countdownSeconds={gameOverData?.countdownSeconds}
+        eliminatedPlayers={gameOverData?.eliminatedPlayers}
+        onTransitionToNextGame={() => {
+          console.log('[GameBoard] onTransitionToNextGame called, nextGameId:', gameOverData?.nextGameId);
+          if (gameOverData?.nextGameId) {
+            sendAction({ type: 'join-game', payload: { gameId: gameOverData.nextGameId } });
+          }
+        }}
         onPlayAgain={onRestart ? handlePlayAgain : undefined}
         onBackToMenu={onBackToMenu}
       />
