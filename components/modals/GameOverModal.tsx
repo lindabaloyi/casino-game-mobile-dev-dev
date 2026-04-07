@@ -44,7 +44,7 @@ interface TeamBreakdown {
   twoSpadePoints: number;
   aceCount: number;
   acePoints: number;
-  players: Array<{
+  players: {
     playerIndex: number;
     totalCards: number;
     spadeCount: number;
@@ -52,7 +52,7 @@ interface TeamBreakdown {
     spadeBonus: number;
     cardCountBonus: number;
     totalScore: number;
-  }>;
+  }[];
 }
 
 interface TeamScoreBreakdowns {
@@ -193,7 +193,7 @@ export function GameOverModal({
 
   // Countdown timer for tournament transition
   useEffect(() => {
-    if (visible && isTournamentMode && nextGameId && transitionType === 'auto') {
+    if (visible && isTournamentMode && transitionType === 'auto' && initialCountdown > 0) {
       setCountdown(initialCountdown);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
@@ -214,7 +214,7 @@ export function GameOverModal({
         timerRef.current = null;
       }
     };
-  }, [visible, isTournamentMode, nextGameId, transitionType, initialCountdown, onTransitionToNextGame]);
+  }, [visible, isTournamentMode, transitionType, initialCountdown, onTransitionToNextGame]);
 
   const getWinnerText = () => (winnerText === 'Tie' ? "It's a Tie!" : `${winnerText} Wins!`);
 
@@ -228,7 +228,15 @@ export function GameOverModal({
   };
 
   const renderTournamentTransition = () => {
-    if (!isTournamentMode || !nextGameId) return null;
+    if (!isTournamentMode) return null;
+
+    // Show tournament transition section if we have transition data
+    const hasTransitionData = nextGameId ||
+      (qualifiedPlayers && qualifiedPlayers.length > 0) ||
+      (eliminatedPlayers && eliminatedPlayers.length > 0) ||
+      (countdown > 0 && transitionType === 'auto');
+
+    if (!hasTransitionData) return null;
     
     return (
       <View style={styles.tournamentTransitionSection}>
@@ -258,14 +266,14 @@ export function GameOverModal({
         
         {transitionType === 'auto' && countdown > 0 && (
           <Text style={styles.countdownText}>
-            Next phase starts in {countdown} seconds...
+            {nextGameId ? `Next phase starts in ${countdown} seconds...` : `Preparing next phase in ${countdown} seconds...`}
           </Text>
         )}
       </View>
     );
   };
 
-  const showPlayAgain = !isTournamentMode || !nextGameId;
+  const showPlayAgain = !isTournamentMode || (!nextGameId && transitionType !== 'auto');
 
   // New minimal player breakdown: only positive points & bonuses, then separator, then cards/spades
   const renderPlayerBreakdown = (playerIndex: number, playerName: string, score: number) => {

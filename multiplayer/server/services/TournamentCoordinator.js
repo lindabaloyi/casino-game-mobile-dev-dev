@@ -1,12 +1,8 @@
 /**
  * TournamentCoordinator
- * Fresh game per hand approach using GameFactory for ALL hands.
- * Handles: QUALIFYING → SEMI_FINAL → FINAL
+ * Handles tournament hands 2+ after first hand is created via 4-hand matchmaking.
+ * Handles: QUALIFYING → SEMI_FINAL → FINAL phase transitions and elimination.
  */
-
-const { initializeGame, cloneState } = require('../../../shared/game');
-const { createDeck } = require('../../../shared/game/deck');
-const { createRoundPlayers } = require('../../../shared/game/turn');
 
 class TournamentCoordinator {
   constructor(gameManager, matchmaking, broadcaster, io) {
@@ -34,41 +30,41 @@ class TournamentCoordinator {
   }
 
   /**
-   * Create a full tournament (QUALIFYING → SEMI_FINAL → FINAL)
+   * Register an existing game as the first hand of a tournament
+   * Called when a 'four-hands' game is created with tournamentMode flag
    */
-  async createTournament(players, config = {}) {
-    const tournamentId = `tournament-${Date.now()}`;
+  registerExistingGameAsTournament(gameState, players, io) {
+    const tournamentId = gameState.tournamentId;
+    console.log(`[DEBUG] [TournamentCoordinator] registerExistingGameAsTournament: ${tournamentId}`);
+    
     const tournament = {
       id: tournamentId,
-      phase: 'QUALIFYING',
-      totalHands: config.qualifyingHands || 4,
-      currentHand: 0,
-      players: players.map(p => ({
-        id: p.id || p.playerId || p.userId,
-        name: p.name || p.username || 'Player',
-        socketId: p.socketId,
+      phase: gameState.tournamentPhase || 'QUALIFYING',
+      totalHands: gameState.totalHands || 4,
+      currentHand: gameState.tournamentHand || 1,
+      previousGameId: null,
+      currentGameId: gameState.gameId,
+      players: players.map((p, i) => ({
+        id: p.userId || p.socket?.id || `guest_${i}`,
+        socketId: p.socket?.id || null,
+        name: p.socket?.userId || `Guest ${i + 1}`,
         cumulativeScore: 0,
         handsPlayed: 0,
         eliminated: false
       })),
       status: 'active',
       config: {
-        qualifyingHands: config.qualifyingHands || 4,
-        qualifyingPlayers: config.qualifyingPlayers || 3,
-        semifinalHands: config.semifinalHands || 3,
-        finalHands: config.finalHands || 2
+        qualifyingHands: 4,
+        qualifyingPlayers: 3,
+        semifinalHands: 3,
+        finalHands: 2
       }
     };
+    
     this.activeTournaments.set(tournamentId, tournament);
-    await this._startNextHand(tournamentId);
+    console.log(`[DEBUG] [TournamentCoordinator] Registered tournament ${tournamentId} with ${tournament.players.length} players`);
+    
     return tournament;
-  }
-
-  /**
-   * Alias for createTournament (for backwards compatibility)
-   */
-  async createQualifier(players, config = {}) {
-    return this.createTournament(players, config);
   }
 
   /**
@@ -76,24 +72,43 @@ class TournamentCoordinator {
    */
   async _startNextHand(tournamentId) {
     const tournament = this.activeTournaments.get(tournamentId);
-    if (!tournament) return;
+    if (!tournament) {
+      console.log(`[DEBUG] [TournamentCoordinator] _startNextHand: tournament not found for ${tournamentId}`);
+      return;
+    }
+    
+    // Skip if tournament is transitioning (countdown in progress)
+    if (tournament.status === 'transitioning') {
+      console.log(`[START_NEXT_HAND] Skipping - tournament is in transitioning state`);
+      return;
+    }
+    
+    console.log(`[START_NEXT_HAND] Phase=${tournament.phase}, hand=${tournament.currentHand + 1}/${tournament.totalHands}`);
     
     const activePlayers = tournament.players.filter(p => !p.eliminated);
     const playerCount = activePlayers.length;
     
     const gameType = this._getGameTypeForPlayerCount(playerCount);
-    console.log(`[TournamentCoordinator] Creating ${gameType} for ${playerCount} players`);
+    console.log(`[START_NEXT_HAND] Game type: ${gameType}, players: ${activePlayers.map(p => p.id).join(', ')}`);
     
-    const playerEntries = activePlayers.map(p => ({
-      socket: this._getSocketByPlayerId(p.id),
-      userId: p.id
-    }));
+    const playerEntries = activePlayers.map(p => {
+      let socket = this._getSocketByPlayerId(p.id);
+      if (!socket && p.socketId) {
+        socket = this.io.sockets.sockets.get(p.socketId);
+      }
+      return {
+        socket: socket,
+        userId: p.id
+      };
+    });
     
     const result = this.matchmaking.gameFactory.createGame(gameType, playerEntries);
     if (!result) {
-      console.error(`[TournamentCoordinator] Failed to create ${gameType} game`);
+      console.error(`[START_NEXT_HAND] ❌ Failed to create ${gameType} game!`);
       return;
     }
+    
+    console.log(`[START_NEXT_HAND] ✅ Game created with ID: ${result.gameId}`);
     
     const { gameId, gameState, players: resultPlayers } = result;
     
@@ -120,17 +135,44 @@ class TournamentCoordinator {
       await this._cleanupOldGame(tournament);
     }
     
-    this.io.to(`game-${gameId}`).emit('game-start', {
-      gameId,
-      tournamentId,
-      tournamentPhase: tournament.phase,
-      tournamentHand: tournament.currentHand,
-      totalHands: tournament.totalHands,
-      players: gameState.players,
-      round: gameState.round,
-      phase: gameState.phase,
-      message: `Hand ${tournament.currentHand} of ${tournament.totalHands} - ${tournament.phase}`
-    });
+    // Get player sockets and emit game-start with all data client needs
+    const tournamentPlayers = tournament.players.filter(p => !p.eliminated);
+    console.log(`[DEBUG] [TournamentCoordinator] Emitting game-start to ${tournamentPlayers.length} players`);
+    for (let i = 0; i < tournamentPlayers.length; i++) {
+      const player = tournamentPlayers[i];
+      console.log(`[DEBUG] [TournamentCoordinator] Looking for socket: player.id=${player.id}, socketId=${player.socketId}`);
+      let socket = this._getSocketByPlayerId(player.id);
+      // Fallback: try socketId if player.id is null
+      if (!socket && player.socketId) {
+        socket = this.io.sockets.sockets.get(player.socketId);
+        console.log(`[DEBUG] [TournamentCoordinator] Fallback socket lookup: ${player.socketId} -> ${socket ? 'found' : 'not found'}`);
+      }
+      if (socket) {
+        console.log(`[DEBUG] [TournamentCoordinator] Found socket ${socket.id}, emitting game-start`);
+        // Join socket to game room and update registry
+        socket.join(`game-${gameId}`);
+        if (this.matchmaking && this.matchmaking.socketRegistry) {
+          this.matchmaking.socketRegistry.set(socket.id, gameId, 'tournament', player.id);
+        }
+
+        socket.emit('game-start', {
+          gameId,
+          gameState,
+          playerNumber: i,
+          playerInfos: gameState.players.map((p, idx) => ({
+            playerNumber: idx,
+            userId: p.userId,
+            username: p.name || `Player ${idx + 1}`,
+            avatar: p.avatar || 'lion'
+          })),
+          tournamentId,
+          tournamentPhase: tournament.phase,
+          tournamentHand: tournament.currentHand,
+          totalHands: tournament.totalHands,
+          message: `Hand ${tournament.currentHand} of ${tournament.totalHands} - ${tournament.phase}`
+        });
+      }
+    }
     
     console.log(`[TournamentCoordinator] Started ${tournament.phase} hand ${tournament.currentHand}, gameId: ${gameId}`);
     return { gameId, gameState };
@@ -152,6 +194,11 @@ class TournamentCoordinator {
    * Get socket by player ID from socket registry
    */
   _getSocketByPlayerId(playerId) {
+    if (!playerId) {
+      console.log(`[DEBUG] [TournamentCoordinator] _getSocketByPlayerId: playerId is null/undefined`);
+      return null;
+    }
+    
     if (!this.matchmaking?.socketRegistry?.socketGameMap) return null;
     
     for (const [socketId, info] of this.matchmaking.socketRegistry.socketGameMap.entries()) {
@@ -161,8 +208,9 @@ class TournamentCoordinator {
       }
     }
     
+    // Also check io.sockets directly (for guests using socket.id as playerId)
     for (const [socketId, socket] of this.io.sockets.sockets) {
-      if (socket.userId === playerId) return socket;
+      if (socket.id === playerId || socket.userId === playerId) return socket;
     }
     
     return null;
@@ -224,6 +272,8 @@ class TournamentCoordinator {
     const tournament = this.activeTournaments.get(tournamentId);
     if (!tournament) return;
     
+    console.log(`[END_PHASE] Called for tournament ${tournamentId}, phase=${tournament.phase}`);
+    
     const activePlayers = tournament.players.filter(p => !p.eliminated);
     activePlayers.sort((a, b) => b.cumulativeScore - a.cumulativeScore);
     
@@ -246,34 +296,16 @@ class TournamentCoordinator {
     
     eliminated.forEach(p => p.eliminated = true);
     
-    console.log(`[TournamentCoordinator] ${tournament.phase} complete - Qualified: ${qualified.map(p => p.name).join(', ')}`);
+    console.log(`[TRANSITION] Phase complete: ${tournament.phase} → ${nextPhase}`);
+    console.log(`[TRANSITION] Qualified: ${qualified.map(p => p.id).join(', ')}`);
+    console.log(`[TRANSITION] Eliminated: ${eliminated.map(p => p.id).join(', ')}`);
     
-    const lastRoom = `game-${tournament.previousGameId}`;
-    const lastGameState = this.gameManager.getGameState(tournament.previousGameId);
-    
-    const gameOverPayload = {
-      winner: activePlayers[0].id.replace('player_', ''),
-      finalScores: activePlayers.map(p => p.cumulativeScore),
-      isTournamentMode: true,
-      playerStatuses: Object.fromEntries(tournament.players.map(p => [p.id, p.eliminated ? 'ELIMINATED' : 'ACTIVE'])),
-      qualifiedPlayers: qualified.map(p => p.id),
-      nextGameId: tournament.currentGameId,
-      nextPhase: nextPhase,
-      transitionType: 'auto',
-      countdownSeconds: 5,
-      eliminatedPlayers: eliminatedIds,
-      scoreBreakdowns: lastGameState?.scoreBreakdowns || []
-    };
-    
-    console.log(`[TournamentCoordinator] Emitting game-over with transition data:`, JSON.stringify(gameOverPayload, null, 2));
-    
-    if (lastGameState && lastRoom) {
-      this.io.to(lastRoom).emit('game-over', gameOverPayload);
-    }
-    
+    // Update tournament state for next phase FIRST
     tournament.phase = nextPhase;
     tournament.totalHands = tournament.config[`${nextPhase.toLowerCase()}Hands`] || 3;
     tournament.currentHand = 0;
+    tournament.previousGameId = tournament.currentGameId;
+    tournament.status = 'transitioning';
     
     tournament.players = tournament.players.map(p => {
       if (qualified.some(q => q.id === p.id)) {
@@ -283,6 +315,38 @@ class TournamentCoordinator {
       return p;
     });
     
+    // STEP 1: Create the next phase game NOW (before emitting game-over)
+    console.log(`[TRANSITION] Creating ${nextPhase} game immediately...`);
+    const newGameResult = await this._startNextHand(tournamentId);
+    const newGameId = newGameResult?.gameId;
+    console.log(`[TRANSITION] Created ${nextPhase} game with ID: ${newGameId}`);
+    
+    // STEP 2: Emit game-over with the actual nextGameId
+    const lastRoom = `game-${tournament.previousGameId}`;
+    const lastGameState = this.gameManager.getGameState(tournament.previousGameId);
+    
+    const gameOverPayload = {
+      winner: activePlayers[0]?.id?.replace('player_', '') || '0',
+      finalScores: activePlayers.map(p => p.cumulativeScore),
+      isTournamentMode: true,
+      playerStatuses: Object.fromEntries(tournament.players.map(p => [p.id, p.eliminated ? 'ELIMINATED' : 'ACTIVE'])),
+      qualifiedPlayers: qualified.map(p => p.id),
+      eliminatedPlayers: eliminatedIds,
+      nextGameId: newGameId,
+      nextPhase: nextPhase,
+      transitionType: 'auto',
+      countdownSeconds: 8,
+      scoreBreakdowns: lastGameState?.scoreBreakdowns || []
+    };
+    
+    console.log(`[TRANSITION] Emitting game-over with nextGameId=${newGameId}`);
+    console.log(`[TRANSITION] Full game-over payload:`, JSON.stringify(gameOverPayload, null, 2));
+    
+    if (lastGameState && lastRoom) {
+      this.io.to(lastRoom).emit('game-over', gameOverPayload);
+    }
+    
+    // Emit phase-complete for any other listeners
     if (lastRoom) {
       this.io.to(lastRoom).emit('phase-complete', {
         phase: tournament.phase,
@@ -291,7 +355,28 @@ class TournamentCoordinator {
       });
     }
     
-    await this._startNextHand(tournamentId);
+    // STEP 3: After countdown, broadcast game-start to the new game room
+    console.log(`[TRANSITION] Waiting 8 seconds before broadcasting game-start...`);
+    setTimeout(() => {
+      console.log(`[TRANSITION] Countdown complete, broadcasting game-start for game ${newGameId}`);
+      tournament.status = 'active';
+      
+      // Broadcast game-start to the new game room
+      if (newGameId) {
+        const newRoom = `game-${newGameId}`;
+        const newGameState = this.gameManager.getGameState(newGameId);
+        if (newGameState) {
+          this.io.to(newRoom).emit('game-start', {
+            gameId: newGameId,
+            gameState: newGameState,
+            tournamentPhase: newGameState.tournamentPhase,
+            tournamentHand: newGameState.tournamentHand,
+            totalHands: newGameState.totalHands,
+            message: `Hand 1 of ${newGameState.totalHands} - ${newGameState.tournamentPhase}`
+          });
+        }
+      }
+    }, 8000);
   }
 
   /**
@@ -330,6 +415,7 @@ class TournamentCoordinator {
    */
   handleRoundEnd(gameState, gameId, lastAction) {
     const phase = gameState?.tournamentPhase;
+    console.log(`[DEBUG] [TournamentCoordinator] handleRoundEnd called: phase=${phase}, tournamentId=${gameState.tournamentId}`);
     
     if (phase === 'QUALIFYING' || phase === 'SEMI_FINAL' || phase === 'FINAL') {
       return this._handleTournamentRoundEnd(gameState, gameId);
@@ -342,18 +428,34 @@ class TournamentCoordinator {
    * Handle tournament round end - check if hand is complete
    */
   _handleTournamentRoundEnd(gameState, gameId) {
-    const tournament = this.activeTournaments.get(gameState.tournamentId);
-    console.log(`[TournamentCoordinator] _handleTournamentRoundEnd called, tournamentId: ${gameState.tournamentId}, found: ${!!tournament}`);
-    console.log(`[TournamentCoordinator] gameState.round: ${gameState.round}, gameState.gameOver: ${gameState.gameOver}`);
+    let tournament = this.activeTournaments.get(gameState.tournamentId);
+    
+    console.log(`[HAND_END_CHECK] Game ${gameId}: round=${gameState.round}, gameOver=${gameState.gameOver}, tournamentFound=${!!tournament}, tournamentId=${gameState.tournamentId}`);
+    
+    // Fallback: if tournament not found, register it from game state
+    if (!tournament) {
+      console.warn(`[FALLBACK] Tournament not found – registering from game state`);
+      const players = gameState.players.map((p, i) => ({
+        userId: p.id,
+        socket: this._getSocketByPlayerId(p.id) || { id: p.id, userId: p.userId }
+      }));
+      this.registerExistingGameAsTournament(gameState, players, this.io);
+      tournament = this.activeTournaments.get(gameState.tournamentId);
+      console.log(`[FALLBACK] Registration attempt result:`, !!tournament);
+    }
     
     if (!tournament) {
+      console.log(`[DEBUG] [TournamentCoordinator] ❌ Tournament STILL NOT FOUND after fallback!`);
       return { state: gameState, gameOver: false };
     }
     
-    const isHandComplete = gameState.round >= 13 && gameState.gameOver;
-    console.log(`[TournamentCoordinator] isHandComplete: ${isHandComplete} (round >= 13 && gameOver)`);
+    // Hand is complete when game is over
+    const isHandComplete = gameState.gameOver === true;
+    console.log(`[HAND_END_CHECK] isHandComplete=${isHandComplete}, hand=${tournament.currentHand}/${tournament.totalHands}`);
     
     if (isHandComplete) {
+      console.log(`[HAND_END] Hand ${gameState.tournamentHand} complete, calling handleHandComplete`);
+      
       const finalScores = gameState.scores || [];
       const playerIds = gameState.players.map(p => p.id);
       
@@ -363,8 +465,6 @@ class TournamentCoordinator {
         finalScores,
         scoreBreakdowns: gameState.scoreBreakdowns || []
       };
-      
-      console.log(`[TournamentCoordinator] Calling handleHandComplete with results:`, JSON.stringify(results));
       
       this.handleHandComplete(gameState, results);
       return { state: gameState, gameOver: true, nextHand: true };

@@ -192,26 +192,55 @@ export function GameBoard({
   );
 
   const shouldShowStandardGameOver = useMemo(() => {
-    if (!isGameOver) return false;
+    console.log('[DEBUG] shouldShowStandardGameOver check:', {
+      isGameOver,
+      tournamentMode: gameState.tournamentMode,
+      gameOverData: gameOverData ? {
+        nextGameId: gameOverData.nextGameId,
+        nextPhase: gameOverData.nextPhase,
+        countdownSeconds: gameOverData.countdownSeconds,
+        qualifiedPlayers: gameOverData.qualifiedPlayers,
+        eliminatedPlayers: gameOverData.eliminatedPlayers,
+        isTournamentMode: gameOverData.isTournamentMode
+      } : null,
+      gameOver: gameState.gameOver,
+      hasGameOverData: !!gameOverData
+    });
     
-    // Suppress standard modal when tournament is in terminal phase
+    if (!isGameOver) {
+      console.log('[DEBUG] Not showing - isGameOver is false');
+      return false;
+    }
+
+    // For tournament mode, show modal when there's transition data
     if (gameState.tournamentMode === 'knockout') {
-      const tournamentPhase = (gameState as any).tournamentPhase;
-      const tournamentWinner = (gameState as any).tournamentWinner;
-      const isTerminalPhase = 
-        tournamentPhase === 'QUALIFICATION_REVIEW' || 
-        tournamentPhase === 'SEMI_FINAL' ||
-        tournamentPhase === 'FINAL_SHOWDOWN' ||
-        tournamentPhase === 'COMPLETED' ||
-        tournamentWinner != null;
-      
-      if (isTerminalPhase) {
-        console.log('[GameBoard] Suppressing standard GameOverModal - tournament in terminal phase:', tournamentPhase);
+      const hasTransitionData = !!(
+        gameOverData?.nextGameId ||
+        gameOverData?.nextPhase ||
+        gameOverData?.qualifiedPlayers?.length ||
+        gameOverData?.eliminatedPlayers?.length ||
+        (gameOverData?.countdownSeconds && gameOverData.countdownSeconds > 0)
+      );
+
+      // Show modal for phase transitions, suppress for regular hand transitions
+      if (hasTransitionData) {
+        console.log('[GameBoard] Showing GameOverModal for tournament phase transition:', {
+          nextGameId: gameOverData?.nextGameId,
+          nextPhase: gameOverData?.nextPhase,
+          qualifiedPlayers: gameOverData?.qualifiedPlayers,
+          countdownSeconds: gameOverData?.countdownSeconds
+        });
+        return true;
+      } else {
+        console.log('[GameBoard] Suppressing standard GameOverModal - regular tournament hand transition');
         return false;
       }
     }
+
+    // Show modal for all non-tournament games
+    console.log('[DEBUG] Showing modal - non-tournament mode');
     return true;
-  }, [isGameOver, gameState.tournamentMode]);
+  }, [isGameOver, gameState.tournamentMode, gameOverData]);
   
   // Turn timer - 20 second countdown
   const turnTimer = useTurnTimer({
@@ -954,7 +983,7 @@ export function GameBoard({
         scoreBreakdowns={gameOverData?.scoreBreakdowns}
         teamScoreBreakdowns={gameOverData?.teamScoreBreakdowns}
         isPartyMode={gameOverData?.isPartyMode ?? isPartyMode}
-        isTournamentMode={gameState.tournamentMode === 'knockout'}
+        isTournamentMode={gameOverData?.isTournamentMode ?? (gameState.tournamentMode === 'knockout')}
         playerStatuses={gameState.playerStatuses}
         qualifiedPlayers={gameState.qualifiedPlayers}
         nextGameId={gameOverData?.nextGameId}

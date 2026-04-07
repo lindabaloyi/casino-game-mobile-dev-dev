@@ -61,7 +61,7 @@ export interface UseOnlinePlayConnectionResult {
   /** Whether this is a private room connection */
   isPrivateRoom: boolean;
   /** Player info from server lobby (when available) */
-  lobbyPlayers: Array<{ userId: string; username: string; avatar: string }>;
+  lobbyPlayers: { userId: string; username: string; avatar: string }[];
 }
 
 // No-op functions - defined outside component to avoid recreation

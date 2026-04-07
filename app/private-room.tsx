@@ -17,6 +17,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import { GAME_MODES as CENTRAL_GAME_MODES } from '../shared/config/gameModes';
+
 type GameModeOption = 'two-hands' | 'party' | 'three-hands' | 'four-hands';
 
 interface ModeInfo {
@@ -25,8 +27,6 @@ interface ModeInfo {
   subtitle: string;
   players: string;
 }
-
-import { GAME_MODES as CENTRAL_GAME_MODES } from '../shared/config/gameModes';
 
 // Filter out tournament and freeforall modes for private rooms, map to ModeInfo format
 const GAME_MODES: ModeInfo[] = CENTRAL_GAME_MODES

@@ -165,7 +165,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
   async function broadcastTournamentWaiting() {
     const count = unifiedMatchmaking.getWaitingCount('tournament');
     const roomCode = unifiedMatchmaking.getQueueRoomCode('tournament');
-    console.log(`[UnifiedMatchmaking] Broadcasting tournament-waiting: ${count} players, roomCode=${roomCode}`);
+    console.log(`[DEBUG] [Broadcast] broadcastTournamentWaiting: ${count} players, roomCode=${roomCode}`);
     
     const queue = queueManager.waitingQueues.tournament;
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
@@ -185,11 +185,20 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     });
     
     queue.forEach(entry => {
-      entry.socket.emit('tournament-waiting', { 
-        playersJoined: count,
-        players: orderedPlayers,
-        roomCode: roomCode,
-      });
+      // If 4 players, emit tournament-ready instead
+      if (count === 4) {
+        console.log(`[DEBUG] [Broadcast] Emitting tournament-ready to socket ${entry.socket.id}`);
+        entry.socket.emit('tournament-ready', {
+          playerCount: 4,
+          message: '4 players ready - starting tournament!'
+        });
+      } else {
+        entry.socket.emit('tournament-waiting', { 
+          playersJoined: count,
+          players: orderedPlayers,
+          roomCode: roomCode,
+        });
+      }
     });
   }
 

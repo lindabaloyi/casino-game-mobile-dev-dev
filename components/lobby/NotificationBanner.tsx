@@ -6,9 +6,9 @@
  */
 
 import React from 'react';
-import { Animated, StyleSheet } from 'react-native';
+import { Animated, StyleSheet , Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Text, View } from 'react-native';
+
 
 interface NotificationBannerProps {
   message: string | null;

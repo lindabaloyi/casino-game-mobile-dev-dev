@@ -19,6 +19,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { GAME_MODES as CENTRAL_GAME_MODES } from '../../shared/config/gameModes';
+
 export type GameModeOption = 'two-hands' | 'three-hands' | 'four-hands' | 'party' | 'freeforall';
 
 interface GameModeInfo {
@@ -29,8 +31,6 @@ interface GameModeInfo {
   icon: string;
   players: string;
 }
-
-import { GAME_MODES as CENTRAL_GAME_MODES } from '../../shared/config/gameModes';
 
 // Filter out tournament and freeforall modes for the menu, map to GameModeInfo format
 const GAME_MODES: GameModeInfo[] = CENTRAL_GAME_MODES

@@ -134,6 +134,8 @@ class GameCoordinatorService {
   }
 
   _handleRoundEnd(gameId, newState, isPartyGame, lastAction, roundCheck) {
+    console.log(`[ROUND_END] Game ${gameId} ended. tournamentMode=${newState.tournamentMode}, phase=${newState.tournamentPhase}, hand=${newState.tournamentHand}`);
+    
     const summary = RoundValidator.getRoundSummary(newState);
     this.broadcaster.broadcastToGame(gameId, 'round-end', {
       round: newState.round,
@@ -144,18 +146,27 @@ class GameCoordinatorService {
     scoring.updateScores(newState);
     const gameOverCheck = RoundValidator.checkGameOver(newState);
     
+    // Check if tournament coordinator handles this game end
     if (this.tournamentCoordinator.isTournamentActive(newState)) {
+      console.log(`[ROUND_END] Calling TournamentCoordinator.handleRoundEnd`);
       const result = this.tournamentCoordinator.handleRoundEnd(newState, gameId, lastAction);
       
       if (result.gameOver && result.nextHand) {
-        return;
+        console.log(`[ROUND_END] Tournament hand complete, nextHand=true - NOT calling _handleGameOver`);
+        return; // Don't call _handleGameOver - tournament coordinator handles everything
       } else if (result.gameOver) {
+        console.log(`[ROUND_END] Tournament game-over (no next hand)`);
         this._handleGameOver(gameId, result.state, isPartyGame, false);
+        return;
       } else {
         this.gameManager.saveGameState(gameId, result.state);
         this.broadcaster.broadcastGameUpdate(gameId, result.state, this.unifiedMatchmaking);
+        return;
       }
-    } else if (gameOverCheck.gameOver) {
+    }
+    
+    // Non-tournament game over handling
+    if (gameOverCheck.gameOver) {
       this._handleGameOver(gameId, newState, isPartyGame, false);
     } else {
       const nextState = RoundValidator.prepareNextRound(newState);

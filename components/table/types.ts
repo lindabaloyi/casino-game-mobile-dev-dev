@@ -31,7 +31,7 @@ export interface TempStack {
   baseFixed?: boolean;
   // Pending extension cards (like build_stack)
   pendingExtension?: {
-    cards: Array<{ card: Card; source: string }>;
+    cards: { card: Card; source: string }[];
   };
 }
 
@@ -44,13 +44,13 @@ export interface BuildStack {
   hasBase: boolean;
   pendingExtension?: {
     // New array format (supports multi-card extensions)
-    cards?: Array<{ card: Card; source: string }>;
+    cards?: { card: Card; source: string }[];
     // Legacy single-card format
     looseCard?: Card;
   };
   /** Pending capture - when opponent is building to capture this build */
   pendingCapture?: {
-    cards: Array<{ card: Card; source: string; originalOwner?: number }>;
+    cards: { card: Card; source: string; originalOwner?: number }[];
   };
 }
 

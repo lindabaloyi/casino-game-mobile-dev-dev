@@ -64,7 +64,7 @@ class CleanupScheduler {
     try {
       const results = { queues: {}, socketRegistry: 0 };
 
-      const gameTypes = ['two-hands', 'three-hands', 'four-hands', 'party', 'freeforall', 'tournament'];
+      const gameTypes = ['two-hands', 'three-hands', 'four-hands', 'party', 'freeforall'];
       for (const gameType of gameTypes) {
         results.queues[gameType] = this.queueManager.cleanup(gameType, this._isSocketValid.bind(this));
       }

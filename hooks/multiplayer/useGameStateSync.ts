@@ -55,7 +55,7 @@ export interface GameState {
     captures: Card[];
     score: number;
     team?: 'A' | 'B';
-    buildStacks?: Array<{
+    buildStacks?: {
       owner: number;
       value: number;
       cards: Card[];
@@ -65,7 +65,7 @@ export interface GameState {
       stackType: 'build';
       stackId?: string;
       shiyaActive?: boolean;
-    }>;
+    }[];
   }[];
   table: Card[];
   tableCards: Card[];
@@ -132,20 +132,20 @@ export interface GameOverData {
   countdownSeconds?: number;
   eliminatedPlayers?: string[];
 
-  scoreBreakdowns?: Array<{
+  scoreBreakdowns?: {
     totalCards: number;
     spadeCount: number;
     cardPoints: number;
     spadeBonus: number;
     cardCountBonus: number;
     totalScore: number;
-    cards: Array<{
+    cards: {
       rank: string;
       suit: string;
       value: number;
       display: string;
       points: number;
-    }>;
+    }[];
     // Detailed breakdown by card type
     tenDiamondCount: number;
     tenDiamondPoints: number;
@@ -153,7 +153,7 @@ export interface GameOverData {
     twoSpadePoints: number;
     aceCount: number;
     acePoints: number;
-  }>;
+  }[];
   // Team score breakdowns for 4-player mode
   teamScoreBreakdowns?: {
     teamA: {
@@ -169,7 +169,7 @@ export interface GameOverData {
       twoSpadePoints: number;
       aceCount: number;
       acePoints: number;
-      players: Array<{
+      players: {
         playerIndex: number;
         totalCards: number;
         spadeCount: number;
@@ -177,7 +177,7 @@ export interface GameOverData {
         spadeBonus: number;
         cardCountBonus: number;
         totalScore: number;
-      }>;
+      }[];
     };
     teamB: {
       totalCards: number;
@@ -192,7 +192,7 @@ export interface GameOverData {
       twoSpadePoints: number;
       aceCount: number;
       acePoints: number;
-      players: Array<{
+      players: {
         playerIndex: number;
         totalCards: number;
         spadeCount: number;
@@ -200,7 +200,7 @@ export interface GameOverData {
         spadeBonus: number;
         cardCountBonus: number;
         totalScore: number;
-      }>;
+      }[];
     };
   };
 }

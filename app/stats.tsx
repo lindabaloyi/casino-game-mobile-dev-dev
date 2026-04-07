@@ -19,6 +19,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePlayerProfile } from '../hooks/usePlayerProfile';
 import { usePlayerStats, ModeStats } from '../hooks/usePlayerStats';
 
+import { GAME_MODES } from '../shared/config/gameModes';
+
 // In-game color scheme - matching leaderboards/friends
 const COLORS = {
   background: '#0f4d0f',
@@ -30,8 +32,6 @@ const COLORS = {
   border: 'rgba(255, 215, 0, 0.3)',
   accent: '#9C27B0',
 };
-
-import { GAME_MODES } from '../shared/config/gameModes';
 
 // Mode definitions for the toggle - dynamically generated from centralized config
 const MODES = [

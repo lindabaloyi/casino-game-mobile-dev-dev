@@ -43,14 +43,5 @@ module.exports = {
         gameManager.addPlayerToGame(gameId, sockets[i].id, i, userIds[i] || null);
       }
     }
-  },
-  'tournament': {
-    minPlayers: 4,
-    createGame: (gameManager) => gameManager.startTournamentGame(),
-    registerPlayers: (gameId, sockets, gameManager, userIds) => {
-      for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, sockets[i].id, i, userIds[i] || null);
-      }
-    }
   }
 };

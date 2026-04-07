@@ -5,8 +5,8 @@
  */
 
 import React, { useRef, useCallback, useEffect } from 'react';
-import { TouchableOpacity } from 'react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { TouchableOpacity , StyleSheet, Text, View } from 'react-native';
+
 import { PlayingCard } from '../cards/PlayingCard';
 import { DraggableOpponentCard } from './DraggableOpponentCard';
 import { Card } from './types';

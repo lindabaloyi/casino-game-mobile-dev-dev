@@ -22,6 +22,8 @@ import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from '../../hooks/useGameState';
 import { denormalizePosition, TableBounds } from '../../shared/coordinates';
 
+import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
+
 interface OpponentGhostCardProps {
   card: Card;
   position: { x: number; y: number }; // normalized 0-1
@@ -35,8 +37,6 @@ interface OpponentGhostCardProps {
   // Capture pile positions (player index -> bounds)
   capturePositions?: Map<number, { x: number; y: number; width: number; height: number }>;
 }
-
-import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 // Spring config constants - defined outside component to avoid recreation
 const SPRING_FINAL_CONFIG = { damping: 15, stiffness: 150 };

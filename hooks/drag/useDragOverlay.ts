@@ -4,8 +4,8 @@
  */
 
 import { useState } from 'react';
-import { useSharedValue } from 'react-native-reanimated';
-import { useAnimatedStyle } from 'react-native-reanimated';
+import { useSharedValue , useAnimatedStyle } from 'react-native-reanimated';
+
 
 const CARD_WIDTH = 56;
 const CARD_HEIGHT = 84;

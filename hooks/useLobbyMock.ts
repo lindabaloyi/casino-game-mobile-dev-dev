@@ -40,7 +40,7 @@ interface UseLobbyMockProps {
   serverLobbyPlayers?: ServerLobbyPlayer[];
   initialReady?: boolean;
   /** Room-based player data for private rooms (overrides serverLobbyPlayers) */
-  roomPlayers?: Array<{ socketId: string; isHost: boolean }>;
+  roomPlayers?: { socketId: string; isHost: boolean }[];
   roomPlayerCount?: number;
 }
 

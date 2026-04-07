@@ -13,8 +13,7 @@ const GAME_TYPES = {
   'three-hands': { minPlayers: 3, maxPlayers: 3 },
   'four-hands': { minPlayers: 4, maxPlayers: 4 },
   'party': { minPlayers: 4, maxPlayers: 4 },
-  'freeforall': { minPlayers: 4, maxPlayers: 4 },
-  'tournament': { minPlayers: 4, maxPlayers: 4 }
+  'freeforall': { minPlayers: 4, maxPlayers: 4 }
 };
 
 class QueueManager {
@@ -59,7 +58,7 @@ class QueueManager {
   }
 
   addToQueue(socket, gameType, userId = null) {
-    console.log(`[QueueManager] addToQueue called: gameType=${gameType}, userId=${userId}, socket.id=${socket.id}`);
+    console.log(`[DEBUG] [QueueManager] addToQueue: socket=${socket.id}, userId=${userId}, gameType=${gameType}`);
 
     const now = Date.now();
     const socketEntry = {
@@ -70,38 +69,40 @@ class QueueManager {
       lastActivity: now
     };
 
-    console.log(`[QueueManager] Adding to ${gameType} queue:`, socketEntry);
+    console.log(`[DEBUG] [QueueManager] Adding to ${gameType} queue:`, socketEntry);
     this.waitingQueues[gameType].push(socketEntry);
 
-    console.log(`[QueueManager] ${gameType} queue now has ${this.waitingQueues[gameType].length} players`);
-    return this._tryCreateGame(gameType);
+    console.log(`[DEBUG] [QueueManager] ${gameType} queue now has ${this.waitingQueues[gameType].length} players`);
+    const result = this._tryCreateGame(gameType);
+    console.log(`[DEBUG] [QueueManager] _tryCreateGame returned:`, result ? `array with ${result.length} items` : 'null');
+    return result;
   }
 
   _tryCreateGame(gameType) {
     const config = GAME_TYPES[gameType];
     const queue = this.waitingQueues[gameType];
 
-    console.log(`[QueueManager] _tryCreateGame for ${gameType}: queue.length=${queue.length}, minPlayers=${config.minPlayers}`);
+    console.log(`[DEBUG] [QueueManager] _tryCreateGame: gameType=${gameType}, queue.length=${queue.length}, minPlayers=${config.minPlayers}`);
 
     if (queue.length < config.minPlayers) {
-      console.log(`[QueueManager] Not enough players for ${gameType}, need ${config.minPlayers}, have ${queue.length}`);
+      console.log(`[DEBUG] [QueueManager] Not enough players, need ${config.minPlayers}, have ${queue.length}`);
       return null;
     }
 
     if (queue.length !== config.minPlayers) {
-      console.error(`[QueueManager] Expected ${config.minPlayers} players for ${gameType}, have ${queue.length}`);
+      console.log(`[DEBUG] [QueueManager] Unexpected count, expected ${config.minPlayers}, have ${queue.length}`);
       return null;
     }
 
     const playerEntries = queue.splice(0, config.minPlayers);
-    console.log(`[QueueManager] Extracted ${playerEntries.length} players from ${gameType} queue`);
+    console.log(`[DEBUG] [QueueManager] Extracted ${playerEntries.length} players from ${gameType} queue`);
 
     for (const entry of playerEntries) {
       if (!entry || !entry.socket || !entry.socket.id) {
-        console.error(`[QueueManager] Invalid socket in ${gameType} queue`);
+        console.error(`[DEBUG] [QueueManager] Invalid socket in ${gameType} queue`);
         return null;
       }
-      console.log(`[QueueManager] Player entry: socket.id=${entry.socket.id}, userId=${entry.userId}`);
+      console.log(`[DEBUG] [QueueManager] Player entry: socket.id=${entry.socket.id}, userId=${entry.userId}`);
     }
 
     return playerEntries;

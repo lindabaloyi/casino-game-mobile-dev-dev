@@ -54,12 +54,6 @@ class UnifiedMatchmakingService {
       return null;
     }
 
-    // For tournaments, don't auto-create game - TournamentCoordinator.createTournament handles it
-    if (gameType === 'tournament') {
-      console.log(`[UnifiedMatchmaking] Tournament queue full, returning players to coordinator`);
-      return playerEntries;
-    }
-
     return this._createGame(gameType, playerEntries);
   }
 

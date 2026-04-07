@@ -9,7 +9,7 @@ const TournamentCoordinator = require('../../services/TournamentCoordinator');
 
 function attachSocketHandlers(socket, services) {
   const { unifiedMatchmaking, roomService, gameManager, broadcaster, coordinator, io } = services;
-  const tournamentCoordinator = new TournamentCoordinator(gameManager, unifiedMatchmaking, broadcaster, io);
+  const tournamentCoordinator = coordinator?.tournamentCoordinator || new TournamentCoordinator(gameManager, unifiedMatchmaking, broadcaster, io);
   const {
     broadcastTwoHandsWaiting,
     broadcastPartyWaiting,
@@ -103,25 +103,65 @@ function attachSocketHandlers(socket, services) {
   });
 
   socket.on('join-tournament-queue', async () => {
-    console.log(`[Socket] join-tournament-queue:socket.id = ${socket.id}`);
+    console.log(`[DEBUG] [Socket] join-tournament-queue:socket.id = ${socket.id}, userId = ${socket.userId}`);
     removeFromAllQueues();
-    const result = unifiedMatchmaking.addToQueue(socket, 'tournament', socket.userId);
+    
+    // Use 'four-hands' game type - same as free-for-all matchmaking
+    const result = unifiedMatchmaking.addToQueue(socket, 'four-hands', socket.userId);
+    
     if (result) {
-      const players = result.players.map(p => ({
-        id: p.userId,
-        socketId: p.socket.id,
-        name: `Player ${p.playerNumber + 1}`
-      }));
-      console.log(`[Socket] 4 players ready, creating tournament with:`, players.map(p => p.id));
-      await tournamentCoordinator.createTournament(players, {
-        qualifyingHands: 4,
-        qualifyingPlayers: 3,
-        semifinalHands: 3,
-        finalHands: 2
-      });
+      console.log(`[DEBUG] [Socket] Tournament first hand created with ${result.players.length} players`);
+      
+      const { gameId, gameState, players } = result;
+      
+      // Add tournament metadata
+      gameState.tournamentMode = 'knockout';
+      gameState.tournamentId = `tournament-${Date.now()}`;
+      gameState.tournamentPhase = 'QUALIFYING';
+      gameState.tournamentHand = 1;
+      gameState.totalHands = 4;
+      gameState.tournamentScores = {};
+      gameState.qualifiedPlayers = [];
+      gameState.playerStatuses = {};
+      
+      // Initialize scores for each player
+      for (let i = 0; i < players.length; i++) {
+        const playerId = players[i].userId || `player_${i}`;
+        gameState.tournamentScores[playerId] = 0;
+        gameState.playerStatuses[playerId] = 'ACTIVE';
+      }
+      
+      gameManager.saveGameState(gameId, gameState);
+      
+      // Emit game-start with tournament info (reusing free-for-all broadcast)
+      for (let i = 0; i < players.length; i++) {
+        const player = players[i];
+        player.socket.emit('game-start', {
+          gameId,
+          gameState,
+          playerNumber: i,
+          playerInfos: gameState.players.map((p, idx) => ({
+            playerNumber: idx,
+            userId: p.userId,
+            username: p.name || `Player ${idx + 1}`,
+            avatar: p.avatar || 'lion'
+          })),
+          tournamentId: gameState.tournamentId,
+          tournamentPhase: gameState.tournamentPhase,
+          tournamentHand: gameState.tournamentHand,
+          totalHands: gameState.totalHands,
+          message: `Hand 1 of 4 - QUALIFYING`
+        });
+      }
+      
+      // Register tournament with coordinator for hand tracking
+      console.log(`[SOCKET] First hand created: gameId=${gameId}, tournamentId=${gameState.tournamentId}`);
+      const registered = tournamentCoordinator.registerExistingGameAsTournament(gameState, players, io);
+      console.log(`[SOCKET] Registration result:`, !!registered);
+      console.log(`[SOCKET] activeTournaments size after registration:`, tournamentCoordinator.activeTournaments ? tournamentCoordinator.activeTournaments.size : 'N/A');
+    } else {
+      console.log(`[DEBUG] [Socket] Not enough players for tournament yet`);
     }
-    // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
-    // This ensures event listeners are registered before the broadcast is received
   });
 
   // ── Room Management Handlers ──────────────────────────────────────────
