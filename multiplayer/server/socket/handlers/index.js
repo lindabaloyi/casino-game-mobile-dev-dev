@@ -8,8 +8,8 @@ const { createBroadcastHelpers } = require('./broadcast');
 const TournamentCoordinator = require('../../services/TournamentCoordinator');
 
 function attachSocketHandlers(socket, services) {
-  const { unifiedMatchmaking, roomService, gameManager, broadcaster, coordinator } = services;
-  const tournamentCoordinator = new TournamentCoordinator(gameManager, unifiedMatchmaking, broadcaster);
+  const { unifiedMatchmaking, roomService, gameManager, broadcaster, coordinator, io } = services;
+  const tournamentCoordinator = new TournamentCoordinator(gameManager, unifiedMatchmaking, broadcaster, io);
   const {
     broadcastTwoHandsWaiting,
     broadcastPartyWaiting,

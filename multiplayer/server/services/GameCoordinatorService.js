@@ -21,14 +21,15 @@ const GamePersistenceService = require('./GamePersistenceService');
 const GameStats = require('../models/GameStats');
 
 class GameCoordinatorService {
-  constructor(gameManager, actionRouter, unifiedMatchmaking, broadcaster) {
+  constructor(gameManager, actionRouter, unifiedMatchmaking, broadcaster, io) {
     this.gameManager = gameManager;
     this.actionRouter = actionRouter;
     this.unifiedMatchmaking = unifiedMatchmaking;
     this.broadcaster = broadcaster;
+    this.io = io;
     
     this.persistence = new GamePersistenceService();
-    this.tournamentCoordinator = new TournamentCoordinator(gameManager, unifiedMatchmaking, broadcaster);
+    this.tournamentCoordinator = new TournamentCoordinator(gameManager, unifiedMatchmaking, broadcaster, io);
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────
@@ -146,7 +147,9 @@ class GameCoordinatorService {
     if (this.tournamentCoordinator.isTournamentActive(newState)) {
       const result = this.tournamentCoordinator.handleRoundEnd(newState, gameId, lastAction);
       
-      if (result.gameOver) {
+      if (result.gameOver && result.nextHand) {
+        return;
+      } else if (result.gameOver) {
         this._handleGameOver(gameId, result.state, isPartyGame, false);
       } else {
         this.gameManager.saveGameState(gameId, result.state);

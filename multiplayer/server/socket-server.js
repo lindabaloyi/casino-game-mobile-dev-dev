@@ -79,7 +79,7 @@ async function startServer() {
   unifiedMatchmaking = new UnifiedMatchmakingService(gameManager, io);
   roomService = new RoomService(gameManager, unifiedMatchmaking, null, io);
   broadcaster = new BroadcasterService(unifiedMatchmaking, gameManager, io);
-  coordinator = new GameCoordinatorService(gameManager, actionRouter, unifiedMatchmaking, broadcaster);
+  coordinator = new GameCoordinatorService(gameManager, actionRouter, unifiedMatchmaking, broadcaster, io);
   roomService.broadcaster = broadcaster; // Wire broadcaster to roomService
 
   server.listen(PORT, '0.0.0.0', () => {
