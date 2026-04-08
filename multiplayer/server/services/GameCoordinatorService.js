@@ -146,25 +146,29 @@ class GameCoordinatorService {
     scoring.updateScores(newState);
     const gameOverCheck = RoundValidator.checkGameOver(newState);
     
-    // Check if tournament coordinator handles this game end
+    // For tournament mode: call coordinator to accumulate scores, then emit game-over via _handleGameOver
     if (this.tournamentCoordinator.isTournamentActive(newState)) {
-      console.log(`[ROUND_END] Calling TournamentCoordinator.handleRoundEnd`);
+      console.log(`[ROUND_END] Tournament mode - calling coordinator for score accumulation`);
       const result = this.tournamentCoordinator.handleRoundEnd(newState, gameId, lastAction);
       
-      if (result.gameOver && result.nextHand) {
-        console.log(`[ROUND_END] Tournament hand complete, nextHand=true - NOT calling _handleGameOver`);
-        return; // Don't call _handleGameOver - tournament coordinator handles everything
-      } else if (result.gameOver) {
-        console.log(`[ROUND_END] Tournament game-over (no next hand)`);
+      // Always emit game-over via _handleGameOver (unified approach)
+      if (gameOverCheck.gameOver) {
+        console.log(`[ROUND_END] Emitting game-over for tournament hand via _handleGameOver`);
         this._handleGameOver(gameId, result.state, isPartyGame, false);
         return;
-      } else {
-        this.gameManager.saveGameState(gameId, result.state);
-        this.broadcaster.broadcastGameUpdate(gameId, result.state, this.unifiedMatchmaking);
-        return;
       }
+      
+      // If not game over, continue with next round
+      const nextState = RoundValidator.prepareNextRound(result.state);
+      if (nextState) {
+        this.gameManager.saveGameState(gameId, nextState);
+        this.broadcaster.broadcastGameUpdate(gameId, nextState, this.unifiedMatchmaking);
+      } else {
+        this._handleGameOver(gameId, result.state, isPartyGame, true);
+      }
+      return;
     }
-    
+
     // Non-tournament game over handling
     if (gameOverCheck.gameOver) {
       this._handleGameOver(gameId, newState, isPartyGame, false);
@@ -329,6 +333,52 @@ class GameCoordinatorService {
       playerStatuses,
       qualifiedPlayers,
     }, this.unifiedMatchmaking);
+  }
+
+  // ── Tournament Game Join ─────────────────────────────────────────────────────────────
+
+  handleJoinTournamentGame(socket, gameId) {
+    console.log(`[Coordinator] handleJoinTournamentGame: socket=${socket.id}, gameId=${gameId}`);
+    
+    // Get the new game state
+    const newGameState = this.gameManager.getGameState(gameId);
+    if (!newGameState) {
+      this.broadcaster.sendError(socket, 'Game not found');
+      return;
+    }
+    
+    // Get player info from socket
+    const userId = socket.userId;
+    if (!userId) {
+      this.broadcaster.sendError(socket, 'User not authenticated');
+      return;
+    }
+    
+    // Find player index in new game
+    const playerIndex = newGameState.players.findIndex(p => p.id === userId);
+    if (playerIndex === -1) {
+      this.broadcaster.sendError(socket, 'Player not found in game');
+      return;
+    }
+    
+    // Register socket with the new game
+    this.unifiedMatchmaking.socketRegistry.set(socket.id, gameId, newGameState.gameMode || 'four-hands', userId);
+    
+    console.log(`[Coordinator] Registered socket ${socket.id} for game ${gameId}, playerIndex=${playerIndex}`);
+    
+    // Send game-start to the socket that requested to join
+    socket.join(`game-${gameId}`);
+    socket.emit('game-start', {
+      gameId: gameId,
+      gameState: newGameState,
+      playerNumber: playerIndex,
+      tournamentPhase: newGameState.tournamentPhase,
+      tournamentHand: newGameState.tournamentHand,
+      totalHands: newGameState.totalHands,
+      message: `Hand ${newGameState.tournamentHand} of ${newGameState.totalHands} - ${newGameState.tournamentPhase}`
+    });
+    
+    console.log(`[Coordinator] Sent game-start to socket ${socket.id} for game ${gameId}`);
   }
 }
 

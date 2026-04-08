@@ -212,33 +212,8 @@ export function GameBoard({
       return false;
     }
 
-    // For tournament mode, show modal when there's transition data
-    if (gameState.tournamentMode === 'knockout') {
-      const hasTransitionData = !!(
-        gameOverData?.nextGameId ||
-        gameOverData?.nextPhase ||
-        gameOverData?.qualifiedPlayers?.length ||
-        gameOverData?.eliminatedPlayers?.length ||
-        (gameOverData?.countdownSeconds && gameOverData.countdownSeconds > 0)
-      );
-
-      // Show modal for phase transitions, suppress for regular hand transitions
-      if (hasTransitionData) {
-        console.log('[GameBoard] Showing GameOverModal for tournament phase transition:', {
-          nextGameId: gameOverData?.nextGameId,
-          nextPhase: gameOverData?.nextPhase,
-          qualifiedPlayers: gameOverData?.qualifiedPlayers,
-          countdownSeconds: gameOverData?.countdownSeconds
-        });
-        return true;
-      } else {
-        console.log('[GameBoard] Suppressing standard GameOverModal - regular tournament hand transition');
-        return false;
-      }
-    }
-
-    // Show modal for all non-tournament games
-    console.log('[DEBUG] Showing modal - non-tournament mode');
+    // Show modal for all games (tournament and non-tournament) - same behavior
+    console.log('[DEBUG] Showing GameOverModal - game ended');
     return true;
   }, [isGameOver, gameState.tournamentMode, gameOverData]);
   
@@ -994,7 +969,7 @@ export function GameBoard({
         onTransitionToNextGame={() => {
           console.log('[GameBoard] onTransitionToNextGame called, nextGameId:', gameOverData?.nextGameId);
           if (gameOverData?.nextGameId) {
-            sendAction({ type: 'join-game', payload: { gameId: gameOverData.nextGameId } });
+            sendAction({ type: 'join-tournament-game', payload: { gameId: gameOverData.nextGameId } });
           }
         }}
         onPlayAgain={onRestart ? handlePlayAgain : undefined}

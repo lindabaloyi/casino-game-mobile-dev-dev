@@ -250,12 +250,6 @@ class RoundValidator {
     const isTournamentMode = state.tournamentMode === 'knockout';
     console.log(`[RoundValidator] checkGameOver: playerCount=${playerCount}, round=${state.round}, tournamentMode=${isTournamentMode}`);
     
-    // For tournament mode: DON'T end game automatically - handled by tournament logic
-    if (isTournamentMode) {
-      console.log(`[RoundValidator] checkGameOver: Tournament mode active, game continues until tournament ends`);
-      return { gameOver: false };
-    }
-    
     // For 3-player mode: game ends after round 1 (single round game like 4-player)
     if (playerCount === 3) {
       console.log(`[RoundValidator] checkGameOver: 3-player mode detected, ending game after round ${state.round}`);

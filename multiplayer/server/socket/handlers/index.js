@@ -252,6 +252,19 @@ function attachSocketHandlers(socket, services) {
     console.log('[Socket] Received game-action:', data.type);
     coordinator.handleGameAction(socket, data);
   });
+  
+  // Handle join-game for tournament phase transitions
+  socket.on('join-tournament-game', (data) => {
+    const { gameId } = data;
+    console.log(`[Socket] join-tournament-game received: gameId=${gameId}, socket=${socket.id}`);
+    
+    if (!gameId) {
+      socket.emit('error', { message: 'join-tournament-game: gameId is required' });
+      return;
+    }
+    
+    coordinator.handleJoinTournamentGame(socket, gameId);
+  });
   socket.on('start-next-round', () => coordinator.handleStartNextRound(socket));
   socket.on('drag-start', (data) => coordinator.handleDragStart(socket, data));
   socket.on('drag-move', (data) => coordinator.handleDragMove(socket, data));

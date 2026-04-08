@@ -238,8 +238,12 @@ class TournamentCoordinator {
     console.log(`[TournamentCoordinator] handleHandComplete called, tournamentId: ${gameState.tournamentId}, found: ${!!tournament}`);
     console.log(`[TournamentCoordinator] activeTournaments size: ${this.activeTournaments.size}`);
     console.log(`[TournamentCoordinator] currentHand: ${tournament?.currentHand}, totalHands: ${tournament?.totalHands}`);
+    console.log(`[TournamentCoordinator] gameState.gameId: ${gameState.gameId}, results:`, results);
     
-    if (!tournament) return;
+    if (!tournament) {
+      console.log(`[TournamentCoordinator] ❌ Tournament not found! Cannot emit game-over.`);
+      return;
+    }
     
     console.log(`[TournamentCoordinator] Hand ${gameState.tournamentHand} complete in ${gameState.tournamentPhase}`);
     
@@ -259,9 +263,15 @@ class TournamentCoordinator {
     console.log(`[TournamentCoordinator] phaseComplete check: ${tournament.currentHand} >= ${tournament.totalHands} = ${phaseComplete}`);
     
     if (phaseComplete) {
-      await this._endPhase(gameState.tournamentId, gameState);
+      // await this._endPhase(gameState.tournamentId, gameState);
+      console.log(`[HAND_END] Phase complete but auto-transition disabled. Tournament stopped.`);
     } else {
-      await this._startNextHand(gameState.tournamentId);
+      // Score accumulation - game-over emission is now handled by GameCoordinatorService._handleGameOver (unified approach)
+      console.log(`[HAND_END] Scores accumulated for hand ${tournament.currentHand}. game-over will be emitted by _handleGameOver.`);
+      console.log(`[HAND_END] Cumulative scores:`, tournament.players.map(p => ({ id: p.id, score: p.cumulativeScore })));
+
+      // await this._startNextHand(gameState.tournamentId);
+      console.log(`[HAND_END] Auto-next-hand disabled. Waiting for manual trigger.`);
     }
   }
 
@@ -449,12 +459,15 @@ class TournamentCoordinator {
       return { state: gameState, gameOver: false };
     }
     
-    // Hand is complete when game is over
-    const isHandComplete = gameState.gameOver === true;
-    console.log(`[HAND_END_CHECK] isHandComplete=${isHandComplete}, hand=${tournament.currentHand}/${tournament.totalHands}`);
+    // Hand is complete when game is over OR when round ended (all cards played)
+    const isHandComplete = gameState.gameOver === true || gameState.roundEndReason !== undefined;
+    console.log(`[HAND_END_CHECK] isHandComplete=${isHandComplete}, gameOver=${gameState.gameOver}, roundEndReason=${gameState.roundEndReason}, hand=${tournament.currentHand}/${tournament.totalHands}`);
     
     if (isHandComplete) {
       console.log(`[HAND_END] Hand ${gameState.tournamentHand} complete, calling handleHandComplete`);
+      
+      // Ensure gameOver is set so we can track it
+      gameState.gameOver = true;
       
       const finalScores = gameState.scores || [];
       const playerIds = gameState.players.map(p => p.id);
