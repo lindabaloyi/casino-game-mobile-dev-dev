@@ -4,6 +4,8 @@
  * Handles: QUALIFYING → SEMI_FINAL → FINAL phase transitions and elimination.
  */
 
+const TournamentQualification = require('./TournamentQualification');
+
 class TournamentCoordinator {
   constructor(gameManager, matchmaking, broadcaster, io) {
     this.gameManager = gameManager;
@@ -49,6 +51,8 @@ class TournamentCoordinator {
         socketId: p.socket?.id || null,
         name: p.socket?.userId || `Guest ${i + 1}`,
         cumulativeScore: 0,
+        cumulativeSpades: 0,
+        cumulativeCards: 0,
         handsPlayed: 0,
         eliminated: false
       })),
@@ -247,14 +251,53 @@ class TournamentCoordinator {
     
     console.log(`[TournamentCoordinator] Hand ${gameState.tournamentHand} complete in ${gameState.tournamentPhase}`);
     
-    for (let i = 0; i < results.playerIds.length; i++) {
-      const player = tournament.players.find(p => p.id === results.playerIds[i]);
+    // Index-based accumulation - same approach as game-over modal
+    for (let i = 0; i < tournament.players.length; i++) {
+      const player = tournament.players[i];
       if (player) {
-        player.cumulativeScore += results.finalScores[i];
+        // Scores from gameState (already computed by scoring system)
+        player.cumulativeScore += gameState.scores[i] || 0;
+
+        // Captures from gameState (already stored)
+        const captures = gameState.players[i]?.captures || [];
+        player.cumulativeCards += captures.length;
+        player.cumulativeSpades += captures.filter(c => c.suit === '♠').length;
+        
         player.handsPlayed++;
-        console.log(`[TournamentCoordinator] ${player.name}: +${results.finalScores[i]} = ${player.cumulativeScore}`);
+        
+        console.log(`[TournamentCoordinator] ${player.name}: +${gameState.scores[i]} = ${player.cumulativeScore} (spades: +${captures.filter(c => c.suit === '♠').length}=${player.cumulativeSpades}, cards: +${captures.length}=${player.cumulativeCards})`);
       }
     }
+    
+    // Update mid-phase qualification standings (for client display only - no elimination yet)
+    const { sortedPlayers } = TournamentQualification.determineQualification(
+      tournament.players,
+      tournament.phase,
+      tournament.config
+    );
+    
+    let qualifiedCount;
+    if (tournament.phase === 'QUALIFYING') {
+      qualifiedCount = tournament.config.qualifyingPlayers || 3;
+    } else if (tournament.phase === 'SEMI_FINAL') {
+      qualifiedCount = 2;
+    } else {
+      qualifiedCount = 1;
+    }
+    
+    const currentQualifiedIds = sortedPlayers.slice(0, qualifiedCount).map(p => p.id);
+    gameState.qualifiedPlayers = currentQualifiedIds;
+    
+    console.log(`\n🔍 TOURNAMENT DEBUG [mid-phase standings] — hand ${tournament.currentHand}/${tournament.totalHands}`);
+    console.log(`Phase: ${tournament.phase} | Hand: ${tournament.currentHand}/${tournament.totalHands}`);
+    for (let i = 0; i < tournament.players.length; i++) {
+      const p = tournament.players[i];
+      const status = p.eliminated ? 'ELIMINATED' : 'ACTIVE';
+      const isQualified = currentQualifiedIds.includes(p.id);
+      console.log(`  P${i}: ${p.id} | status: ${status.padEnd(10)} | score: ${p.cumulativeScore} | qual: ${isQualified ? '✅' : '❌'}`);
+    }
+    console.log(`Qualified: ${currentQualifiedIds.join(', ')}`);
+    console.log('----------------------------------------\n');
     
     tournament.previousGameId = tournament.currentGameId;
     tournament.currentGameId = null;
@@ -268,7 +311,7 @@ class TournamentCoordinator {
     } else {
       // Score accumulation - game-over emission is now handled by GameCoordinatorService._handleGameOver (unified approach)
       console.log(`[HAND_END] Scores accumulated for hand ${tournament.currentHand}. game-over will be emitted by _handleGameOver.`);
-      console.log(`[HAND_END] Cumulative scores:`, tournament.players.map(p => ({ id: p.id, score: p.cumulativeScore })));
+      console.log(`[HAND_END] Cumulative scores:`, tournament.players.map(p => ({ id: p.id, score: p.cumulativeScore, spades: p.cumulativeSpades, cards: p.cumulativeCards })));
 
       // await this._startNextHand(gameState.tournamentId);
       console.log(`[HAND_END] Auto-next-hand disabled. Waiting for manual trigger.`);
@@ -284,46 +327,42 @@ class TournamentCoordinator {
     
     console.log(`[END_PHASE] Called for tournament ${tournamentId}, phase=${tournament.phase}`);
     
-    const activePlayers = tournament.players.filter(p => !p.eliminated);
-    activePlayers.sort((a, b) => b.cumulativeScore - a.cumulativeScore);
+    const { qualified, eliminated, nextPhase, sortedPlayers } = 
+      TournamentQualification.determineQualification(
+        tournament.players,
+        tournament.phase,
+        tournament.config
+      );
     
-    let qualifiedCount, nextPhase;
-    
-    if (tournament.phase === 'QUALIFYING') {
-      qualifiedCount = tournament.config.qualifyingPlayers;
-      nextPhase = 'SEMI_FINAL';
-    } else if (tournament.phase === 'SEMI_FINAL') {
-      qualifiedCount = 2;
-      nextPhase = 'FINAL';
-    } else {
-      await this._endTournament(tournamentId, activePlayers);
+    if (!nextPhase) {
+      await this._endTournament(tournamentId, sortedPlayers);
       return;
     }
     
-    const qualified = activePlayers.slice(0, qualifiedCount);
-    const eliminated = activePlayers.slice(qualifiedCount);
-    const eliminatedIds = eliminated.map(p => p.id);
+    TournamentQualification.logQualificationBreakdown(
+      tournament.phase,
+      tournament.currentHand,
+      tournament.totalHands,
+      sortedPlayers,
+      qualified,
+      eliminated
+    );
     
-    eliminated.forEach(p => p.eliminated = true);
+    TournamentQualification.markEliminated(eliminated);
+    
+    const eliminatedIds = eliminated.map(p => p.id);
     
     console.log(`[TRANSITION] Phase complete: ${tournament.phase} → ${nextPhase}`);
     console.log(`[TRANSITION] Qualified: ${qualified.map(p => p.id).join(', ')}`);
-    console.log(`[TRANSITION] Eliminated: ${eliminated.map(p => p.id).join(', ')}`);
+    console.log(`[TRANSITION] Eliminated: ${eliminatedIds.join(', ')}`);
     
-    // Update tournament state for next phase FIRST
     tournament.phase = nextPhase;
     tournament.totalHands = tournament.config[`${nextPhase.toLowerCase()}Hands`] || 3;
     tournament.currentHand = 0;
     tournament.previousGameId = tournament.currentGameId;
     tournament.status = 'transitioning';
     
-    tournament.players = tournament.players.map(p => {
-      if (qualified.some(q => q.id === p.id)) {
-        p.cumulativeScore = 0;
-        p.handsPlayed = 0;
-      }
-      return p;
-    });
+    TournamentQualification.resetQualifiedPlayers(tournament.players, qualified);
     
     // STEP 1: Create the next phase game NOW (before emitting game-over)
     console.log(`[TRANSITION] Creating ${nextPhase} game immediately...`);
@@ -336,8 +375,8 @@ class TournamentCoordinator {
     const lastGameState = this.gameManager.getGameState(tournament.previousGameId);
     
     const gameOverPayload = {
-      winner: activePlayers[0]?.id?.replace('player_', '') || '0',
-      finalScores: activePlayers.map(p => p.cumulativeScore),
+      winner: sortedPlayers[0]?.id?.replace('player_', '') || '0',
+      finalScores: sortedPlayers.map(p => p.cumulativeScore),
       isTournamentMode: true,
       playerStatuses: Object.fromEntries(tournament.players.map(p => [p.id, p.eliminated ? 'ELIMINATED' : 'ACTIVE'])),
       qualifiedPlayers: qualified.map(p => p.id),

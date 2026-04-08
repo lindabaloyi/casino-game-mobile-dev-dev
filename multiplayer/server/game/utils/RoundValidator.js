@@ -11,6 +11,7 @@
 
 const { cloneDeep } = require('../../../../shared/utils/cloneDeep');
 const { allPlayersTurnEnded, forceEndTurn, createRoundPlayers, startNextRound } = require('../../../../shared/game');
+const { getWinnerIndex, getRankings } = require('../../game/scoring');
 
 class RoundValidator {
   static STARTING_CARDS = 10;
@@ -126,8 +127,9 @@ class RoundValidator {
    * Determine the winner of the current round based on scores.
    * For 4-player party mode: team with higher score wins
    * For 3-player and 4-player free-for-all: player with highest score wins
+   * Uses tie-breaking: score -> spades -> card count -> deterministic hash
    * @param {object} state - Game state
-   * @returns {number} 0 for player/team 1, 1 for player/team 2, 2 for player 3, -1 for tie
+   * @returns {number} Winner index (0, 1, 2, 3) - never returns -1 due to tie-breaking
    */
   static determineRoundWinner(state) {
     const playerCount = state.playerCount || state.players?.length || 2;
@@ -135,49 +137,25 @@ class RoundValidator {
     // Detect party mode: 4 players with team properties
     const isPartyMode = playerCount === 4 && state.players?.some(p => p.team);
     
-    // For 4-player party mode: use team scores
+    // For 4-player party mode: use team scores (no tie-breaking for teams)
     if (playerCount === 4 && isPartyMode && state.teamScores) {
       const [teamAScore, teamBScore] = state.teamScores;
       if (teamAScore > teamBScore) return 0; // Team A wins
       if (teamBScore > teamAScore) return 1; // Team B wins
-      return -1; // tie
+      return 0; // Tie - default to Team A (could use deterministic hash)
     }
     
-    // For 4-player free-for-all: use individual scores
-    if (playerCount === 4) {
-      const scores = state.scores || [0, 0, 0, 0];
-      const [score0, score1, score2, score3] = scores;
-      const maxScore = Math.max(score0, score1, score2, score3);
-      const winners = [];
-      if (score0 === maxScore) winners.push(0);
-      if (score1 === maxScore) winners.push(1);
-      if (score2 === maxScore) winners.push(2);
-      if (score3 === maxScore) winners.push(3);
-      
-      if (winners.length === 1) return winners[0];
-      return -1; // tie
-    }
-    
-    // For 3-player, use individual scores
-    if (playerCount === 3) {
-      const scores = state.scores || [0, 0, 0];
-      const [score0, score1, score2] = scores;
-      const maxScore = Math.max(score0, score1, score2);
-      const winners = [];
-      if (score0 === maxScore) winners.push(0);
-      if (score1 === maxScore) winners.push(1);
-      if (score2 === maxScore) winners.push(2);
-      
-      if (winners.length === 1) return winners[0];
-      return -1; // tie
-    }
-    
-    // For 2-player, use individual scores
-    const scores = state.scores || [0, 0];
-    const [score1, score2] = scores;
-    if (score1 > score2) return 0;
-    if (score2 > score1) return 1;
-    return -1; // tie
+    // For all other modes: use getWinnerIndex with tie-breaking
+    return getWinnerIndex(state);
+  }
+
+  /**
+   * Get rankings for all players (for tournament qualification)
+   * @param {object} state - Game state
+   * @returns {Array} Array of player indices sorted by rank
+   */
+  static getPlayerRankings(state) {
+    return getRankings(state);
   }
 
   /**

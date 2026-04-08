@@ -129,8 +129,96 @@ function getScoreBreakdown(capturedCards) {
   };
 }
 
+/**
+ * Generate a deterministic hash from a string (for tie-breaking)
+ * @param {string} str - String to hash
+ * @returns {number} Hash value
+ */
+function deterministicHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash >>> 0;
+}
+
+/**
+ * Rank players by score with tie-breakers
+ * Tie-breaker order: 1) score, 2) spades, 3) card count, 4) deterministic hash
+ * @param {Array} playerIds - Array of player IDs
+ * @param {Array} scores - Array of scores
+ * @param {Array} breakdowns - Array of score breakdowns with spadeCount and totalCards
+ * @returns {Array} Array of player indices sorted by rank (winner first)
+ */
+function rankPlayers(playerIds, scores, breakdowns) {
+  if (!scores || scores.length === 0) return [];
+  
+  const ranked = scores.map((score, index) => {
+    const breakdown = breakdowns?.[index] || {};
+    const spades = breakdown.spadeCount || 0;
+    const cards = breakdown.totalCards || 0;
+    
+    const cardIds = (breakdown.cards || [])
+      .map(c => `${c.rank}${c.suit}`)
+      .sort()
+      .join(',');
+    
+    return {
+      index,
+      score,
+      spades,
+      cards,
+      hash: deterministicHash(cardIds)
+    };
+  });
+  
+  ranked.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (b.spades !== a.spades) return b.spades - a.spades;
+    if (b.cards !== a.cards) return b.cards - a.cards;
+    return a.hash - b.hash;
+  });
+  
+  return ranked.map(r => r.index);
+}
+
+/**
+ * Get winner index from game state using tie-breaking
+ * @param {Object} gameState - Game state with scores and scoreBreakdowns
+ * @returns {number} Winner index (never null - uses tie-breaking)
+ */
+function getWinnerIndex(gameState) {
+  const scores = gameState.scores || [];
+  const breakdowns = gameState.scoreBreakdowns || [];
+  const playerIds = (gameState.players || []).map(p => p.id);
+  
+  if (scores.length === 0) return 0;
+  if (scores.length === 1) return 0;
+  
+  const ranked = rankPlayers(playerIds, scores, breakdowns);
+  return ranked[0];
+}
+
+/**
+ * Get full rankings for all players (for tournament qualification)
+ * @param {Object} gameState - Game state with scores and scoreBreakdowns
+ * @returns {Array} Array of player indices sorted by rank
+ */
+function getRankings(gameState) {
+  const scores = gameState.scores || [];
+  const breakdowns = gameState.scoreBreakdowns || [];
+  const playerIds = (gameState.players || []).map(p => p.id);
+  
+  return rankPlayers(playerIds, scores, breakdowns);
+}
+
 module.exports = {
   calculateCardPoints,
   calculatePlayerScore,
   getScoreBreakdown,
+  deterministicHash,
+  rankPlayers,
+  getWinnerIndex,
+  getRankings,
 };
