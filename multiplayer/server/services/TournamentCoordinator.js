@@ -1,10 +1,8 @@
 /**
  * TournamentCoordinator
- * Handles tournament hands 2+ after first hand is created via 4-hand matchmaking.
- * Handles: QUALIFYING → SEMI_FINAL → FINAL phase transitions and elimination.
+ * Handles tournament elimination after every hand.
+ * Eliminates lowest scorer after each hand until one remains.
  */
-
-const TournamentQualification = require('./TournamentQualification');
 
 class TournamentCoordinator {
   constructor(gameManager, matchmaking, broadcaster, io) {
@@ -269,174 +267,52 @@ class TournamentCoordinator {
       }
     }
     
-    // Update mid-phase qualification standings (for client display only - no elimination yet)
-    const { sortedPlayers } = TournamentQualification.determineQualification(
-      tournament.players,
-      tournament.phase,
-      tournament.config
-    );
-    
-    let qualifiedCount;
-    if (tournament.phase === 'QUALIFYING') {
-      qualifiedCount = tournament.config.qualifyingPlayers || 3;
-    } else if (tournament.phase === 'SEMI_FINAL') {
-      qualifiedCount = 2;
-    } else {
-      qualifiedCount = 1;
-    }
-    
-    const currentQualifiedIds = sortedPlayers.slice(0, qualifiedCount).map(p => p.id);
-    gameState.qualifiedPlayers = currentQualifiedIds;
-    
-    console.log(`\n🔍 TOURNAMENT DEBUG [mid-phase standings] — hand ${tournament.currentHand}/${tournament.totalHands}`);
-    console.log(`Phase: ${tournament.phase} | Hand: ${tournament.currentHand}/${tournament.totalHands}`);
-    for (let i = 0; i < tournament.players.length; i++) {
-      const p = tournament.players[i];
-      const status = p.eliminated ? 'ELIMINATED' : 'ACTIVE';
-      const isQualified = currentQualifiedIds.includes(p.id);
-      console.log(`  P${i}: ${p.id} | status: ${status.padEnd(10)} | score: ${p.cumulativeScore} | qual: ${isQualified ? '✅' : '❌'}`);
-    }
-    console.log(`Qualified: ${currentQualifiedIds.join(', ')}`);
-    console.log('----------------------------------------\n');
-    
     tournament.previousGameId = tournament.currentGameId;
     tournament.currentGameId = null;
     
-    const phaseComplete = tournament.currentHand >= tournament.totalHands;
-    console.log(`[TournamentCoordinator] phaseComplete check: ${tournament.currentHand} >= ${tournament.totalHands} = ${phaseComplete}`);
+    // Get active (non-eliminated) players
+    const active = tournament.players.filter(p => !p.eliminated);
+    console.log(`[HAND_END] Active players before elimination: ${active.length}`);
     
-    if (phaseComplete) {
-      console.log(`[HAND_END] Phase complete - waiting 10 seconds before transition...`);
-      setTimeout(async () => {
-        await this._endPhase(gameState.tournamentId, gameState);
-      }, 10000);
-    } else {
-      console.log(`[HAND_END] Waiting 10 seconds before starting next hand...`);
+    // ELIMINATE AFTER EVERY HAND (if more than 1 player remains)
+    if (active.length > 1) {
+      // Sort by score (ascending) - lowest first
+      // Tie-break: higher spades wins, higher cards wins, then deterministic ID
+      const sorted = [...active].sort((a, b) => {
+        if (a.cumulativeScore !== b.cumulativeScore) 
+          return a.cumulativeScore - b.cumulativeScore;
+        // Tie-break: more spades wins (keep player with more)
+        if (a.cumulativeSpades !== b.cumulativeSpades)
+          return b.cumulativeSpades - a.cumulativeSpades;
+        if (a.cumulativeCards !== b.cumulativeCards)
+          return b.cumulativeCards - a.cumulativeCards;
+        // Deterministic tie-break
+        return a.id.localeCompare(b.id);
+      });
+
+      const lowest = sorted[0];
+      lowest.eliminated = true;
+      console.log(`[HAND_END] Eliminated ${lowest.id} (score: ${lowest.cumulativeScore}, spades: ${lowest.cumulativeSpades}, cards: ${lowest.cumulativeCards})`);
+    }
+
+    // Check remaining players
+    const remaining = tournament.players.filter(p => !p.eliminated);
+    console.log(`[HAND_END] Remaining players: ${remaining.length}`);
+
+    if (remaining.length > 1) {
+      // More than 1 player - start next hand with delay
+      console.log(`[HAND_END] Starting next hand with ${remaining.length} players...`);
       setTimeout(async () => {
         await this._startNextHand(gameState.tournamentId);
       }, 10000);
+    } else if (remaining.length === 1) {
+      // Only 1 player left - declare winner
+      console.log(`[HAND_END] Tournament complete! Winner: ${remaining[0].id}`);
+      // TODO: Call _endTournament or emit tournament-complete
+      this._endTournament(gameState.tournamentId, remaining);
+    } else {
+      console.log(`[HAND_END] ERROR: No players remaining!`);
     }
-  }
-
-  /**
-   * End current phase - determine qualified/eliminated, start next phase
-   */
-  async _endPhase(tournamentId, gameState) {
-    const tournament = this.activeTournaments.get(tournamentId);
-    if (!tournament) return;
-    
-    console.log(`[END_PHASE] Called for tournament ${tournamentId}, phase=${tournament.phase}`);
-    
-    const { qualified, eliminated, nextPhase, sortedPlayers } = 
-      TournamentQualification.determineQualification(
-        tournament.players,
-        tournament.phase,
-        tournament.config
-      );
-    
-    if (!nextPhase) {
-      await this._endTournament(tournamentId, sortedPlayers);
-      return;
-    }
-    
-    TournamentQualification.logQualificationBreakdown(
-      tournament.phase,
-      tournament.currentHand,
-      tournament.totalHands,
-      sortedPlayers,
-      qualified,
-      eliminated
-    );
-    
-    TournamentQualification.markEliminated(eliminated);
-    
-    const eliminatedIds = eliminated.map(p => p.id);
-    
-    console.log(`[TRANSITION] Phase complete: ${tournament.phase} → ${nextPhase}`);
-    console.log(`[TRANSITION] Qualified: ${qualified.map(p => p.id).join(', ')}`);
-    console.log(`[TRANSITION] Eliminated: ${eliminatedIds.join(', ')}`);
-    
-    tournament.phase = nextPhase;
-    tournament.totalHands = tournament.config[`${nextPhase.toLowerCase()}Hands`] || 3;
-    tournament.currentHand = 0;
-    tournament.previousGameId = tournament.currentGameId;
-    tournament.status = 'transitioning';
-    
-    TournamentQualification.resetQualifiedPlayers(tournament.players, qualified);
-    
-    // STEP 1: Create the next phase game NOW (before emitting game-over)
-    console.log(`[TRANSITION] Creating ${nextPhase} game immediately...`);
-    const newGameResult = await this._startNextHand(tournamentId);
-    const newGameId = newGameResult?.gameId;
-    console.log(`[TRANSITION] Created ${nextPhase} game with ID: ${newGameId}`);
-    
-    // STEP 2: Emit game-over with the actual nextGameId
-    const lastRoom = `game-${tournament.previousGameId}`;
-    const lastGameState = this.gameManager.getGameState(tournament.previousGameId);
-    
-    // Save transition fields to gameState so they're available when game-over event is processed
-    if (lastGameState) {
-      lastGameState.nextGameId = newGameId;
-      lastGameState.nextPhase = nextPhase;
-      lastGameState.eliminatedPlayers = eliminatedIds;
-      lastGameState.tournamentPhase = tournament.phase;
-      lastGameState.tournamentHand = tournament.currentHand;
-      lastGameState.totalHands = tournament.totalHands;
-      this.gameManager.saveGameState(tournament.previousGameId, lastGameState);
-    }
-    
-    const gameOverPayload = {
-      winner: sortedPlayers[0]?.id?.replace('player_', '') || '0',
-      finalScores: sortedPlayers.map(p => p.cumulativeScore),
-      isTournamentMode: true,
-      playerStatuses: Object.fromEntries(tournament.players.map(p => [p.id, p.eliminated ? 'ELIMINATED' : 'ACTIVE'])),
-      qualifiedPlayers: qualified.map(p => p.id),
-      eliminatedPlayers: eliminatedIds,
-      nextGameId: newGameId,
-      nextPhase: nextPhase,
-      transitionType: 'auto',
-      countdownSeconds: 8,
-      scoreBreakdowns: lastGameState?.scoreBreakdowns || []
-    };
-    
-    console.log(`[TRANSITION] Emitting game-over with nextGameId=${newGameId}`);
-    console.log(`[TRANSITION] Full game-over payload:`, JSON.stringify(gameOverPayload, null, 2));
-    
-    if (lastGameState && lastRoom) {
-      this.io.to(lastRoom).emit('game-over', gameOverPayload);
-    }
-    
-    // Emit phase-complete for any other listeners
-    if (lastRoom) {
-      this.io.to(lastRoom).emit('phase-complete', {
-        phase: tournament.phase,
-        qualified: qualified.map(p => p.id),
-        leaderboard: sortedPlayers.map(p => ({ id: p.id, name: p.name, score: p.cumulativeScore }))
-      });
-    }
-    
-    // STEP 3: After countdown, broadcast game-start to the new game room
-    console.log(`[TRANSITION] Waiting 8 seconds before broadcasting game-start...`);
-    setTimeout(() => {
-      console.log(`[TRANSITION] Countdown complete, broadcasting game-start for game ${newGameId}`);
-      tournament.status = 'active';
-      
-      // Broadcast game-start to the new game room
-      if (newGameId) {
-        const newRoom = `game-${newGameId}`;
-        const newGameState = this.gameManager.getGameState(newGameId);
-        if (newGameState) {
-          this.io.to(newRoom).emit('game-start', {
-            gameId: newGameId,
-            gameState: newGameState,
-            tournamentPhase: newGameState.tournamentPhase,
-            tournamentHand: newGameState.tournamentHand,
-            totalHands: newGameState.totalHands,
-            message: `Hand 1 of ${newGameState.totalHands} - ${newGameState.tournamentPhase}`
-          });
-        }
-      }
-    }, 8000);
   }
 
   /**
