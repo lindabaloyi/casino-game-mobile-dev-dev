@@ -99,7 +99,7 @@ export function GameOverModal({
   nextGameId,
   nextPhase,
   transitionType,
-  countdownSeconds: initialCountdown = 5,
+  countdownSeconds: initialCountdown = 10,
   eliminatedPlayers,
   onTransitionToNextGame,
   onPlayAgain,
@@ -191,9 +191,9 @@ export function GameOverModal({
     }
   }, [visible, fadeAnim, scaleAnim]);
 
-  // Countdown timer for tournament transition
+  // Countdown timer for tournament transition (server controls timing now)
   useEffect(() => {
-    if (visible && isTournamentMode && transitionType === 'auto' && initialCountdown > 0) {
+    if (visible && isTournamentMode && initialCountdown > 0 && transitionType === 'auto') {
       setCountdown(initialCountdown);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {

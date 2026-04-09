@@ -306,15 +306,15 @@ class TournamentCoordinator {
     console.log(`[TournamentCoordinator] phaseComplete check: ${tournament.currentHand} >= ${tournament.totalHands} = ${phaseComplete}`);
     
     if (phaseComplete) {
-      // await this._endPhase(gameState.tournamentId, gameState);
-      console.log(`[HAND_END] Phase complete but auto-transition disabled. Tournament stopped.`);
+      console.log(`[HAND_END] Phase complete - waiting 10 seconds before transition...`);
+      setTimeout(async () => {
+        await this._endPhase(gameState.tournamentId, gameState);
+      }, 10000);
     } else {
-      // Score accumulation - game-over emission is now handled by GameCoordinatorService._handleGameOver (unified approach)
-      console.log(`[HAND_END] Scores accumulated for hand ${tournament.currentHand}. game-over will be emitted by _handleGameOver.`);
-      console.log(`[HAND_END] Cumulative scores:`, tournament.players.map(p => ({ id: p.id, score: p.cumulativeScore, spades: p.cumulativeSpades, cards: p.cumulativeCards })));
-
-      // await this._startNextHand(gameState.tournamentId);
-      console.log(`[HAND_END] Auto-next-hand disabled. Waiting for manual trigger.`);
+      console.log(`[HAND_END] Waiting 10 seconds before starting next hand...`);
+      setTimeout(async () => {
+        await this._startNextHand(gameState.tournamentId);
+      }, 10000);
     }
   }
 
@@ -374,6 +374,17 @@ class TournamentCoordinator {
     const lastRoom = `game-${tournament.previousGameId}`;
     const lastGameState = this.gameManager.getGameState(tournament.previousGameId);
     
+    // Save transition fields to gameState so they're available when game-over event is processed
+    if (lastGameState) {
+      lastGameState.nextGameId = newGameId;
+      lastGameState.nextPhase = nextPhase;
+      lastGameState.eliminatedPlayers = eliminatedIds;
+      lastGameState.tournamentPhase = tournament.phase;
+      lastGameState.tournamentHand = tournament.currentHand;
+      lastGameState.totalHands = tournament.totalHands;
+      this.gameManager.saveGameState(tournament.previousGameId, lastGameState);
+    }
+    
     const gameOverPayload = {
       winner: sortedPlayers[0]?.id?.replace('player_', '') || '0',
       finalScores: sortedPlayers.map(p => p.cumulativeScore),
@@ -400,7 +411,7 @@ class TournamentCoordinator {
       this.io.to(lastRoom).emit('phase-complete', {
         phase: tournament.phase,
         qualified: qualified.map(p => p.id),
-        leaderboard: activePlayers.map(p => ({ id: p.id, name: p.name, score: p.cumulativeScore }))
+        leaderboard: sortedPlayers.map(p => ({ id: p.id, name: p.name, score: p.cumulativeScore }))
       });
     }
     

@@ -332,6 +332,11 @@ class GameCoordinatorService {
       isTournamentMode,
       playerStatuses,
       qualifiedPlayers,
+      ...(isTournamentMode && {
+        tournamentPhase: finalizedState.tournamentPhase,
+        tournamentHand: finalizedState.tournamentHand,
+        totalHands: finalizedState.totalHands,
+      }),
     }, this.unifiedMatchmaking);
   }
 
