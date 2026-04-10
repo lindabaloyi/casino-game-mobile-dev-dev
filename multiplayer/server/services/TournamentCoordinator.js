@@ -91,6 +91,9 @@ class TournamentCoordinator {
     const activePlayers = tournament.players.filter(p => !p.eliminated);
     const playerCount = activePlayers.length;
     
+    // Keep players in original order - no reordering needed
+    // Winner tag already set in handleHandComplete, will be used to set currentPlayer below
+    
     const gameType = this._getGameTypeForPlayerCount(playerCount);
     console.log(`[START_NEXT_HAND] Game type: ${gameType}, players: ${activePlayers.map(p => p.id).join(', ')}`);
     
@@ -112,28 +115,17 @@ class TournamentCoordinator {
     // Ensure currentPlayer starts at 0 for the new game
     console.log(`[START_NEXT_HAND] Initial currentPlayer: ${gameState.currentPlayer}`);
     
-    // Set currentPlayer to winner of previous hand (if available)
-    const lastGameId = tournament.previousGameId;
-    const lastGameState = lastGameId ? this.gameManager.getGameState(lastGameId) : null;
-    
-    if (lastGameState && lastGameState.scores && lastGameState.players) {
-      // Find winner's index in previous game
-      const maxScore = Math.max(...lastGameState.scores);
-      const winnerIndex = lastGameState.scores.indexOf(maxScore);
-      const winnerUserId = lastGameState.players[winnerIndex]?.userId;
-      
-      console.log(`[START_NEXT_HAND] Previous game winner: index ${winnerIndex}, userId: ${winnerUserId}, score: ${maxScore}`);
-      
-      // Map winner to new game index
-      if (winnerUserId) {
-        const newWinnerIndex = gameState.players.findIndex(p => p.userId === winnerUserId);
-        if (newWinnerIndex !== -1) {
-          console.log(`[START_NEXT_HAND] Winner starts next hand: index ${newWinnerIndex}`);
-          gameState.currentPlayer = newWinnerIndex;
-        }
+    // Set currentPlayer to winner (tagged winner will be P1)
+    // Use the winnerUserId tag set at end of previous hand
+    const winnerUserId = tournament.winnerUserId;
+    if (winnerUserId) {
+      const winnerIdx = gameState.players.findIndex(p => p.userId === winnerUserId);
+      if (winnerIdx !== -1) {
+        console.log(`[START_NEXT_HAND] Winner tagged: ${winnerUserId.substring(0, 8)}... → starting at index ${winnerIdx} (P1)`);
+        gameState.currentPlayer = winnerIdx;
       }
-    } else if (gameState.currentPlayer !== 0) {
-      console.warn(`[START_NEXT_HAND] Forcing currentPlayer to 0 (no previous game)`);
+    } else {
+      console.warn(`[START_NEXT_HAND] No winner tag found, defaulting to index 0`);
       gameState.currentPlayer = 0;
     }
     
@@ -261,34 +253,43 @@ class TournamentCoordinator {
     const active = tournament.players.filter(p => !p.eliminated);
     console.log(`[HAND_END] Active players before elimination: ${active.length}`);
     
-    // ELIMINATE AFTER EVERY HAND (if more than 1 player remains)
+    // Use TournamentQualification module for proper ranking with tie-breaking
+    const { determineQualification } = require('./TournamentQualification');
+    const qualResult = determineQualification(active, tournament.phase, tournament.config);
+    
+    // TournamentQualification ranks players: highest score = rank 0 (first), lowest = last
+    // For elimination: remove the last player (lowest rank)
     if (active.length > 1) {
-      // Sort by score (ascending) - lowest first
-      // Tie-break: higher spades wins, higher cards wins, then deterministic ID
-      const sorted = [...active].sort((a, b) => {
-        if (a.cumulativeScore !== b.cumulativeScore) 
-          return a.cumulativeScore - b.cumulativeScore;
-        // Tie-break: more spades wins (keep player with more)
-        if (a.cumulativeSpades !== b.cumulativeSpades)
-          return b.cumulativeSpades - a.cumulativeSpades;
-        if (a.cumulativeCards !== b.cumulativeCards)
-          return b.cumulativeCards - a.cumulativeCards;
-        // Deterministic tie-break
-        return a.id.localeCompare(b.id);
-      });
-
-      const lowest = sorted[0];
+      const sortedByRank = qualResult.sortedPlayers; // Best first
+      const lowest = sortedByRank[sortedByRank.length - 1]; // Last = lowest rank
       lowest.eliminated = true;
-      console.log(`[HAND_END] Eliminated ${lowest.id} (score: ${lowest.cumulativeScore}, spades: ${lowest.cumulativeSpades}, cards: ${lowest.cumulativeCards})`);
+      console.log(`[HAND_END] Eliminated ${lowest.id} (rank: ${sortedByRank.length}, score: ${lowest.cumulativeScore}, spades: ${lowest.cumulativeSpades}, cards: ${lowest.cumulativeCards})`);
+      console.log(`[HAND_END] Rankings:`, sortedByRank.map((p, i) => `${i + 1}.${p.id.substr(0, 6)}`).join(', '));
     }
 
     // Check remaining players
     const remaining = tournament.players.filter(p => !p.eliminated);
     console.log(`[HAND_END] Remaining players: ${remaining.length}`);
+    
+    // Tag winner for next hand - winner will be P1
+    const winner = qualResult.sortedPlayers[0];
+    tournament.winnerUserId = winner.id;
+    console.log(`[HAND_END] Winner tagged: ${winner.id.substring(0, 8)}... (will start next hand as P1)`);
+
+    // Determine if phase should transition based on player count
+    let nextPhase = tournament.phase;
+    if (qualResult.nextPhase && remaining.length > 1) {
+      // When moving from 4→3 (QUALIFYING→SEMI_FINAL) or 3→2 (SEMI_FINAL→FINAL)
+      nextPhase = qualResult.nextPhase;
+      if (nextPhase !== tournament.phase) {
+        console.log(`[HAND_END] Phase transition: ${tournament.phase} → ${nextPhase}`);
+        tournament.phase = nextPhase;
+      }
+    }
 
     if (remaining.length > 1) {
       // More than 1 player - start next hand with delay
-      console.log(`[HAND_END] Starting next hand with ${remaining.length} players...`);
+      console.log(`[HAND_END] Starting next hand with ${remaining.length} players in ${nextPhase}...`);
       setTimeout(async () => {
         await this._startNextHand(gameState.tournamentId);
       }, 10000);

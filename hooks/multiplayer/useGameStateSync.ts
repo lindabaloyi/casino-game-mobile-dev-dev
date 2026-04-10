@@ -132,6 +132,10 @@ export interface GameOverData {
   transitionType?: 'auto' | 'manual';
   countdownSeconds?: number;
   eliminatedPlayers?: string[];
+  // Tournament ranking debug info
+  rankings?: string[]; // Player IDs in rank order (best first)
+  tieBreakReason?: string; // Explain tie-break if applicable
+  previousWinner?: string; // Previous hand winner userId
 
   scoreBreakdowns?: {
     totalCards: number;
@@ -505,6 +509,15 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       });
       console.log('[useGameStateSync] Final scores from server:', data.finalScores);
       console.log('[useGameStateSync] Score breakdowns from server:', JSON.stringify(data.scoreBreakdowns, null, 2));
+      
+      // Extract tournament ranking data from game-over
+      const tournamentData = {
+        rankings: data.rankings || [],
+        tieBreakReason: data.tieBreakReason || null,
+        previousWinner: data.previousWinner || null,
+      };
+      console.log('[useGameStateSync] Tournament rankings:', tournamentData);
+      
       setGameOverData(data);
       
       // Record win/loss for player with game mode

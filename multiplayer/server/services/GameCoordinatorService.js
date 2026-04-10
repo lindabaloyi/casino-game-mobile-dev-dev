@@ -309,6 +309,40 @@ class GameCoordinatorService {
     const playerStatuses = finalizedState.playerStatuses || null;
     const qualifiedPlayers = finalizedState.qualifiedPlayers || null;
     
+    // Calculate rankings for tournament tie-breaking display
+    const rankings = isTournamentMode ? scoring.getRankings(finalizedState) : [];
+    const rankingsWithDetails = rankings.map((idx, rank) => ({
+      rank: rank + 1,
+      playerIndex: idx,
+      userId: finalizedState.players[idx]?.userId,
+      score: finalizedState.scores[idx],
+      spades: scoreBreakdowns[idx]?.spadeCount || 0,
+      cards: scoreBreakdowns[idx]?.totalCards || 0,
+    }));
+    
+    // Determine tie-break reason
+    let tieBreakReason = null;
+    if (isTournamentMode && rankings.length > 1) {
+      const topScore = finalizedState.scores[rankings[0]];
+      const secondScore = finalizedState.scores[rankings[1]];
+      if (topScore === secondScore) {
+        const topSpades = scoreBreakdowns[rankings[0]]?.spadeCount || 0;
+        const secondSpades = scoreBreakdowns[rankings[1]]?.spadeCount || 0;
+        if (topSpades !== secondSpades) {
+          tieBreakReason = `Tied on score (${topScore}), broken by spades: ${topSpades} vs ${secondSpades}`;
+        } else {
+          const topCards = scoreBreakdowns[rankings[0]]?.totalCards || 0;
+          const secondCards = scoreBreakdowns[rankings[1]]?.totalCards || 0;
+          if (topCards !== secondCards) {
+            tieBreakReason = `Tied on score (${topScore}) and spades (${topSpades}), broken by cards: ${topCards} vs ${secondCards}`;
+          }
+        }
+      }
+    }
+    
+    // Previous winner userId for next hand
+    const previousWinner = rankings.length > 0 ? finalizedState.players[rankings[0]]?.userId : null;
+    
     for (let i = 0; i < playerCount; i++) {
       capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
       const captures = finalizedState.players[i]?.captures || [];
@@ -337,6 +371,10 @@ class GameCoordinatorService {
         tournamentHand: finalizedState.tournamentHand,
         totalHands: finalizedState.totalHands,
       }),
+      // Tournament ranking data for debug UI
+      rankings: rankings.map(idx => finalizedState.players[idx]?.userId),
+      tieBreakReason,
+      previousWinner,
     }, this.unifiedMatchmaking);
   }
 
