@@ -81,6 +81,11 @@ class UnifiedMatchmakingService {
     return { gameId, gameState, players };
   }
 
+  _createGameFromEntries(gameType, playerEntries) {
+    console.log(`[UnifiedMatchmaking] _createGameFromEntries called for ${gameType} with ${playerEntries.length} players`);
+    return this._createGame(gameType, playerEntries);
+  }
+
   handleDisconnection(socket) {
     return this.socketRegistry.handleDisconnection(socket, this.gameManager);
   }

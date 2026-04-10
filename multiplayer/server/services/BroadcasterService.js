@@ -156,14 +156,16 @@ class BroadcasterService {
    * Broadcast game update to all players in a game
    * CRITICAL: Include each socket's player index in the update so clients
    * can update their playerNumber after tournament phase transitions
-   */
+    */
   broadcastGameUpdate(gameId, gameState, matchmakingService = null) {
     // Use the provided matchmaking service or default to regular matchmaking
     const mm = matchmakingService || this.matchmaking;
     const gameSockets = mm.getGameSockets(gameId, this.io);
 
     if (gameSockets.length === 0) {
-      console.log(`[Broadcaster] broadcastGameUpdate: No sockets found for game ${gameId}`);
+      console.log(`[Broadcaster] ⚠️ No sockets in registry for game ${gameId}, trying room fallback`);
+      // Fallback: use Socket.IO room-based broadcast since registry lookup failed
+      this.io.to(`game-${gameId}`).emit('game-update', gameState);
       return;
     }
 

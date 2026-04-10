@@ -104,7 +104,16 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     
   const playersInLobby = isPrivateRoom 
     ? (room?.room.playerCount ?? 0) 
-    : (multiplayerResult?.playersInLobby ?? 0);
+    : (multiplayerResult?.lobbyPlayers?.length ?? 0);
+    
+  // DEBUG: Log the lobby state
+  console.log('[useOnlinePlayConnection] Lobby DEBUG:', {
+    isPrivateRoom,
+    playersInLobby: playersInLobby,
+    lobbyPlayersLength: multiplayerResult?.lobbyPlayers?.length,
+    fromMultiplayer: multiplayerResult?.playersInLobby,
+    fromRoom: room?.room.playerCount
+  });
     
   const sendAction = isPrivateRoom 
     ? (roomGameSync?.sendAction ?? noop)

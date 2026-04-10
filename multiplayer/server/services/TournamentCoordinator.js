@@ -46,6 +46,7 @@ class TournamentCoordinator {
       currentGameId: gameState.gameId,
       players: players.map((p, i) => ({
         id: p.userId || p.socket?.id || `guest_${i}`,
+        socket: p.socket,
         socketId: p.socket?.id || null,
         name: p.socket?.userId || `Guest ${i + 1}`,
         cumulativeScore: 0,
@@ -93,18 +94,12 @@ class TournamentCoordinator {
     const gameType = this._getGameTypeForPlayerCount(playerCount);
     console.log(`[START_NEXT_HAND] Game type: ${gameType}, players: ${activePlayers.map(p => p.id).join(', ')}`);
     
-    const playerEntries = activePlayers.map(p => {
-      let socket = this._getSocketByPlayerId(p.id);
-      if (!socket && p.socketId) {
-        socket = this.io.sockets.sockets.get(p.socketId);
-      }
-      return {
-        socket: socket,
-        userId: p.id
-      };
-    });
+    const playerEntries = activePlayers.map(p => ({
+      socket: p.socket,
+      userId: p.id
+    }));
     
-    const result = this.matchmaking.gameFactory.createGame(gameType, playerEntries);
+    const result = this.matchmaking._createGameFromEntries(gameType, playerEntries);
     if (!result) {
       console.error(`[START_NEXT_HAND] ❌ Failed to create ${gameType} game!`);
       return;
@@ -113,6 +108,34 @@ class TournamentCoordinator {
     console.log(`[START_NEXT_HAND] ✅ Game created with ID: ${result.gameId}`);
     
     const { gameId, gameState, players: resultPlayers } = result;
+    
+    // Ensure currentPlayer starts at 0 for the new game
+    console.log(`[START_NEXT_HAND] Initial currentPlayer: ${gameState.currentPlayer}`);
+    
+    // Set currentPlayer to winner of previous hand (if available)
+    const lastGameId = tournament.previousGameId;
+    const lastGameState = lastGameId ? this.gameManager.getGameState(lastGameId) : null;
+    
+    if (lastGameState && lastGameState.scores && lastGameState.players) {
+      // Find winner's index in previous game
+      const maxScore = Math.max(...lastGameState.scores);
+      const winnerIndex = lastGameState.scores.indexOf(maxScore);
+      const winnerUserId = lastGameState.players[winnerIndex]?.userId;
+      
+      console.log(`[START_NEXT_HAND] Previous game winner: index ${winnerIndex}, userId: ${winnerUserId}, score: ${maxScore}`);
+      
+      // Map winner to new game index
+      if (winnerUserId) {
+        const newWinnerIndex = gameState.players.findIndex(p => p.userId === winnerUserId);
+        if (newWinnerIndex !== -1) {
+          console.log(`[START_NEXT_HAND] Winner starts next hand: index ${newWinnerIndex}`);
+          gameState.currentPlayer = newWinnerIndex;
+        }
+      }
+    } else if (gameState.currentPlayer !== 0) {
+      console.warn(`[START_NEXT_HAND] Forcing currentPlayer to 0 (no previous game)`);
+      gameState.currentPlayer = 0;
+    }
     
     gameState.tournamentMode = 'knockout';
     gameState.tournamentId = tournamentId;
@@ -142,25 +165,15 @@ class TournamentCoordinator {
     console.log(`[DEBUG] [TournamentCoordinator] Emitting game-start to ${tournamentPlayers.length} players`);
     for (let i = 0; i < tournamentPlayers.length; i++) {
       const player = tournamentPlayers[i];
-      console.log(`[DEBUG] [TournamentCoordinator] Looking for socket: player.id=${player.id}, socketId=${player.socketId}`);
-      let socket = this._getSocketByPlayerId(player.id);
-      // Fallback: try socketId if player.id is null
-      if (!socket && player.socketId) {
-        socket = this.io.sockets.sockets.get(player.socketId);
-        console.log(`[DEBUG] [TournamentCoordinator] Fallback socket lookup: ${player.socketId} -> ${socket ? 'found' : 'not found'}`);
-      }
+      const socket = player.socket;
       if (socket) {
-        console.log(`[DEBUG] [TournamentCoordinator] Found socket ${socket.id}, emitting game-start`);
-        // Join socket to game room and update registry
-        socket.join(`game-${gameId}`);
-        if (this.matchmaking && this.matchmaking.socketRegistry) {
-          this.matchmaking.socketRegistry.set(socket.id, gameId, 'tournament', player.id);
-        }
+        console.log(`[DEBUG] [TournamentCoordinator] Using stored socket ${socket.id}, emitting game-start`);
 
         socket.emit('game-start', {
           gameId,
           gameState,
           playerNumber: i,
+          myUserId: player.id,  // Player's actual userId for index verification
           playerInfos: gameState.players.map((p, idx) => ({
             playerNumber: idx,
             userId: p.userId,
@@ -190,32 +203,6 @@ class TournamentCoordinator {
       case 2: return 'two-hands';
       default: return 'four-hands';
     }
-  }
-
-  /**
-   * Get socket by player ID from socket registry
-   */
-  _getSocketByPlayerId(playerId) {
-    if (!playerId) {
-      console.log(`[DEBUG] [TournamentCoordinator] _getSocketByPlayerId: playerId is null/undefined`);
-      return null;
-    }
-    
-    if (!this.matchmaking?.socketRegistry?.socketGameMap) return null;
-    
-    for (const [socketId, info] of this.matchmaking.socketRegistry.socketGameMap.entries()) {
-      if (info.userId === playerId) {
-        const socket = this.io.sockets.sockets.get(socketId);
-        if (socket) return socket;
-      }
-    }
-    
-    // Also check io.sockets directly (for guests using socket.id as playerId)
-    for (const [socketId, socket] of this.io.sockets.sockets) {
-      if (socket.id === playerId || socket.userId === playerId) return socket;
-    }
-    
-    return null;
   }
 
   /**
@@ -329,7 +316,7 @@ class TournamentCoordinator {
     console.log(`[TournamentCoordinator] Tournament complete! Winner: ${winner.name}`);
     
     for (const player of tournament.players) {
-      const socket = this._getSocketByPlayerId(player.id);
+      const socket = player.socket;
       if (!socket) continue;
       
       const rank = finalists.findIndex(f => f.id === player.id) + 1;
@@ -363,25 +350,13 @@ class TournamentCoordinator {
   /**
    * Handle tournament round end - check if hand is complete
    */
-  _handleTournamentRoundEnd(gameState, gameId) {
-    let tournament = this.activeTournaments.get(gameState.tournamentId);
+   _handleTournamentRoundEnd(gameState, gameId) {
+    const tournament = this.activeTournaments.get(gameState.tournamentId);
     
     console.log(`[HAND_END_CHECK] Game ${gameId}: round=${gameState.round}, gameOver=${gameState.gameOver}, tournamentFound=${!!tournament}, tournamentId=${gameState.tournamentId}`);
     
-    // Fallback: if tournament not found, register it from game state
     if (!tournament) {
-      console.warn(`[FALLBACK] Tournament not found – registering from game state`);
-      const players = gameState.players.map((p, i) => ({
-        userId: p.id,
-        socket: this._getSocketByPlayerId(p.id) || { id: p.id, userId: p.userId }
-      }));
-      this.registerExistingGameAsTournament(gameState, players, this.io);
-      tournament = this.activeTournaments.get(gameState.tournamentId);
-      console.log(`[FALLBACK] Registration attempt result:`, !!tournament);
-    }
-    
-    if (!tournament) {
-      console.log(`[DEBUG] [TournamentCoordinator] ❌ Tournament STILL NOT FOUND after fallback!`);
+      console.error(`[TournamentCoordinator] FATAL: Tournament not found for game ${gameId}. This should not happen after first hand registration.`);
       return { state: gameState, gameOver: false };
     }
     

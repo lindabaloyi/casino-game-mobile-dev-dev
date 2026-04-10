@@ -46,6 +46,7 @@ export interface ShiyaRecall {
 }
 
 export interface GameState {
+  gameId?: number; // Set when received from server (via game-start event)
   deck: Card[];
   gameMode?: 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament';
   players: {
@@ -306,18 +307,54 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       console.log('[useGameStateSync] 🔥 game-start RECEIVED from server!');
       console.log('[useGameStateSync] gameState playerCount:', data.gameState?.playerCount);
       console.log('[useGameStateSync] playerNumber:', data.playerNumber);
+      console.log('[useGameStateSync] myUserId:', data.myUserId);
       console.log('[useGameStateSync] gameId:', data.gameId);
+      console.log('[useGameStateSync] gameState is null?', !data.gameState);
+      
+      if (!data.gameState) {
+        console.log('[useGameStateSync] ❌ FATAL: gameState is missing from game-start event!');
+        return;
+      }
+      
+      console.log('[useGameStateSync] ✅ gameState received, setting state...');
       setGameState(data.gameState);
-      setPlayerNumber(data.playerNumber);
+      
+      // Verify playerNumber matches user's actual position in gameState.players
+      if (data.myUserId && data.gameState?.players) {
+        const myIndex = data.gameState.players.findIndex(
+          (p: any) => p.userId === data.myUserId
+        );
+        if (myIndex !== -1 && myIndex !== data.playerNumber) {
+          console.log(`[useGameStateSync] ⚠️ playerNumber remapped: ${data.playerNumber} -> ${myIndex} (based on myUserId)`);
+          setPlayerNumber(myIndex);
+        } else {
+          setPlayerNumber(data.playerNumber);
+        }
+      } else {
+        setPlayerNumber(data.playerNumber);
+      }
+      
       setOpponentDisconnected(false);
       setError(null);
       setGameOverData(null);
       
       // Store gameId for emitClientReady
       if (data.gameId !== undefined && data.gameId !== null) {
+        const oldGameId = gameIdRef.current;
         gameIdRef.current = data.gameId;
-        console.log(`[useGameStateSync] 📦 Stored gameId: ${data.gameId}`);
+        console.log(`[useGameStateSync] 📦 Stored gameId: ${oldGameId} -> ${data.gameId} (tournament hand change detected)`);
       }
+      
+      console.log(`[useGameStateSync] ✅ Full game-start data:`, {
+        gameId: data.gameId,
+        playerNumber: data.playerNumber,
+        myUserId: data.myUserId,
+        tournamentPhase: data.tournamentPhase,
+        tournamentHand: data.tournamentHand,
+        totalHands: data.totalHands,
+        playerCount: data.gameState?.playerCount,
+        gameMode: data.gameState?.gameMode
+      });
     };
 
     socket.on('game-start', handleGameStart);
@@ -329,6 +366,8 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
 
   // Trigger game ready validation when gameState or playerNumber changes
   useEffect(() => {
+    console.log(`[useGameStateSync] 🔄 Ready check EFFECT FIRED: gameState=${!!gameState}, playerNumber=${playerNumber}, gameIdRef=${gameIdRef.current}`);
+    
     if (!gameState) return;
     
     // DEBUG: Log playerNumber and tournamentPhase

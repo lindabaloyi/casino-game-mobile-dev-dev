@@ -124,7 +124,8 @@ export function useGameReady(socket: Socket | null): UseGameReadyResult {
     }
 
     const handleAllClientsReady = (data: { gameId: number }) => {
-      console.log('[useGameReady] ✅ all-clients-ready received from server:', data);
+      console.log('[useGameReady] ✅ all-clients-ready RECEIVED from server:', data);
+      console.log('[useGameReady] 🔄 Setting allClientsReady=true');
       setAllClientsReady(true);
     };
 
@@ -134,6 +135,11 @@ export function useGameReady(socket: Socket | null): UseGameReadyResult {
       socket.off('all-clients-ready', handleAllClientsReady);
     };
   }, [socket]);
+
+  // DEBUG: Log state changes
+  useEffect(() => {
+    console.log('[useGameReady] 🔄 State changed: gameReady=', gameReady, ', allClientsReady=', allClientsReady);
+  }, [gameReady, allClientsReady]);
 
   // Export function to emit client-ready event
   const emitClientReady = useCallback((gameId: number, playerIndex: number) => {

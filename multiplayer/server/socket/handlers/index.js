@@ -274,7 +274,8 @@ function attachSocketHandlers(socket, services) {
   // ── Client Ready Handler ──────────────────────────────────────────────
   socket.on('client-ready', (data) => {
     const { gameId, playerIndex } = data;
-    console.log(`[Socket] client-ready received: gameId=${gameId}, playerIndex=${playerIndex}, socket=${socket.id}`);
+    console.log(`[Socket] 📥 client-ready RECEIVED: gameId=${gameId}, playerIndex=${playerIndex}, socket=${socket.id}`);
+    console.log(`[Socket] 📥 DEBUG: Checking if game ${gameId} exists in gameManager...`);
     
     if (!gameId || playerIndex === undefined) {
       socket.emit('error', { message: 'client-ready: gameId and playerIndex are required' });
@@ -283,7 +284,13 @@ function attachSocketHandlers(socket, services) {
     
     // Get game state to check player status
     const gameState = gameManager.getGameState(gameId);
+    console.log(`[Socket] 📥 DEBUG: gameManager.getGameState(${gameId}) result:`, gameState ? 'FOUND' : 'NOT FOUND');
+    
+    // Log all active game IDs for debugging
     if (!gameState) {
+      console.log(`[Socket] ❌ ERROR: Game ${gameId} not found! Available games in memory.`);
+      // Log a few recent game IDs if available
+      console.log(`[Socket] ❌ DEBUG: client-ready called for non-existent game. This usually means the tournament moved to a new hand but client still has old gameId.`);
       socket.emit('error', { message: 'client-ready: Game not found' });
       return;
     }

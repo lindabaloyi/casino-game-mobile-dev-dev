@@ -123,27 +123,16 @@ function allPlayersTurnEnded(state) {
 }
 
 /**
- * Get the next active player, skipping eliminated players.
+ * Get the next active player using simple sequential order.
+ * TournamentCoordinator handles elimination by creating new games with only active players.
  * @param {object} state - Game state
  * @param {number} currentPlayer - Current player index
- * @returns {number} Next active player index
+ * @returns {number} Next player index
  */
 function getNextActivePlayer(state, currentPlayer) {
   const totalPlayers = state.playerCount || state.players?.length || 2;
-  let next = (currentPlayer + 1) % totalPlayers;
-  const start = next;
-  
-  // Keep looking until we find an active player
-  do {
-    const playerId = `player_${next}`;
-    if (state.playerStatuses?.[playerId] !== 'ELIMINATED') {
-      return next;
-    }
-    next = (next + 1) % totalPlayers;
-  } while (next !== start);
-  
-  // No other active players, return current
-  return currentPlayer;
+  // Simple sequential order: 0 -> 1 -> 2 -> 3 -> 0...
+  return (currentPlayer + 1) % totalPlayers;
 }
 
 /**

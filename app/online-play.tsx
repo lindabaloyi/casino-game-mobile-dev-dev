@@ -115,7 +115,9 @@ export default function OnlinePlayScreen() {
     isPrivateRoom: connection.isPrivateRoom,
     isConnected: connection.isConnected,
     playersInLobby: connection.playersInLobby,
-    gameState: connection.gameState,
+    gameState: connection.gameState ? 'EXISTS' : 'NULL',
+    gameReady: connection.gameReady,
+    allClientsReady: connection.allClientsReady,
     playerDisconnected: connection.playerDisconnected,
     error: connection.error,
   }, null, 2));
@@ -131,7 +133,7 @@ export default function OnlinePlayScreen() {
     isReady,
     roomCode: connection.roomCode,
   }, null, 2));
-
+  
   // Copy room code to clipboard
   const handleCopyRoomCode = () => {
     const code = connection.roomCode;
@@ -163,6 +165,11 @@ export default function OnlinePlayScreen() {
 
   // Show lobby if game hasn't started OR if game isn't fully ready
   // This ensures all players' games are initialized before navigation
+  console.log('[OnlinePlay] 🎯 Decision point - showing Lobby vs Game:');
+  console.log('[OnlinePlay]   gameState == null:', connection.gameState == null);
+  console.log('[OnlinePlay]   gameReady:', connection.gameReady);
+  console.log('[OnlinePlay]   allClientsReady:', connection.allClientsReady);
+  
   if (connection.gameState == null || !connection.gameReady || !connection.allClientsReady) {
     return (
       <Lobby

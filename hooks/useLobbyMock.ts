@@ -31,7 +31,8 @@ interface ServerLobbyPlayer {
 
 interface UseLobbyMockProps {
   modeConfig: ModeConfig;
-  playersInLobby: number;
+  /** @deprecated Use serverLobbyPlayers.length instead - single source of truth */
+  playersInLobby?: number;
   profile: {
     username?: string;
     avatar: string;
@@ -68,6 +69,8 @@ export const useLobbyMock = ({
     console.log('[useLobbyMock] profile.userId:', profile.userId);
     console.log('[useLobbyMock] playersInLobby:', playersInLobby);
     console.log('[useLobbyMock] modeConfig.playerCount:', modeConfig.playerCount);
+    console.log('[useLobbyMock] serverLobbyPlayers:', serverLobbyPlayers?.length || 0);
+    console.log('[useLobbyMock] lobbyPlayers state length:', lobbyPlayers.length);
 
     // Priority 1: Room-based players (private rooms)
     if (roomPlayers !== undefined && roomPlayerCount !== undefined) {
@@ -210,13 +213,15 @@ export const useLobbyMock = ({
     // Fallback: Simulate other players joining (when no server data)
     const maxPlayers = modeConfig.playerCount;
     const currentCount = lobbyPlayers.length;
+    // Use serverLobbyPlayers.length as the source of truth
+    const targetCount = serverLobbyPlayers?.length ?? playersInLobby ?? 0;
     
     // Only add players if:
     // 1. More players have joined than we currently have
     // 2. We haven't reached max players yet
-    if (playersInLobby > currentCount && currentCount < maxPlayers) {
+    if (targetCount > currentCount && currentCount < maxPlayers) {
       // Calculate how many new players to add
-      const newPlayerCount = Math.min(playersInLobby, maxPlayers) - currentCount;
+      const newPlayerCount = Math.min(targetCount, maxPlayers) - currentCount;
       
       if (newPlayerCount > 0) {
         const newPlayers: LobbyPlayer[] = [];
