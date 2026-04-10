@@ -133,10 +133,10 @@ export function DraggableTableCard({
 
   // ── Gesture ─────────────────────────────────────────────────────────────
 
-  // Double-tap gesture for createSingleTemp action
+  // Double-tap gesture (disabled - kept for gesture compatibility)
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
-    .enabled(isMyTurn && !!onDoubleTap)
+    .enabled(isMyTurn)
     .onEnd(() => {
       runOnJS(handleDoubleTapCard)();
     });

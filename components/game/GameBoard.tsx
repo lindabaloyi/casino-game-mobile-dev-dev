@@ -801,18 +801,6 @@ export function GameBoard({
         onRecallAttempt={handleRecallAttempt}
         onPlayButtonSound={playButton}
         onCardPlayed={playCardContact}
-        onDoubleTapCard={(card) => {
-          // Only allow cards with value ≤ 5
-          if (card.value <= 5) {
-            console.log('[GameBoard] Double-tap on table card:', card.rank, card.suit, 'value:', card.value);
-            // OPTIMISTIC UI: Mark the table card as pending drop to hide it immediately
-            // This prevents duplicate display when server confirms the temp stack creation
-            dragOverlay.markPendingDrop(card, 'table');
-            actions.createSingleTemp(card, 'table');
-          } else {
-            console.log('[GameBoard] Double-tap rejected - card value', card.value, '> 5');
-          }
-        }}
         pendingDropCard={dragOverlay.pendingDropCard}
         pendingDropSource={dragOverlay.pendingDropSource}
       />
@@ -854,16 +842,6 @@ export function GameBoard({
         currentPlayer={gameState.currentPlayer}
         selectedBuild={selectedBuildForShiya}
         onShiya={handleShiyaAction}
-        // Double-tap to create single temp stack
-        onDoubleTapCard={(card) => {
-          // Only allow cards with value ≤ 5
-          if (card.value <= 5) {
-            console.log('[GameBoard] Double-tap on card:', card.rank, card.suit, 'value:', card.value);
-            actions.createSingleTemp(card, 'hand');
-          } else {
-            console.log('[GameBoard] Double-tap rejected - card value', card.value, '> 5');
-          }
-        }}
       />
 
       <DragGhost 

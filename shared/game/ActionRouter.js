@@ -69,7 +69,7 @@ function createActionRouter(config) {
       if (!canActOutOfTurn && state.currentPlayer !== playerIndex) {
         throw new Error(`Not your turn (current: ${state.currentPlayer}, your: ${playerIndex})`);
       }
-      
+
       // FIXED: Check if player is ELIMINATED and reject action
       const playerId = `player_${playerIndex}`;
       if (state.playerStatuses?.[playerId] === 'ELIMINATED') {
@@ -86,6 +86,19 @@ function createActionRouter(config) {
       );
 
       console.log(`[ActionRouter] Router routed "${actionType}" → "${finalType}"`);
+
+      // Guard: block captureOpponent during pending extension (check after routing)
+      if (finalType === 'captureOpponent') {
+        const hasPendingExtension = state.tableCards?.some(
+          tc => tc.type === 'build_stack' && 
+               tc.owner === playerIndex && 
+               (tc.pendingExtension?.cards?.length > 0 || tc.pendingExtension?.looseCard)
+        );
+
+        if (hasPendingExtension) {
+          throw new Error(`Cannot capture opponent's build - you must complete your build extension first`);
+        }
+      }
 
       // 4. Handle choice type specially - set pendingChoice for modal
       // Only set pendingChoice if no selection has been made yet (modal needs to be shown)
