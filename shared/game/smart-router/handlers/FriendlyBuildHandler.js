@@ -52,10 +52,6 @@ class FriendlyBuildHandler {
     let canCapture = false;
 
     if (isSameRankBuild) {
-      const buildRank = stack.cards[0].rank;
-      if (card.rank !== buildRank) {
-        throw new Error(`Cannot drop ${card.rank}${card.suit} on same‑rank build of ${buildRank}`);
-      }
       canExtend = true;
       canCapture = true;
       console.log('[FriendlyBuildHandler] Card matches build rank → both actions possible');
