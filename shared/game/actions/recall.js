@@ -99,24 +99,21 @@ function recall(state, payload, playerIndex) {
   }
   
   console.log(`[recall] Player ${playerIndex} has matching card - recall validated`);
-  
+   
   // Convert to normal build stack - remove all Shiya/temp flags and overlays
   const cards = getCardsFromItem(capturedItem);
-  
-  // Calculate build value from the cards
-  const cardValues = cards.map(c => c.value);
-  const buildInfo = calculateBuildValue(cardValues);
-  
+   
   // Create a normal build stack (not temp_stack, no Shiya overlays)
+  // Preserve original build values from capturedItem
   const restoredItem = {
     type: 'build_stack',
     stackId: generateStackId(newState, 'build', playerIndex),
     cards: cards.map(c => ({ ...c })),
     owner: playerIndex,  // New owner is the recalling player
-    value: buildInfo.value,
-    base: buildInfo.base,
-    need: buildInfo.need,
-    buildType: buildInfo.buildType,
+    value: capturedItem.value,        // Preserve original build value
+    base: capturedItem.base,          // Preserve original base
+    need: capturedItem.need,          // Preserve original need
+    buildType: capturedItem.buildType, // Preserve original build type
     // Clear all Shiya flags - this is now a normal build
     shiyaActive: false,
     shiyaPlayer: undefined,
@@ -129,16 +126,16 @@ function recall(state, payload, playerIndex) {
     type: restoredItem.type,
     cards: restoredItem.cards?.length || 1,
   });
-  
+   
   // Clear the recall entry
   delete newState.shiyaRecalls[playerIndex][recallId];
-  
+    
   // Clean up empty recall objects
   if (newState.shiyaRecalls[playerIndex] && 
       Object.keys(newState.shiyaRecalls[playerIndex]).length === 0) {
     delete newState.shiyaRecalls[playerIndex];
   }
-  
+    
   return newState;
 }
 

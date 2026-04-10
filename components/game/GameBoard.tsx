@@ -108,9 +108,6 @@ export function GameBoard({
   // Local state
   const [errorVersion, setErrorVersion] = useState(0);
   const [dragVersion, setDragVersion] = useState(0);
-  const [selectedBuildForShiya, setSelectedBuildForShiya] = useState<any>(null);
-  
-  const shiyaButtonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Track round transitions to prevent double triggers
   const lastProcessedRound = useRef<number>(0);
@@ -235,7 +232,7 @@ export function GameBoard({
   useCaptureSound(gameState, playerNumber);
 
   // Sound effects for card contact (moved here to persist across drags)
-  const { playCardContact, playTrail, playTableCardDrag, playButton, playCapture } = useSound();
+  const { playCardContact, playTrail, playTableCardDrag, playButton, playCapture, playShiya } = useSound();
 
   // Debug logging disabled for cleaner console
 
@@ -353,20 +350,16 @@ export function GameBoard({
         modals.openConfirmTempBuildModal(stack);
       }
       console.log('[handleBuildTap] Not party mode or no stack');
-      setSelectedBuildForShiya(null);
       return;
     }
     
-    // === SHIYA ELIGIBILITY CHECK (for BOTH build_stack and temp_stack) ===
-    
-    // Check if it's own stack - no Shiya on own stacks
+    // Check if it's own stack - show confirm modal for temp stacks
     if (stack.owner === playerNumber) {
       console.log('[handleBuildTap] Own stack - showing confirm modal for temp stacks');
       // For own temp stacks, show confirm modal (dual builds feature)
       if (stack.type === 'temp_stack') {
         modals.openConfirmTempBuildModal(stack);
       }
-      setSelectedBuildForShiya(null);
       return;
     }
     
@@ -375,39 +368,12 @@ export function GameBoard({
     console.log('[handleBuildTap] Player:', playerNumber, 'Stack owner:', stack.owner, 'Are teammates:', isTeammate);
     if (!isTeammate) {
       console.log('[handleBuildTap] Not a teammate stack');
-      setSelectedBuildForShiya(null);
       return;
     }
     
-    // Check if Shiya is already active
-    if (stack.shiyaActive) {
-      console.log('[handleBuildTap] Shiya already active');
-      setSelectedBuildForShiya(null);
-      return;
-    }
-    
-    // Check if we have a matching card (matches stack value - works for both builds and temp stacks)
-    const myHand = gameState.players?.[playerNumber]?.hand ?? [];
-    const hasMatch = myHand.some((card: any) => card.value === stack.value);
-    console.log('[handleBuildTap] Stack value:', stack.value, 'Has matching card:', hasMatch, 'Hand:', myHand.map((c: any) => c.value));
-    
-    if (hasMatch) {
-      // Eligible for Shiya - set selected for Shiya button (works for both builds and temp stacks)
-      console.log('[handleBuildTap] Setting selected stack for Shiya');
-      setSelectedBuildForShiya(stack);
-      
-      // Auto-hide Shiya button after 5 seconds if not clicked
-      if (shiyaButtonTimerRef.current) clearTimeout(shiyaButtonTimerRef.current);
-      shiyaButtonTimerRef.current = setTimeout(() => {
-        setSelectedBuildForShiya(null);
-        shiyaButtonTimerRef.current = null;
-      }, 5000);
-    } else {
-      // Not eligible for Shiya - show confirm modal for own temp stacks only
-      if (stack.type === 'temp_stack' && stack.owner === playerNumber) {
-        modals.openConfirmTempBuildModal(stack);
-      }
-      setSelectedBuildForShiya(null);
+    // Not party mode - only handle confirm modal for own temp stacks (dual builds feature)
+    if (stack.type === 'temp_stack' && stack.owner === playerNumber) {
+      modals.openConfirmTempBuildModal(stack);
     }
   }, [gameState, playerNumber, modals]);
 
@@ -451,6 +417,8 @@ export function GameBoard({
     }
     
     console.log('[handleRecallAttempt] Attempting recall from player', targetPlayerIndex);
+    // Play shiya sound when user initiates recall
+    playShiya();
     // Use unified recall - the server will validate that this player is the activator
     // Get the recall ID from shiyaRecalls
     const myRecalls = gameState.shiyaRecalls?.[playerNumber] as Record<string, any> | undefined;
@@ -458,7 +426,7 @@ export function GameBoard({
       const recallId = Object.keys(myRecalls)[0];
       actions.recall(recallId);
     }
-  }, [gameState, playerNumber, actions]);
+  }, [gameState, playerNumber, actions, playShiya]);
 
   // Drag handlers
   // IMPORTANT: Use gameState.tableCards directly instead of computed.table
@@ -678,15 +646,6 @@ export function GameBoard({
     actions.endTurn();
   }, [modals, actions]);
 
-  const handleShiyaAction = useCallback((stackId: string) => {
-    if (shiyaButtonTimerRef.current) {
-      clearTimeout(shiyaButtonTimerRef.current);
-      shiyaButtonTimerRef.current = null;
-    }
-    setSelectedBuildForShiya(null);
-    actions.shiya(stackId);
-  }, [actions]);
-
   const handleConfirmTempBuild = useCallback((value: number) => {
     if (modals.confirmTempBuildStack) {
       actions.setTempBuildValue(modals.confirmTempBuildStack.stackId, value);
@@ -837,11 +796,9 @@ export function GameBoard({
         onTrailSound={playTrail}
         // Sound effect for button clicks
         onPlayButtonSound={playButton}
-        // Shiya props - party mode build capture
+        // Game state for party mode
         gameState={gameState}
         currentPlayer={gameState.currentPlayer}
-        selectedBuild={selectedBuildForShiya}
-        onShiya={handleShiyaAction}
       />
 
       <DragGhost 

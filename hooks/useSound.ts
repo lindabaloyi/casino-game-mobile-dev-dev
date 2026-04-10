@@ -18,6 +18,7 @@ interface SoundObjects {
   capture: Audio.Sound | null;
   trail: Audio.Sound | null;
   button: Audio.Sound | null;
+  shiya: Audio.Sound | null;
 }
 
 // Sound file paths
@@ -25,6 +26,7 @@ const CARD_CONTACT_SOUND = require('../assets/sound effects/card contact sound e
 const CAPTURE_SOUND = require('../assets/sound effects/capture sound effect.mp3');
 const TRAIL_SOUND = require('../assets/sound effects/trailing sound effect.mp3');
 const BUTTON_SOUND = require('../assets/sound effects/buttons sound effect.mp3');
+const SHIYA_SOUND = require('../assets/sound effects/shiya.mp3');
 
 export function useSound() {
   const soundsRef = useRef<SoundObjects>({
@@ -32,6 +34,7 @@ export function useSound() {
     capture: null,
     trail: null,
     button: null,
+    shiya: null,
   });
 
   // Mute state for background music
@@ -78,6 +81,13 @@ export function useSound() {
         );
         soundsRef.current.button = buttonSound;
 
+        // Load shiya sound
+        const { sound: shiyaSound } = await Audio.Sound.createAsync(
+          SHIYA_SOUND,
+          { volume: 0.7, shouldPlay: false }
+        );
+        soundsRef.current.shiya = shiyaSound;
+
         isLoadedRef.current = true;
         console.log('[useSound] All sounds loaded successfully');
       } catch (error) {
@@ -102,6 +112,9 @@ export function useSound() {
           }
           if (soundsRef.current.button) {
             await soundsRef.current.button.unloadAsync();
+          }
+          if (soundsRef.current.shiya) {
+            await soundsRef.current.shiya.unloadAsync();
           }
         } catch (error) {
           console.error('[useSound] Error cleaning up sounds:', error);
@@ -195,6 +208,23 @@ export function useSound() {
     }
   }, []);
 
+  // Play shiya sound
+  const playShiya = useCallback(async () => {
+    if (!isLoadedRef.current || !soundsRef.current.shiya) {
+      console.log('[useSound] Shiya sound not loaded yet');
+      return;
+    }
+
+    try {
+      // Reset to beginning before playing
+      await soundsRef.current.shiya.setPositionAsync(0);
+      await soundsRef.current.shiya.playAsync();
+      console.log('[useSound] Shiya sound playing');
+    } catch (error) {
+      console.error('[useSound] Error playing shiya sound:', error);
+    }
+  }, []);
+
   // Toggle mute - now just delegates to SoundContext
   const toggleMute = useCallback(async () => {
     // This is now handled by useSoundContext
@@ -212,6 +242,7 @@ export function useSound() {
     playTrail,
     playTableCardDrag,
     playButton,
+    playShiya,
   };
 }
 

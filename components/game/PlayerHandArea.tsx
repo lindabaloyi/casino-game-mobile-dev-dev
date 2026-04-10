@@ -93,10 +93,6 @@ interface Props {
   gameState?: GameState;
   /** Current player index */
   currentPlayer?: number;
-  /** Selected build for Shiya check */
-  selectedBuild?: any | null;
-  /** Shiya callback - for party mode capture of teammate's build */
-  onShiya?: (stackId: string) => void;
   /** Pending drop card - for optimistic UI to hide card immediately after drop */
   pendingDropCard?: Card | null;
   /** Pending drop source - 'hand' | 'captured' | 'table' | null */
@@ -143,8 +139,6 @@ export function PlayerHandArea({
   onEndTurn,
   gameState,
   currentPlayer,
-  selectedBuild,
-  onShiya,
   pendingDropCard,
   pendingDropSource,
   onCardContact,
@@ -246,17 +240,6 @@ export function PlayerHandArea({
     };
   }, [sortedHand.length, screenWidth]);
 
-  // Check if Shiya action is available for selected build
-  // The button appears when player taps on a qualifying build (before/during turn)
-  const canShiya = useMemo(() => {
-    // Must have selectedBuild and onShiya callback
-    // (selectedBuild is now set by tapping on a build, validated in GameBoard)
-    if (!selectedBuild || !onShiya) {
-      return false;
-    }
-    return true;
-  }, [selectedBuild, onShiya]);
-
   // Card row style - centered when shouldCenterCards is true (6 cards)
   const cardRowStyle = useMemo(() => {
     return [
@@ -336,8 +319,8 @@ export function PlayerHandArea({
         })}
       </ScrollView>
       
-      {/* Action strip for pending stack OR Shiya - positioned on the right side */}
-      {((activeStackId && activeStackType && onAcceptStack && onCancelStack) || canShiya) ? (
+      {/* Action strip for pending stack - positioned on the right side */}
+      {(activeStackId && activeStackType && onAcceptStack && onCancelStack) ? (
         <View style={styles.actionStripContainer}>
           <View style={styles.actionButtons}>
             {activeStackId && activeStackType && onAcceptStack && onCancelStack && (
@@ -365,21 +348,6 @@ export function PlayerHandArea({
                   <Text style={styles.actionButtonText}>Cancel</Text>
                 </TouchableOpacity>
               </>
-            )}
-            {canShiya && (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.shiyaButton]}
-                onPress={() => {
-                  if (onPlayButtonSound) onPlayButtonSound();
-                  if (selectedBuild && onShiya) {
-                    // Use the actual stackId from the selected build
-                    onShiya(selectedBuild.stackId);
-                  }
-                }}
-                accessibilityLabel="Shiya"
-              >
-                <Text style={styles.actionButtonText}>Shiya</Text>
-              </TouchableOpacity>
             )}
           </View>
         </View>
@@ -453,10 +421,6 @@ const styles = StyleSheet.create({
   cancelButton: {
     backgroundColor: '#f44336',
     borderColor: '#d32f2f',
-  },
-  shiyaButton: {
-    backgroundColor: '#FF9800',
-    borderColor: '#F57C00',
   },
   recallButton: {
     backgroundColor: '#9C27B0',
