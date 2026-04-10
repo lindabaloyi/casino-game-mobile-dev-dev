@@ -156,11 +156,20 @@ export function useDragHandlers({
     // Check loose cards
     const targetCardResult = findCardAtPoint?.(absX, absY);
     if (targetCardResult && dragOverlay.draggingCard) {
-      // Play sound on successful drop
+      const isSameCard = targetCardResult.card.rank === dragOverlay.draggingCard.rank &&
+                         targetCardResult.card.suit === dragOverlay.draggingCard.suit;
+      const isFromTable = dragOverlay.dragSource === 'table';
+      
+      // Don't allow temp creation from table cards or onto same card - treat as miss
+      if (isSameCard || isFromTable) {
+        handleDragEnd(undefined, 'miss');
+        return;
+      }
+      
+      // Valid - proceed with createTemp
       if (onTableCardDragDrop) {
         onTableCardDragDrop();
       }
-      // Pass the source so SmartRouter can determine capture vs createTemp
       actions.createTemp(dragOverlay.draggingCard, targetCardResult.card, dragOverlay.dragSource || 'hand');
       handleDragEnd('card', 'success', targetCardResult.id);
       return;
