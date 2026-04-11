@@ -28,7 +28,6 @@ import { useActionHandlers } from '../../hooks/game/useActionHandlers';
 import { useTableBounds } from '../../hooks/game/useTableBounds';
 import { useTurnTimer } from '../../hooks/game/useTurnTimer';
 import { useCaptureSound } from '../../hooks/useCaptureSound';
-import { areTeammates, isPartyGame } from '../../shared/game/team';
 import { useSound } from '../../hooks/useSound';
 import { useTournamentStatus } from '../../hooks/useTournamentStatus';
 
@@ -43,6 +42,7 @@ import { GameOverModal } from '../modals/GameOverModal';
 import { HomeMenuButton } from './HomeMenuButton';
 import { OpponentProfileModal } from '../modals/OpponentProfileModal';
 import { useOpponentInfo } from '../../hooks/useOpponentInfo';
+import { areTeammates } from '../../shared/game/team';
 import { CornerTimer } from './CornerTimer';
 import { RoundIndicator } from './RoundIndicator';
 import { TurnStatusIndicator } from './TurnStatusIndicator';
@@ -338,6 +338,15 @@ export function GameBoard({
     setDragVersion(v => v + 1);
   };
 
+  // Play shiya sound on successful recall
+  useEffect(() => {
+    const lastAction = (gameState as any)?.lastAction;
+    if (lastAction === 'recall') {
+      console.log('[GameBoard] Recall completed - playing shiya sound');
+      playShiya();
+    }
+  }, [gameState, playShiya]);
+
   // Handle build tap for Shiya selection or dual builds
   const handleBuildTap = useCallback((stack: any) => {
     console.log('[handleBuildTap] Tapped stack:', stack?.type, 'owner:', stack?.owner, 'value:', stack?.value);
@@ -353,7 +362,9 @@ export function GameBoard({
       return;
     }
     
-    // Check if it's own stack - show confirm modal for temp stacks
+    // === SHIYA ELIGIBILITY CHECK (for BOTH build_stack and temp_stack) ===
+    
+    // Check if it's own stack - no Shiya on own stacks
     if (stack.owner === playerNumber) {
       console.log('[handleBuildTap] Own stack - showing confirm modal for temp stacks');
       // For own temp stacks, show confirm modal (dual builds feature)
@@ -417,8 +428,6 @@ export function GameBoard({
     }
     
     console.log('[handleRecallAttempt] Attempting recall from player', targetPlayerIndex);
-    // Play shiya sound when user initiates recall
-    playShiya();
     // Use unified recall - the server will validate that this player is the activator
     // Get the recall ID from shiyaRecalls
     const myRecalls = gameState.shiyaRecalls?.[playerNumber] as Record<string, any> | undefined;
@@ -426,7 +435,7 @@ export function GameBoard({
       const recallId = Object.keys(myRecalls)[0];
       actions.recall(recallId);
     }
-  }, [gameState, playerNumber, actions, playShiya]);
+  }, [gameState, playerNumber, actions]);
 
   // Drag handlers
   // IMPORTANT: Use gameState.tableCards directly instead of computed.table
@@ -553,18 +562,7 @@ export function GameBoard({
 
     // Forward to server - router decides action (capture, steal, extend, etc.)
     console.log('[GameBoard.handleDropOnStack] 📤 Forwarding to server');
-
-    if (stackType === 'build_stack') {
-      const isFriendly = stackOwner === playerNumber || (isPartyGame(gameState) && areTeammates(playerNumber, stackOwner));
-      if (isFriendly) {
-        actions.friendBuildDrop(card, stackId, source);
-      } else {
-        actions.opponentBuildDrop(card, stackId, source);
-      }
-    } else {
-      // temp_stack or loose card
-      actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
-    }
+    actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
   }, [modals, actions, gameState.tableCards, playerNumber, gameState.playerCount]);
 
   // ── Memoized Callbacks for Inline Handlers ─────────────────────────────────
@@ -634,14 +632,9 @@ export function GameBoard({
     const stackOwner = buildStack?.owner ?? 0;
     
     const source = cardSource || 'captured';
-    const isFriendly = stackOwner === playerNumber || (isPartyGame(gameState) && areTeammates(playerNumber, stackOwner));
-    if (isFriendly) {
-      actions.friendBuildDrop(card, stackId, source as any);
-    } else {
-      actions.opponentBuildDrop(card, stackId, source as any);
-    }
+    actions.stackDrop(card, stackId, stackOwner, 'build_stack', source as any);
     dragOverlay.endDrag();
-  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions, gameState.tableCards, playerNumber, gameState]);
+  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions, gameState.tableCards]);
 
   const handleDropBuildToCapture = useCallback((stack: any) => {
     actions.dropToCapture({ stackId: stack.stackId, stackType: 'build_stack' });
