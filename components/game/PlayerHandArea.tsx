@@ -64,11 +64,13 @@ interface Props {
   /** Table cards - needed for game logic */
   tableCards?: TableItem[];
   // ── DUMB callbacks - just report what was hit ────────────────────────────
-  /** Called when dropped on a stack - SmartRouter decides what action */
-  onDropOnStack: (card: Card, stackId: string, owner: number, stackType: 'temp_stack' | 'build_stack') => void;
-  /** Called when dropped on a specific card - SmartRouter decides what action */
-  onDropOnCard: (card: Card, targetCard: Card) => void;
-  /** Called when dropped on table zone - SmartRouter decides trail vs other */
+  /** Called when dropped on a build stack */
+  onDropOnBuildStack?: (card: Card, stackId: string, owner: number, source: string) => void;
+  /** Called when dropped on a temp stack */
+  onDropOnTempStack?: (card: Card, stackId: string, source: string) => void;
+  /** Called when dropped on an existing loose card - creates temp stack attached to target */
+  onDropOnLooseCard: (card: Card, targetCard: Card) => void;
+  /** Called when dropped on table zone */
   onDropOnTable: (card: Card) => void;
   // ── Legacy callbacks (for compatibility) ───────────────────────────────────
   onDragStart?: (card: Card) => void;
@@ -124,8 +126,9 @@ export function PlayerHandArea({
   findCardAtPoint,
   findTempStackAtPoint,
   tableCards,
-  onDropOnStack,
-  onDropOnCard,
+  onDropOnBuildStack,
+  onDropOnTempStack,
+  onDropOnLooseCard,
   onDropOnTable,
   onDragStart,
   onDragMove,
@@ -302,8 +305,9 @@ export function PlayerHandArea({
                   playerNumber={playerNumber}
                   playerHand={hand}
                   tableCards={tableCards}
-                  onDropOnStack={onDropOnStack}
-                  onDropOnCard={onDropOnCard}
+                  onDropOnBuildStack={onDropOnBuildStack}
+                  onDropOnTempStack={onDropOnTempStack}
+                  onDropOnLooseCard={onDropOnLooseCard}
                   onDropOnTable={handleDropOnTable}
                   onDragStart={onDragStart}
                   onDragMove={onDragMove}

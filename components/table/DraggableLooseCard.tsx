@@ -41,8 +41,10 @@ export interface DraggableLooseCardProps {
   findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack'; value?: number } | null;
 
   // ── DUMB callbacks - just report what was hit ────────────────────────────
-  /** Called when dropped on a stack - SmartRouter decides what action */
-  onDropOnStack: (card: Card, stackId: string, owner: number, stackType: 'temp_stack' | 'build_stack') => void;
+  /** Called when dropped on a build stack */
+  onDropOnBuildStack?: (card: Card, stackId: string, owner: number, source: string) => void;
+  /** Called when dropped on a temp stack */
+  onDropOnTempStack?: (card: Card, stackId: string, source: string) => void;
   /** Called when dropped on a card - SmartRouter decides what action */
   onDropOnCard: (card: Card, targetCard: Card) => void;
   
@@ -68,7 +70,8 @@ export function DraggableLooseCard({
   unregisterCard,
   findCardAtPoint,
   findTempStackAtPoint,
-  onDropOnStack,
+  onDropOnBuildStack,
+  onDropOnTempStack,
   onDropOnCard,
   onDragStart,
   onDragMove,
@@ -126,7 +129,8 @@ export function DraggableLooseCard({
         playerNumber={playerNumber}
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
-        onDropOnStack={onDropOnStack}
+        onDropOnBuildStack={onDropOnBuildStack}
+        onDropOnTempStack={onDropOnTempStack}
         onDropOnCard={onDropOnCard}
         onDragStart={onDragStart}
         onDragMove={onDragMove}

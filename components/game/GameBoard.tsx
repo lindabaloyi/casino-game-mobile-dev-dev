@@ -42,7 +42,7 @@ import { GameOverModal } from '../modals/GameOverModal';
 import { HomeMenuButton } from './HomeMenuButton';
 import { OpponentProfileModal } from '../modals/OpponentProfileModal';
 import { useOpponentInfo } from '../../hooks/useOpponentInfo';
-import { areTeammates } from '../../shared/game/team';
+import { areTeammates, isPartyGame } from '../../shared/game/team';
 import { CornerTimer } from './CornerTimer';
 import { RoundIndicator } from './RoundIndicator';
 import { TurnStatusIndicator } from './TurnStatusIndicator';
@@ -482,28 +482,28 @@ export function GameBoard({
   // 
   // IMPORTANT: Use gameState.tableCards directly instead of computed.table
   // to avoid stale closure issues where useMemo may lag behind gameState updates.
-  const handleDropOnStack = useCallback((
+  
+  // ── Build Stack Drop Handler ────────────────────────────────────────────────
+  const handleBuildStackDrop = useCallback((
     card: any,
     stackId: string,
     stackOwner: number,
-    stackType: string,
     source: 'hand' | 'table' | 'captured'
   ) => {
-    console.log('[GameBoard.handleDropOnStack] 📥 Input:', { card: card?.rank, stackId, stackOwner, stackType, source, playerNumber });
+    console.log('[GameBoard.handleBuildStackDrop] 📥 Input:', { card: card?.rank, stackId, stackOwner, source, playerNumber });
     
     // Hide end turn button when player makes a new action
     modals.hideEndTurnButton();
 
     // PRE-CHECK: If dropping on opponent's build with hand card, check if we should show steal modal
     // Note: In party mode, don't show steal modal for teammate builds - server handles extension/rejection
-    console.log('[GameBoard.handleDropOnStack] 🔍 Check conditions:', {
+    console.log('[GameBoard.handleBuildStackDrop] 🔍 Check conditions:', {
       isHandCard: source === 'hand',
-      isBuildStack: stackType === 'build_stack',
       isOpponentBuild: stackOwner !== playerNumber,
     });
     
-    if (source === 'hand' && stackType === 'build_stack' && stackOwner !== playerNumber) {
-      console.log('[GameBoard.handleDropOnStack] ✅ Conditions met for steal check');
+    if (source === 'hand' && stackOwner !== playerNumber) {
+      console.log('[GameBoard.handleBuildStackDrop] ✅ Conditions met for steal check');
       
       // Use gameState.tableCards directly instead of computed.table for latest state
       const tableCards = gameState.tableCards ?? [];
@@ -511,7 +511,7 @@ export function GameBoard({
         (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
       ) as any;
 
-      console.log('[GameBoard.handleDropOnStack] 🎯 Target build found:', targetBuild ? {
+      console.log('[GameBoard.handleBuildStackDrop] 🎯 Target build found:', targetBuild ? {
         stackId: targetBuild.stackId,
         value: targetBuild.value,
         hasBase: targetBuild.hasBase,
@@ -525,7 +525,7 @@ export function GameBoard({
         const isTeammate = isPartyMode && areTeammates(playerNumber, targetBuild.owner);
         
         if (isTeammate) {
-          console.log('[GameBoard.handleDropOnStack] 🤝 Teammate build - proceeding to server (no steal modal)');
+          console.log('[GameBoard.handleBuildStackDrop] 🤝 Teammate build - proceeding to server (no steal modal)');
         } else {
           // Check if this would be a steal (not a capture, not a base build, value < 10)
           const isCapture = card.value === targetBuild.value;
@@ -533,7 +533,7 @@ export function GameBoard({
           const isValue10 = targetBuild.value === 10;
           const isSteal = !isCapture && !isBaseBuild && !isValue10;
 
-          console.log('[GameBoard.handleDropOnStack] 💰 Steal check results:', {
+          console.log('[GameBoard.handleBuildStackDrop] 💰 Steal check results:', {
             cardValue: card.value,
             buildValue: targetBuild.value,
             isCapture,
@@ -545,25 +545,45 @@ export function GameBoard({
 
           if (isSteal) {
             // Show steal modal instead of directly sending action
-            console.log('[GameBoard.handleDropOnStack] 🎉 Calling openStealModal with:', { card: card?.rank, buildValue: targetBuild.value });
+            console.log('[GameBoard.handleBuildStackDrop] 🎉 Calling openStealModal with:', { card: card?.rank, buildValue: targetBuild.value });
             modals.openStealModal(card, targetBuild);
-            console.log('[GameBoard.handleDropOnStack] ✅ openStealModal called, returning early');
+            console.log('[GameBoard.handleBuildStackDrop] ✅ openStealModal called, returning early');
             return;
           } else {
-            console.log('[GameBoard.handleDropOnStack] ⚠️ Not a steal, proceeding to server');
+            console.log('[GameBoard.handleBuildStackDrop] ⚠️ Not a steal, proceeding to server');
           }
         }
       } else {
-        console.log('[GameBoard.handleDropOnStack] ❌ Target build not found, proceeding to server');
+        console.log('[GameBoard.handleBuildStackDrop] ❌ Target build not found, proceeding to server');
       }
     } else {
-      console.log('[GameBoard.handleDropOnStack] ⚠️ Conditions NOT met for steal modal, proceeding to server');
+      console.log('[GameBoard.handleBuildStackDrop] ⚠️ Conditions NOT met for steal modal, proceeding to server');
     }
 
-    // Forward to server - router decides action (capture, steal, extend, etc.)
-    console.log('[GameBoard.handleDropOnStack] 📤 Forwarding to server');
-    actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
+    // Forward to server - use specific action based on ownership
+    console.log('[GameBoard.handleBuildStackDrop] 📤 Forwarding to server');
+
+    // Determine if friendly build (own or teammate)
+    const isFriendly = stackOwner === playerNumber || 
+      (isPartyGame(gameState) && areTeammates(playerNumber, stackOwner));
+    
+    if (isFriendly) {
+      actions.friendBuildDrop(card, stackId, source);
+    } else {
+      actions.opponentBuildDrop(card, stackId, source);
+    }
   }, [modals, actions, gameState.tableCards, playerNumber, gameState.playerCount]);
+
+  // ── Temp Stack Drop Handler ─────────────────────────────────────────────────
+  const handleTempStackDrop = useCallback((
+    card: any,
+    stackId: string,
+    source: 'hand' | 'table' | 'captured'
+  ) => {
+    console.log('[GameBoard.handleTempStackDrop] 📥 Input:', { card: card?.rank, stackId, source });
+    modals.hideEndTurnButton();
+    actions.addToTemp(card, stackId, source);
+  }, [modals, actions]);
 
   // ── Memoized Callbacks for Inline Handlers ─────────────────────────────────
   
@@ -632,15 +652,24 @@ export function GameBoard({
     const stackOwner = buildStack?.owner ?? 0;
     
     const source = cardSource || 'captured';
-    actions.stackDrop(card, stackId, stackOwner, 'build_stack', source as any);
+    
+    // Use specific action based on build ownership
+    const isFriendly = stackOwner === playerNumber || 
+      (isPartyGame(gameState) && areTeammates(playerNumber, stackOwner));
+    
+    if (isFriendly) {
+      actions.friendBuildDrop(card, stackId, source);
+    } else {
+      actions.opponentBuildDrop(card, stackId, source);
+    }
     dragOverlay.endDrag();
-  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions, gameState.tableCards]);
+  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions, gameState.tableCards, playerNumber, gameState.playerCount]);
 
   const handleDropBuildToCapture = useCallback((stack: any) => {
     actions.dropToCapture({ stackId: stack.stackId, stackType: 'build_stack' });
   }, [actions]);
 
-  const handleDropOnCard = useCallback((card: any, targetCard: any) => {
+  const handleLooseCardDrop = useCallback((card: any, targetCard: any) => {
     modals.hideEndTurnButton();
     actions.createTemp(card, targetCard, 'hand');
   }, [modals, actions]);
@@ -733,7 +762,8 @@ export function GameBoard({
         findCardAtPoint={drag.findCardAtPoint}
         findTempStackAtPoint={drag.findTempStackAtPoint}
         onTableCardDropOnCard={handleTableCardDropOnCard}
-        onStackDrop={(card, stackId, owner, stackType) => handleDropOnStack(card, stackId, owner, stackType, 'table')}
+        onDropOnBuildStack={(card, stackId, owner, source) => handleBuildStackDrop(card, stackId, owner, source || 'table')}
+        onDropOnTempStack={(card, stackId, source) => handleTempStackDrop(card, stackId, source || 'table')}
         onTableDragStart={dragHandlers.handleTableDragStart}
         onTableDragMove={dragHandlers.handleDragMove}
         onTableDragEnd={dragHandlers.handleTableDragEnd}
@@ -782,8 +812,9 @@ export function GameBoard({
         findCardAtPoint={drag.findCardAtPoint}
         findTempStackAtPoint={drag.findTempStackAtPoint}
         tableCards={computed.table}
-        onDropOnStack={(card, stackId, stackOwner, stackType) => handleDropOnStack(card, stackId, stackOwner, stackType, 'hand')}
-        onDropOnCard={handleDropOnCard}
+        onDropOnBuildStack={handleBuildStackDrop}
+        onDropOnTempStack={handleTempStackDrop}
+        onDropOnLooseCard={handleLooseCardDrop}
         onDropOnTable={handleDropOnTable}
         onDragStart={dragHandlers.handleHandDragStart}
         onDragMove={dragHandlers.handleDragMove}

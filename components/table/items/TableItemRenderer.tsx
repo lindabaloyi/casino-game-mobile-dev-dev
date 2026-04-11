@@ -18,7 +18,8 @@ interface TableItemRendererProps {
   findCardAtPoint: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
   findCapturePileAtPoint?: (x: number, y: number) => CapturePileBounds | null;
-  onStackDrop?: (card: Card, stackId: string, stackOwner: number, stackType: 'temp_stack' | 'build_stack') => void;
+  onDropOnBuildStack?: (card: Card, stackId: string, stackOwner: number, source: string) => void;
+  onDropOnTempStack?: (card: Card, stackId: string, source: string) => void;
   onTableCardDropOnCard?: (card: Card, targetCard: Card) => void;
   onTableDragStart: (card: Card, absoluteX: number, absoluteY: number) => void;
   onTableDragMove: (absoluteX: number, absoluteY: number) => void;

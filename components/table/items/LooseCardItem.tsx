@@ -12,7 +12,8 @@ interface LooseCardItemProps {
   unregisterCard: (id: string) => void;
   findCardAtPoint: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
-  onStackDrop?: (card: Card, stackId: string, stackOwner: number, stackType: 'temp_stack' | 'build_stack') => void;
+  onDropOnBuildStack?: (card: Card, stackId: string, stackOwner: number, source: string) => void;
+  onDropOnTempStack?: (card: Card, stackId: string, source: string) => void;
   onTableCardDropOnCard?: (card: Card, targetCard: Card) => void;
   onTableDragStart: (card: Card, absoluteX: number, absoluteY: number) => void;
   onTableDragMove: (absoluteX: number, absoluteY: number) => void;
@@ -35,7 +36,8 @@ export function LooseCardItem({
   unregisterCard,
   findCardAtPoint,
   findTempStackAtPoint,
-  onStackDrop,
+  onDropOnBuildStack,
+  onDropOnTempStack,
   onTableCardDropOnCard,
   onTableDragStart,
   onTableDragMove,
@@ -70,9 +72,8 @@ export function LooseCardItem({
       findCardAtPoint={findCardAtPoint}
       findTempStackAtPoint={findTempStackAtPoint}
       isHidden={shouldHide}
-      onDropOnStack={(droppedCard, stackId, stackOwner, stackType) => {
-        onStackDrop?.(droppedCard, stackId, stackOwner, stackType);
-      }}
+      onDropOnBuildStack={onDropOnBuildStack}
+      onDropOnTempStack={onDropOnTempStack}
       onDropOnCard={(droppedCard, targetCard) => {
         onTableCardDropOnCard?.(droppedCard, targetCard);
       }}

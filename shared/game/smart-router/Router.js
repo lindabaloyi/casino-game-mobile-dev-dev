@@ -51,9 +51,6 @@ class Router {
     console.log('[Router] playerIndex:', playerIndex);
 
     switch (actionType) {
-      case 'stackDrop':
-        return this.routeStackDrop(payload, state, playerIndex);
-
       case 'friendBuildDrop':
         return this.routeFriendBuildDrop(payload, state, playerIndex);
 
@@ -82,82 +79,6 @@ class Router {
       default:
         // No routing needed
         return { type: actionType, payload };
-    }
-  }
-
-  /**
-   * Route stack drop action - handles temp, build, and loose card drops
-   */
-  routeStackDrop(payload, state, playerIndex) {
-    const { stackType, stackId, card, cardSource } = payload;
-
-    console.log('[Router.stackDrop] stackType:', stackType);
-    console.log('[Router.stackDrop] stackId:', stackId);
-    console.log('[Router.stackDrop] card:', card?.rank, card?.suit);
-
-    // Route based on stack type
-    switch (stackType) {
-      case 'temp_stack':
-        return this.routeTempStackDrop(payload, state, playerIndex);
-      
-      case 'build_stack':
-        return this.routeBuildStackDrop(payload, state, playerIndex);
-      
-      default:
-        // Loose card (no stackType)
-        return this.looseCardRouter.routeCreateTemp(payload, state, playerIndex);
-    }
-  }
-
-  /**
-   * Route temp stack drop
-   */
-  routeTempStackDrop(payload, state, playerIndex) {
-    const { stackId } = payload;
-    
-    console.log('[Router.tempStack] stackId:', stackId);
-    
-    // Validate temp stack exists
-    const stack = state.tableCards.find(
-      tc => tc.type === 'temp_stack' && tc.stackId === stackId
-    );
-
-    if (!stack) {
-      throw new Error(`Temp stack "${stackId}" not found`);
-    }
-
-    console.log('[Router.tempStack] found, owner:', stack.owner);
-    
-    // Delegate to handler
-    return this.tempHandler.handle(payload, state, playerIndex);
-  }
-
-  /**
-   * Route build stack drop
-   */
-  routeBuildStackDrop(payload, state, playerIndex) {
-    const { stackId } = payload;
-
-    console.log('[Router.buildStack] stackId:', stackId);
-
-    // Find the build stack
-    const stack = StackHelper.findStack(state, stackId);
-
-    if (!stack) {
-      throw new Error(`Build stack "${stackId}" not found`);
-    }
-
-    console.log('[Router.buildStack] found, owner:', stack.owner);
-
-    // Determine if friendly (owned by player or teammate)
-    const isFriendly = this.isFriendlyBuild(stack, playerIndex, state);
-    console.log('[Router.buildStack] isFriendly:', isFriendly);
-
-    // Route to appropriate handler
-    if (isFriendly) {
-      return this.friendlyHandler.handle(payload, stack, state, playerIndex);
-    } else {
-      return this.opponentHandler.handle(payload, stack, state, playerIndex);
     }
   }
 

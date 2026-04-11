@@ -5,10 +5,12 @@
  * UI is DUMB - just detects WHAT was hit, SmartRouter decides WHAT IT MEANS.
  *
  * Drop detection (JS-thread — never inside a worklet):
- *   1. If the finger lands on a stack → onDropOnStack(card, stackId, owner, stackType)
- *   2. If the finger lands on a SPECIFIC table card → onDropOnCard(card, targetCard)
- *   3. If the finger lands anywhere on the table → onDropOnTable(card)
- *   4. Otherwise → snap back
+ *   1. If the finger lands on a build stack → onDropOnBuildStack(card, stackId, owner, source)
+ *   2. If the finger lands on a temp stack → onDropOnTempStack(card, stackId, source)
+ *   3. If the finger lands on a loose card area → onDropOnLooseCard(card, source)
+ *   4. If the finger lands on a SPECIFIC table card → onDropOnLooseCard(card, targetCard)
+ *   5. If the finger lands anywhere on the table → onDropOnTable(card)
+ *   6. Otherwise → snap back
  *
  * Threading note:
  *   On native, RNGH callbacks run as UI-thread worklets. Reanimated serialises
@@ -57,11 +59,13 @@ interface Props {
   /** Table cards - needed for game logic */
   tableCards?: TableItem[];
   // ── DUMB callbacks - just report what was hit ────────────────────────────
-  /** Called when dropped on a stack - SmartRouter decides what action */
-  onDropOnStack: (card: Card, stackId: string, owner: number, stackType: 'temp_stack' | 'build_stack') => void;
-  /** Called when dropped on a specific card - SmartRouter decides what action */
-  onDropOnCard: (card: Card, targetCard: Card) => void;
-  /** Called when dropped on table zone - SmartRouter decides trail vs other */
+  /** Called when dropped on a build stack */
+  onDropOnBuildStack?: (card: Card, stackId: string, owner: number, source: string) => void;
+  /** Called when dropped on a temp stack */
+  onDropOnTempStack?: (card: Card, stackId: string, source: string) => void;
+  /** Called when dropped on an existing loose card - creates temp stack attached to target */
+  onDropOnLooseCard: (card: Card, targetCard: Card) => void;
+  /** Called when dropped on table zone - for trail action */
   onDropOnTable: (card: Card) => void;
   // ── Double-tap for createSingleTemp ───────────────────────────────────────
   /** Called when card is double-tapped - for creating single-card temp stack */
@@ -91,8 +95,9 @@ export function DraggableHandCard({
   playerNumber,
   playerHand,
   tableCards,
-  onDropOnStack,
-  onDropOnCard,
+  onDropOnBuildStack,
+  onDropOnTempStack,
+  onDropOnLooseCard,
   onDropOnTable,
   onDoubleTap,
   onDragStart,
@@ -165,7 +170,13 @@ export function DraggableHandCard({
       // Play card contact sound when card hits a stack
       console.log('[DraggableHandCard] Card dropped on stack, calling onCardContact');
       if (onCardContact) onCardContact();
-      onDropOnStack(card, stackHit.stackId, stackHit.owner, stackHit.stackType);
+      
+      // Call specific handler based on stack type
+      if (stackHit.stackType === 'build_stack' && onDropOnBuildStack) {
+        onDropOnBuildStack(card, stackHit.stackId, stackHit.owner, 'hand');
+      } else if (stackHit.stackType === 'temp_stack' && onDropOnTempStack) {
+        onDropOnTempStack(card, stackHit.stackId, 'hand');
+      }
       return;
     }
     
@@ -177,11 +188,11 @@ export function DraggableHandCard({
       // Play card contact sound when card hits another card
       console.log('[DraggableHandCard] Card dropped on card, calling onCardContact');
       if (onCardContact) onCardContact();
-      onDropOnCard(card, targetCardResult.card);
+      onDropOnLooseCard(card, targetCardResult.card);
       return;
     }
     
-    // 3. Check if in table zone (trail area)
+    // 3. Check if in table zone (loose card / trail area)
     const inZone = inTableZone(absX, absY, bounds);
 
     if (inZone) {
@@ -190,6 +201,8 @@ export function DraggableHandCard({
       // Play card contact sound when card hits the table
       console.log('[DraggableHandCard] Card dropped on table, calling onCardContact');
       if (onCardContact) onCardContact();
+      
+      // Table zone drop = trail action
       onDropOnTable(card);
     } else {
       handleSnapBack();

@@ -51,8 +51,9 @@ interface Props {
   findCardAtPoint:     (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
 
-  // Stack drop handler - DUMB, just passes to GameBoard
-  onStackDrop?: (card: Card, stackId: string, stackOwner: number, stackType: 'temp_stack' | 'build_stack') => void;
+  // Stack drop handlers - DUMB, just passes to GameBoard
+  onDropOnBuildStack?: (card: Card, stackId: string, stackOwner: number, source: string) => void;
+  onDropOnTempStack?: (card: Card, stackId: string, source: string) => void;
   // Legacy specific callbacks (kept for CapturedCardsView compatibility)
   onTableCardDropOnCard?: (card: Card, targetCard: Card) => void;
   onTableCardDropOnTemp?: (card: Card, stackId: string)  => void;
@@ -154,7 +155,8 @@ export function TableArea({
   unregisterTempStack,
   findCardAtPoint,
   findTempStackAtPoint,
-  onStackDrop,
+  onDropOnBuildStack,
+  onDropOnTempStack,
   onTableCardDropOnCard,
   onTableDragStart,
   onTableDragMove,
@@ -243,7 +245,8 @@ export function TableArea({
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
         findCapturePileAtPoint={findCapturePileAtPoint}
-        onStackDrop={onStackDrop}
+        onDropOnBuildStack={onDropOnBuildStack}
+        onDropOnTempStack={onDropOnTempStack}
         onTableCardDropOnCard={onTableCardDropOnCard}
         onTableDragStart={onTableDragStart}
         onTableDragMove={onTableDragMove}

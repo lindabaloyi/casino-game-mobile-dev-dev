@@ -34,8 +34,10 @@ interface Props {
   findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack'; value?: number } | null;
   
   // ── DUMB callbacks - just report what was hit ────────────────────────────
-  /** Called when dropped on a stack - SmartRouter decides what action */
-  onDropOnStack: (card: Card, stackId: string, owner: number, stackType: 'temp_stack' | 'build_stack') => void;
+  /** Called when dropped on a build stack */
+  onDropOnBuildStack?: (card: Card, stackId: string, owner: number, source: string) => void;
+  /** Called when dropped on a temp stack */
+  onDropOnTempStack?: (card: Card, stackId: string, source: string) => void;
   /** Called when dropped on a card - SmartRouter decides what action */
   onDropOnCard: (card: Card, targetCard: Card) => void;
   /** Called when card is double-tapped - for createSingleTemp */
@@ -55,7 +57,8 @@ export function DraggableTableCard({
   playerNumber,
   findCardAtPoint,
   findTempStackAtPoint,
-  onDropOnStack,
+  onDropOnBuildStack,
+  onDropOnTempStack,
   onDropOnCard,
   onDoubleTap,
   onDragStart,
@@ -112,7 +115,13 @@ export function DraggableTableCard({
       console.log(`[DraggableTableCard] DROP ON STACK — ${cardId} → stack ${stackHit.stackId} (${stackHit.stackType}) owned by P${stackHit.owner}`);
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
-      onDropOnStack(card, stackHit.stackId, stackHit.owner, stackHit.stackType);
+      
+      // Call specific handler based on stack type
+      if (stackHit.stackType === 'build_stack' && onDropOnBuildStack) {
+        onDropOnBuildStack(card, stackHit.stackId, stackHit.owner, 'table');
+      } else if (stackHit.stackType === 'temp_stack' && onDropOnTempStack) {
+        onDropOnTempStack(card, stackHit.stackId, 'table');
+      }
       return;
     }
 

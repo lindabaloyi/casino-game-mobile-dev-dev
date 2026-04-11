@@ -81,14 +81,13 @@ test('P2 extends P1 sum/diff build (no spare) → extendBuild', () => {
 
   const router = new Router();
   const payload = {
-    stackType: 'build_stack',
     stackId: 'buildP2_01',
     card: createCard('8', 'S'),
     cardSource: 'hand'
   };
 
   // P1 (playerIndex 1) tries to extend P0's build with 8♠
-  const result = router.route('stackDrop', payload, state, 1);
+  const result = router.route('friendBuildDrop', payload, state, 1);
 
   console.log('  Result:', result.type);
   expect(result.type).toBe('extendBuild');
@@ -118,14 +117,13 @@ test('P2 extends P1 same-rank build (no spare) → extendBuild', () => {
 
   const router = new Router();
   const payload = {
-    stackType: 'build_stack',
     stackId: 'buildP2_02',
     card: createCard('8', 'S'),
     cardSource: 'hand'
   };
 
   // P1 (playerIndex 1) tries to extend P0's same-rank build with 8♠
-  const result = router.route('stackDrop', payload, state, 1);
+  const result = router.route('friendBuildDrop', payload, state, 1);
 
   console.log('  Result:', result.type);
   expect(result.type).toBe('extendBuild');
@@ -155,14 +153,13 @@ test('P1 extends own sum/diff build (no spare) → captureOwn', () => {
 
   const router = new Router();
   const payload = {
-    stackType: 'build_stack',
     stackId: 'buildP2_03',
     card: createCard('8', 'S'),
     cardSource: 'hand'
   };
 
   // P0 tries to extend own build with 8♠ (no spare - only one 8 in hand)
-  const result = router.route('stackDrop', payload, state, 0);
+  const result = router.route('friendBuildDrop', payload, state, 0);
 
   console.log('  Result:', result.type);
   expect(result.type).toBe('captureOwn');
@@ -192,14 +189,13 @@ test('P2 extends P1 build with lower card → extendBuild', () => {
 
   const router = new Router();
   const payload = {
-    stackType: 'build_stack',
     stackId: 'buildP2_04',
     card: createCard('3', 'C'),
     cardSource: 'hand'
   };
 
   // P1 (playerIndex 1) extends with 3♣ (value 3 < target 8)
-  const result = router.route('stackDrop', payload, state, 1);
+  const result = router.route('friendBuildDrop', payload, state, 1);
 
   console.log('  Result:', result.type);
   expect(result.type).toBe('extendBuild');
@@ -229,14 +225,13 @@ test('P1 extends own build (has spare) → extendBuild', () => {
 
   const router = new Router();
   const payload = {
-    stackType: 'build_stack',
     stackId: 'buildP2_05',
     card: createCard('8', 'S'),
     cardSource: 'hand'
   };
 
   // P0 extends own build with 8♠ (has spare 8♥)
-  const result = router.route('stackDrop', payload, state, 0);
+  const result = router.route('friendBuildDrop', payload, state, 0);
 
   console.log('  Result:', result.type);
   expect(result.type).toBe('extendBuild');
