@@ -51,34 +51,43 @@ class FriendlyBuildHandler {
     let canExtend = false;
     let canCapture = false;
 
+    const isOwnBuild = stack.owner === playerIndex;
+
     if (isSameRankBuild) {
       canExtend = true;
       canCapture = true;
       console.log('[FriendlyBuildHandler] Card matches build rank → both actions possible');
     } else {
-        // Sum/diff – check for spares when card value matches build value
-        // If player has a spare card of same rank, they can extend instead of capture
         const playerHand = state.players[playerIndex]?.hand || [];
         const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
         const hasSpare = sameRankCount > 1;
         
         console.log('[FriendlyBuildHandler] Sum/diff: player has ' + sameRankCount + 'x ' + card.rank + ', spare exists: ' + hasSpare);
         
-        // Rule: if card value equals build value and player has spare, allow extend
-        if (card.value === target && hasSpare) {
+        if (isOwnBuild) {
+          console.log('[FriendlyBuildHandler] Extending own build → spare check applies');
+          if (card.value === target && hasSpare) {
+            canExtend = true;
+            canCapture = false;
+            console.log('[FriendlyBuildHandler] Sum/diff, has spare → EXTEND');
+          } else if (card.value === stack.value) {
+            canCapture = true;
+            console.log('[FriendlyBuildHandler] Capture possible (card value matches build value, no spare)');
+          }
+          if (card.value < target) {
+            canExtend = true;
+            console.log('[FriendlyBuildHandler] Extend possible (card value ' + card.value + ' < target ' + target + ')');
+          }
+        } else {
+          console.log('[FriendlyBuildHandler] Extending teammate\'s build → no spare check needed');
           canExtend = true;
-          canCapture = false;  // Override capture when spare exists
-          console.log('[FriendlyBuildHandler] Sum/diff, has spare → EXTEND');
-        } else if (card.value === stack.value) {
-          // No spare - can only capture
-          canCapture = true;
-          console.log('[FriendlyBuildHandler] Capture possible (card value matches build value, no spare)');
-        }
-        // Allow extension if card value is less than target (build value)
-        // This is the user's rule: "any card less than our build is extension"
-        if (card.value < target) {
-          canExtend = true;
-          console.log('[FriendlyBuildHandler] Extend possible (card value ' + card.value + ' < target ' + target + ')');
+          if (card.value === stack.value) {
+            canCapture = true;
+            console.log('[FriendlyBuildHandler] Capture also possible (card value matches build value)');
+          }
+          if (card.value < target) {
+            console.log('[FriendlyBuildHandler] Extend possible (card value ' + card.value + ' < target ' + target + ')');
+          }
         }
         if (!canExtend && !canCapture) {
           if (currentTotal === target) {
@@ -91,25 +100,40 @@ class FriendlyBuildHandler {
     // Decide action
     if (source === 'hand') {
       if (isSameRankBuild) {
-        const playerHand = state.players[playerIndex]?.hand || [];
-        const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
-        const hasSpare = sameRankCount > 1;
-        if (hasSpare) {
-          console.log('[FriendlyBuildHandler] Same‑rank, has spare → EXTEND');
-          return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
+        if (isOwnBuild) {
+          const playerHand = state.players[playerIndex]?.hand || [];
+          const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
+          const hasSpare = sameRankCount > 1;
+          if (hasSpare) {
+            console.log('[FriendlyBuildHandler] Same‑rank own build, has spare → EXTEND');
+            return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
+          } else {
+            console.log('[FriendlyBuildHandler] Same‑rank own build, no spare → CAPTURE');
+            return { type: 'captureOwn', payload: { card, targetType: 'build', targetStackId: stackId } };
+          }
         } else {
-          console.log('[FriendlyBuildHandler] Same‑rank, no spare → CAPTURE');
-          return { type: 'captureOwn', payload: { card, targetType: 'build', targetStackId: stackId } };
+          console.log('[FriendlyBuildHandler] Same‑rank teammate\'s build → EXTEND');
+          return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
         }
       } else {
-        // Sum/diff – no spare logic
-        if (canCapture) {
-          console.log('[FriendlyBuildHandler] Sum/diff, capture → CAPTURE');
-          return { type: 'captureOwn', payload: { card, targetType: 'build', targetStackId: stackId } };
-        }
-        if (canExtend) {
-          console.log('[FriendlyBuildHandler] Sum/diff, extend → EXTEND');
-          return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
+        if (!isOwnBuild) {
+          if (canExtend) {
+            console.log('[FriendlyBuildHandler] Sum/diff teammate\'s build → EXTEND');
+            return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
+          }
+          if (canCapture) {
+            console.log('[FriendlyBuildHandler] Sum/diff, capture → CAPTURE');
+            return { type: 'captureOwn', payload: { card, targetType: 'build', targetStackId: stackId } };
+          }
+        } else {
+          if (canCapture) {
+            console.log('[FriendlyBuildHandler] Sum/diff, capture → CAPTURE');
+            return { type: 'captureOwn', payload: { card, targetType: 'build', targetStackId: stackId } };
+          }
+          if (canExtend) {
+            console.log('[FriendlyBuildHandler] Sum/diff, extend → EXTEND');
+            return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
+          }
         }
       }
     } else {
