@@ -49,30 +49,36 @@ class Router {
     console.log('[Router] actionType:', actionType);
     console.log('[Router] payload:', JSON.stringify(payload));
     console.log('[Router] playerIndex:', playerIndex);
-    
+
     switch (actionType) {
       case 'stackDrop':
         return this.routeStackDrop(payload, state, playerIndex);
-      
+
+      case 'friendBuildDrop':
+        return this.routeFriendBuildDrop(payload, state, playerIndex);
+
+      case 'opponentBuildDrop':
+        return this.routeOpponentBuildDrop(payload, state, playerIndex);
+
       case 'capture':
         return this.captureRouter.route(payload, state, playerIndex);
-      
+
       case 'extendBuild':
         return this.extendRouter.route(payload, state, playerIndex);
-      
+
       case 'createTemp':
         return this.routeCreateTemp(payload, state, playerIndex);
-      
+
       case 'addToTemp':
         // Direct passthrough - validation happens in handler
         return { type: actionType, payload };
-      
+
       case 'acceptTemp':
         return this.tempRouter.routeAcceptTemp(payload, state, playerIndex);
-      
+
       case 'trail':
         return this.trailRouter.route(payload, state, playerIndex);
-      
+
       default:
         // No routing needed
         return { type: actionType, payload };
@@ -107,7 +113,7 @@ class Router {
    * Route temp stack drop
    */
   routeTempStackDrop(payload, state, playerIndex) {
-    const { stackId, card, cardSource } = payload;
+    const { stackId } = payload;
     
     console.log('[Router.tempStack] stackId:', stackId);
     
@@ -130,10 +136,10 @@ class Router {
    * Route build stack drop
    */
   routeBuildStackDrop(payload, state, playerIndex) {
-    const { stackId, card, cardSource } = payload;
-    
+    const { stackId } = payload;
+
     console.log('[Router.buildStack] stackId:', stackId);
-    
+
     // Find the build stack
     const stack = StackHelper.findStack(state, stackId);
 
@@ -153,6 +159,60 @@ class Router {
     } else {
       return this.opponentHandler.handle(payload, stack, state, playerIndex);
     }
+  }
+
+  /**
+   * Route friend build drop
+   */
+  routeFriendBuildDrop(payload, state, playerIndex) {
+    const { stackId } = payload;
+
+    console.log('[Router.friendBuildDrop] stackId:', stackId);
+
+    // Find the build stack
+    const stack = StackHelper.findStack(state, stackId);
+
+    if (!stack) {
+      throw new Error(`Build stack "${stackId}" not found`);
+    }
+
+    console.log('[Router.friendBuildDrop] found, owner:', stack.owner);
+
+    // Verify it's friendly
+    const isFriendly = this.isFriendlyBuild(stack, playerIndex, state);
+    if (!isFriendly) {
+      throw new Error(`Cannot perform friendBuildDrop on opponent's build (owner: ${stack.owner})`);
+    }
+
+    // Route to friendly handler
+    return this.friendlyHandler.handle(payload, stack, state, playerIndex);
+  }
+
+  /**
+   * Route opponent build drop
+   */
+  routeOpponentBuildDrop(payload, state, playerIndex) {
+    const { stackId } = payload;
+
+    console.log('[Router.opponentBuildDrop] stackId:', stackId);
+
+    // Find the build stack
+    const stack = StackHelper.findStack(state, stackId);
+
+    if (!stack) {
+      throw new Error(`Build stack "${stackId}" not found`);
+    }
+
+    console.log('[Router.opponentBuildDrop] found, owner:', stack.owner);
+
+    // Verify it's opponent
+    const isFriendly = this.isFriendlyBuild(stack, playerIndex, state);
+    if (isFriendly) {
+      throw new Error(`Cannot perform opponentBuildDrop on friendly build (owner: ${stack.owner})`);
+    }
+
+    // Route to opponent handler
+    return this.opponentHandler.handle(payload, stack, state, playerIndex);
   }
 
   /**

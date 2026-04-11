@@ -15,7 +15,7 @@ class CaptureRouter {
    * Main capture routing entry point
    */
   route(payload, state, playerIndex) {
-    const { targetType, targetStackId, card } = payload;
+    const { targetType, targetStackId } = payload;
     
     // Loose card capture - delegate to captureOwn
     if (targetType !== 'build' || !targetStackId) {

@@ -28,6 +28,7 @@ import { useActionHandlers } from '../../hooks/game/useActionHandlers';
 import { useTableBounds } from '../../hooks/game/useTableBounds';
 import { useTurnTimer } from '../../hooks/game/useTurnTimer';
 import { useCaptureSound } from '../../hooks/useCaptureSound';
+import { areTeammates, isPartyGame } from '../../shared/game/team';
 import { useSound } from '../../hooks/useSound';
 import { useTournamentStatus } from '../../hooks/useTournamentStatus';
 
@@ -42,7 +43,6 @@ import { GameOverModal } from '../modals/GameOverModal';
 import { HomeMenuButton } from './HomeMenuButton';
 import { OpponentProfileModal } from '../modals/OpponentProfileModal';
 import { useOpponentInfo } from '../../hooks/useOpponentInfo';
-import { areTeammates } from '../../shared/game/team';
 import { CornerTimer } from './CornerTimer';
 import { RoundIndicator } from './RoundIndicator';
 import { TurnStatusIndicator } from './TurnStatusIndicator';
@@ -553,7 +553,18 @@ export function GameBoard({
 
     // Forward to server - router decides action (capture, steal, extend, etc.)
     console.log('[GameBoard.handleDropOnStack] 📤 Forwarding to server');
-    actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
+
+    if (stackType === 'build_stack') {
+      const isFriendly = stackOwner === playerNumber || (isPartyGame(gameState) && areTeammates(playerNumber, stackOwner));
+      if (isFriendly) {
+        actions.friendBuildDrop(card, stackId, source);
+      } else {
+        actions.opponentBuildDrop(card, stackId, source);
+      }
+    } else {
+      // temp_stack or loose card
+      actions.stackDrop(card, stackId, stackOwner, stackType as 'temp_stack' | 'build_stack', source);
+    }
   }, [modals, actions, gameState.tableCards, playerNumber, gameState.playerCount]);
 
   // ── Memoized Callbacks for Inline Handlers ─────────────────────────────────
@@ -623,9 +634,14 @@ export function GameBoard({
     const stackOwner = buildStack?.owner ?? 0;
     
     const source = cardSource || 'captured';
-    actions.stackDrop(card, stackId, stackOwner, 'build_stack', source as any);
+    const isFriendly = stackOwner === playerNumber || (isPartyGame(gameState) && areTeammates(playerNumber, stackOwner));
+    if (isFriendly) {
+      actions.friendBuildDrop(card, stackId, source as any);
+    } else {
+      actions.opponentBuildDrop(card, stackId, source as any);
+    }
     dragOverlay.endDrag();
-  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions, gameState.tableCards]);
+  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions, gameState.tableCards, playerNumber, gameState]);
 
   const handleDropBuildToCapture = useCallback((stack: any) => {
     actions.dropToCapture({ stackId: stack.stackId, stackType: 'build_stack' });

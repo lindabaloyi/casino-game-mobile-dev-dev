@@ -90,13 +90,26 @@ function createActionRouter(config) {
       // Guard: block captureOpponent during pending extension (check after routing)
       if (finalType === 'captureOpponent') {
         const hasPendingExtension = state.tableCards?.some(
-          tc => tc.type === 'build_stack' && 
-               tc.owner === playerIndex && 
+          tc => tc.type === 'build_stack' &&
+               tc.owner === playerIndex &&
                (tc.pendingExtension?.cards?.length > 0 || tc.pendingExtension?.looseCard)
         );
 
         if (hasPendingExtension) {
           throw new Error(`Cannot capture opponent's build - you must complete your build extension first`);
+        }
+      }
+
+      // Guard: block opponentBuildDrop during pending extension on own builds
+      if (finalType === 'opponentBuildDrop') {
+        const hasPendingExtension = state.tableCards?.some(
+          tc => tc.type === 'build_stack' &&
+               tc.owner === playerIndex &&
+               (tc.pendingExtension?.cards?.length > 0 || tc.pendingExtension?.looseCard)
+        );
+
+        if (hasPendingExtension) {
+          throw new Error(`Cannot drop on opponent's build - you must complete your build extension first`);
         }
       }
 

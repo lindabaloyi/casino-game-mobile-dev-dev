@@ -22,6 +22,8 @@ const actionHandlers = {
 
   // ── Stack drop (SmartRouter routes to addToTemp or extendBuild) ───────────
   stackDrop:           require('./stackDrop'),
+  friendBuildDrop:     require('./friendBuildDrop'),
+  opponentBuildDrop:   require('./opponentBuildDrop'),
   extendBuild:         require('./extendBuild'),
 
   // ── Build actions ───────────────────────────────────────────────────────────

@@ -151,9 +151,25 @@ export function useGameActions(sendAction: SendAction) {
 
   // Generic stack drop - SmartRouter decides what action to take
   const stackDrop = useCallback((card: any, stackId: string, stackOwner: number, stackType: 'temp_stack' | 'build_stack', cardSource: 'table' | 'hand' | 'captured' = 'hand') => {
-    sendAction({ 
-      type: 'stackDrop', 
-      payload: { card, stackId, stackOwner, stackType, cardSource } as unknown as Record<string, unknown> 
+    sendAction({
+      type: 'stackDrop',
+      payload: { card, stackId, stackOwner, stackType, cardSource } as unknown as Record<string, unknown>
+    });
+  }, [sendAction]);
+
+  // Friend build drop
+  const friendBuildDrop = useCallback((card: any, stackId: string, cardSource: 'table' | 'hand' | 'captured' = 'hand') => {
+    sendAction({
+      type: 'friendBuildDrop',
+      payload: { card, stackId, cardSource } as unknown as Record<string, unknown>
+    });
+  }, [sendAction]);
+
+  // Opponent build drop
+  const opponentBuildDrop = useCallback((card: any, stackId: string, cardSource: 'table' | 'hand' | 'captured' = 'hand') => {
+    sendAction({
+      type: 'opponentBuildDrop',
+      payload: { card, stackId, cardSource } as unknown as Record<string, unknown>
     });
   }, [sendAction]);
 
@@ -216,6 +232,8 @@ export function useGameActions(sendAction: SendAction) {
     extendBuild,
     endTurn,
     stackDrop,
+    friendBuildDrop,
+    opponentBuildDrop,
     shiya,
     recall,
     setTempBuildValue,
