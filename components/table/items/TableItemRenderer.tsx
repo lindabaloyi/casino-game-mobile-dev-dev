@@ -3,7 +3,7 @@ import { TableItem, Card, TempStack, BuildStack, isLooseCard, isTempStack, isBui
 import { LooseCardItem } from './LooseCardItem';
 import { TempStackItem } from './TempStackItem';
 import { BuildStackItem } from './BuildStackItem';
-import { CardBounds, TempStackBounds, CapturePileBounds } from '../../../hooks/useDrag';
+import { CardBounds, TempStackBounds, BuildStackBounds, CapturePileBounds } from '../../../hooks/useDrag';
 
 interface TableItemRendererProps {
   item: TableItem;
@@ -15,8 +15,11 @@ interface TableItemRendererProps {
   unregisterCard: (id: string) => void;
   registerTempStack: (stackId: string, bounds: TempStackBounds) => void;
   unregisterTempStack: (stackId: string) => void;
+  registerBuildStack: (stackId: string, bounds: BuildStackBounds) => void;
+  unregisterBuildStack: (stackId: string) => void;
   findCardAtPoint: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
-  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
+  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
+  findBuildStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
   findCapturePileAtPoint?: (x: number, y: number) => CapturePileBounds | null;
   onDropOnBuildStack?: (card: Card, stackId: string, stackOwner: number, source: string) => void;
   onDropOnTempStack?: (card: Card, stackId: string, source: string) => void;

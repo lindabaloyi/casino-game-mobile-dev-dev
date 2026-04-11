@@ -37,7 +37,15 @@ export interface TempStackBounds {
   height: number;
   stackId: string;
   owner: number;
-  stackType: 'temp_stack' | 'build_stack';
+}
+
+export interface BuildStackBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  stackId: string;
+  owner: number;
 }
 
 export interface CapturedCardBounds {
@@ -149,19 +157,19 @@ export function useDrag() {
     tempStackPositions.current.delete(stackId);
   }, []);
 
-  /** Get stack position by ID - useful for ghost card rendering */
+  /** Get temp stack position by ID - useful for ghost card rendering */
   const getStackPosition = useCallback((stackId: string): TempStackBounds | undefined => {
     return tempStackPositions.current.get(stackId);
   }, []);
 
   /** Returns the temp stack at (x, y), or null (direct hit). */
   const findTempStackAtPoint = useCallback(
-    (x: number, y: number): { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null => {
+    (x: number, y: number): { stackId: string; owner: number } | null => {
       for (const [stackId, bounds] of tempStackPositions.current) {
         const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
         const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
         if (inX && inY) {
-          return { stackId: bounds.stackId, owner: bounds.owner, stackType: bounds.stackType };
+          return { stackId: bounds.stackId, owner: bounds.owner };
         }
       }
       return null;
@@ -187,30 +195,82 @@ export function useDrag() {
     [],
   );
 
-  // ── Captured card position (opponent's top card) ─────────────────────────
-  const capturedCardPosition = useRef<CapturedCardBounds | null>(null);
+  // ── Build stack positions ─────────────────────────────────────────────────
+  const buildStackPositions = useRef<Map<string, BuildStackBounds>>(new Map());
 
-  const registerCapturedCard = useCallback((bounds: CapturedCardBounds) => {
-    capturedCardPosition.current = bounds;
+  const registerBuildStack = useCallback((stackId: string, bounds: BuildStackBounds) => {
+    buildStackPositions.current.set(stackId, bounds);
   }, []);
 
-  const unregisterCapturedCard = useCallback(() => {
-    capturedCardPosition.current = null;
+  const unregisterBuildStack = useCallback((stackId: string) => {
+    buildStackPositions.current.delete(stackId);
   }, []);
 
-  /** Returns the captured card if point is within its bounds, or null. */
+  /** Get build stack position by ID - useful for ghost card rendering */
+  const getBuildStackPosition = useCallback((stackId: string): BuildStackBounds | undefined => {
+    return buildStackPositions.current.get(stackId);
+  }, []);
+
+  /** Returns the build stack at (x, y), or null (direct hit). */
+  const findBuildStackAtPoint = useCallback(
+    (x: number, y: number): { stackId: string; owner: number } | null => {
+      for (const [stackId, bounds] of buildStackPositions.current) {
+        const inX = x >= bounds.x - DIRECT_HIT_TOLERANCE && x <= bounds.x + bounds.width + DIRECT_HIT_TOLERANCE;
+        const inY = y >= bounds.y - DIRECT_HIT_TOLERANCE && y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE;
+        if (inX && inY) {
+          return { stackId: bounds.stackId, owner: bounds.owner };
+        }
+      }
+      return null;
+    },
+    [],
+  );
+
+  /** Returns true if point is near any build stack (proximity check). */
+  const isNearAnyBuildStack = useCallback(
+    (x: number, y: number): boolean => {
+      for (const [, bounds] of buildStackPositions.current) {
+        if (
+          x >= bounds.x - PROXIMITY_TOLERANCE &&
+          x <= bounds.x + bounds.width  + PROXIMITY_TOLERANCE &&
+          y >= bounds.y - PROXIMITY_TOLERANCE &&
+          y <= bounds.y + bounds.height + PROXIMITY_TOLERANCE
+        ) {
+          return true;
+        }
+      }
+      return false;
+    },
+    [],
+  );
+
+  // ── Captured card positions (multiple opponents) ─────────────────────────
+  const capturedCardPositions = useRef<Map<number, CapturedCardBounds>>(new Map());
+
+  const registerCapturedCard = useCallback((playerIndex: number, bounds: CapturedCardBounds) => {
+    capturedCardPositions.current.set(playerIndex, bounds);
+  }, []);
+
+  const unregisterCapturedCard = useCallback((playerIndex?: number) => {
+    if (playerIndex !== undefined) {
+      capturedCardPositions.current.delete(playerIndex);
+    } else {
+      capturedCardPositions.current.clear();
+    }
+  }, []);
+
+  /** Returns the captured card if point is within any opponent's captured card bounds, or null. */
   const findCapturedCardAtPoint = useCallback(
-    (x: number, y: number): { rank: string; suit: string; value: number } | null => {
-      const bounds = capturedCardPosition.current;
-      if (!bounds) return null;
-      
-      if (
-        x >= bounds.x - DIRECT_HIT_TOLERANCE &&
-        x <= bounds.x + bounds.width  + DIRECT_HIT_TOLERANCE &&
-        y >= bounds.y - DIRECT_HIT_TOLERANCE &&
-        y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE
-      ) {
-        return bounds.card;
+    (x: number, y: number): { playerIndex: number; rank: string; suit: string; value: number } | null => {
+      for (const [playerIndex, bounds] of capturedCardPositions.current) {
+        if (
+          x >= bounds.x - DIRECT_HIT_TOLERANCE &&
+          x <= bounds.x + bounds.width  + DIRECT_HIT_TOLERANCE &&
+          y >= bounds.y - DIRECT_HIT_TOLERANCE &&
+          y <= bounds.y + bounds.height + DIRECT_HIT_TOLERANCE
+        ) {
+          return { playerIndex, ...bounds.card };
+        }
       }
       return null;
     },
@@ -272,8 +332,15 @@ export function useDrag() {
     findTempStackAtPoint,
     isNearAnyStack,
     getStackPosition,
-    // Captured card position
-    capturedCardPosition,
+    // Build stack positions
+    buildStackPositions,
+    registerBuildStack,
+    unregisterBuildStack,
+    findBuildStackAtPoint,
+    isNearAnyBuildStack,
+    getBuildStackPosition,
+    // Captured card positions
+    capturedCardPositions,
     registerCapturedCard,
     unregisterCapturedCard,
     findCapturedCardAtPoint,

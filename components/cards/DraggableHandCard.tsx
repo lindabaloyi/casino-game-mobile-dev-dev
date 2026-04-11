@@ -50,8 +50,10 @@ interface Props {
   dropBounds: MutableRefObject<DropBounds>;
   /** Finds a specific table card at (x, y); returns null if no card there */
   findCardAtPoint: (x: number, y: number) => { id: string; card: Card } | null;
-  /** Finds a stack at (x, y); returns null if no stack there */
-  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
+  /** Finds a temp stack at (x, y); returns null if no temp stack there */
+  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
+  /** Finds a build stack at (x, y); returns null if no build stack there */
+  findBuildStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
   isMyTurn: boolean;
   playerNumber: number;
   /** Player's hand - needed for some UI feedback */
@@ -91,6 +93,7 @@ export function DraggableHandCard({
   dropBounds,
   findCardAtPoint,
   findTempStackAtPoint,
+  findBuildStackAtPoint,
   isMyTurn,
   playerNumber,
   playerHand,
@@ -162,25 +165,39 @@ export function DraggableHandCard({
   function handleDrop(absX: number, absY: number) {
     const bounds = dropBounds.current;
     
-    // 1. Check for stack hit FIRST (priority)
-    const stackHit = findTempStackAtPoint(absX, absY);
-    if (stackHit) {
+    // 1. Check for build stack hit FIRST (priority)
+    const buildStackHit = findBuildStackAtPoint(absX, absY);
+    if (buildStackHit) {
       opacity.value = withSpring(0);  // Hide card while action processes
       if (onDragEnd) onDragEnd();
       // Play card contact sound when card hits a stack
-      console.log('[DraggableHandCard] Card dropped on stack, calling onCardContact');
+      console.log('[DraggableHandCard] Card dropped on build stack, calling onCardContact');
       if (onCardContact) onCardContact();
       
-      // Call specific handler based on stack type
-      if (stackHit.stackType === 'build_stack' && onDropOnBuildStack) {
-        onDropOnBuildStack(card, stackHit.stackId, stackHit.owner, 'hand');
-      } else if (stackHit.stackType === 'temp_stack' && onDropOnTempStack) {
-        onDropOnTempStack(card, stackHit.stackId, 'hand');
+      // Call build stack handler
+      if (onDropOnBuildStack) {
+        onDropOnBuildStack(card, buildStackHit.stackId, buildStackHit.owner, 'hand');
       }
       return;
     }
     
-    // 2. Check for specific table card hit
+    // 2. Check for temp stack hit
+    const tempStackHit = findTempStackAtPoint(absX, absY);
+    if (tempStackHit) {
+      opacity.value = withSpring(0);  // Hide card while action processes
+      if (onDragEnd) onDragEnd();
+      // Play card contact sound when card hits a stack
+      console.log('[DraggableHandCard] Card dropped on temp stack, calling onCardContact');
+      if (onCardContact) onCardContact();
+      
+      // Call temp stack handler
+      if (onDropOnTempStack) {
+        onDropOnTempStack(card, tempStackHit.stackId, 'hand');
+      }
+      return;
+    }
+    
+    // 3. Check for specific table card hit
     const targetCardResult = findCardAtPoint(absX, absY);
     if (targetCardResult) {
       opacity.value = withSpring(0);
@@ -192,7 +209,7 @@ export function DraggableHandCard({
       return;
     }
     
-    // 3. Check if in table zone (loose card / trail area)
+    // 4. Check if in table zone (loose card / trail area)
     const inZone = inTableZone(absX, absY, bounds);
 
     if (inZone) {

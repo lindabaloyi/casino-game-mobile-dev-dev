@@ -45,8 +45,8 @@ interface Props {
   stack: BuildStack;
   /** Re-measure when table card count changes (flex reflow). */
   layoutVersion: number;
-  registerTempStack: (stackId: string, bounds: TempStackBounds) => void;
-  unregisterTempStack: (stackId: string) => void;
+  registerBuildStack: (stackId: string, bounds: BuildStackBounds) => void;
+  unregisterBuildStack: (stackId: string) => void;
   /** Current player index (for party mode team colors) */
   currentPlayerIndex?: number;
   /** Whether this is party mode (4-player) */
@@ -70,8 +70,8 @@ interface Props {
 export function BuildStackView({ 
   stack, 
   layoutVersion, 
-  registerTempStack, 
-  unregisterTempStack,
+  registerBuildStack, 
+  unregisterBuildStack,
   currentPlayerIndex,
   isPartyMode = false,
   playerCount,
@@ -226,33 +226,31 @@ export function BuildStackView({
   const onLayout = useCallback(() => {
     requestAnimationFrame(() => {
       viewRef.current?.measureInWindow((x, y, width, height) => {
-        registerTempStack(stack.stackId, {
+        registerBuildStack(stack.stackId, {
           x, y, width, height,
           stackId: stack.stackId,
           owner:   stack.owner,
-          stackType: stack.type,
         });
       });
     });
-  }, [stack.stackId, stack.owner, stack.type, registerTempStack]);
+  }, [stack.stackId, stack.owner, registerBuildStack]);
 
   // Re-measure on table reflow
   useEffect(() => {
     requestAnimationFrame(() => {
       viewRef.current?.measureInWindow((x, y, width, height) => {
-        registerTempStack(stack.stackId, {
+        registerBuildStack(stack.stackId, {
           x, y, width, height,
           stackId: stack.stackId,
           owner:   stack.owner,
-          stackType: stack.type,
         });
       });
     });
-  }, [layoutVersion, stack.stackId, stack.owner, stack.type, registerTempStack]);
+  }, [layoutVersion, stack.stackId, stack.owner, registerBuildStack]);
 
   useEffect(() => {
-    return () => unregisterTempStack(stack.stackId);
-  }, [stack.stackId, unregisterTempStack]);
+    return () => unregisterBuildStack(stack.stackId);
+  }, [stack.stackId, unregisterBuildStack]);
 
   if (!bottom || !top) return null;
 

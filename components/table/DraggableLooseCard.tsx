@@ -38,7 +38,8 @@ export interface DraggableLooseCardProps {
 
   // Hit detection — forwarded to DraggableTableCard
   findCardAtPoint:     (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
-  findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack'; value?: number } | null;
+  findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number } | null;
+  findBuildStackAtPoint:(x: number, y: number) => { stackId: string; owner: number } | null;
 
   // ── DUMB callbacks - just report what was hit ────────────────────────────
   /** Called when dropped on a build stack */
@@ -70,6 +71,7 @@ export function DraggableLooseCard({
   unregisterCard,
   findCardAtPoint,
   findTempStackAtPoint,
+  findBuildStackAtPoint,
   onDropOnBuildStack,
   onDropOnTempStack,
   onDropOnCard,
@@ -129,6 +131,7 @@ export function DraggableLooseCard({
         playerNumber={playerNumber}
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
+        findBuildStackAtPoint={findBuildStackAtPoint}
         onDropOnBuildStack={onDropOnBuildStack}
         onDropOnTempStack={onDropOnTempStack}
         onDropOnCard={onDropOnCard}

@@ -1,13 +1,13 @@
 import React from 'react';
 import { BuildStack } from '../types';
 import { BuildStackView } from '../BuildStackView';
-import { CapturePileBounds } from '../../../hooks/useDrag';
+import { CapturePileBounds, BuildStackBounds } from '../../../hooks/useDrag';
 
 interface BuildStackItemProps {
   stack: BuildStack;
   tableVersion: number;
-  registerTempStack: (stackId: string, bounds: any) => void;
-  unregisterTempStack: (stackId: string) => void;
+  registerBuildStack: (stackId: string, bounds: BuildStackBounds) => void;
+  unregisterBuildStack: (stackId: string) => void;
   // Party mode props for team colors
   isPartyMode?: boolean;
   currentPlayerIndex?: number;
@@ -28,8 +28,8 @@ interface BuildStackItemProps {
 export function BuildStackItem({
   stack,
   tableVersion,
-  registerTempStack,
-  unregisterTempStack,
+  registerBuildStack,
+  unregisterBuildStack,
   isPartyMode,
   currentPlayerIndex,
   playerCount,
@@ -47,8 +47,8 @@ export function BuildStackItem({
       key={stack.stackId}
       stack={stack}
       layoutVersion={tableVersion}
-      registerTempStack={registerTempStack}
-      unregisterTempStack={unregisterTempStack}
+      registerBuildStack={registerBuildStack}
+      unregisterBuildStack={unregisterBuildStack}
       isPartyMode={isPartyMode}
       currentPlayerIndex={currentPlayerIndex}
       playerCount={playerCount}

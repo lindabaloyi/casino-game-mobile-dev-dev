@@ -60,7 +60,8 @@ interface Props {
   /** Find a specific table card under the finger — from useDrag */
   findCardAtPoint: (x: number, y: number) => { id: string; card: Card } | null;
   /** Find a stack at point — from useDrag */
-  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
+  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
+  findBuildStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
   /** Table cards - needed for game logic */
   tableCards?: TableItem[];
   // ── DUMB callbacks - just report what was hit ────────────────────────────
@@ -125,6 +126,7 @@ export function PlayerHandArea({
   dropBounds,
   findCardAtPoint,
   findTempStackAtPoint,
+  findBuildStackAtPoint,
   tableCards,
   onDropOnBuildStack,
   onDropOnTempStack,
@@ -301,6 +303,7 @@ export function PlayerHandArea({
                   dropBounds={dropBounds}
                   findCardAtPoint={findCardAtPoint}
                   findTempStackAtPoint={findTempStackAtPoint}
+                  findBuildStackAtPoint={findBuildStackAtPoint}
                   isMyTurn={isMyTurn}
                   playerNumber={playerNumber}
                   playerHand={hand}

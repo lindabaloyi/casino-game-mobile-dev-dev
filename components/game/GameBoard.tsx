@@ -759,8 +759,11 @@ export function GameBoard({
         unregisterCard={drag.unregisterCard}
         registerTempStack={drag.registerTempStack}
         unregisterTempStack={drag.unregisterTempStack}
+        registerBuildStack={drag.registerBuildStack}
+        unregisterBuildStack={drag.unregisterBuildStack}
         findCardAtPoint={drag.findCardAtPoint}
         findTempStackAtPoint={drag.findTempStackAtPoint}
+        findBuildStackAtPoint={drag.findBuildStackAtPoint}
         onTableCardDropOnCard={handleTableCardDropOnCard}
         onDropOnBuildStack={(card, stackId, owner, source) => handleBuildStackDrop(card, stackId, owner, source || 'table')}
         onDropOnTempStack={(card, stackId, source) => handleTempStackDrop(card, stackId, source || 'table')}
@@ -811,6 +814,7 @@ export function GameBoard({
         dropBounds={drag.dropBounds}
         findCardAtPoint={drag.findCardAtPoint}
         findTempStackAtPoint={drag.findTempStackAtPoint}
+        findBuildStackAtPoint={drag.findBuildStackAtPoint}
         tableCards={computed.table}
         onDropOnBuildStack={handleBuildStackDrop}
         onDropOnTempStack={handleTempStackDrop}

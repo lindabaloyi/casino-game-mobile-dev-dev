@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { CardBounds, TempStackBounds, CapturedCardBounds, CapturePileBounds } from '../../hooks/useDrag';
+import { CardBounds, TempStackBounds, BuildStackBounds, CapturedCardBounds, CapturePileBounds } from '../../hooks/useDrag';
 import { Card, TempStack, BuildStack, TableItem, isLooseCard, isTempStack, isBuildStack, AnyStack } from './types';
 import { CapturedCardsView } from './CapturedCardsView';
 import { OpponentDragState } from '../../hooks/useGameState';
@@ -47,9 +47,14 @@ interface Props {
   registerTempStack:   (stackId: string, bounds: TempStackBounds) => void;
   unregisterTempStack: (stackId: string) => void;
 
+  // Build stack position registry (from useDrag)
+  registerBuildStack:   (stackId: string, bounds: BuildStackBounds) => void;
+  unregisterBuildStack: (stackId: string) => void;
+
   // Hit detection (from useDrag, forwarded to DraggableLooseCard → DraggableTableCard)
   findCardAtPoint:     (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
-  findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
+  findTempStackAtPoint:(x: number, y: number) => { stackId: string; owner: number } | null;
+  findBuildStackAtPoint:(x: number, y: number) => { stackId: string; owner: number } | null;
 
   // Stack drop handlers - DUMB, just passes to GameBoard
   onDropOnBuildStack?: (card: Card, stackId: string, stackOwner: number, source: string) => void;
@@ -153,8 +158,11 @@ export function TableArea({
   unregisterCard,
   registerTempStack,
   unregisterTempStack,
+  registerBuildStack,
+  unregisterBuildStack,
   findCardAtPoint,
   findTempStackAtPoint,
+  findBuildStackAtPoint,
   onDropOnBuildStack,
   onDropOnTempStack,
   onTableCardDropOnCard,
@@ -242,8 +250,11 @@ export function TableArea({
         unregisterCard={unregisterCard}
         registerTempStack={registerTempStack}
         unregisterTempStack={unregisterTempStack}
+        registerBuildStack={registerBuildStack}
+        unregisterBuildStack={unregisterBuildStack}
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
+        findBuildStackAtPoint={findBuildStackAtPoint}
         findCapturePileAtPoint={findCapturePileAtPoint}
         onDropOnBuildStack={onDropOnBuildStack}
         onDropOnTempStack={onDropOnTempStack}
@@ -305,6 +316,7 @@ export function TableArea({
         unregisterCapturedCard={unregisterCapturedCard}
         findCardAtPoint={findCardAtPoint}
         findTempStackAtPoint={findTempStackAtPoint}
+        findBuildStackAtPoint={findBuildStackAtPoint}
         onDragStart={onCapturedCardDragStart}
         onDragMove={onCapturedCardDragMove}
         onDragEnd={onCapturedCardDragEnd}

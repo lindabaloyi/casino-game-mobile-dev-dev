@@ -30,8 +30,10 @@ interface Props {
   playerNumber: number;
   /** Find a specific card at point (excludeId prevents self-match) */
   findCardAtPoint: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
-  /** Find a stack at point */
-  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack'; value?: number } | null;
+  /** Find a temp stack at point */
+  findTempStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
+  /** Find a build stack at point */
+  findBuildStackAtPoint: (x: number, y: number) => { stackId: string; owner: number } | null;
   
   // ── DUMB callbacks - just report what was hit ────────────────────────────
   /** Called when dropped on a build stack */
@@ -57,6 +59,7 @@ export function DraggableTableCard({
   playerNumber,
   findCardAtPoint,
   findTempStackAtPoint,
+  findBuildStackAtPoint,
   onDropOnBuildStack,
   onDropOnTempStack,
   onDropOnCard,
@@ -109,23 +112,35 @@ export function DraggableTableCard({
    * SmartRouter decides what action to take
    */
   function handleDrop(absX: number, absY: number) {
-    // 1. Check if dropped on a stack
-    const stackHit = findTempStackAtPoint(absX, absY);
-    if (stackHit) {
-      console.log(`[DraggableTableCard] DROP ON STACK — ${cardId} → stack ${stackHit.stackId} (${stackHit.stackType}) owned by P${stackHit.owner}`);
+    // 1. Check if dropped on a build stack
+    const buildStackHit = findBuildStackAtPoint(absX, absY);
+    if (buildStackHit) {
+      console.log(`[DraggableTableCard] DROP ON BUILD STACK — ${cardId} → stack ${buildStackHit.stackId} owned by P${buildStackHit.owner}`);
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
       
-      // Call specific handler based on stack type
-      if (stackHit.stackType === 'build_stack' && onDropOnBuildStack) {
-        onDropOnBuildStack(card, stackHit.stackId, stackHit.owner, 'table');
-      } else if (stackHit.stackType === 'temp_stack' && onDropOnTempStack) {
-        onDropOnTempStack(card, stackHit.stackId, 'table');
+      // Call build stack handler
+      if (onDropOnBuildStack) {
+        onDropOnBuildStack(card, buildStackHit.stackId, buildStackHit.owner, 'table');
       }
       return;
     }
 
-    // 2. Check if dropped on another loose table card (exclude self)
+    // 2. Check if dropped on a temp stack
+    const tempStackHit = findTempStackAtPoint(absX, absY);
+    if (tempStackHit) {
+      console.log(`[DraggableTableCard] DROP ON TEMP STACK — ${cardId} → stack ${tempStackHit.stackId} owned by P${tempStackHit.owner}`);
+      opacity.value = withSpring(0);
+      if (onDragEnd) onDragEnd();
+      
+      // Call temp stack handler
+      if (onDropOnTempStack) {
+        onDropOnTempStack(card, tempStackHit.stackId, 'table');
+      }
+      return;
+    }
+
+    // 3. Check if dropped on another loose table card (exclude self)
     const cardHit = findCardAtPoint(absX, absY, cardId);
     if (cardHit) {
       console.log(`[DraggableTableCard] DROP ON CARD — ${cardId} → ${cardHit.card.rank}${cardHit.card.suit}`);
@@ -135,7 +150,7 @@ export function DraggableTableCard({
       return;
     }
 
-    // 3. Miss — snap back
+    // 4. Miss — snap back
     console.log(`[DraggableTableCard] MISS — ${cardId} snapping back`);
     handleSnapBack();
   }
