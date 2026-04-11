@@ -31,6 +31,12 @@ function acceptTemp(state, payload, playerIndex) {
     throw new Error(`acceptTemp: player ${playerIndex} does not own stack "${stackId}"`);
   }
 
+  // --- VALIDATION: At least ONE card must be from player's hand ---
+  const hasHandCard = stack.cards.some(c => c.source === 'hand');
+  if (!hasHandCard) {
+    throw new Error('Cannot accept build - must contain at least one card from your hand');
+  }
+
   const finalValue = buildValue || stack.value;
   
   // --- VALIDATION: Check if build value is valid with non-increasing order enforcement ---
