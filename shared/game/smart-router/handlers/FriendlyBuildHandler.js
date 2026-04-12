@@ -98,7 +98,11 @@ class FriendlyBuildHandler {
       }
 
     // Decide action
-    if (source === 'hand') {
+    // Handle all non-hand sources (table, captured, captured_<index>) - only extension allowed
+    const isFromHand = source === 'hand';
+    const isFromCaptured = source === 'captured' || source?.startsWith('captured_');
+    
+    if (isFromHand || isFromCaptured) {
       if (isSameRankBuild) {
         if (isOwnBuild) {
           const playerHand = state.players[playerIndex]?.hand || [];
