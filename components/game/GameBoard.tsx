@@ -556,6 +556,14 @@ export function GameBoard({
     stackId: string,
     cardSource: string | undefined
   ) => {
+    console.log('[GameBoard] handleCaptureBuild:', {
+      card: `${card?.rank}${card?.suit}`,
+      cardValue: card?.value,
+      stackId,
+      cardSource,
+      playerNumber
+    });
+
     // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
     dragOverlay.markPendingDrop(card, 'captured');
     
@@ -581,6 +589,13 @@ export function GameBoard({
     // Use specific action based on build ownership
     const isFriendly = stackOwner === playerNumber || 
       (isPartyGame(gameState) && areTeammates(playerNumber, stackOwner));
+    
+    console.log('[GameBoard] handleCaptureBuild decision:', {
+      stackOwner,
+      isFriendly,
+      action: isFriendly ? 'friendBuildDrop' : 'opponentBuildDrop',
+      source
+    });
     
     if (isFriendly) {
       actions.friendBuildDrop(card, stackId, source);

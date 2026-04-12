@@ -71,6 +71,7 @@ export function useActionHandlers(
   }, [modals, actions]);
 
   const handleExtendBuild = useCallback((card: any, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}` = 'table') => {
+    console.log('[useActionHandlers] handleExtendBuild:', { card: `${card?.rank}${card?.suit}`, buildStackId, cardSource });
     actions.extendBuild(card, buildStackId, cardSource);
     // End the drag to clear ghost overlay
     onDragEndWrapper();

@@ -27,6 +27,15 @@ const { cloneState } = require('../');
 function findCardAtSource(state, card, source, playerIndex) {
   const cardKey = `${card.rank}${card.suit}`;
   
+  console.log('[findCardAtSource] Searching:', { 
+    card: cardKey,
+    cardValue: card.value,
+    source,
+    playerIndex,
+    playerCount: state.playerCount,
+    isPartyMode: state.playerCount === 4 && state.players.some(p => p.team)
+  });
+  
   // Helper to check if two players are teammates in a 4‑player game
   function areTeammates(pA, pB) {
     return (pA < 2 && pB < 2) || (pA >= 2 && pB >= 2);
@@ -183,7 +192,7 @@ function areTeammates(playerA, playerB) {
 function extendBuild(state, payload, playerIndex) {
   const { stackId, card, cardSource } = payload;
 
-  console.log('[extendBuild] Input:', { stackId, card, cardSource });
+  console.log('[extendBuild] Input:', { stackId, card: `${card?.rank}${card?.suit}`, cardValue: card?.value, cardSource, playerIndex });
 
   // ----- Input validation -----
   if (!stackId) throw new Error('extendBuild: missing stackId');
@@ -193,21 +202,43 @@ function extendBuild(state, payload, playerIndex) {
   const newState = cloneState(state);
   const isPartyMode = newState.playerCount === 4 && newState.players.some(p => p.team);
 
+  console.log('[extendBuild] State check:', { playerCount: newState.playerCount, isPartyMode, playersWithTeams: newState.players?.map(p => p.team) });
+
   // ----- Find the build stack -----
   const stackIdx = newState.tableCards.findIndex(
-    tc => tc.type === 'build_stack' && tc.stackId === stackId
+    tc => tc.type === 'build_stack' && tc.stackId === stackId,
   );
   if (stackIdx === -1) throw new Error(`extendBuild: build stack "${stackId}" not found`);
   const buildStack = newState.tableCards[stackIdx];
+
+  console.log('[extendBuild] Build stack found:', { 
+    stackId: buildStack.stackId,
+    owner: buildStack.owner,
+    value: buildStack.value,
+    cards: buildStack.cards?.map(c => `${c.rank}${c.suit}`)
+  });
 
   // ----- Permission check -----
   const allowed = isPartyMode
     ? areTeammates(buildStack.owner, playerIndex)
     : buildStack.owner === playerIndex;
+  
+  console.log('[extendBuild] Permission:', { 
+    allowed,
+    buildOwner: buildStack.owner,
+    playerIndex,
+    isPartyMode,
+    areTeammates: isPartyMode ? areTeammates(buildStack.owner, playerIndex) : 'N/A'
+  });
   if (!allowed) throw new Error('extendBuild: not authorized to extend this build');
 
   // ----- Locate the card at the claimed source -----
   const cardInfo = findCardAtSource(state, card, cardSource, playerIndex);
+  console.log('[extendBuild] findCardAtSource result:', { 
+    found: cardInfo.found,
+    ownerIndex: cardInfo.ownerIndex,
+    card: cardInfo.found ? `${cardInfo.card?.rank}${cardInfo.card?.suit}` : null
+  });
   if (!cardInfo.found) {
     throw new Error(`extendBuild: card ${card.rank}${card.suit} not found at source ${cardSource}`);
   }
@@ -255,7 +286,12 @@ function extendBuild(state, payload, playerIndex) {
 
     console.log('[extendBuild] After extension:', {
       pendingExtensionCards: buildStack.pendingExtension?.cards?.map(p => p.card?.value),
-      buildStackValue: buildStack.value
+      pendingExtensionSources: buildStack.pendingExtension?.cards?.map(p => p.source),
+      buildStackValue: buildStack.value,
+      buildStackCards: buildStack.cards?.map(c => `${c.rank}${c.suit}`),
+      buildStackCurrentTotal: buildStack.cards?.reduce((sum, c) => sum + c.value, 0) || 0,
+      // Calculate what the UI should show as "need"
+      expectedNeed: (buildStack.value - (buildStack.pendingExtension?.cards?.reduce((sum, p) => sum + p.card.value, 0) || 0))
     });
 
     return newState;

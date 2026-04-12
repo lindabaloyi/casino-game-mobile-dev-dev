@@ -135,6 +135,7 @@ export function useGameActions(sendAction: SendAction) {
 
   // Single action that router uses to decide start vs accept
   const extendBuild = useCallback((card: any, buildId: string, cardSource: CardSource = 'table') => {
+    console.log('[useGameActions] extendBuild:', { card: `${card.rank}${card.suit}`, buildId, cardSource });
     sendAction({ 
       type: 'extendBuild', 
       payload: { card, stackId: buildId, cardSource } as unknown as Record<string, unknown> 

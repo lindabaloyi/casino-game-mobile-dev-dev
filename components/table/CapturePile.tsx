@@ -39,7 +39,9 @@ interface CapturePileProps {
   /** Find card at point callback */
   findCardAtPoint?: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   /** Find temp stack at point callback */
-  findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
+  findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number } | null;
+  /** Find build stack at point callback */
+  findBuildStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number } | null;
   /** Extend build callback */
   onExtendBuild?: (card: Card, stackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}`) => void;
   /** Callback for capturing opponent's build with a captured card */
@@ -72,6 +74,7 @@ export function CapturePile({
   onDragEnd,
   findCardAtPoint,
   findTempStackAtPoint,
+  findBuildStackAtPoint,
   onExtendBuild,
   onCaptureBuild,
   onCardPlayed,
@@ -166,6 +169,7 @@ export function CapturePile({
           onDragEnd={handleDragEnd}
           findCardAtPoint={findCardAtPoint}
           findTempStackAtPoint={findTempStackAtPoint}
+          findBuildStackAtPoint={findBuildStackAtPoint}
           playerNumber={playerNumber}
           playerCount={playerCount}
           isPartyMode={isPartyMode}

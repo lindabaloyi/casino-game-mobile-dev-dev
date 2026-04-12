@@ -36,6 +36,7 @@ export function useBuildDisplayValue({
         sum = 0; // reset after exact match
       }
     }
+    console.log('[useBuildDisplayValue] effectiveSum:', { pendingCards: pendingCards.map(c => c.value), value, sum });
     return sum;
   }, [pendingCards, value]);
 

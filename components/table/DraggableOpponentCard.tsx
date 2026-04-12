@@ -23,6 +23,7 @@ export interface DraggableOpponentCardProps {
   onDragEnd?: (card: Card, targetCard?: Card, targetStackId?: string, source?: string) => void;
   findCardAtPoint?: (x: number, y: number, excludeId?: string) => { id: string; card: Card } | null;
   findTempStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null;
+  findBuildStackAtPoint?: (x: number, y: number) => { stackId: string; owner: number } | null;
   playerNumber: number;
   playerCount?: number;
   isPartyMode?: boolean;
@@ -43,6 +44,7 @@ export function DraggableOpponentCard({
   onDragEnd,
   findCardAtPoint,
   findTempStackAtPoint,
+  findBuildStackAtPoint,
   playerNumber,
   playerCount = 2,
   isPartyMode: isPartyModeProp,
@@ -70,6 +72,19 @@ export function DraggableOpponentCard({
   const draggedCard = useSharedValue<Card | null>(null);
 
   const handleDragEndInternal = useCallback((card: Card, absX: number, absY: number) => {
+    console.log('[DraggableOpponentCard] handleDragEndInternal START:', {
+      card: `${card?.rank}${card?.suit}`,
+      absX,
+      absY,
+      opponentIndex,
+      playerNumber,
+      hasOnDragEnd: !!onDragEnd,
+      hasFindCardAtPoint: !!findCardAtPoint,
+      hasFindTempStackAtPoint: !!findTempStackAtPoint,
+      hasOnExtendBuild: !!onExtendBuild,
+      hasOnCaptureBuild: !!onCaptureBuild,
+      hasOnCardPlayed: !!onCardPlayed
+    });
     
     // If required callbacks are missing, reset locally but still try to signal parent
     if (!onDragEnd || !findCardAtPoint || !findTempStackAtPoint) {
@@ -89,6 +104,10 @@ export function DraggableOpponentCard({
 
     // Check if dropped on a loose card
     const targetCardResult = findCardAtPoint(absX, absY);
+    console.log('[DraggableOpponentCard] findCardAtPoint result:', {
+      found: !!targetCardResult,
+      targetCard: targetCardResult ? { rank: targetCardResult.card?.rank, suit: targetCardResult.card?.suit } : null
+    });
     if (targetCardResult) {
       
       // Validate targetCard is a proper card object (has rank and suit)
@@ -107,12 +126,45 @@ export function DraggableOpponentCard({
         handled = true;
       }
     } else {
-      // Check if dropped on a temp stack or build stack
-      const targetStack = findTempStackAtPoint(absX, absY);
+      // Check if dropped on a temp stack OR build stack - use BOTH functions
+      const tempStack = findTempStackAtPoint ? findTempStackAtPoint(absX, absY) : null;
+      const buildStack = findBuildStackAtPoint ? findBuildStackAtPoint(absX, absY) : null;
+      
+      console.log('[DraggableOpponentCard] Stack lookup results:', {
+        tempStack: tempStack ? { stackId: tempStack.stackId, owner: tempStack.owner } : null,
+        buildStack: buildStack ? { stackId: buildStack.stackId, owner: buildStack.owner } : null
+      });
+      
+      // Priority: build stack first, then temp stack
+      let targetStack: { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null = null;
+      
+      if (buildStack) {
+        targetStack = { ...buildStack, stackType: 'build_stack' as const };
+      } else if (tempStack) {
+        targetStack = { ...tempStack, stackType: 'temp_stack' as const };
+      }
+      
+      console.log('[DraggableOpponentCard] Final targetStack:', targetStack);
+      
       if (targetStack) {
+        console.log('[DraggableOpponentCard] Drop check:', {
+          card: `${card.rank}${card.suit}`,
+          targetStackId: targetStack.stackId,
+          targetStackType: targetStack.stackType,
+          targetOwner: targetStack.owner,
+          opponentIndex,
+          playerNumber,
+          isFriendly: isFriendlyBuild(targetStack.owner),
+          cardSource: `captured_${opponentIndex}`
+        });
         // Can extend own or teammate's build (in party mode)
         if (targetStack.stackType === 'build_stack' && isFriendlyBuild(targetStack.owner)) {
           if (onExtendBuild) {
+            console.log('[DraggableOpponentCard] Calling onExtendBuild:', {
+              card: `${card.rank}${card.suit}`,
+              stackId: targetStack.stackId,
+              cardSource: `captured_${opponentIndex}`
+            });
             onExtendBuild(card, targetStack.stackId, `captured_${opponentIndex}`);
             handled = true;
             // Play sound on successful drop
@@ -142,6 +194,16 @@ export function DraggableOpponentCard({
 
     // If no valid target was found, signal a cancelled drop to ensure ghost is cleaned up
     if (!handled) {
+      console.log('[DraggableOpponentCard] NO VALID TARGET - drop not handled:', {
+        card: `${card.rank}${card.suit}`,
+        absX,
+        absY,
+        findCardResult: !!targetCardResult,
+        findStackResult: !!targetStack,
+        reason: !targetCardResult && !targetStack ? 'no_target_found' : 
+                targetStack && targetStack.stackType !== 'build_stack' ? 'not_build_stack' :
+                targetStack && !isFriendlyBuild(targetStack.owner) && targetStack.owner !== playerNumber ? 'not_friendly' : 'unknown'
+      });
       onDragEnd(card, undefined, undefined);
     }
 
@@ -155,6 +217,14 @@ export function DraggableOpponentCard({
   const panGesture = Gesture.Pan()
     .enabled(isMyTurn)
     .onStart((event) => {
+      console.log('[DraggableOpponentCard] DRAG START:', {
+        card: `${card.rank}${card.suit}`,
+        opponentIndex,
+        playerNumber,
+        isMyTurn,
+        absX: event.absoluteX,
+        absY: event.absoluteY
+      });
       isDragging.value = true;
       draggedCard.value = card;
       if (onDragStart) onDragStart(card, event.absoluteX, event.absoluteY);
