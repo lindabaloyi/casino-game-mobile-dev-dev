@@ -45,7 +45,6 @@ function attachSocketHandlers(socket, services) {
   // ── Matchmaking Queue Handlers ────────────────────────────────────────
   socket.on('join-two-hands-queue', async () => {
     console.log(`[Socket] join-two-hands-queue received from ${socket.id}, userId=${socket.userId}`);
-    
     if (!socket.userId) {
       socket.emit('error', { message: 'Please authenticate before joining queue' });
       return;
@@ -77,8 +76,6 @@ function attachSocketHandlers(socket, services) {
     if (result) {
       await broadcaster.broadcastThreeHandsGameStart(result);
     }
-    // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
-    // This ensures event listeners are registered before the broadcast is received
   });
 
   socket.on('join-four-hands-queue', async () => {
@@ -103,14 +100,12 @@ function attachSocketHandlers(socket, services) {
   });
 
   socket.on('join-tournament-queue', async () => {
-    console.log(`[DEBUG] [Socket] join-tournament-queue:socket.id = ${socket.id}, userId = ${socket.userId}`);
     removeFromAllQueues();
     
     // Use 'four-hands' game type - same as free-for-all matchmaking
     const result = unifiedMatchmaking.addToQueue(socket, 'four-hands', socket.userId);
     
     if (result) {
-      console.log(`[DEBUG] [Socket] Tournament first hand created with ${result.players.length} players`);
       
       const { gameId, gameState, players } = result;
       
@@ -155,12 +150,7 @@ function attachSocketHandlers(socket, services) {
       }
       
       // Register tournament with coordinator for hand tracking
-      console.log(`[SOCKET] First hand created: gameId=${gameId}, tournamentId=${gameState.tournamentId}`);
-      const registered = tournamentCoordinator.registerExistingGameAsTournament(gameState, players, io);
-      console.log(`[SOCKET] Registration result:`, !!registered);
-      console.log(`[SOCKET] activeTournaments size after registration:`, tournamentCoordinator.activeTournaments ? tournamentCoordinator.activeTournaments.size : 'N/A');
-    } else {
-      console.log(`[DEBUG] [Socket] Not enough players for tournament yet`);
+      tournamentCoordinator.registerExistingGameAsTournament(gameState, players, io);
     }
   });
 
@@ -192,7 +182,7 @@ function attachSocketHandlers(socket, services) {
         });
         
         if (room.status === 'ready') {
-          console.log(`[Socket] Room ${room.code} full - auto-starting`);
+          
           const startResult = roomService.startRoomGame(room.code, services.io);
           if (!startResult.success) {
             room.players.forEach(player => {
@@ -274,67 +264,30 @@ function attachSocketHandlers(socket, services) {
   // ── Client Ready Handler ──────────────────────────────────────────────
   socket.on('client-ready', (data) => {
     const { gameId, playerIndex } = data;
-    console.log(`[Socket] 📥 client-ready RECEIVED: gameId=${gameId}, playerIndex=${playerIndex}, socket=${socket.id}`);
-    console.log(`[Socket] 📥 DEBUG: Checking if game ${gameId} exists in gameManager...`);
     
     if (!gameId || playerIndex === undefined) {
       socket.emit('error', { message: 'client-ready: gameId and playerIndex are required' });
       return;
     }
     
-    // Get game state to check player status
     const gameState = gameManager.getGameState(gameId);
-    console.log(`[Socket] 📥 DEBUG: gameManager.getGameState(${gameId}) result:`, gameState ? 'FOUND' : 'NOT FOUND');
-    
-    // Log all active game IDs for debugging
     if (!gameState) {
-      console.log(`[Socket] ❌ ERROR: Game ${gameId} not found! Available games in memory.`);
-      // Log a few recent game IDs if available
-      console.log(`[Socket] ❌ DEBUG: client-ready called for non-existent game. This usually means the tournament moved to a new hand but client still has old gameId.`);
       socket.emit('error', { message: 'client-ready: Game not found' });
       return;
     }
     
-    // DEBUG: Log tournament state on client-ready
-    if (gameState.tournamentMode) {
-      const socketMap = gameManager.socketPlayerMap.get(gameId);
-      const playerStatuses = gameState.playerStatuses || {};
-      const qualifiedPlayers = gameState.qualifiedPlayers || [];
-      const readySet = gameManager.clientReadyMap.get(gameId) || new Set();
-      
-      console.log(`\n🔍 TOURNAMENT DEBUG [client-ready from P${playerIndex}] — game ${gameId}`);
-      console.log(`Phase: ${gameState.tournamentPhase} | playerCount: ${gameState.playerCount}`);
-      
-      for (let i = 0; i < 4; i++) {
-        const pid = `player_${i}`;
-        const status = playerStatuses[pid] || 'N/A';
-        const isQualified = qualifiedPlayers.includes(pid);
-        const isReady = readySet.has(i);
-        console.log(`  P${i}: ${pid} | status: ${status.padEnd(10)} | qual: ${isQualified ? '✅' : '❌'} | ready: ${isReady ? '✅' : '❌'}`);
-      }
-      console.log('----------------------------------------\n');
-    }
-    
-    // Check if player is ELIMINATED
     const isEliminated = !tournamentCoordinator.handleClientReady(socket.id, gameId, playerIndex);
     if (isEliminated) {
-      console.log(`[Socket] ❌ Rejecting client-ready from ELIMINATED socket ${socket.id.substr(0,8)}`);
       socket.emit('error', { message: 'client-ready: Player is eliminated and cannot rejoin' });
       return;
     }
     
-    // Mark client as ready in GameManager
     gameManager.markClientReady(gameId, playerIndex);
     
-    // Check if all clients are now ready
     const playerCount = gameState.playerCount || gameState.players?.length || 0;
     const allReady = gameManager.areAllClientsReady(gameId, playerCount);
-    const readyCount = gameManager.getReadyClientCount(gameId);
-    
-    console.log(`[Socket] Game ${gameId}: ${readyCount}/${playerCount} clients ready`);
     
     if (allReady) {
-      console.log(`[Socket] ✅ All clients ready for game ${gameId} - broadcasting all-clients-ready`);
       broadcaster.broadcastAllClientsReady(gameId);
     }
   });

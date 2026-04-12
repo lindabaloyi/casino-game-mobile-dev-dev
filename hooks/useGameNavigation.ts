@@ -26,7 +26,6 @@ export function useGameNavigation(): UseGameNavigationResult {
 
   const onRestart = useCallback(() => {
     // This will be connected to requestSync in the container
-    console.log('[useGameNavigation] Restart requested');
   }, []);
 
   const onBackToMenu = useCallback(() => {

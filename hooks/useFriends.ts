@@ -100,24 +100,16 @@ export function useFriends(): UseFriendsResult {
       setFriends(friendsData.friends || []);
 
       // Fetch pending requests
-      console.log('[useFriends] 📥 Fetching requests from API...');
       const requestsResponse = await fetch(`${API_BASE}/api/friends/requests`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      console.log('[useFriends] 📥 Requests response status:', requestsResponse.status);
-      
       if (requestsResponse.ok) {
         const requestsData = await requestsResponse.json();
-        console.log('[useFriends] 📥 Requests data:', JSON.stringify(requestsData));
         setPendingRequests(requestsData.requests?.incoming || []);
         setSentRequests(requestsData.requests?.outgoing || []);
-        console.log('[useFriends] 📥 Set pendingRequests:', requestsData.requests?.incoming?.length || 0);
-        console.log('[useFriends] 📥 Set sentRequests:', requestsData.requests?.outgoing?.length || 0);
-      } else {
-        console.log('[useFriends] ❌ Failed to fetch requests, status:', requestsResponse.status);
       }
     } catch (err) {
       console.error('[useFriends] Error fetching friends:', err);
@@ -151,12 +143,8 @@ export function useFriends(): UseFriendsResult {
     try {
       const token = await getAuthToken();
       if (!token) {
-        console.warn('[useFriends] No auth token available');
         return { success: false, error: 'Please log in to send friend requests' };
       }
-
-      console.log('[useFriends] 📤 Sending friend request to:', userId);
-      console.log('[useFriends] 🔑 Token being used:', token?.substring(0, 20) + '...');
 
       const response = await fetch(`${API_BASE}/api/friends/request/${userId}`, {
         method: 'POST',
@@ -166,12 +154,9 @@ export function useFriends(): UseFriendsResult {
         }
       });
 
-      console.log('[useFriends] 📥 Response status:', response.status);
-
       const data = await response.json();
 
       if (response.status === 401) {
-        console.warn('[useFriends] ⚠️ Token expired or invalid - clearing auth');
         // Token expired - clear storage and return specific error
         try {
           const AsyncStorage = require('@react-native-async-storage/async-storage').default;

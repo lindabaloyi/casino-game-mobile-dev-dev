@@ -95,9 +95,6 @@ export function CapturedCardsView({
   gameMode,
   onRecallAttempt,
 }: CapturedCardsViewProps) {
-  // Debug logging
-  console.log(`[CapturedCardsView] playerNumber=${playerNumber}, playerCount=${playerCount}, gameMode=${gameMode}`);
-  console.log(`[CapturedCardsView] allPlayerCaptures:`, allPlayerCaptures?.map((c, i) => `[P${i}]: ${c?.length || 0} cards`) || 'undefined');
   // Use the team utilities hook
   const {
     isPartyMode,

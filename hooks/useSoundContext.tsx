@@ -58,7 +58,6 @@ export function SoundProvider({ children }: SoundProviderProps) {
   // Load and start background music
   const startMusic = useCallback(async () => {
     if (isLoadedRef.current) {
-      console.log('[SoundContext] Music already loaded');
       return;
     }
 
@@ -74,7 +73,6 @@ export function SoundProvider({ children }: SoundProviderProps) {
       backgroundMusicRef.current = sound;
       isLoadedRef.current = true;
       setIsMusicPlaying(true);
-      console.log('[SoundContext] Background music started (muted)');
     } catch (error) {
       console.error('[SoundContext] Error loading background music:', error);
     }
@@ -96,7 +94,6 @@ export function SoundProvider({ children }: SoundProviderProps) {
       backgroundMusicRef.current = null;
       isLoadedRef.current = false;
       setIsMusicPlaying(false);
-      console.log('[SoundContext] Background music stopped');
     } catch (error) {
       console.error('[SoundContext] Error stopping background music:', error);
     }
@@ -113,7 +110,6 @@ export function SoundProvider({ children }: SoundProviderProps) {
     try {
       const newVolume = inGame ? BASE_VOLUME * IN_GAME_VOLUME_SCALE : BASE_VOLUME;
       await backgroundMusicRef.current.setVolumeAsync(newVolume);
-      console.log('[SoundContext] In-game mode:', inGame, 'Volume:', newVolume.toFixed(2));
     } catch (error) {
       console.error('[SoundContext] Error setting in-game mode:', error);
     }
@@ -130,7 +126,6 @@ export function SoundProvider({ children }: SoundProviderProps) {
       const newVolume = newMuted ? 0 : (isInGame ? BASE_VOLUME * IN_GAME_VOLUME_SCALE : BASE_VOLUME);
       await backgroundMusicRef.current.setVolumeAsync(newVolume);
       setIsMusicMuted(newMuted);
-      console.log('[SoundContext] Music muted:', newMuted);
     } catch (error) {
       console.error('[SoundContext] Error toggling mute:', error);
     }

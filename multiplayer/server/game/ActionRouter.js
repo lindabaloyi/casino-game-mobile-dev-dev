@@ -36,24 +36,8 @@ class ActionRouter {
     const state = this.gameManager.getGameState(gameId);
     if (!state) throw new Error(`Game "${gameId}" not found`);
 
-    console.log(`[ActionRouter] executeAction - gameId: ${gameId}, action: ${type}, playerIndex: ${playerIndex}`);
-    console.log(`[ActionRouter] State before action - tableCards count: ${state.tableCards?.length}, tempStacks: ${state.tableCards?.filter(tc => tc.type === 'temp_stack').length}`);
-
     // Use shared router for core logic (validates turn, routes action, executes handler)
     const newState = this.sharedRouter.executeAction(state, playerIndex, type, payload);
-
-    console.log(`[ActionRouter] State after action - tableCards count: ${newState.tableCards?.length}, tempStacks: ${newState.tableCards?.filter(tc => tc.type === 'temp_stack').length}`);
-
-    // Log the actual routed action type
-    console.log(`[ActionRouter] Executed action: ${type}`);
-
-    // Log the players' captures for debugging
-    if (type === 'cancelTemp') {
-      console.log(`[ActionRouter] After cancelTemp - Player captures:`);
-      for (let i = 0; i < newState.players.length; i++) {
-        console.log(`[ActionRouter]   Player ${i}: ${newState.players[i]?.captures?.length} cards - ${newState.players[i]?.captures?.map(c => c.rank + c.suit).join(', ')}`);
-      }
-    }
 
     // Clean up expired shiyal recalls (older than 4 seconds)
     if (newState.shiyaRecalls) {

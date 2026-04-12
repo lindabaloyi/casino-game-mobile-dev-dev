@@ -179,12 +179,10 @@ export function TempStackView({
       
       if (timeSinceLastTap < DOUBLE_CLICK_THRESHOLD) {
         // Double click detected - trigger the build tap
-        console.log('[TempStackView] Double-click detected, triggering onBuildTap');
         onBuildTap(stack);
         lastTapRef.current = 0; // Reset after double-click
       } else {
         // First tap - set timer
-        console.log('[TempStackView] Single tap detected, waiting for second tap');
         lastTapRef.current = now;
       }
     }

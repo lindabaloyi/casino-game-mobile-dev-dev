@@ -189,28 +189,11 @@ export function GameBoard({
   );
 
   const shouldShowStandardGameOver = useMemo(() => {
-    console.log('[DEBUG] shouldShowStandardGameOver check:', {
-      isGameOver,
-      tournamentMode: gameState.tournamentMode,
-      gameOverData: gameOverData ? {
-        nextGameId: gameOverData.nextGameId,
-        nextPhase: gameOverData.nextPhase,
-        countdownSeconds: gameOverData.countdownSeconds,
-        qualifiedPlayers: gameOverData.qualifiedPlayers,
-        eliminatedPlayers: gameOverData.eliminatedPlayers,
-        isTournamentMode: gameOverData.isTournamentMode
-      } : null,
-      gameOver: gameState.gameOver,
-      hasGameOverData: !!gameOverData
-    });
-    
     if (!isGameOver) {
-      console.log('[DEBUG] Not showing - isGameOver is false');
       return false;
     }
 
     // Show modal for all games (tournament and non-tournament) - same behavior
-    console.log('[DEBUG] Showing GameOverModal - game ended');
     return true;
   }, [isGameOver, gameState.tournamentMode, gameOverData]);
   
@@ -223,7 +206,6 @@ export function GameBoard({
     roundOver: roundInfo.isOver,
     onTimeout: () => {
       // Auto-end turn when timer expires
-      console.log('[GameBoard] Timer expired - auto-ending turn');
       actions.endTurn();
     },
   });
@@ -249,7 +231,6 @@ export function GameBoard({
         
         if (!stillInHand) {
           // Card was removed from hand - clear pending drop
-          console.log('[GameBoard] OPTIMISTIC UI: Hand changed, card', dragOverlay.pendingDropCard.rank, dragOverlay.pendingDropCard.suit, 'removed - clearing pending drop (server confirmed)');
           dragOverlay.clearPendingDrop();
         }
       } else if (dragOverlay.pendingDropSource === 'table') {
@@ -261,7 +242,6 @@ export function GameBoard({
         
         if (!stillOnTable) {
           // Card was removed from table - clear pending drop
-          console.log('[GameBoard] OPTIMISTIC UI: Table changed, card', dragOverlay.pendingDropCard.rank, dragOverlay.pendingDropCard.suit, 'removed - clearing pending drop (server confirmed)');
           dragOverlay.clearPendingDrop();
         }
       }
@@ -285,7 +265,6 @@ export function GameBoard({
       
       if (currentRound === 1) {
         // Round 1 ended - automatically start Round 2
-        console.log(`[GameBoard] Round 1 ended, automatically starting Round 2`);
         startNextRound();
       }
       // Round 2 ending is handled by gameState.gameOver (no action needed)
@@ -312,10 +291,8 @@ export function GameBoard({
       if (isOwnBuild) {
         // GUARDRAIL: Don't show CaptureOrStealModal for own builds
         // Own builds should be handled through normal capture flow
-        console.log('[GameBoard] GUARDRAIL: pendingChoice detected for OWN build (owner:', buildOwner, ') - NOT opening CaptureOrStealModal');
         // Don't open modal - server will handle own build capture through normal flow
       } else {
-        console.log('[GameBoard] pendingChoice detected for player', playerNumber, 'on opponent build (owner:', buildOwner, ') - opening CaptureOrStealModal');
         modals.openCaptureOrStealModal({
           card: pendingChoice.card,
           buildValue: pendingChoice.buildValue || (pendingChoice.card?.value || 5),
@@ -327,7 +304,6 @@ export function GameBoard({
     }
     // Close modal when pendingChoice is cleared by server (action completed successfully)
     else if (!pendingChoice && modals.showCaptureOrStealModal) {
-      console.log('[GameBoard] pendingChoice cleared by server - closing CaptureOrStealModal');
       modals.closeCaptureOrStealModal();
       modals.onStealCompleted(); // Show end turn button after successful capture
     }
@@ -342,23 +318,18 @@ export function GameBoard({
   useEffect(() => {
     const lastAction = (gameState as any)?.lastAction;
     if (lastAction === 'recall') {
-      console.log('[GameBoard] Recall completed - playing shiya sound');
       playShiya();
     }
   }, [gameState, playShiya]);
 
   // Handle build tap for Shiya selection or dual builds
   const handleBuildTap = useCallback((stack: any) => {
-    console.log('[handleBuildTap] Tapped stack:', stack?.type, 'owner:', stack?.owner, 'value:', stack?.value);
-    
     // Check if party mode (required for Shiya)
     if (!stack || gameState.playerCount !== 4) {
       // Not party mode - only handle confirm modal for own temp stacks (dual builds feature)
       if (stack?.type === 'temp_stack' && stack.owner === playerNumber) {
-        console.log('[GameBoard] Temp stack tapped in non-party mode, showing confirm modal');
         modals.openConfirmTempBuildModal(stack);
       }
-      console.log('[handleBuildTap] Not party mode or no stack');
       return;
     }
     
@@ -366,7 +337,6 @@ export function GameBoard({
     
     // Check if it's own stack - no Shiya on own stacks
     if (stack.owner === playerNumber) {
-      console.log('[handleBuildTap] Own stack - showing confirm modal for temp stacks');
       // For own temp stacks, show confirm modal (dual builds feature)
       if (stack.type === 'temp_stack') {
         modals.openConfirmTempBuildModal(stack);
@@ -376,9 +346,7 @@ export function GameBoard({
     
     // Check if it's a teammate's stack
     const isTeammate = areTeammates(playerNumber, stack.owner);
-    console.log('[handleBuildTap] Player:', playerNumber, 'Stack owner:', stack.owner, 'Are teammates:', isTeammate);
     if (!isTeammate) {
-      console.log('[handleBuildTap] Not a teammate stack');
       return;
     }
     
@@ -390,17 +358,13 @@ export function GameBoard({
 
   // Handle recall attempt from capture pile (Shiya post-capture)
   const handleRecallAttempt = useCallback((targetPlayerIndex: number) => {
-    console.log('[handleRecallAttempt] Target player:', targetPlayerIndex);
-    
     // Check party mode
     if (gameState.playerCount !== 4) {
-      console.log('[handleRecallAttempt] Not party mode');
       return;
     }
     
     // Check if target is a teammate
     if (!areTeammates(playerNumber, targetPlayerIndex)) {
-      console.log('[handleRecallAttempt] Not a teammate');
       return;
     }
     
@@ -408,7 +372,6 @@ export function GameBoard({
     const targetCaptures = gameState.players?.[targetPlayerIndex]?.captures ?? [];
     
     if (targetCaptures.length === 0) {
-      console.log('[handleRecallAttempt] Target has no captures');
       return;
     }
     
@@ -422,12 +385,10 @@ export function GameBoard({
     const hasMatch = myHand.some((card: any) => card.rank === mostRecentCapture.rank);
     
     if (!hasMatch) {
-      console.log('[handleRecallAttempt] No matching card in hand');
       // Could show feedback here
       return;
     }
     
-    console.log('[handleRecallAttempt] Attempting recall from player', targetPlayerIndex);
     // Use unified recall - the server will validate that this player is the activator
     // Get the recall ID from shiyaRecalls
     const myRecalls = gameState.shiyaRecalls?.[playerNumber] as Record<string, any> | undefined;
@@ -490,33 +451,18 @@ export function GameBoard({
     stackOwner: number,
     source: 'hand' | 'table' | 'captured'
   ) => {
-    console.log('[GameBoard.handleBuildStackDrop] 📥 Input:', { card: card?.rank, stackId, stackOwner, source, playerNumber });
-    
     // Hide end turn button when player makes a new action
     modals.hideEndTurnButton();
 
     // PRE-CHECK: If dropping on opponent's build with hand card, check if we should show steal modal
     // Note: In party mode, don't show steal modal for teammate builds - server handles extension/rejection
-    console.log('[GameBoard.handleBuildStackDrop] 🔍 Check conditions:', {
-      isHandCard: source === 'hand',
-      isOpponentBuild: stackOwner !== playerNumber,
-    });
     
     if (source === 'hand' && stackOwner !== playerNumber) {
-      console.log('[GameBoard.handleBuildStackDrop] ✅ Conditions met for steal check');
-      
       // Use gameState.tableCards directly instead of computed.table for latest state
       const tableCards = gameState.tableCards ?? [];
       const targetBuild = tableCards.find(
         (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
       ) as any;
-
-      console.log('[GameBoard.handleBuildStackDrop] 🎯 Target build found:', targetBuild ? {
-        stackId: targetBuild.stackId,
-        value: targetBuild.value,
-        hasBase: targetBuild.hasBase,
-        owner: targetBuild.owner
-      } : 'NOT FOUND');
 
       if (targetBuild) {
         // In party mode: check if this is a teammate - if so, don't show steal modal
@@ -525,7 +471,7 @@ export function GameBoard({
         const isTeammate = isPartyMode && areTeammates(playerNumber, targetBuild.owner);
         
         if (isTeammate) {
-          console.log('[GameBoard.handleBuildStackDrop] 🤝 Teammate build - proceeding to server (no steal modal)');
+          // Proceed to server (no steal modal)
         } else {
           // Check if this would be a steal (not a capture, not a base build, value < 10)
           const isCapture = card.value === targetBuild.value;
@@ -533,36 +479,16 @@ export function GameBoard({
           const isValue10 = targetBuild.value === 10;
           const isSteal = !isCapture && !isBaseBuild && !isValue10;
 
-          console.log('[GameBoard.handleBuildStackDrop] 💰 Steal check results:', {
-            cardValue: card.value,
-            buildValue: targetBuild.value,
-            isCapture,
-            isBaseBuild,
-            isValue10,
-            isSteal,
-            hasBaseValue: targetBuild.hasBase
-          });
-
           if (isSteal) {
             // Show steal modal instead of directly sending action
-            console.log('[GameBoard.handleBuildStackDrop] 🎉 Calling openStealModal with:', { card: card?.rank, buildValue: targetBuild.value });
             modals.openStealModal(card, targetBuild);
-            console.log('[GameBoard.handleBuildStackDrop] ✅ openStealModal called, returning early');
             return;
-          } else {
-            console.log('[GameBoard.handleBuildStackDrop] ⚠️ Not a steal, proceeding to server');
           }
         }
-      } else {
-        console.log('[GameBoard.handleBuildStackDrop] ❌ Target build not found, proceeding to server');
       }
-    } else {
-      console.log('[GameBoard.handleBuildStackDrop] ⚠️ Conditions NOT met for steal modal, proceeding to server');
     }
 
     // Forward to server - use specific action based on ownership
-    console.log('[GameBoard.handleBuildStackDrop] 📤 Forwarding to server');
-
     // Determine if friendly build (own or teammate)
     const isFriendly = stackOwner === playerNumber || 
       (isPartyGame(gameState) && areTeammates(playerNumber, stackOwner));
@@ -580,7 +506,6 @@ export function GameBoard({
     stackId: string,
     source: 'hand' | 'table' | 'captured'
   ) => {
-    console.log('[GameBoard.handleTempStackDrop] 📥 Input:', { card: card?.rank, stackId, source });
     modals.hideEndTurnButton();
     actions.addToTemp(card, stackId, source);
   }, [modals, actions]);
@@ -709,9 +634,6 @@ export function GameBoard({
 
   const handleSendFriendRequest = useCallback(async () => {
     const result = await opponentInfo.sendFriendRequest();
-    if (!result.success) {
-      console.log('[GameBoard] Failed to send friend request:', result.error);
-    }
   }, [opponentInfo]);
 
   // Render
@@ -918,7 +840,6 @@ export function GameBoard({
         onReturnToLobby={onBackToMenu}
         onWatchTournament={() => {
           // Keep watching as spectator
-          console.log('[GameBoard] Player chose to watch tournament');
         }}
       />
 
@@ -946,7 +867,6 @@ export function GameBoard({
         countdownSeconds={gameOverData?.countdownSeconds}
         eliminatedPlayers={gameOverData?.eliminatedPlayers}
         onTransitionToNextGame={() => {
-          console.log('[GameBoard] onTransitionToNextGame called, nextGameId:', gameOverData?.nextGameId);
           if (gameOverData?.nextGameId) {
             sendAction({ type: 'join-tournament-game', payload: { gameId: gameOverData.nextGameId } });
           }

@@ -54,7 +54,6 @@ export default function CpuGameScreen() {
   if (gameState.gameOver) {
     // For now, just show the game board with a message
     // The round end modal will handle displaying the final scores
-    console.log('[CpuGameScreen] Game over - showing final state');
   }
 
   return (
@@ -73,10 +72,9 @@ export default function CpuGameScreen() {
         sendAction={sendAction}
         startNextRound={startNextRound}
         onRestart={() => {
-          console.log('[CpuGameScreen] Restart');
           resetGame();
         }}
-        onBackToMenu={() => console.log('[CpuGameScreen] Back to menu')}
+        onBackToMenu={() => {}}
         serverError={null}
         onServerErrorClose={() => {}}
         opponentDrag={null}

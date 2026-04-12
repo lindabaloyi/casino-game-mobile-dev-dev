@@ -30,32 +30,18 @@ function getCardId(card: Card): string {
 
 export function useDealingAnimation(hand: Card[]): UseDealingAnimationResult {
   const initialDealCompleteRef = useRef(false);
-  const wasCalledRef = useRef(false);
   // DISABLED: Set to always return empty set to disable dealing animation
   // To re-enable, change to: const [animatingCardIds, setAnimatingCardIds] = useState<Set<string>>(new Set());
   const [animatingCardIds, setAnimatingCardIds] = useState<Set<string>>(new Set());
 
-  // Track when useDealingAnimation is called
-  if (!wasCalledRef.current) {
-    wasCalledRef.current = true;
-    console.log('[useDealingAnimation] 🔵 FIRST TIME CALL - hand.length:', hand.length);
-  }
-
-  console.log('[useDealingAnimation] 🔄 Called - hand.length:', hand.length, 'initialDealComplete:', initialDealCompleteRef.current, 'animatingCardIds.size:', animatingCardIds.size);
-
   // Detect when hand first gets cards (initial deal)
   useEffect(() => {
-    console.log('[useDealingAnimation] ⚡ useEffect - hand.length:', hand.length, 'initialDealComplete:', initialDealCompleteRef.current);
-    
     if (!initialDealCompleteRef.current && hand.length > 0) {
       // First time we have cards – animate all of them
       const allIds = new Set(hand.map(getCardId));
       setAnimatingCardIds(allIds);
       // Mark as complete so this never runs again
       initialDealCompleteRef.current = true;
-      console.log('[useDealingAnimation] ✅ INITIAL DEAL - Set animatingCardIds:', Array.from(allIds));
-    } else if (initialDealCompleteRef.current) {
-      console.log('[useDealingAnimation] ⛔ SKIP - Already complete');
     }
   }, [hand]);
 
@@ -70,17 +56,14 @@ export function useDealingAnimation(hand: Card[]): UseDealingAnimationResult {
   }, [hand]);
 
   const onAnimationComplete = useCallback((cardId: string) => {
-    console.log('[useDealingAnimation] 🎬 Animation complete:', cardId);
     setAnimatingCardIds(prev => {
       const next = new Set(prev);
       next.delete(cardId);
-      console.log('[useDealingAnimation]   Remaining animating:', Array.from(next));
       return next;
     });
   }, []);
 
   const reset = useCallback(() => {
-    console.log('[useDealingAnimation] 🔄 RESET');
     initialDealCompleteRef.current = false;
     setAnimatingCardIds(new Set());
   }, []);

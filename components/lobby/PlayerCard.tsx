@@ -90,16 +90,6 @@ export function PlayerCard({
       displayName = `Player ${(slotIndex ?? 0) + 1}`;
     }
     
-    // DEBUG: Log player card rendering
-    console.log(`[PlayerCard] Rendering player card:`, {
-      playerId: player.id,
-      playerUsername: player.username,
-      placeholderName,
-      isOwn,
-      slotIndex,
-      finalDisplayName: displayName,
-    });
-    
     const emoji = avatarEmoji || getAvatarEmoji(player.avatar);
 
     return (
@@ -143,13 +133,6 @@ export function PlayerCard({
   // Handle empty slot (new interface)
   if (slotIndex !== undefined) {
     const displayName = placeholderName || `Player ${slotIndex + 1}`;
-    
-    // DEBUG: Log empty slot rendering
-    console.log(`[PlayerCard] Rendering EMPTY slot:`, {
-      slotIndex,
-      placeholderName,
-      finalDisplayName: displayName,
-    });
     
     return (
       <View style={[styles.card, styles.cardEmpty]}>

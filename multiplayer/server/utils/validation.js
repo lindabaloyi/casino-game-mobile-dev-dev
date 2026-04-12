@@ -5,9 +5,12 @@
  */
 
 const { ObjectId } = require('mongodb');
-const { createLogger, LOG_LEVELS } = require('./debugLogger');
 
-const logger = createLogger('Validation', LOG_LEVELS.INFO);
+const logger = {
+  error: (...args) => console.error('[Validation]', ...args),
+  warn: (...args) => console.warn('[Validation]', ...args),
+  info: (...args) => console.log('[Validation]', ...args),
+};
 
 // Avatar options (must match client-side)
 const VALID_AVATARS = [

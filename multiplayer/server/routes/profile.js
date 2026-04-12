@@ -16,18 +16,22 @@ const {
   ConflictError,
   DatabaseError 
 } = require('../services/PlayerProfileService');
-const { createLogger, LOG_LEVELS, createTimer } = require('../utils/debugLogger');
+const logger = {
+  error: (...args) => console.error('[ProfileRoutes]', ...args),
+  warn: (...args) => console.warn('[ProfileRoutes]', ...args),
+  errorWithStack: (message, error) => console.error('[ProfileRoutes]', message, error?.stack || error),
+};
+
 const { validateAndSanitize, isValidObjectId } = require('../utils/validation');
 const { MODE_ID_TO_KEY, GAME_MODE_IDS, GAME_MODE_KEYS } = require('../../../shared/config/gameModes');
 
 const router = express.Router();
-const logger = createLogger('ProfileRoutes', LOG_LEVELS.DEBUG);
 
 /**
  * Middleware to verify authentication
  */
 function authenticate(req, res, next) {
-  const timer = createTimer();
+  const timer = null;
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -184,7 +188,7 @@ router.get('/leaderboard', async (req, res) => {
  * Get current user's friends list
  */
 router.get('/friends', authenticate, async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   logger.enter({ userId: req.userId, method: 'GET', route: 'friends' });
   
   try {
@@ -211,7 +215,7 @@ router.get('/friends', authenticate, async (req, res, next) => {
  * Add a friend
  */
 router.post('/friends/:friendId', authenticate, async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   const { friendId } = req.params;
   logger.enter({ userId: req.userId, friendId, method: 'POST', route: 'addFriend' });
   
@@ -242,7 +246,7 @@ router.post('/friends/:friendId', authenticate, async (req, res, next) => {
  * Remove a friend
  */
 router.delete('/friends/:friendId', authenticate, async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   const { friendId } = req.params;
   logger.enter({ userId: req.userId, friendId, method: 'DELETE', route: 'removeFriend' });
   
@@ -273,7 +277,7 @@ router.delete('/friends/:friendId', authenticate, async (req, res, next) => {
  * Block a user
  */
 router.post('/block/:userId', authenticate, async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   const { userId: blockedUserId } = req.params;
   logger.enter({ userId: req.userId, blockedUserId, method: 'POST', route: 'blockUser' });
   
@@ -304,7 +308,7 @@ router.post('/block/:userId', authenticate, async (req, res, next) => {
  * Unblock a user
  */
 router.delete('/block/:userId', authenticate, async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   const { userId: blockedUserId } = req.params;
   logger.enter({ userId: req.userId, blockedUserId, method: 'DELETE', route: 'unblockUser' });
   
@@ -336,7 +340,7 @@ router.delete('/block/:userId', authenticate, async (req, res, next) => {
  * Optional: ?mode=two-hands to get mode-specific stats
  */
 router.get('/:userId/stats', async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   const { userId } = req.params;
   const mode = req.query.mode || 'all'; // Get stats for specific mode
   logger.enter({ userId, mode, method: 'GET', route: 'stats' });
@@ -413,7 +417,7 @@ router.get('/:userId/stats', async (req, res, next) => {
  * Optional: ?mode=two-hands to record mode-specific win
  */
 router.post('/stats/win', authenticate, async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   const mode = req.query.mode || 'two-hands'; // Default to two-hands
   logger.enter({ userId: req.userId, method: 'POST', action: 'recordWin', mode });
   
@@ -445,7 +449,7 @@ router.post('/stats/win', authenticate, async (req, res, next) => {
  * Optional: ?mode=two-hands to record mode-specific loss
  */
 router.post('/stats/loss', authenticate, async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   const mode = req.query.mode || 'two-hands'; // Default to two-hands
   logger.enter({ userId: req.userId, method: 'POST', action: 'recordLoss', mode });
   
@@ -475,7 +479,7 @@ router.post('/stats/loss', authenticate, async (req, res, next) => {
  * Reset player stats
  */
 router.delete('/stats', authenticate, async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   logger.enter({ userId: req.userId, method: 'DELETE', action: 'resetStats' });
   
   try {
@@ -506,7 +510,7 @@ router.delete('/stats', authenticate, async (req, res, next) => {
  * Get current user's profile with full data
  */
 router.get('/', authenticate, async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   logger.enter({ userId: req.userId, method: 'GET' });
   
   try {
@@ -573,7 +577,7 @@ router.get('/', authenticate, async (req, res, next) => {
  * Update current user's profile with validation and error handling
  */
 router.put('/', authenticate, async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   logger.enter({ userId: req.userId, method: 'PUT', body: Object.keys(req.body) });
   
   try {
@@ -639,7 +643,7 @@ router.put('/', authenticate, async (req, res, next) => {
  * Quick endpoint to update just the avatar (optimized for frequent updates)
  */
 router.patch('/avatar', authenticate, async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   const { avatar } = req.body;
   logger.enter({ userId: req.userId, method: 'PATCH', avatar });
   
@@ -674,7 +678,7 @@ router.patch('/avatar', authenticate, async (req, res, next) => {
  * Get another user's public profile - MUST BE LAST (most generic)
  */
 router.get('/:userId', async (req, res, next) => {
-  const timer = createTimer();
+  const timer = null;
   const { userId } = req.params;
   logger.enter({ userId, method: 'GET' });
   

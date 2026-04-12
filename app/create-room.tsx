@@ -41,7 +41,6 @@ export default function CreateRoomScreen() {
   useEffect(() => {
     if (room.roomCode && !hasNavigatedRef.current) {
       hasNavigatedRef.current = true;
-      console.log('[CreateRoom] Room created, navigating to shared lobby:', room.roomCode);
       router.replace(`/online-play?mode=${gameMode}&roomCode=${room.roomCode}` as any);
     }
   }, [room.roomCode, gameMode, router]);

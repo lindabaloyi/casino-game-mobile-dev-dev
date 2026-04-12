@@ -13,9 +13,6 @@ const { cloneState } = require('../');
 function cancelTemp(state, payload, playerIndex) {
   const { stackId } = payload;
 
-  console.log('[cancelTemp] Called with stackId:', stackId);
-  console.log('[cancelTemp] playerIndex:', playerIndex);
-
   if (!stackId) throw new Error('cancelTemp: missing stackId');
 
   const newState = cloneState(state);
@@ -25,14 +22,10 @@ function cancelTemp(state, payload, playerIndex) {
   );
 
   if (stackIdx === -1) {
-    console.log('[cancelTemp] Stack already removed or not found - returning state unchanged');
-    return newState; // Early return - stack already processed
+    return newState;
   }
 
   const stack = newState.tableCards[stackIdx];
-  console.log('[cancelTemp] Found stack, owner:', stack.owner, ', cards count:', stack.cards?.length);
-  console.log('[cancelTemp] Stack cards:', stack.cards?.map(c => `${c.rank}${c.suit} (source: ${c.source}, index: ${c.originalIndex})`).join(', '));
-  console.log('[cancelTemp] pendingExtension:', JSON.stringify(stack.pendingExtension));
   
   if (stack.owner !== playerIndex) {
     throw new Error(`cancelTemp: player ${playerIndex} does not own stack "${stackId}"`);

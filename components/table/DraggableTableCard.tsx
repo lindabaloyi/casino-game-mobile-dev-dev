@@ -102,7 +102,6 @@ export function DraggableTableCard({
    */
   function handleDoubleTapCard() {
     if (onDoubleTap && isMyTurn) {
-      console.log('[DraggableTableCard] Double-tap detected on', card.rank, card.suit);
       onDoubleTap(card);
     }
   }
@@ -115,7 +114,6 @@ export function DraggableTableCard({
     // 1. Check if dropped on a build stack
     const buildStackHit = findBuildStackAtPoint(absX, absY);
     if (buildStackHit) {
-      console.log(`[DraggableTableCard] DROP ON BUILD STACK — ${cardId} → stack ${buildStackHit.stackId} owned by P${buildStackHit.owner}`);
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
       
@@ -129,7 +127,6 @@ export function DraggableTableCard({
     // 2. Check if dropped on a temp stack
     const tempStackHit = findTempStackAtPoint(absX, absY);
     if (tempStackHit) {
-      console.log(`[DraggableTableCard] DROP ON TEMP STACK — ${cardId} → stack ${tempStackHit.stackId} owned by P${tempStackHit.owner}`);
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
       
@@ -143,7 +140,6 @@ export function DraggableTableCard({
     // 3. Check if dropped on another loose table card (exclude self)
     const cardHit = findCardAtPoint(absX, absY, cardId);
     if (cardHit) {
-      console.log(`[DraggableTableCard] DROP ON CARD — ${cardId} → ${cardHit.card.rank}${cardHit.card.suit}`);
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
       onDropOnCard(card, cardHit.card);
@@ -151,7 +147,6 @@ export function DraggableTableCard({
     }
 
     // 4. Miss — snap back
-    console.log(`[DraggableTableCard] MISS — ${cardId} snapping back`);
     handleSnapBack();
   }
 

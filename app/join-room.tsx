@@ -60,7 +60,6 @@ export default function JoinRoomScreen() {
       hasNavigatedRef.current = true;
       // Use the room's actual game mode from server response, not URL params
       const actualGameMode = room.gameMode || gameMode;
-      console.log('[JoinRoom] Room joined, navigating to shared lobby:', room.roomCode, 'mode:', actualGameMode);
       router.replace(`/online-play?mode=${actualGameMode}&roomCode=${room.roomCode}` as any);
     }
   }, [room.roomCode, room.gameMode, gameMode, router]);

@@ -141,7 +141,6 @@ export function DraggableHandCard({
    */
   function handleDoubleTapCard() {
     if (onDoubleTap && isMyTurn) {
-      console.log('[DraggableHandCard] Double-tap detected on', card.rank, card.suit);
       onDoubleTap(card);
     }
   }
@@ -171,7 +170,6 @@ export function DraggableHandCard({
       opacity.value = withSpring(0);  // Hide card while action processes
       if (onDragEnd) onDragEnd();
       // Play card contact sound when card hits a stack
-      console.log('[DraggableHandCard] Card dropped on build stack, calling onCardContact');
       if (onCardContact) onCardContact();
       
       // Call build stack handler
@@ -187,7 +185,6 @@ export function DraggableHandCard({
       opacity.value = withSpring(0);  // Hide card while action processes
       if (onDragEnd) onDragEnd();
       // Play card contact sound when card hits a stack
-      console.log('[DraggableHandCard] Card dropped on temp stack, calling onCardContact');
       if (onCardContact) onCardContact();
       
       // Call temp stack handler
@@ -203,7 +200,6 @@ export function DraggableHandCard({
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
       // Play card contact sound when card hits another card
-      console.log('[DraggableHandCard] Card dropped on card, calling onCardContact');
       if (onCardContact) onCardContact();
       onDropOnLooseCard(card, targetCardResult.card);
       return;
@@ -216,7 +212,6 @@ export function DraggableHandCard({
       opacity.value = withSpring(0);
       if (onDragEnd) onDragEnd();
       // Play card contact sound when card hits the table
-      console.log('[DraggableHandCard] Card dropped on table, calling onCardContact');
       if (onCardContact) onCardContact();
       
       // Table zone drop = trail action

@@ -40,7 +40,6 @@ export async function getSocket(): Promise<Socket> {
   connectionPromise = (async () => {
     try {
       const socketUrl = await getOptimalServerUrl();
-      console.log(`[SocketManager] Connecting to: ${socketUrl}`);
 
       socketInstance = io(socketUrl, {
         transports: ['websocket'],
@@ -54,7 +53,6 @@ export async function getSocket(): Promise<Socket> {
 
       return new Promise<Socket>((resolve, reject) => {
         socketInstance!.on('connect', () => {
-          console.log('[SocketManager] Connected successfully!');
           isConnected = true;
           connectionPromise = null;
           notifyListeners();
@@ -70,7 +68,6 @@ export async function getSocket(): Promise<Socket> {
         });
 
         socketInstance!.on('disconnect', () => {
-          console.log('[SocketManager] Disconnected');
           isConnected = false;
           notifyListeners();
         });

@@ -116,15 +116,9 @@ export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMulti
   const lobby = useLobbyState(socket, playerCount, mode);
   const opponentDrag = useOpponentDrag(socket);
 
-  // Debug: Log lobby state values
-  console.log(`[useMultiplayerGame] mode: ${mode}, playerCount: ${playerCount}, isInLobby: ${lobby.isInLobby}, playersInLobby: ${lobby.playersInLobby}, requiredPlayers: ${lobby.requiredPlayers}, allPlayersReady: ${lobby.allPlayersReady}`);
   const startNextRound = useCallback(() => {
-    // Party and Free-for-all modes need manual round transitions
     if (isPartyMode || isFreeForAllMode) {
       socket?.emit('start-next-round');
-    } else {
-      // 2-hands mode: server handles round transitions automatically
-      console.log('[useMultiplayerGame] startNextRound called - server handles transitions automatically');
     }
   }, [socket, isPartyMode, isFreeForAllMode]);
 

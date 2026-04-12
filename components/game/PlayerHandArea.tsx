@@ -273,10 +273,6 @@ export function PlayerHandArea({
             pendingDropCard.rank === card.rank && 
             pendingDropCard.suit === card.suit;
           
-          if (isPendingDrop) {
-            console.log('[PlayerHandArea] OPTIMISTIC UI: Hiding card', card.rank, card.suit, '- pending drop confirmed');
-          }
-          
           const isHidden = Boolean(
             (opponentDrag?.isDragging &&
               opponentDrag.source === 'hand' &&

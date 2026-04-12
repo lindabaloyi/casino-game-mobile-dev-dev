@@ -96,9 +96,6 @@ function findCardAtSource(state, card, source, playerIndex) {
 function createTemp(state, payload, playerIndex) {
   const { card, targetCard, source } = payload;
 
-  console.log('[createTemp] Called with card:', card?.rank, card?.suit, 'targetCard:', targetCard?.rank, targetCard?.suit);
-  console.log('[createTemp] source:', source, 'playerIndex:', playerIndex);
-
   const cardSource = source || 'hand';
 
   if (!card?.rank || !card?.suit || card?.value === undefined) {

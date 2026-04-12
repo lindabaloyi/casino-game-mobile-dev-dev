@@ -65,9 +65,6 @@ export function useLobbyState(
   // Compute whether all players are ready (all required players joined)
   const allPlayersReady = playersInLobby >= requiredPlayers && playersInLobby > 0;
   
-  // Debug logging for player count changes
-  console.log(`[useLobbyState] playersInLobby: ${playersInLobby} (from lobbyPlayers.length), requiredPlayers: ${requiredPlayers}, allPlayersReady: ${allPlayersReady}, isReady: ${isReady}`);
-  
   // Toggle ready status
   const toggleReady = () => {
     const newReadyState = !isReady;
@@ -91,9 +88,7 @@ export function useLobbyState(
       if (gameStartedRef.current) {
         return;
       }
-      console.log('[useLobbyState] party-waiting received:', data);
       setIsInLobby(true);
-      // Set lobbyPlayers from server data - this is the single source of truth
       setLobbyPlayers(data.players || []);
       if ((data as any).roomCode) {
         setRoomCode((data as any).roomCode);
@@ -103,10 +98,8 @@ export function useLobbyState(
     // Handle three-hands-waiting (3-player mode)
     const handleThreeHandsWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
       if (gameStartedRef.current) {
-        console.log('[useLobbyState] ⚠️ Ignoring three-hands-waiting after game started');
         return;
       }
-      console.log('[useLobbyState] three-hands-waiting received:', data);
       setIsInLobby(true);
       setLobbyPlayers(data.players || []);
       if ((data as any).roomCode) {
@@ -119,7 +112,6 @@ export function useLobbyState(
       if (gameStartedRef.current) {
         return;
       }
-      console.log('[useLobbyState] freeforall-waiting received:', data);
       setIsInLobby(true);
       setLobbyPlayers(data.players || []);
       if ((data as any).roomCode) {
@@ -132,7 +124,6 @@ export function useLobbyState(
       if (gameStartedRef.current) {
         return;
       }
-      console.log('[useLobbyState] tournament-waiting received:', data);
       setIsInLobby(true);
       setLobbyPlayers(data.players || []);
       if ((data as any).roomCode) {
@@ -145,7 +136,6 @@ export function useLobbyState(
       if (gameStartedRef.current) {
         return;
       }
-      console.log('[useLobbyState] tournament-mode party-waiting received:', data);
       setIsInLobby(true);
       setLobbyPlayers(data.players || []);
       if ((data as any).roomCode) {
@@ -158,7 +148,6 @@ export function useLobbyState(
       if (gameStartedRef.current) {
         return;
       }
-      console.log('[useLobbyState] four-hands-waiting received:', data);
       setIsInLobby(true);
       setLobbyPlayers(data.players || []);
       if ((data as any).roomCode) {
@@ -171,7 +160,6 @@ export function useLobbyState(
       if (gameStartedRef.current) {
         return;
       }
-      console.log('[useLobbyState] duel-waiting received:', data);
       setIsInLobby(true);
       setLobbyPlayers(data.players || []);
       if ((data as any).roomCode) {
@@ -180,19 +168,10 @@ export function useLobbyState(
     };
 
     const handleGameStart = (data: any) => {
-      console.log('[useLobbyState] 🔔 game-start received - setting gameStartedRef=true');
-      console.log('[useLobbyState] 🔔 game-start data:', JSON.stringify({
-        playerCount: data.gameState?.playerCount,
-        tournamentPhase: data.tournamentPhase,
-        tournamentHand: data.tournamentHand
-      }));
       gameStartedRef.current = true;
       setIsInLobby(false);
-      // Use actual player count from gameState for tournament transitions
       const actualPlayerCount = data.gameState?.playerCount || requiredPlayers;
-      console.log(`[useLobbyState] 🔔 Setting playersInLobby to ${actualPlayerCount} based on gameState.playerCount`);
       setLobbyPlayers(prev => {
-        // Create a full array of the right size for UI purposes
         return Array(actualPlayerCount).fill(null).map((_, i) => prev[i] || { userId: `player_${i}`, username: `Player ${i + 1}`, avatar: 'lion' });
       });
       if (pollingIntervalRef.current) {

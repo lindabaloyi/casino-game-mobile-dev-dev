@@ -58,15 +58,6 @@ export const Lobby: React.FC<LobbyProps> = ({
   const needsScroll = height < 600;
   const playersNeeded = modeConfig.playerCount - playersInLobby;
   const allReady = lobbyPlayers.length >= 2 && lobbyPlayers.every(p => p.isReady);
-  
-// DEBUG: Log props received
-  console.log('[Lobby] ========== RENDER ==========');
-  console.log('[Lobby] playersInLobby:', playersInLobby);
-  console.log('[Lobby] lobbyPlayers length:', lobbyPlayers.length);
-  console.log('[Lobby] lobbyPlayers:', JSON.stringify(lobbyPlayers));
-  console.log('[Lobby] lobbyPlayers order:', lobbyPlayers.map((p, i) => `[${i}] ${p.username} (id: ${p.id})`).join(', '));
-  console.log('[Lobby] lobbyPlayers usernames:', lobbyPlayers.map(p => p.username).join(', '));
-  console.log('[Lobby] lobbyPlayers ids:', lobbyPlayers.map(p => p.id).join(', '));
 
   const getAvatarEmoji = (avatarId: string) => {
     const avatar = AVATAR_OPTIONS.find(a => a.id === avatarId);
@@ -160,13 +151,6 @@ export const Lobby: React.FC<LobbyProps> = ({
             {[...Array(modeConfig.playerCount - 1)].map((_, idx) => {
               const slotIndex = idx + 1;
               const player = lobbyPlayers[slotIndex];
-              
-              // DEBUG: Log each PlayerCard being rendered
-              console.log(`[Lobby] Rendering slot ${slotIndex}:`, {
-                hasPlayer: !!player,
-                playerData: player ? JSON.stringify(player) : null,
-                placeholderName: getSlotPlaceholder(slotIndex, mode),
-              });
               
               if (player) {
                 return (

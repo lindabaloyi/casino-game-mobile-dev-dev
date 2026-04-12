@@ -28,10 +28,6 @@ export function useCardVisibility(opponentDrag?: OpponentDragState | null) {
        opponentDrag.cardId === cardId &&
        Boolean(opponentDrag.targetId));
     
-    if (isHidden) {
-      console.log(`[TableArea] Hiding table card ${cardId} - opponent is dragging or dropped`);
-    }
-    
     return isHidden;
   };
 

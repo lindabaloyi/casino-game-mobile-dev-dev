@@ -42,7 +42,6 @@ export function useCaptureSound(gameState: GameState | null, playerNumber: numbe
     const currentCount = currentCaptureCounts[playerNumber] || 0;
     
     if (currentCount > previousCount) {
-      console.log('[useCaptureSound] Capture detected! Playing sound');
       playCapture();
     }
 

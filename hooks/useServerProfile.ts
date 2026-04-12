@@ -196,7 +196,6 @@ export function useServerProfile(): UseServerProfileResult {
   // Fetch fresh data from server
   const fetchFreshData = useCallback(async () => {
     const data = await fetchServerProfile();
-    console.log('[useServerProfile] fetchFreshData result:', JSON.stringify(data));
     if (data) {
       setProfileData(data);
       setLastFetchTime(Date.now());

@@ -361,7 +361,6 @@ class BroadcasterService {
    * @param {number} gameId - Game ID
    */
   broadcastAllClientsReady(gameId) {
-    console.log(`[Broadcaster] Broadcasting all-clients-ready for game ${gameId}`);
     this.io.to(gameId).emit('all-clients-ready', { gameId });
   }
 }

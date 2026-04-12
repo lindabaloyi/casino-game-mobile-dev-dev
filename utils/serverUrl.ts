@@ -80,29 +80,22 @@ export class ServerUrlResolver {
     // Priority 1: Platform-specific URLs (no network test needed)
     if (isAndroidEmulator()) {
       // Android emulator - prefer localhost if using adb reverse
-      console.log('[ServerUrl] Running on Android Emulator');
-      console.log('[ServerUrl] Using localhost (works with adb reverse)');
       return this.config.localUrl; // http://localhost:3001
     }
     
     if (isPhysicalAndroidDevice()) {
       // Physical Android device - must use LAN IP
-      console.log('[ServerUrl] Running on Physical Android Device');
       const lanUrl = this.config.lanUrl;
-      console.log('[ServerUrl] Using LAN URL:', lanUrl);
       return lanUrl;
     }
     
     // Priority 2: Manual override in environment
     const manualUrl = this.getManualOverrideUrl();
     if (manualUrl) {
-      console.log('[ServerUrl] Using manual override URL:', manualUrl);
       return manualUrl;
     }
 
     if (!this.config.enableAutoDetect) {
-      console.log('[ServerUrl] Auto-detect disabled, using localUrl:', this.config.localUrl);
-      console.log('[ServerUrl] LAN URL (may need updating):', this.config.lanUrl);
       return this.config.localUrl;
     }
 

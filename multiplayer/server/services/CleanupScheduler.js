@@ -71,7 +71,7 @@ class CleanupScheduler {
 
       results.socketRegistry = this.socketRegistry.cleanupEmptyGames();
 
-      console.log('[CleanupScheduler] Cleanup run complete:', results);
+      
     } catch (error) {
       console.error('[CleanupScheduler] Error during cleanup:', error);
     }

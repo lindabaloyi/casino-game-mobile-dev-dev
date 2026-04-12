@@ -54,22 +54,16 @@ export function AnimatedCard({
   const animationCompleted = useRef(false);
 
   useEffect(() => {
-    console.log('[AnimatedCard] card:', card.rank + card.suit, 'shouldAnimate:', shouldAnimate, 'delayMs:', delayMs, 'startPosition:', startPosition);
-    
     if (shouldAnimate && !animationCompleted.current) {
-      console.log('[AnimatedCard] Starting animation for:', card.rank + card.suit);
       const timer = setTimeout(() => {
         // Animate to final position (0 relative offset) with completion callback
         translateX.value = withSpring(0, SPRING_CONFIG, (isFinished) => {
           if (isFinished && !animationCompleted.current) {
             animationCompleted.current = true;
             const cardId = `${card.rank}${card.suit}`;
-            console.log('[AnimatedCard] Animation complete for:', cardId);
             // Safety check: ensure onAnimationComplete is a function before calling
             if (typeof handleAnimationComplete === 'function') {
               handleAnimationComplete(cardId);
-            } else {
-              console.warn('[AnimatedCard] handleAnimationComplete is not a function:', typeof handleAnimationComplete);
             }
           }
         });

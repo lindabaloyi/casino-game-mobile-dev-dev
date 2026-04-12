@@ -52,16 +52,7 @@ function logQualificationProcess(players, phase, config, result) {
  * @returns {QualificationResult}
  */
 function determineQualification(players, phase, config) {
-  if (DEBUG) console.log(`[DEBUG] determineQualification called: phase=${phase}, players=${players.length}`);
-  
   const activePlayers = players.filter(p => !p.eliminated);
-  
-  if (DEBUG) {
-    console.log(`[DEBUG] Active players: ${activePlayers.length}`);
-    activePlayers.forEach(p => {
-      console.log(`[DEBUG]   ${p.id}: score=${p.cumulativeScore}, spades=${p.cumulativeSpades}, cards=${p.cumulativeCards}`);
-    });
-  }
   
   const playerIds = activePlayers.map(p => p.id);
   const scores = activePlayers.map(p => p.cumulativeScore);
@@ -71,23 +62,8 @@ function determineQualification(players, phase, config) {
     cards: []
   }));
   
-  if (DEBUG) {
-    console.log(`[DEBUG] Calling rankPlayers with:`);
-    console.log(`[DEBUG]   playerIds: ${playerIds}`);
-    console.log(`[DEBUG]   scores: ${scores}`);
-    console.log(`[DEBUG]   breakdowns:`, breakdowns);
-  }
-  
   const rankedIndices = rankPlayers(playerIds, scores, breakdowns);
   const sortedPlayers = rankedIndices.map(idx => activePlayers[idx]);
-  
-  if (DEBUG) {
-    console.log(`[DEBUG] rankPlayers result (indices): ${rankedIndices}`);
-    console.log(`[DEBUG] sortedPlayers order:`);
-    sortedPlayers.forEach((p, idx) => {
-      console.log(`[DEBUG]   ${idx+1}. ${p.id}: score=${p.cumulativeScore}, spades=${p.cumulativeSpades}, cards=${p.cumulativeCards}`);
-    });
-  }
   
   let qualifiedCount, nextPhase;
   
@@ -98,7 +74,6 @@ function determineQualification(players, phase, config) {
     qualifiedCount = 2;
     nextPhase = 'FINAL';
   } else {
-    if (DEBUG) console.log(`[DEBUG] FINAL phase - no next phase`);
     return {
       qualified: [],
       eliminated: [],
@@ -107,15 +82,8 @@ function determineQualification(players, phase, config) {
     };
   }
   
-  if (DEBUG) console.log(`[DEBUG] Qualifying ${qualifiedCount} players for ${nextPhase}`);
-  
   const qualified = sortedPlayers.slice(0, qualifiedCount);
   const eliminated = sortedPlayers.slice(qualifiedCount);
-  
-  if (DEBUG) {
-    console.log(`[DEBUG] Qualified: ${qualified.map(p => p.id)}`);
-    console.log(`[DEBUG] Eliminated: ${eliminated.map(p => p.id)}`);
-  }
   
   const result = {
     qualified,
@@ -123,9 +91,6 @@ function determineQualification(players, phase, config) {
     nextPhase,
     sortedPlayers
   };
-  
-  // Log the qualification process
-  logQualificationProcess(players, phase, config, result);
   
   return result;
 }

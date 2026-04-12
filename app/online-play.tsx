@@ -47,11 +47,9 @@ export default function OnlinePlayScreen() {
   // Handle hardware back button (Android)
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      console.log('[OnlinePlay] Hardware back button pressed');
       if (router.canGoBack()) {
         router.back();
       } else {
-        console.log('[OnlinePlay] No back history - navigating to home');
         router.replace('/(tabs)');
       }
       return true;
@@ -69,16 +67,6 @@ export default function OnlinePlayScreen() {
     mode,
     roomCode: roomCodeParam,
   });
-
-  // Debug logging to help track game mode
-  useEffect(() => {
-    console.log('[OnlinePlay] Screen params:', JSON.stringify({ mode, roomCode: roomCodeParam }));
-    console.log('[OnlinePlay] Connection state:', JSON.stringify({
-      mode: mode,
-      roomCode: roomCodeParam,
-      isPrivateRoom: connection.isPrivateRoom,
-    }));
-  }, [mode, roomCodeParam, connection.isPrivateRoom]);
 
   // Set in-game mode when game starts
   useEffect(() => {
@@ -107,33 +95,6 @@ export default function OnlinePlayScreen() {
     roomPlayerCount: connection.isPrivateRoom ? undefined : undefined,
   });
 
-  // DEBUG: Log connection state and lobby data
-  console.log('[OnlinePlay] ========== DEBUG LOBBY DATA ==========');
-  console.log('[OnlinePlay] Connection state:', JSON.stringify({
-    mode,
-    roomCode: connection.roomCode,
-    isPrivateRoom: connection.isPrivateRoom,
-    isConnected: connection.isConnected,
-    playersInLobby: connection.playersInLobby,
-    gameState: connection.gameState ? 'EXISTS' : 'NULL',
-    gameReady: connection.gameReady,
-    allClientsReady: connection.allClientsReady,
-    playerDisconnected: connection.playerDisconnected,
-    error: connection.error,
-  }, null, 2));
-  console.log('[OnlinePlay] Lobby data from useLobbyMock:', JSON.stringify({
-    lobbyPlayers: lobbyPlayers.map(p => ({ id: p.id, username: p.username, avatar: p.avatar, isReady: p.isReady })),
-    playersInLobby: lobbyPlayers.length,
-  }, null, 2));
-  console.log('[OnlinePlay] Lobby props passed to Lobby component:', JSON.stringify({
-    mode,
-    modeConfig: modeConfig.title,
-    playersInLobby: connection.playersInLobby,
-    lobbyPlayers: lobbyPlayers.length,
-    isReady,
-    roomCode: connection.roomCode,
-  }, null, 2));
-  
   // Copy room code to clipboard
   const handleCopyRoomCode = () => {
     const code = connection.roomCode;
@@ -163,13 +124,6 @@ export default function OnlinePlayScreen() {
     return <ErrorScreen type="disconnected" />;
   }
 
-  // Show lobby if game hasn't started OR if game isn't fully ready
-  // This ensures all players' games are initialized before navigation
-  console.log('[OnlinePlay] 🎯 Decision point - showing Lobby vs Game:');
-  console.log('[OnlinePlay]   gameState == null:', connection.gameState == null);
-  console.log('[OnlinePlay]   gameReady:', connection.gameReady);
-  console.log('[OnlinePlay]   allClientsReady:', connection.allClientsReady);
-  
   if (connection.gameState == null || !connection.gameReady || !connection.allClientsReady) {
     return (
       <Lobby
@@ -201,7 +155,6 @@ export default function OnlinePlayScreen() {
         connection.requestSync();
       }}
       onBackToMenu={() => {
-        console.log('[OnlinePlay] onBackToMenu called - navigating to /(tabs)');
         router.replace('/(tabs)');
       }}
       error={connection.error}

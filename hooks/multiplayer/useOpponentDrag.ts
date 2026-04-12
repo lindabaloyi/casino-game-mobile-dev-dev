@@ -115,7 +115,6 @@ export function useOpponentDrag(socket: Socket | null): UseOpponentDragResult {
     }) => {
       // Clear opponent drag state IMMEDIATELY when drop is registered
       // No delay - this prevents seeing duplicate cards (ghost + real card)
-      console.log('[useOpponentDrag] Opponent dropped card, clearing ghost immediately');
       setOpponentDrag(null);
     };
 

@@ -87,7 +87,6 @@ export default function UserProfilePage() {
       }
 
       const data = await response.json();
-      console.log('[UserProfilePage] Fetched profile data:', JSON.stringify(data));
       if (!data.success) {
         throw new Error(data.error || 'Failed to load profile');
       }
@@ -128,22 +127,17 @@ export default function UserProfilePage() {
 
   const handleAddFriend = async () => {
     if (!userId) {
-      console.log('[UserProfilePage] ❌ Cannot send request: userId is null');
       return;
     }
 
-    console.log('[UserProfilePage] 📤 Add Friend button clicked for userId:', userId);
     setActionLoading(true);
     
     try {
       const result = await sendRequest(userId);
-      console.log('[UserProfilePage] 📥 sendRequest result:', result);
       
       if (result.success) {
-        console.log('[UserProfilePage] ✅ Friend request sent successfully');
         setFriendStatus('pending');
       } else {
-        console.log('[UserProfilePage] ❌ Friend request failed:', result.error);
         // Show error to user
         if (typeof window !== 'undefined') {
           window.alert(result.error || 'Failed to send friend request');
@@ -165,10 +159,8 @@ export default function UserProfilePage() {
     setActionLoading(true);
     // Find the request from this user
     const request = pendingRequests.find((r: any) => r.fromUser?._id === userId);
-    console.log('[UserProfilePage] Accepting request:', request?._id);
     if (request) {
       await acceptRequest(request._id);
-      console.log('[UserProfilePage] Request accepted, setting status to friends');
       setFriendStatus('friends');
       // Refresh friends list
       refresh && refresh();
@@ -182,10 +174,8 @@ export default function UserProfilePage() {
     setActionLoading(true);
     // Find the request from this user
     const request = pendingRequests.find((r: any) => r.fromUser?._id === userId);
-    console.log('[UserProfilePage] Declining request:', request?._id);
     if (request) {
       await declineRequest(request._id);
-      console.log('[UserProfilePage] Request declined, setting status to none');
       setFriendStatus('none');
       // Refresh requests list
       refresh && refresh();
@@ -193,19 +183,13 @@ export default function UserProfilePage() {
     setActionLoading(false);
   };
 
-  // Debug: log avatar options
-  console.log('[UserProfilePage] AVATAR_OPTIONS:', JSON.stringify(AVATAR_OPTIONS));
-  
   const getAvatarEmoji = (avatarId: string) => {
-    console.log('[UserProfilePage] getAvatarEmoji called with avatarId:', avatarId);
     // Handle external avatar URLs (e.g., from ui-avatars.com)
     if (avatarId && avatarId.startsWith('http')) {
-      console.log('[UserProfilePage] External avatar URL detected, using default');
       return '👤';
     }
     // Handle local avatar IDs
     const avatar = AVATAR_OPTIONS.find(a => a.id === avatarId);
-    console.log('[UserProfilePage] Found avatar:', avatar);
     return avatar?.emoji || '👤';
   };
 

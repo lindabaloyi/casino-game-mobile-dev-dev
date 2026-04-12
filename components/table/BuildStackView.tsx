@@ -106,9 +106,6 @@ export function BuildStackView({
     (pendingExtension?.looseCard ? [pendingExtension.looseCard] : [])
   , [pendingExtension]);
 
-  // DEBUG: Log pending cards for build value issues
-  console.log('[BuildStackView] Stack:', stack.stackId, 'value:', stack.value, 'pendingCards:', pendingCards?.map(c => c?.value), 'cards count:', stack.cards?.length);
-
   // Get pending cards from capture in order they were added
   const pendingCaptureCards = useMemo(() => 
     pendingCapture?.cards?.map(p => p.card) ?? []
@@ -265,7 +262,6 @@ export function BuildStackView({
         <TouchableOpacity 
           style={styles.tapArea} 
           onPress={() => {
-            console.log('[BuildStackView] Tap detected, isDragging:', isDragging.value, 'onBuildTap exists:', !!onBuildTap);
             if (!isDragging.value && onBuildTap) {
               onBuildTap(stack);
             }

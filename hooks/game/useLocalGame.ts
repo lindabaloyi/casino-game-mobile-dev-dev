@@ -117,7 +117,6 @@ export function useLocalGame(playerCount: number = 2): UseLocalGameResult {
         payload || {}
       );
       
-      console.log(`[useLocalGame] Executed action: ${type} by player ${playerIndex}`);
       setGameState(newState);
     } catch (error: any) {
       console.error(`[useLocalGame] Action failed: ${type}`, error);
@@ -139,7 +138,6 @@ export function useLocalGame(playerCount: number = 2): UseLocalGameResult {
       
       if (newState) {
         // Round 2 started successfully - keep scores from previous round
-        console.log(`[useLocalGame] startNextRound: Successfully started Round ${newState.round}`);
         return {
           ...newState,
           scores: prev.scores,
@@ -148,12 +146,8 @@ export function useLocalGame(playerCount: number = 2): UseLocalGameResult {
       }
       
       // If null returned, no more rounds allowed - end the game
-      console.log('[useLocalGame] startNextRound: No more rounds allowed, ending game');
-      
       // Finalize game - this calculates scores from captured cards
       const finalizedState = finalizeGame(prev);
-      const finalScores = finalizedState.scores || [0, 0];
-      console.log(`[useLocalGame] Finalized scores: P0=${finalScores[0]}, P1=${finalScores[1]}`);
       
       return {
         ...finalizedState,

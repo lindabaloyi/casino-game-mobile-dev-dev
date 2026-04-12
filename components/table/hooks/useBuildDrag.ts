@@ -70,15 +70,11 @@ export function useBuildDrag({
     translateY.value = 0;
     isDragging.value = false;
 
-    console.log(`[useBuildDrag] Drag end - absX: ${absX}, absY: ${absY}, playerNumber: ${playerNumber}`);
-
     // Check if dropped on player's own capture pile
     if (findCapturePileAtPoint && playerNumber !== undefined) {
       const pile = findCapturePileAtPoint(absX, absY);
-      console.log(`[useBuildDrag] findCapturePileAtPoint result:`, pile);
       
       if (pile && pile.playerIndex === playerNumber) {
-        console.log('[useBuildDrag] Dropped on own capture pile:', pile);
         if (onDropToCapture) {
           onDropToCapture(stack);
         }
@@ -87,7 +83,6 @@ export function useBuildDrag({
     }
 
     // Otherwise, call normal onDragEnd
-    console.log('[useBuildDrag] Not dropped on capture pile - calling onDragEnd');
     if (onDragEnd) {
       onDragEnd(stack);
     }

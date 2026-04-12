@@ -146,7 +146,6 @@ export function hasCardImage(rank: string, suit: string): boolean {
  * Call this when the app starts or game initializes
  */
 export function preloadCardImages(): void {
-  console.log('[CardImageMap] Card images loaded via require()');
 }
 
 /**

@@ -81,8 +81,6 @@ export function usePlayerStats(): UsePlayerStatsResult {
       if (!token) {
         throw new Error('Not authenticated');
       }
-
-      console.log('[usePlayerStats] Fetching player stats...');
       
       const response = await fetch(`${API_BASE}/api/stats/player`, {
         headers: {
@@ -97,14 +95,6 @@ export function usePlayerStats(): UsePlayerStatsResult {
       const data = await response.json();
       
       if (data.success) {
-        console.log('[usePlayerStats] Stats received:', {
-          totalGames: data.stats.totalGames,
-          wins: data.stats.wins,
-          spadesCountKept: data.stats.spadesCountKept,
-          pointRetentionPerGame: data.stats.pointRetentionPerGame,
-          motoTrophyCount: data.stats.motoTrophyCount,
-          modeStats: data.stats.modeStats
-        });
         setStats(data.stats);
       } else {
         throw new Error(data.error || 'Failed to fetch stats');

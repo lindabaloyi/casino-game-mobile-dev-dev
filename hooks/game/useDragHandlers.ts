@@ -54,23 +54,18 @@ export function useDragHandlers({
   }, [dropBounds]);
 
   const handleHandDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
-    console.log('[useDragHandlers] handleHandDragStart called', { card: card?.rank, absoluteX, absoluteY });
-    console.log('[useDragHandlers] dropBounds check:', { width: dropBounds.current?.width, height: dropBounds.current?.height });
-    
     // Always start the drag overlay - don't return early!
     dragOverlay.startDrag(card, 'hand', absoluteX, absoluteY);
     
     // Check bounds AFTER starting the drag
     // Note: Bounds may be 0 on first drag, but we still need to emit for ghost sync
     const boundsReady = dropBounds.current && dropBounds.current.width > 0 && dropBounds.current.height > 0;
-    console.log('[useDragHandlers] boundsReady:', boundsReady);
     
     if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
       // Only skip emission if bounds not ready, but still emit for ghost sync
       if (!boundsReady) {
         // Emit with default bounds if not ready - opponent needs to see the ghost
         const norm = { x: 0.5, y: 0.5 }; // Center of screen as fallback
-        console.log('[useDragHandlers] Emitting drag-start with fallback position (bounds not ready)');
         emitDragStart(card, 'hand', norm);
         return;
       }
@@ -101,15 +96,10 @@ export function useDragHandlers({
   }, [dragOverlay, emitDragStart, getNormalizedPosition]);
 
   const handleDragMove = useCallback((absoluteX: number, absoluteY: number) => {
-    console.log('[useDragHandlers] handleDragMove called', { absoluteX, absoluteY });
     dragOverlay.moveDrag(absoluteX, absoluteY);
 
-    console.log('[useDragHandlers] emitDragMove defined:', typeof emitDragMove === 'function');
-    console.log('[useDragHandlers] draggingCard:', dragOverlay.draggingCard?.rank);
-    
     if (emitDragMove && dragOverlay.draggingCard) {
       const norm = getNormalizedPosition(absoluteX, absoluteY);
-      console.log('[useDragHandlers] Emitting drag-move:', norm);
       emitDragMove(dragOverlay.draggingCard, norm);
     }
   }, [dragOverlay, emitDragMove, getNormalizedPosition]);

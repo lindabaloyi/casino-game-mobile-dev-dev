@@ -102,7 +102,6 @@ export function CapturePile({
     if (onRecallAttempt && captures.length > 0) {
       if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
         // Double tap detected - attempt recall
-        console.log('[CapturePile] Double-tap detected, attempting recall from player', playerIndex);
         onRecallAttempt(playerIndex);
       }
     }

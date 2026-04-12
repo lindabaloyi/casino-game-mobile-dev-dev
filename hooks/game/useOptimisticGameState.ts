@@ -109,12 +109,10 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
       
       if (optimisticHand === serverHand) {
         // Server has processed our changes - sync with server
-        console.log('[useOptimisticGameState] Server confirmed changes, syncing state');
         setOptimisticState(cloneGameState(baseGameState));
         pendingActions.current = [];
       } else {
         // Server hasn't processed yet - keep optimistic state
-        console.log('[useOptimisticGameState] Pending changes, keeping optimistic state');
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,18 +121,14 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
   // Apply optimistic action - returns new optimistic state immediately
   const applyOptimisticAction = useCallback((action: GameAction): GameState | null => {
     if (!optimisticState) {
-      console.log('[useOptimisticGameState] No optimistic state, cannot apply');
       return null;
     }
-
-    console.log('[useOptimisticGameState] Applying optimistic action:', action.type, action.card?.rank, action.card?.suit);
 
     const newState = cloneGameState(optimisticState);
     const playerIndex = action.playerIndex ?? newState.currentPlayer;
     const player = newState.players?.[playerIndex];
 
     if (!player) {
-      console.log('[useOptimisticGameState] Player not found:', playerIndex);
       return optimisticState;
     }
 
@@ -152,8 +146,6 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
             id: cardId,
           };
           newState.tableCards = [...(newState.tableCards || []), tableCard];
-          
-          console.log('[useOptimisticGameState] Trail applied:', cardToTrail.rank, cardToTrail.suit);
         }
         break;
       }
@@ -168,8 +160,6 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
           
           // Add to player's captures immediately
           player.captures = [...(player.captures || []), capturedCard];
-          
-          console.log('[useOptimisticGameState] Capture applied:', capturedCard.rank, capturedCard.suit);
         }
         break;
       }
@@ -192,8 +182,6 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
             owner: playerIndex,
           };
           newState.tableCards = [...(newState.tableCards || []), tempStack];
-          
-          console.log('[useOptimisticGameState] CreateTemp applied:', card.rank, card.suit);
         }
         break;
       }
@@ -214,9 +202,8 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
           
           if (tempStack) {
             // Add card to stack - need to track cards in stack
-            // For now, just note the stack was modified
-            console.log('[useOptimisticGameState] AddToTemp applied:', card.rank, card.suit, 'to stack:', stackId);
           }
+        }
         }
         break;
       }
@@ -242,8 +229,6 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
           newState.tableCards = newState.tableCards?.filter(
             (tc: TableCard) => tc.stackId !== stackId
           ) || [];
-          
-          console.log('[useOptimisticGameState] DropToCapture applied for stack:', stackId);
         }
         break;
       }
@@ -259,8 +244,6 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
           
           // Card goes to captures
           player.captures = [...(player.captures || []), card];
-          
-          console.log('[useOptimisticGameState] StealBuild applied:', card.rank, card.suit);
         }
         break;
       }
@@ -280,7 +263,6 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
           if (tempStack) {
             // Change to build stack
             tempStack.type = 'build_stack';
-            console.log('[useOptimisticGameState] AcceptTemp applied, converted to build:', stackId);
           }
         }
         break;
@@ -312,8 +294,6 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
           newState.tableCards = newState.tableCards?.filter(
             (tc: TableCard) => tc.stackId !== stackId
           ) || [];
-          
-          console.log('[useOptimisticGameState] CancelTemp applied for stack:', stackId);
         }
         break;
       }
@@ -321,12 +301,10 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
       case 'endTurn': {
         // Advance to next player
         newState.currentPlayer = (playerIndex + 1) % newState.playerCount;
-        console.log('[useOptimisticGameState] EndTurn applied, next player:', newState.currentPlayer);
         break;
       }
 
       default:
-        console.log('[useOptimisticGameState] Unknown action type:', action.type);
         return optimisticState;
     }
 
@@ -341,8 +319,6 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
 
   // Rollback last pending action
   const rollback = useCallback((action: GameAction) => {
-    console.log('[useOptimisticGameState] Rolling back action:', action.type);
-    
     // Remove from pending actions
     pendingActions.current = pendingActions.current.filter(
       a => a.type !== action.type || a.card !== action.card
@@ -356,7 +332,6 @@ export function useOptimisticGameState(baseGameState: GameState | null) {
 
   // Clear all pending actions (called when server confirms all)
   const confirmAll = useCallback(() => {
-    console.log('[useOptimisticGameState] Server confirmed all actions');
     pendingActions.current = [];
     
     if (baseGameState) {

@@ -41,11 +41,8 @@ export function CaptureOrStealModal({
   onPlayButtonSound,
 }: CaptureOrStealModalProps) {
   const handleCapture = () => {
-    console.log('[CaptureOrStealModal] Capture button pressed');
     onPlayButtonSound?.();
-    console.log('[CaptureOrStealModal] About to call onCapture');
     onCapture();
-    console.log('[CaptureOrStealModal] onCapture called');
   };
 
   const handleExtend = () => {

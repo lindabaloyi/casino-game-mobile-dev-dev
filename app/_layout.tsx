@@ -21,7 +21,7 @@ export default function RootLayout() {
         try {
           await NavigationBar.setVisibilityAsync('hidden');
         } catch (error: any) {
-          console.log('[SafeAreaDebug] Error hiding nav bar:', error?.message);
+          // Navigation bar hide failed - non-critical
         }
       }
     };

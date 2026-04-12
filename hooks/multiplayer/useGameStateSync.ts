@@ -308,19 +308,10 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     }
 
     const handleGameStart = (data: any) => {
-      console.log('[useGameStateSync] 🔥 game-start RECEIVED from server!');
-      console.log('[useGameStateSync] gameState playerCount:', data.gameState?.playerCount);
-      console.log('[useGameStateSync] playerNumber:', data.playerNumber);
-      console.log('[useGameStateSync] myUserId:', data.myUserId);
-      console.log('[useGameStateSync] gameId:', data.gameId);
-      console.log('[useGameStateSync] gameState is null?', !data.gameState);
-      
       if (!data.gameState) {
-        console.log('[useGameStateSync] ❌ FATAL: gameState is missing from game-start event!');
         return;
       }
       
-      console.log('[useGameStateSync] ✅ gameState received, setting state...');
       setGameState(data.gameState);
       
       // Verify playerNumber matches user's actual position in gameState.players
@@ -329,7 +320,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
           (p: any) => p.userId === data.myUserId
         );
         if (myIndex !== -1 && myIndex !== data.playerNumber) {
-          console.log(`[useGameStateSync] ⚠️ playerNumber remapped: ${data.playerNumber} -> ${myIndex} (based on myUserId)`);
           setPlayerNumber(myIndex);
         } else {
           setPlayerNumber(data.playerNumber);
@@ -344,21 +334,8 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       
       // Store gameId for emitClientReady
       if (data.gameId !== undefined && data.gameId !== null) {
-        const oldGameId = gameIdRef.current;
         gameIdRef.current = data.gameId;
-        console.log(`[useGameStateSync] 📦 Stored gameId: ${oldGameId} -> ${data.gameId} (tournament hand change detected)`);
       }
-      
-      console.log(`[useGameStateSync] ✅ Full game-start data:`, {
-        gameId: data.gameId,
-        playerNumber: data.playerNumber,
-        myUserId: data.myUserId,
-        tournamentPhase: data.tournamentPhase,
-        tournamentHand: data.tournamentHand,
-        totalHands: data.totalHands,
-        playerCount: data.gameState?.playerCount,
-        gameMode: data.gameState?.gameMode
-      });
     };
 
     socket.on('game-start', handleGameStart);
@@ -370,15 +347,9 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
 
   // Trigger game ready validation when gameState or playerNumber changes
   useEffect(() => {
-    console.log(`[useGameStateSync] 🔄 Ready check EFFECT FIRED: gameState=${!!gameState}, playerNumber=${playerNumber}, gameIdRef=${gameIdRef.current}`);
-    
     if (!gameState) return;
     
-    // DEBUG: Log playerNumber and tournamentPhase
-    console.log(`[useGameStateSync] Ready check: playerNumber=${playerNumber}, tournamentPhase=${gameState.tournamentPhase}, playerCount=${gameState.playerCount}`);
-    
     if (playerNumber === null) {
-      console.log(`[useGameStateSync] ⚠️ playerNumber is null - player is eliminated or not assigned, skipping client-ready`);
       return;
     }
     
@@ -386,10 +357,7 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     const isValid = validateGameReady(gameState, playerNumber);
     
     if (isValid && gameIdRef.current !== null) {
-      console.log(`[useGameStateSync] ✅ Game validated, emitting client-ready for game ${gameIdRef.current}, player ${playerNumber}`);
       emitClientReady(gameIdRef.current, playerNumber);
-    } else {
-      console.log(`[useGameStateSync] ❌ Game not ready: isValid=${isValid}, gameId=${gameIdRef.current}`);
     }
   }, [gameState, playerNumber, validateGameReady, emitClientReady]);
 
@@ -435,18 +403,9 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     if (!socket) return;
 
     const handleGameUpdate = (state: any) => {
-      // DEBUG: Log build stacks with pending extension
-      const buildStacks = state.tableCards?.filter((tc: any) => tc.type === 'build_stack');
-      const pendingExtStacks = buildStacks?.filter((tc: any) => tc.pendingExtension);
       // Check for pending choice (capture vs extend modal)
       if ((state as any).pendingChoice) {
-        console.log('[useGameStateSync] pendingChoice detected:', (state as any).pendingChoice);
-      }
-      if (pendingExtStacks?.length > 0) {
-        console.log('[useGameStateSync] game-update received with pending extensions:');
-        pendingExtStacks.forEach((tc: any) => {
-          console.log('  Stack:', tc.stackId, 'pendingExt cards:', tc.pendingExtension?.cards?.map((p: any) => p.card?.value));
-        });
+        // pending choice exists
       }
       
       // CRITICAL: Update playerNumber if provided (e.g., after tournament phase transitions)
@@ -455,12 +414,10 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       if (state.playerNumber !== undefined) {
         const newPlayerNumber = state.playerNumber;
         if (newPlayerNumber !== playerNumber) {
-          console.log(`[useGameStateSync] 🔄 Player number updated: ${playerNumber} -> ${newPlayerNumber}`);
           setPlayerNumber(newPlayerNumber);
         }
       }
       
-      console.log('[useGameStateSync] Received game-update, tournamentPhase:', state.tournamentPhase, 'playerCount:', state.playerCount);
       setGameState(state);
     };
 
@@ -498,26 +455,7 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     if (!socket) return;
 
     const handleGameOver = (data: GameOverData) => {
-      console.log('[useGameStateSync] Received game-over event:', JSON.stringify(data, null, 2));
-      console.log('[useGameStateSync] Tournament transition data:', {
-        nextGameId: data.nextGameId,
-        nextPhase: data.nextPhase,
-        transitionType: data.transitionType,
-        countdownSeconds: data.countdownSeconds,
-        eliminatedPlayers: data.eliminatedPlayers,
-        qualifiedPlayers: data.qualifiedPlayers
-      });
-      console.log('[useGameStateSync] Final scores from server:', data.finalScores);
-      console.log('[useGameStateSync] Score breakdowns from server:', JSON.stringify(data.scoreBreakdowns, null, 2));
-      
       // Extract tournament ranking data from game-over
-      const tournamentData = {
-        rankings: data.rankings || [],
-        tieBreakReason: data.tieBreakReason || null,
-        previousWinner: data.previousWinner || null,
-      };
-      console.log('[useGameStateSync] Tournament rankings:', tournamentData);
-      
       setGameOverData(data);
       
       // Record win/loss for player with game mode

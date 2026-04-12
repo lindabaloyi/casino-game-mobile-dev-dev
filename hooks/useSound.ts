@@ -89,7 +89,6 @@ export function useSound() {
         soundsRef.current.shiya = shiyaSound;
 
         isLoadedRef.current = true;
-        console.log('[useSound] All sounds loaded successfully');
       } catch (error) {
         console.error('[useSound] Error loading sounds:', error);
       }
@@ -126,10 +125,7 @@ export function useSound() {
 
   // Play card contact sound
   const playCardContact = useCallback(async () => {
-    console.log('[useSound] playCardContact called, isLoaded:', isLoadedRef.current);
-    
     if (!isLoadedRef.current || !soundsRef.current.cardContact) {
-      console.log('[useSound] Card contact sound not loaded yet');
       return;
     }
 
@@ -137,7 +133,6 @@ export function useSound() {
       // Reset to beginning before playing
       await soundsRef.current.cardContact.setPositionAsync(0);
       await soundsRef.current.cardContact.playAsync();
-      console.log('[useSound] Card contact sound playing');
     } catch (error) {
       console.error('[useSound] Error playing card contact sound:', error);
     }
@@ -146,7 +141,6 @@ export function useSound() {
   // Play capture sound
   const playCapture = useCallback(async () => {
     if (!isLoadedRef.current || !soundsRef.current.capture) {
-      console.log('[useSound] Capture sound not loaded yet');
       return;
     }
 
@@ -162,7 +156,6 @@ export function useSound() {
   // Play trail sound at 2x speed
   const playTrail = useCallback(async () => {
     if (!isLoadedRef.current || !soundsRef.current.trail) {
-      console.log('[useSound] Trail sound not loaded yet');
       return;
     }
 
@@ -179,7 +172,6 @@ export function useSound() {
   // Play table card drag sound (for dragging loose cards on table)
   const playTableCardDrag = useCallback(async () => {
     if (!isLoadedRef.current || !soundsRef.current.cardContact) {
-      console.log('[useSound] Card contact sound not loaded yet');
       return;
     }
 
@@ -195,7 +187,6 @@ export function useSound() {
   // Play button click sound
   const playButton = useCallback(async () => {
     if (!isLoadedRef.current || !soundsRef.current.button) {
-      console.log('[useSound] Button sound not loaded yet');
       return;
     }
 
@@ -211,7 +202,6 @@ export function useSound() {
   // Play shiya sound
   const playShiya = useCallback(async () => {
     if (!isLoadedRef.current || !soundsRef.current.shiya) {
-      console.log('[useSound] Shiya sound not loaded yet');
       return;
     }
 
@@ -219,7 +209,6 @@ export function useSound() {
       // Reset to beginning before playing
       await soundsRef.current.shiya.setPositionAsync(0);
       await soundsRef.current.shiya.playAsync();
-      console.log('[useSound] Shiya sound playing');
     } catch (error) {
       console.error('[useSound] Error playing shiya sound:', error);
     }
@@ -228,7 +217,6 @@ export function useSound() {
   // Toggle mute - now just delegates to SoundContext
   const toggleMute = useCallback(async () => {
     // This is now handled by useSoundContext
-    console.log('[useSound] Use SoundContext for music control');
   }, []);
 
   // Check if background music is muted

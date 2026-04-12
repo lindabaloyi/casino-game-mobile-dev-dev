@@ -50,9 +50,7 @@ export function useActionHandlers(
   }, [modals, actions]);
 
   const handleConfirmSteal = useCallback((playerHand: Card[]) => {
-    // Validate that the target card is in the player's hand (steal can only use hand cards)
     if (!modals.stealTargetCard || !modals.stealTargetStack) {
-      console.log('[handleConfirmSteal] No steal target - closing modal');
       modals.closeStealModal();
       return;
     }
@@ -63,16 +61,12 @@ export function useActionHandlers(
     );
     
     if (!cardInHand) {
-      console.log('[handleConfirmSteal] Card not in hand - cannot steal');
-      // Card is not in hand - cannot proceed with steal
       modals.closeStealModal();
       return;
     }
     
-    console.log('[handleConfirmSteal] Confirming steal with card:', modals.stealTargetCard.rank, modals.stealTargetCard.suit);
     actions.stealBuild(modals.stealTargetCard, modals.stealTargetStack.stackId);
     modals.closeStealModal();
-    // Show end turn button after successful steal
     modals.onStealCompleted();
   }, [modals, actions]);
 
@@ -86,8 +80,6 @@ export function useActionHandlers(
   const handleExtendAcceptClick = useCallback((stackId: string) => {
     const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
     if (stack?.pendingExtension?.looseCard || stack?.pendingExtension?.cards) {
-      // Open modal instead of sending action - player confirms in modal
-      console.log('[handleExtendAcceptClick] Opening extend modal for stack', stackId);
       modals.openExtendModal(stack);
     }
   }, [table, modals]);
@@ -96,10 +88,8 @@ export function useActionHandlers(
   const handleConfirmExtendAccept = useCallback(() => {
     const stack = modals.extendTargetBuild;
     if (stack) {
-      console.log('[handleConfirmExtendAccept] Accepting extension for stack', stack.stackId);
       actions.acceptBuildExtension(stack.stackId);
       modals.closeExtendModal();
-      // No End Turn button - extension auto-ends the turn
     }
   }, [modals, actions]);
 
@@ -107,7 +97,6 @@ export function useActionHandlers(
   const handleCancelExtendAccept = useCallback(() => {
     const stack = modals.extendTargetBuild;
     if (stack) {
-      console.log('[handleCancelExtendAccept] Declining extension for stack', stack.stackId);
       actions.declineBuildExtension(stack.stackId);
       modals.closeExtendModal();
     }
@@ -126,8 +115,6 @@ export function useActionHandlers(
     extendedTarget: number;
     stackId: string;
   }) => {
-    console.log('[handleConfirmCaptureChoice] Sending choice action with capture option');
-    
     // Send choice action with selectedOption: 'capture'
     // This clears pendingChoice on the server and processes the capture
     actions.choice(
@@ -137,7 +124,6 @@ export function useActionHandlers(
       choiceData.buildValue,
       choiceData.extendedTarget
     );
-    console.log('[handleConfirmCaptureChoice] choice action (capture) sent to server');
     
     // Close the modal
     modals.closeCaptureOrStealModal();
@@ -154,8 +140,6 @@ export function useActionHandlers(
     extendedTarget: number;
     stackId: string;
   }) => {
-    console.log('[handleConfirmExtendChoice] Sending stealBuild action directly');
-    
     // Send stealBuild action directly - bypasses choice/extend router
     // This routes straight to stealBuild.js backend handler
     actions.stealBuild(choiceData.card, choiceData.stackId);

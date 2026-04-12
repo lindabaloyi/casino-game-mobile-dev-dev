@@ -24,8 +24,6 @@ export function useBuildDisplayValue({
   value,
   pendingCards,
 }: UseBuildDisplayValueProps): UseBuildDisplayValueResult {
-  console.log('[useBuildDisplayValue] Calculating with:', { value, pendingCards: pendingCards?.map(c => c.value) });
-  
   // Compute effective sum with reset on reset logic
   // This matches the server-side validation logic:
   // - Iterate through cards in order
@@ -38,7 +36,6 @@ export function useBuildDisplayValue({
         sum = 0; // reset after exact match
       }
     }
-    console.log('[useBuildDisplayValue] effectiveSum calculated:', sum);
     return sum;
   }, [pendingCards, value]);
 

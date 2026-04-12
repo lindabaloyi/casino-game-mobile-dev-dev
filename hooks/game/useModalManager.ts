@@ -35,11 +35,9 @@ export function useModalManager() {
 
   // Steal modal
   const openStealModal = useCallback((card: Card, stack: BuildStack) => {
-    console.log('[useModalManager.openStealModal] 📥 Called with:', { card: card?.rank, stackId: stack?.stackId, stackValue: stack?.value });
     setStealTargetCard(card);
     setStealTargetStack(stack);
     setShowStealModal(true);
-    console.log('[useModalManager.openStealModal] ✅ Modal state updated, showStealModal should be true');
   }, []);
 
   const closeStealModal = useCallback(() => {
@@ -67,13 +65,11 @@ export function useModalManager() {
   const [confirmTempBuildStack, setConfirmTempBuildStack] = useState<TempStack | null>(null);
 
   const openConfirmTempBuildModal = useCallback((stack: TempStack) => {
-    console.log('[useModalManager] Opening confirm temp build modal for stack:', stack.stackId, 'value:', stack.value);
     setConfirmTempBuildStack(stack);
     setShowConfirmTempBuild(true);
   }, []);
 
   const closeConfirmTempBuildModal = useCallback(() => {
-    console.log('[useModalManager] Closing confirm temp build modal');
     setShowConfirmTempBuild(false);
     setConfirmTempBuildStack(null);
   }, []);
@@ -102,7 +98,6 @@ export function useModalManager() {
   // Clear pendingChoice manually - called when modal action is taken
   // This prevents modal from reopening after server broadcasts state
   const clearPendingChoice = useCallback(() => {
-    console.log('[useModalManager] clearPendingChoice called - clearing locally');
     // We don't actually clear pendingChoice in state here
     // We just use this as a flag to prevent the useEffect from re-opening the modal
     setCaptureOrStealData(null);
@@ -116,16 +111,13 @@ export function useModalManager() {
     extendedTarget: number;
     stackId: string;
   }) => {
-    console.log('[useModalManager] Opening capture or steal modal:', data);
     setCaptureOrStealData(data);
     setShowCaptureOrStealModal(true);
   }, []);
 
   const closeCaptureOrStealModal = useCallback(() => {
-    console.log('[useModalManager] closeCaptureOrStealModal called - about to set state to false');
     setShowCaptureOrStealModal(false);
     setCaptureOrStealData(null);
-    console.log('[useModalManager] closeCaptureOrStealModal complete - state should be updated');
   }, []);
 
   // Auto-capture helper

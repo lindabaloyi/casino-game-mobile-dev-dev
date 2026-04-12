@@ -107,21 +107,7 @@ export function GameOverModal({
 }: GameOverModalProps) {
   const [countdown, setCountdown] = useState(initialCountdown);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Debug logging
-  console.log('[GameOverModal] Props received:', {
-    visible,
-    playerCount,
-    isPartyMode,
-    scores: scores?.slice(0, 4),
-    teamScoreBreakdowns: teamScoreBreakdowns ? 'present' : 'null/undefined',
-    isTournamentMode,
-    nextGameId,
-    nextPhase,
-    transitionType,
-    countdownSeconds: initialCountdown,
-    eliminatedPlayers,
-    qualifiedPlayers
-  });
+  
   const score1 = scores[0] || 0;
   const score2 = scores[1] || 0;
   const score3 = scores[2] || 0;
@@ -139,7 +125,6 @@ export function GameOverModal({
       // Extract player number from playerId (e.g., 'player_0' -> 1)
       const winnerDisplayIndex = parseInt(winnerPlayerId.replace('player_', '')) + 1;
       winnerText = `Player ${winnerDisplayIndex}`;
-      console.log('[GameOverModal] Tournament winner detected: playerId', winnerPlayerId, '-> display index', winnerDisplayIndex);
     } else {
       // Fallback to score-based logic
       winnerText = getScoreBasedWinner();
@@ -360,10 +345,8 @@ export function GameOverModal({
 
   // Similar style for team breakdown
   const renderTeamBreakdown = (teamName: string, team: TeamBreakdown | null, teamScore: number) => {
-    console.log(`[GameOverModal] renderTeamBreakdown called: ${teamName}, team=`, team, 'teamScore=', teamScore);
     // If no team data, return null so caller can use simple card instead
     if (!team) {
-      console.log(`[GameOverModal] No team data for ${teamName}, returning null`);
       return null;
     }
 
@@ -572,7 +555,6 @@ export function GameOverModal({
               <View style={styles.partyTeamsRow}>
                 {(() => {
                   const showDetailed = !!teamScoreBreakdowns;
-                  console.log(`[GameOverModal] Party mode - teamScoreBreakdowns=`, teamScoreBreakdowns, ', showDetailed=', showDetailed);
                   if (showDetailed) {
                     return (
                       <View style={styles.partyTeamsDetailedRow}>

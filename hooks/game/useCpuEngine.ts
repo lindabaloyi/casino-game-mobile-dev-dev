@@ -63,7 +63,6 @@ export function useCpuEngine({ gameState, executeAction, enabled = true }: UseCp
       return;
     }
     
-    console.log('[useCpuEngine] CPU turn detected, preparing move...');
     isProcessingRef.current = true;
     
     // Set timeout for "thinking" delay
@@ -73,11 +72,9 @@ export function useCpuEngine({ gameState, executeAction, enabled = true }: UseCp
         const action = findCpuAction(gameState, CPU_PLAYER);
         
         if (action) {
-          console.log(`[useCpuEngine] CPU executing: ${action.type}`, action.payload);
           executeAction(action);
         } else {
           // No valid actions found - end turn
-          console.log('[useCpuEngine] No valid actions, ending turn');
           executeAction({ type: 'endTurn', payload: {} });
         }
       } catch (error) {

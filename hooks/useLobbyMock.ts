@@ -61,17 +61,6 @@ export const useLobbyMock = ({
 
 // Initialize with self and merge with server/room players when available
   useEffect(() => {
-    console.log('[useLobbyMock] ========== EFFECT TRIGGERED ==========');
-    console.log('[useLobbyMock] serverLobbyPlayers exists:', !!serverLobbyPlayers);
-    console.log('[useLobbyMock] serverLobbyPlayers length:', serverLobbyPlayers?.length || 0);
-    console.log('[useLobbyMock] serverLobbyPlayers value:', JSON.stringify(serverLobbyPlayers));
-    console.log('[useLobbyMock] Current lobbyPlayers state:', JSON.stringify(lobbyPlayers));
-    console.log('[useLobbyMock] profile.userId:', profile.userId);
-    console.log('[useLobbyMock] playersInLobby:', playersInLobby);
-    console.log('[useLobbyMock] modeConfig.playerCount:', modeConfig.playerCount);
-    console.log('[useLobbyMock] serverLobbyPlayers:', serverLobbyPlayers?.length || 0);
-    console.log('[useLobbyMock] lobbyPlayers state length:', lobbyPlayers.length);
-
     // Priority 1: Room-based players (private rooms)
     if (roomPlayers !== undefined && roomPlayerCount !== undefined) {
       const maxPlayers = modeConfig.playerCount;
@@ -90,8 +79,6 @@ export const useLobbyMock = ({
       // Fill remaining slots based on roomPlayerCount
       for (let i = 1; i < maxPlayers; i++) {
         if (i < roomPlayerCount) {
-          // Slot is occupied but we don't have username from room system
-          // Show generic player name
           players.push({
             id: String(i + 1),
             username: `Player ${i + 1}`,
@@ -101,84 +88,46 @@ export const useLobbyMock = ({
             ping: Math.floor(Math.random() * 150) + 30,
           });
         }
-        // Empty slots remain undefined
       }
 
-      console.log('[useLobbyMock] Room-based players:', JSON.stringify(players));
       setLobbyPlayers(players);
       return;
     }
 
     // Priority 2: Server lobby players (matchmaking)
     if (serverLobbyPlayers && serverLobbyPlayers.length > 0) {
-      console.log('[useLobbyMock] ===== PROCESSING SERVER LOBBY PLAYERS =====');
-      console.log('[useLobbyMock] serverLobbyPlayers length:', serverLobbyPlayers.length);
+      const mappedPlayers: LobbyPlayer[] = serverLobbyPlayers.map((player, index) => ({
+        id: player.userId || String(index + 1),
+        username: player.username || 'Player',
+        avatar: player.avatar || 'lion',
+        isReady: index > 0,
+        isConnected: true,
+        ping: Math.floor(Math.random() * 150) + 30,
+      }));
 
-      // Map server players to lobby player format
-      const mappedPlayers: LobbyPlayer[] = serverLobbyPlayers.map((player, index) => {
-        const name = player.username || 'Player';
-        console.log(`[useLobbyMock] Mapping player at index ${index}:`, {
-          userId: player.userId,
-          username: player.username,
-          finalName: name,
-          avatar: player.avatar
-        });
-        return {
-          id: player.userId || String(index + 1),
-          username: name,
-          avatar: player.avatar || 'lion',
-          isReady: index > 0, // Other players assumed ready
-          isConnected: true,
-          ping: Math.floor(Math.random() * 150) + 30,
-        };
-      });
-
-      console.log('[useLobbyMock] ===== MAPPED PLAYERS (before reordering) =====');
-      console.log('[useLobbyMock] mappedPlayers:', JSON.stringify(mappedPlayers));
-      console.log('[useLobbyMock] mappedPlayers order:', mappedPlayers.map((p, i) => `[${i}] ${p.username} (id: ${p.id})`).join(', '));
-
-      // CRITICAL: Ensure self is at index 0, other players fill subsequent slots
+      // Ensure self is at index 0
       if (profile.userId) {
         const selfIndex = mappedPlayers.findIndex(p => p.id === profile.userId);
-        console.log('[useLobbyMock] ===== REORDERING LOGIC =====');
-        console.log('[useLobbyMock] Looking for self with userId:', profile.userId);
-        console.log('[useLobbyMock] selfIndex found:', selfIndex);
 
         if (selfIndex > 0) {
-          console.log('[useLobbyMock] Self found at index', selfIndex, '- MOVING to index 0');
-          console.log('[useLobbyMock] Array BEFORE splice:', JSON.stringify(mappedPlayers));
-          // Move self to index 0
           const [selfPlayer] = mappedPlayers.splice(selfIndex, 1);
-          console.log('[useLobbyMock] After splice, removed:', JSON.stringify(selfPlayer));
-          console.log('[useLobbyMock] Array AFTER splice:', JSON.stringify(mappedPlayers));
           mappedPlayers.unshift({
             ...selfPlayer,
-            // Keep server username, only override avatar and ready state
             avatar: profile.avatar || selfPlayer.avatar,
             isReady,
             ping: 45,
           });
-          console.log('[useLobbyMock] Array AFTER unshift:', JSON.stringify(mappedPlayers));
         } else if (selfIndex === 0) {
-          console.log('[useLobbyMock] Self already at index 0 - updating avatar and ready state only');
-          // Self is already at index 0, keep server username/displayName, only update avatar and ready state
           mappedPlayers[0] = {
             ...mappedPlayers[0],
             avatar: profile.avatar || mappedPlayers[0].avatar,
             isReady,
             ping: 45,
           };
-        } else {
-          console.log('[useLobbyMock] WARNING: Self not found in mappedPlayers! userId:', profile.userId);
         }
       }
 
-      console.log('[useLobbyMock] ===== FINAL STATE =====');
-      console.log('[useLobbyMock] Final mapped players:', JSON.stringify(mappedPlayers));
-      console.log('[useLobbyMock] Final order:', mappedPlayers.map((p, i) => `[${i}] ${p.username} (id: ${p.id})`).join(', '));
-      console.log('[useLobbyMock] ===== SETTING LOBBY PLAYERS =====');
       setLobbyPlayers(mappedPlayers);
-      console.log('[useLobbyMock] lobbyPlayers state should now be updated');
       return;
     }
 

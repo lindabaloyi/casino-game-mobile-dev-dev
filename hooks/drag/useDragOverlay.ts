@@ -33,28 +33,20 @@ export function useDragOverlay() {
     fingerX?: number,
     fingerY?: number
   ) => {
-    console.log('[useDragOverlay] startDrag called, card:', card?.rank, card?.suit, 'source:', source, 'finger:', fingerX, fingerY);
     setDraggingCard(card);
     setDragSource(source);
     if (fingerX !== undefined && fingerY !== undefined) {
       // Center ghost under finger
       const newX = fingerX - CARD_WIDTH / 2;
       const newY = fingerY - CARD_HEIGHT / 2;
-      console.log('[useDragOverlay] Setting overlay position:', { newX, newY, fingerX, fingerY });
       overlayX.value = newX;
       overlayY.value = newY;
     }
   };
 
   const moveDrag = (x: number, y: number) => {
-    // Debug timing
-    const startTime = Date.now();
     overlayX.value = x - CARD_WIDTH / 2;
     overlayY.value = y - CARD_HEIGHT / 2;
-    const elapsed = Date.now() - startTime;
-    if (elapsed > 2) {
-      console.log('[useDragOverlay] moveDrag slow:', elapsed, 'ms');
-    }
   };
 
   const endDrag = () => {
@@ -64,14 +56,12 @@ export function useDragOverlay() {
 
   // Mark a card as pending drop (optimistic UI - hide immediately after drop)
   const markPendingDrop = (card: Card, source: DragSource) => {
-    console.log('[useDragOverlay] markPendingDrop: Card', card.rank, card.suit, 'from', source, '- HIDING card immediately (optimistic UI)');
     setPendingDropCard(card);
     setPendingDropSource(source);
   };
 
   // Clear pending drop (called when server confirms or action completes)
   const clearPendingDrop = () => {
-    console.log('[useDragOverlay] clearPendingDrop: Card', pendingDropCard?.rank, pendingDropCard?.suit, 'cleared - server confirmed action');
     setPendingDropCard(null);
     setPendingDropSource(null);
   };

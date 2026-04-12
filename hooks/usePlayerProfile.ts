@@ -24,9 +24,16 @@ const AUTH_CACHE_PROFILE_KEY = 'auth_cache_profile';
 const AUTH_CACHE_PROGRESS_KEY = 'auth_cache_progress';
 const TOKEN_STORAGE_KEY = 'casino_auth_token';
 
-function profileDebugLog(tag: string, message: string, data?: any) {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [ProfileStorage:${tag}] ${message}`, data || '');
+function profileDebugLog(_tag: string, _message: string, _data?: any) {
+  // Debug logging disabled
+}
+
+function debugLog(_tag: string, _message: string, _data?: any) {
+  // Debug logging disabled
+}
+
+function debugError(_tag: string, _message: string, _error: any) {
+  // Debug logging disabled
 }
 
 // Avatar options
@@ -119,26 +126,12 @@ function validateAvatar(avatar: string): { valid: boolean; error?: string } {
   return { valid: true };
 }
 
-// Debug logging
-function debugLog(tag: string, message: string, data?: any) {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [PlayerProfile:${tag}] ${message}`, data || '');
-}
-
-function debugError(tag: string, message: string, error: any) {
-  const timestamp = new Date().toISOString();
-  console.error(`[${timestamp}] [PlayerProfile:${tag}] ${message}`, error);
-}
-
 // Get auth token
 async function getAuthToken(): Promise<string | null> {
   try {
-    profileDebugLog('getAuthToken', 'Fetching auth token');
     const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-    profileDebugLog('getAuthToken', 'Token retrieved', { hasToken: !!token });
     return token;
   } catch (error) {
-    debugError('getAuthToken', 'Failed to get auth token', error);
     return null;
   }
 }
@@ -162,8 +155,6 @@ async function apiCall<T>(
   
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      debugLog('apiCall', `Attempt ${attempt}/${retries}: ${endpoint}`, { method: options.method });
-      
       const response = await fetch(`${SERVER_URL}${endpoint}`, {
         ...options,
         headers,
@@ -183,11 +174,9 @@ async function apiCall<T>(
       }
       
       const data = await response.json();
-      debugLog('apiCall', `Success: ${endpoint}`, { status: response.status });
       return data;
     } catch (error: any) {
       lastError = error;
-      debugError('apiCall', `Attempt ${attempt} failed: ${endpoint}`, error);
       
       // Don't retry on auth or conflict errors
       if (error.message === 'AUTH_REQUIRED' || error.message === 'CONFLICT') {
@@ -226,8 +215,6 @@ export function usePlayerProfile(): UsePlayerProfileResult {
     const checkAuthChange = async () => {
       const token = await getAuthToken();
       if (!token) {
-        // No auth - clear local profile so new login gets fresh data
-        debugLog('loadProfile', 'No auth token, clearing local profile');
         await AsyncStorage.removeItem(STORAGE_KEY);
         setProfile(DEFAULT_PROFILE);
         setIsLoading(false);
@@ -244,45 +231,33 @@ export function usePlayerProfile(): UsePlayerProfileResult {
    * - Auth mode: Read from player_profile (cache), then sync with server
    */
   const loadProfile = async () => {
-    profileDebugLog('loadProfile', 'Starting profile load');
-
     // Determine which storage key to use based on auth state
     const token = await getAuthToken();
     const isAuth = !!token;
 
-    profileDebugLog('loadProfile', 'Auth state check', { isAuthenticated: isAuth });
-
     try {
       // First load from local storage
-      // PRD: Guest uses guest_profile, Auth uses player_profile (cache)
       const storageKey = isAuth ? STORAGE_KEY : GUEST_PROFILE_KEY;
-      profileDebugLog('loadProfile', 'Reading from storage', { storageKey });
 
       const stored = await AsyncStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
         setProfile({ ...DEFAULT_PROFILE, ...parsed });
-        profileDebugLog('loadProfile', 'Loaded from local storage', { storageKey, data: parsed });
       } else {
-        profileDebugLog('loadProfile', 'No data in storage, using default', { storageKey });
         // No guest data exists - this is a new guest, create default
         if (!isAuth) {
           // Auto-create guest profile
           const newGuestProfile = { ...DEFAULT_PROFILE };
           await AsyncStorage.setItem(GUEST_PROFILE_KEY, JSON.stringify(newGuestProfile));
-          profileDebugLog('loadProfile', 'Created new guest profile');
         }
       }
     } catch (error) {
-      debugError('loadProfile', 'Error loading from storage', error);
+      // Error loading profile
     }
 
     // Then try to sync with server (only if authenticated)
     if (isAuth) {
-      profileDebugLog('loadProfile', 'Auth user - will sync with server');
       await syncWithServer();
-    } else {
-      profileDebugLog('loadProfile', 'Guest - no server sync needed');
     }
 
     // Set loading false after sync completes
@@ -297,14 +272,10 @@ export function usePlayerProfile(): UsePlayerProfileResult {
    * - Auth mode: Write to player_profile (cache)
    */
   const saveProfile = async (newProfile: PlayerProfile) => {
-    profileDebugLog('saveProfile', 'Starting profile save');
-    
     // Determine which storage key to use based on auth state
     const token = await getAuthToken();
     const isAuth = !!token;
     const storageKey = isAuth ? STORAGE_KEY : GUEST_PROFILE_KEY;
-    
-    profileDebugLog('saveProfile', 'Writing to storage', { storageKey, isAuthenticated: isAuth });
     
     try {
       const toSave = {
@@ -313,9 +284,7 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       };
       await AsyncStorage.setItem(storageKey, JSON.stringify(toSave));
       setProfile(toSave);
-      profileDebugLog('saveProfile', 'Saved successfully', toSave);
     } catch (error) {
-      debugError('saveProfile', 'Error saving to storage', error);
       throw error;
     }
   };
@@ -326,7 +295,6 @@ export function usePlayerProfile(): UsePlayerProfileResult {
   const syncWithServer = useCallback(async () => {
     const token = await getAuthToken();
     if (!token) {
-      debugLog('syncWithServer', 'No auth token, skipping sync');
       return;
     }
     
@@ -335,8 +303,6 @@ export function usePlayerProfile(): UsePlayerProfileResult {
     setError(null);
     
     try {
-      debugLog('syncWithServer', 'Syncing with server...');
-      
       const response = await apiCall<{
         success: boolean;
         user?: { username: string };
@@ -345,10 +311,6 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       }>('/api/profile', { method: 'GET' });
       
       if (response.success) {
-        // DEBUG: Log response stats
-        console.log('[syncWithServer] Response stats:', JSON.stringify(response.stats));
-        console.log('[syncWithServer] Current profile wins:', profileRef.current.wins);
-        
         const newProfile: PlayerProfile = {
           username: response.user?.username || profileRef.current.username,
           avatar: (response.profile?.avatar as AvatarId) || profileRef.current.avatar,
@@ -359,16 +321,10 @@ export function usePlayerProfile(): UsePlayerProfileResult {
           lastSyncAt: new Date().toISOString(),
         };
         
-        console.log('[syncWithServer] New profile to save:', JSON.stringify(newProfile));
-        
         await saveProfile(newProfile);
         setSyncStatus('success');
-        debugLog('syncWithServer', 'Sync successful', newProfile);
-      } else {
-        console.log('[syncWithServer] Sync failed - response:', JSON.stringify(response));
       }
     } catch (error: any) {
-      debugError('syncWithServer', 'Sync failed', error);
       setError(error.message || 'Sync failed');
       setSyncStatus('error');
     } finally {
@@ -380,7 +336,6 @@ export function usePlayerProfile(): UsePlayerProfileResult {
    * Force refresh from server (bypass cache)
    */
   const forceRefresh = useCallback(async () => {
-    debugLog('forceRefresh', 'Force refreshing profile...');
     await syncWithServer();
   }, [syncWithServer]);
 
@@ -388,13 +343,10 @@ export function usePlayerProfile(): UsePlayerProfileResult {
    * Update username with validation and retry
    */
   const updateUsername = useCallback(async (username: string): Promise<boolean> => {
-    debugLog('updateUsername', 'Updating username', { username });
-    
     // Validate locally first
     const validation = validateUsername(username);
     if (!validation.valid) {
       setError(validation.error || 'Invalid username');
-      debugError('updateUsername', 'Validation failed', validation.error);
       return false;
     }
     
@@ -420,7 +372,6 @@ export function usePlayerProfile(): UsePlayerProfileResult {
         
         if (!response.success) {
           // Rollback on server error
-          debugError('updateUsername', 'Server rejected update', response.error);
           await loadProfile(); // Reload from server
           setError(response.error || 'Failed to update username');
           return false;
@@ -428,11 +379,8 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       }
       
       setError(null);
-      debugLog('updateUsername', 'Username updated successfully');
       return true;
     } catch (error: any) {
-      debugError('updateUsername', 'Update failed', error);
-      
       // Rollback on error
       await loadProfile();
       
@@ -449,13 +397,10 @@ export function usePlayerProfile(): UsePlayerProfileResult {
    * Update avatar with validation and retry
    */
   const updateAvatar = useCallback(async (avatar: AvatarId): Promise<boolean> => {
-    debugLog('updateAvatar', 'Updating avatar', { avatar });
-    
     // Validate locally first
     const validation = validateAvatar(avatar);
     if (!validation.valid) {
       setError(validation.error || 'Invalid avatar');
-      debugError('updateAvatar', 'Validation failed', validation.error);
       return false;
     }
     
@@ -479,7 +424,6 @@ export function usePlayerProfile(): UsePlayerProfileResult {
         );
         
         if (!response.success) {
-          debugError('updateAvatar', 'Server rejected update', response.error);
           await loadProfile();
           setError(response.error || 'Failed to update avatar');
           return false;
@@ -487,11 +431,8 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       }
       
       setError(null);
-      debugLog('updateAvatar', 'Avatar updated successfully');
       return true;
     } catch (error: any) {
-      debugError('updateAvatar', 'Update failed', error);
-      
       // Rollback on error
       await loadProfile();
       setError('Failed to update avatar');
@@ -504,8 +445,6 @@ export function usePlayerProfile(): UsePlayerProfileResult {
    * @param {string} mode - Game mode (defaults to 'two-hands')
    */
   const recordWin = useCallback(async (mode?: string): Promise<boolean> => {
-    debugLog('recordWin', 'Recording win', { mode });
-    
     try {
       // Optimistic update
       const newProfile = {
@@ -518,10 +457,8 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       // Stats are updated server-side by GamePersistenceService.saveGame()
       // No client API call needed - this prevents duplicate stats
       
-      debugLog('recordWin', 'Win recorded successfully');
       return true;
     } catch (error) {
-      debugError('recordWin', 'Failed to record win', error);
       await loadProfile(); // Rollback
       return false;
     }
@@ -532,8 +469,6 @@ export function usePlayerProfile(): UsePlayerProfileResult {
    * @param {string} mode - Game mode (defaults to 'two-hands')
    */
   const recordLoss = useCallback(async (mode?: string): Promise<boolean> => {
-    debugLog('recordLoss', 'Recording loss', { mode });
-    
     try {
       // Optimistic update
       const newProfile = {
@@ -546,10 +481,8 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       // Stats are updated server-side by GamePersistenceService.saveGame()
       // No client API call needed - this prevents duplicate stats
       
-      debugLog('recordLoss', 'Loss recorded successfully');
       return true;
     } catch (error) {
-      debugError('recordLoss', 'Failed to record loss', error);
       await loadProfile(); // Rollback
       return false;
     }
@@ -559,8 +492,6 @@ export function usePlayerProfile(): UsePlayerProfileResult {
    * Reset stats
    */
   const resetStats = useCallback(async (): Promise<boolean> => {
-    debugLog('resetStats', 'Resetting stats');
-    
     try {
       // Optimistic update
       const newProfile = {
@@ -589,10 +520,8 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       }
       
       setError(null);
-      debugLog('resetStats', 'Stats reset successfully');
       return true;
     } catch (error) {
-      debugError('resetStats', 'Failed to reset stats', error);
       await loadProfile();
       setError('Failed to reset stats');
       return false;

@@ -35,7 +35,6 @@ class TournamentCoordinator {
    */
   registerExistingGameAsTournament(gameState, players, io) {
     const tournamentId = gameState.tournamentId;
-    console.log(`[DEBUG] [TournamentCoordinator] registerExistingGameAsTournament: ${tournamentId}`);
     
     const tournament = {
       id: tournamentId,
@@ -65,7 +64,6 @@ class TournamentCoordinator {
     };
     
     this.activeTournaments.set(tournamentId, tournament);
-    console.log(`[DEBUG] [TournamentCoordinator] Registered tournament ${tournamentId} with ${tournament.players.length} players`);
     
     return tournament;
   }
@@ -76,7 +74,6 @@ class TournamentCoordinator {
   async _startNextHand(tournamentId) {
     const tournament = this.activeTournaments.get(tournamentId);
     if (!tournament) {
-      console.log(`[DEBUG] [TournamentCoordinator] _startNextHand: tournament not found for ${tournamentId}`);
       return;
     }
     
@@ -154,13 +151,10 @@ class TournamentCoordinator {
     
     // Get player sockets and emit game-start with all data client needs
     const tournamentPlayers = tournament.players.filter(p => !p.eliminated);
-    console.log(`[DEBUG] [TournamentCoordinator] Emitting game-start to ${tournamentPlayers.length} players`);
     for (let i = 0; i < tournamentPlayers.length; i++) {
       const player = tournamentPlayers[i];
       const socket = player.socket;
       if (socket) {
-        console.log(`[DEBUG] [TournamentCoordinator] Using stored socket ${socket.id}, emitting game-start`);
-
         socket.emit('game-start', {
           gameId,
           gameState,
@@ -339,7 +333,6 @@ class TournamentCoordinator {
    */
   handleRoundEnd(gameState, gameId, lastAction) {
     const phase = gameState?.tournamentPhase;
-    console.log(`[DEBUG] [TournamentCoordinator] handleRoundEnd called: phase=${phase}, tournamentId=${gameState.tournamentId}`);
     
     if (phase === 'QUALIFYING' || phase === 'SEMI_FINAL' || phase === 'FINAL') {
       return this._handleTournamentRoundEnd(gameState, gameId);

@@ -82,8 +82,6 @@ export default function StatsScreen() {
 
   const isLoading = profileLoading || statsLoading;
 
-  console.log('[Stats] Debug:', { stats, isLoading, error, selectedMode });
-
   // Get mode-specific stats
   const modeStats: ModeStats | null = useMemo(() => {
     if (!stats) return null;

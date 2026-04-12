@@ -13,7 +13,6 @@
 
 const { ObjectId } = require('mongodb');
 const db = require('../db/connection');
-const { createLogger, LOG_LEVELS, createTimer } = require('../utils/debugLogger');
 const { 
   validateUsername, 
   validateAvatar, 
@@ -27,9 +26,6 @@ const {
 } = require('../utils/validation');
 
 const COLLECTION_NAME = 'playerProfiles';
-
-// Create service logger
-const logger = createLogger('PlayerProfileService', LOG_LEVELS.DEBUG);
 
 /**
  * Custom error classes for detailed error handling
@@ -88,9 +84,6 @@ class PlayerProfileService {
    * @returns {Promise<Object>} Created profile
    */
   static async create(userId, profileData = {}) {
-    const timer = createTimer();
-    logger.enter({ userId, profileData });
-    
     try {
       // Validate userId
       if (!isValidObjectId(userId)) {
@@ -137,12 +130,11 @@ class PlayerProfileService {
       
       const created = await collection.findOne({ _id: result.insertedId });
       
-      logger.exit({ success: true, profileId: created._id });
-      logger.dbOperation('CREATE_PROFILE', { userId }, timer.startTime);
+      
       
       return created;
     } catch (error) {
-      logger.errorWithStack('Failed to create profile', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -159,7 +151,7 @@ class PlayerProfileService {
    */
   static async findByUserId(userId) {
     const timer = createTimer();
-    logger.enter({ userId });
+    
     
     try {
       if (!isValidObjectId(userId)) {
@@ -169,12 +161,12 @@ class PlayerProfileService {
       const collection = await this.getCollection();
       const profile = await collection.findOne({ userId: new ObjectId(userId) });
       
-      logger.dbOperation('FIND_BY_USER_ID', { userId }, timer.startTime);
-      logger.exit({ found: !!profile });
+      
+      
       
       return profile;
     } catch (error) {
-      logger.errorWithStack('Failed to find profile by user ID', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -191,7 +183,7 @@ class PlayerProfileService {
    */
   static async findByUserIds(userIds) {
     const timer = createTimer();
-    logger.enter({ userIdCount: userIds?.length });
+    
     
     try {
       if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -211,12 +203,12 @@ class PlayerProfileService {
         .find({ userId: { $in: objectIds } })
         .toArray();
       
-      logger.dbOperation('FIND_BY_USER_IDS', { userIds }, timer.startTime);
-      logger.exit({ foundCount: profiles.length });
+      
+      
       
       return profiles;
     } catch (error) {
-      logger.errorWithStack('Failed to find profiles by user IDs', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -233,26 +225,26 @@ class PlayerProfileService {
    */
   static async getOrCreate(userId) {
     const timer = createTimer();
-    logger.enter({ userId });
+    
     
     try {
       // First try to find existing
       let profile = await this.findByUserId(userId);
       
       if (profile) {
-        logger.exit({ created: false, existing: true });
+        
         return profile;
       }
       
       // Create new profile if not found
       profile = await this.create(userId);
       
-      logger.exit({ created: true, profileId: profile._id });
-      logger.dbOperation('GET_OR_CREATE', { userId }, timer.startTime);
+      
+      
       
       return profile;
     } catch (error) {
-      logger.errorWithStack('Failed to get or create profile', error);
+      
       throw error;
     }
   }
@@ -314,11 +306,11 @@ class PlayerProfileService {
       }
       
       logger.dbOperation('UPDATE_PROFILE', { userId, updates: Object.keys(updates) }, timer.startTime);
-      logger.exit({ success: true, profileId: result._id });
+      
       
       return result;
     } catch (error) {
-      logger.errorWithStack('Failed to update profile', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -335,7 +327,7 @@ class PlayerProfileService {
    */
   static async incrementWins(userId) {
     const timer = createTimer();
-    logger.enter({ userId, operation: 'incrementWins' });
+    
     
     try {
       if (!isValidObjectId(userId)) {
@@ -360,12 +352,12 @@ class PlayerProfileService {
         return this.findByUserId(userId);
       }
       
-      logger.dbOperation('INCREMENT_WINS', { userId }, timer.startTime);
-      logger.exit({ success: true });
+      
+      
       
       return result;
     } catch (error) {
-      logger.errorWithStack('Failed to increment wins', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -382,7 +374,7 @@ class PlayerProfileService {
    */
   static async incrementLosses(userId) {
     const timer = createTimer();
-    logger.enter({ userId, operation: 'incrementLosses' });
+    
     
     try {
       if (!isValidObjectId(userId)) {
@@ -407,12 +399,12 @@ class PlayerProfileService {
         return this.findByUserId(userId);
       }
       
-      logger.dbOperation('INCREMENT_LOSSES', { userId }, timer.startTime);
-      logger.exit({ success: true });
+      
+      
       
       return result;
     } catch (error) {
-      logger.errorWithStack('Failed to increment losses', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -430,7 +422,7 @@ class PlayerProfileService {
    */
   static async recordGameResult(userId, isWin) {
     const timer = createTimer();
-    logger.enter({ userId, isWin });
+    
     
     try {
       if (!isValidObjectId(userId)) {
@@ -445,12 +437,12 @@ class PlayerProfileService {
         ? await this.incrementWins(userId)
         : await this.incrementLosses(userId);
       
-      logger.exit({ success: true, isWin });
-      logger.dbOperation('RECORD_GAME_RESULT', { userId, isWin }, timer.startTime);
+      
+      
       
       return result;
     } catch (error) {
-      logger.errorWithStack('Failed to record game result', error);
+      
       throw error;
     }
   }
@@ -463,7 +455,7 @@ class PlayerProfileService {
    */
   static async addFriend(userId, friendId) {
     const timer = createTimer();
-    logger.enter({ userId, friendId });
+    
     
     try {
       // Validate both IDs
@@ -495,12 +487,12 @@ class PlayerProfileService {
         throw new NotFoundError('Profile not found');
       }
       
-      logger.dbOperation('ADD_FRIEND', { userId, friendId }, timer.startTime);
-      logger.exit({ success: true });
+      
+      
       
       return true;
     } catch (error) {
-      logger.errorWithStack('Failed to add friend', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -518,7 +510,7 @@ class PlayerProfileService {
    */
   static async removeFriend(userId, friendId) {
     const timer = createTimer();
-    logger.enter({ userId, friendId });
+    
     
     try {
       // Validate both IDs
@@ -545,12 +537,12 @@ class PlayerProfileService {
         throw new NotFoundError('Profile not found');
       }
       
-      logger.dbOperation('REMOVE_FRIEND', { userId, friendId }, timer.startTime);
-      logger.exit({ success: true });
+      
+      
       
       return true;
     } catch (error) {
-      logger.errorWithStack('Failed to remove friend', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -568,7 +560,7 @@ class PlayerProfileService {
    */
   static async blockUser(userId, blockedUserId) {
     const timer = createTimer();
-    logger.enter({ userId, blockedUserId });
+    
     
     try {
       if (!isValidObjectId(userId) || !isValidObjectId(blockedUserId)) {
@@ -590,12 +582,12 @@ class PlayerProfileService {
         throw new NotFoundError('Profile not found');
       }
       
-      logger.dbOperation('BLOCK_USER', { userId, blockedUserId }, timer.startTime);
-      logger.exit({ success: true });
+      
+      
       
       return true;
     } catch (error) {
-      logger.errorWithStack('Failed to block user', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -613,7 +605,7 @@ class PlayerProfileService {
    */
   static async unblockUser(userId, blockedUserId) {
     const timer = createTimer();
-    logger.enter({ userId, blockedUserId });
+    
     
     try {
       if (!isValidObjectId(userId) || !isValidObjectId(blockedUserId)) {
@@ -635,12 +627,12 @@ class PlayerProfileService {
         throw new NotFoundError('Profile not found');
       }
       
-      logger.dbOperation('UNBLOCK_USER', { userId, blockedUserId }, timer.startTime);
-      logger.exit({ success: true });
+      
+      
       
       return true;
     } catch (error) {
-      logger.errorWithStack('Failed to unblock user', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -657,7 +649,7 @@ class PlayerProfileService {
    */
   static async getFriendsWithInfo(userId) {
     const timer = createTimer();
-    logger.enter({ userId });
+    
     
     try {
       if (!isValidObjectId(userId)) {
@@ -700,12 +692,12 @@ class PlayerProfileService {
         };
       }).filter(Boolean);
       
-      logger.dbOperation('GET_FRIENDS_WITH_INFO', { userId, friendCount: friendsWithInfo.length }, timer.startTime);
-      logger.exit({ friendCount: friendsWithInfo.length });
+      
+      
       
       return friendsWithInfo;
     } catch (error) {
-      logger.errorWithStack('Failed to get friends with info', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -722,7 +714,7 @@ class PlayerProfileService {
    */
   static async getPlayerInfos(userIds) {
     const timer = createTimer();
-    logger.enter({ userIdCount: userIds?.length });
+    
     
     try {
       if (!userIds || userIds.length === 0) {
@@ -746,12 +738,12 @@ class PlayerProfileService {
         };
       });
       
-      logger.dbOperation('GET_PLAYER_INFOS', { userIds }, timer.startTime);
-      logger.exit({ count: playerInfos.length });
+      
+      
       
       return playerInfos;
     } catch (error) {
-      logger.errorWithStack('Failed to get player infos', error);
+      
       throw new DatabaseError('Failed to get player info', error);
     }
   }
@@ -763,7 +755,7 @@ class PlayerProfileService {
    */
   static async delete(userId) {
     const timer = createTimer();
-    logger.enter({ userId });
+    
     
     try {
       if (!isValidObjectId(userId)) {
@@ -778,12 +770,12 @@ class PlayerProfileService {
         throw new NotFoundError('Profile not found');
       }
       
-      logger.dbOperation('DELETE_PROFILE', { userId }, timer.startTime);
-      logger.exit({ success: true });
+      
+      
       
       return true;
     } catch (error) {
-      logger.errorWithStack('Failed to delete profile', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -800,7 +792,7 @@ class PlayerProfileService {
    */
   static async resetStats(userId) {
     const timer = createTimer();
-    logger.enter({ userId });
+    
     
     try {
       if (!isValidObjectId(userId)) {
@@ -827,12 +819,12 @@ class PlayerProfileService {
         throw new NotFoundError('Profile not found');
       }
       
-      logger.dbOperation('RESET_STATS', { userId }, timer.startTime);
-      logger.exit({ success: true });
+      
+      
       
       return result;
     } catch (error) {
-      logger.errorWithStack('Failed to reset stats', error);
+      
       
       if (error instanceof ProfileError) {
         throw error;
@@ -850,7 +842,7 @@ class PlayerProfileService {
    */
   static async searchByUsername(searchTerm, limit = 20) {
     const timer = createTimer();
-    logger.enter({ searchTerm, limit });
+    
 
     try {
       if (!searchTerm || typeof searchTerm !== 'string') {
@@ -888,12 +880,12 @@ class PlayerProfileService {
         };
       });
 
-      logger.dbOperation('SEARCH_BY_USERNAME', { searchTerm, limit }, timer.startTime);
-      logger.exit({ foundCount: results.length });
+      
+      
 
       return results;
     } catch (error) {
-      logger.errorWithStack('Failed to search profiles', error);
+      
       throw new DatabaseError('Failed to search profiles', error);
     }
   }

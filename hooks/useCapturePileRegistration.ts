@@ -28,7 +28,6 @@ export function useCapturePileRegistration({
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
     if (registerCapturePile && !hasRegisteredRef.current) {
       event.target.measureInWindow((x, y, width, height) => {
-        console.log('[useCapturePileRegistration] Registering pile:', { x, y, width, height, playerIndex });
         registerCapturePile({ x, y, width, height, playerIndex });
         hasRegisteredRef.current = true;
       });

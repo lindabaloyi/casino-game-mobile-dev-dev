@@ -44,11 +44,8 @@ class RoundValidator {
     const pendingExtensions = tableCards.filter(tc => tc.type === 'build_stack' && tc.pendingExtension);
     const hasUnresolved = tempStacks.length > 0 || pendingExtensions.length > 0;
     
-    console.log(`[RoundValidator] shouldEndRound: playerCount=${playerCount}, round=${state.round}, allHandsEmpty=${allHandsEmpty}, allTurnsEnded=${allTurnsEnded}, hasUnresolved=${hasUnresolved}, tempStacks=${tempStacks.length}, pendingExt=${pendingExtensions.length}`);
-    
     // Round ends when BOTH conditions are true AND no unresolved stacks
     if (allHandsEmpty && allTurnsEnded && !hasUnresolved) {
-      console.log(`[RoundValidator] shouldEndRound: Round ${state.round} ENDED!`);
       return { ended: true, reason: 'all_cards_played' };
     }
     
@@ -225,14 +222,10 @@ class RoundValidator {
    */
   static checkGameOver(state) {
     const playerCount = state.playerCount || state.players?.length || 2;
-    const isTournamentMode = state.tournamentMode === 'knockout';
-    console.log(`[RoundValidator] checkGameOver: playerCount=${playerCount}, round=${state.round}, tournamentMode=${isTournamentMode}`);
     
     // For 3-player mode: game ends after round 1 (single round game like 4-player)
     if (playerCount === 3) {
-      console.log(`[RoundValidator] checkGameOver: 3-player mode detected, ending game after round ${state.round}`);
       const winner = this.determineRoundWinner(state);
-      console.log(`[RoundValidator] checkGameOver: winner=${winner}, scores=${JSON.stringify(state.scores)}`);
       return {
         gameOver: true,
         winner,
@@ -242,9 +235,7 @@ class RoundValidator {
     
     // For 4-player party mode: game ends after round 1
     if (playerCount >= 4) {
-      console.log(`[RoundValidator] checkGameOver: 4-player mode detected, ending game after round ${state.round}`);
       const winner = this.determineRoundWinner(state);
-      console.log(`[RoundValidator] checkGameOver: winner=${winner}, scores=${JSON.stringify(state.scores)}`);
       return {
         gameOver: true,
         winner,
@@ -256,9 +247,7 @@ class RoundValidator {
     const MAX_ROUNDS = 2;
     
     if (state.round >= MAX_ROUNDS) {
-      console.log(`[RoundValidator] checkGameOver: 2-player round ${state.round} >= ${MAX_ROUNDS}, ending game`);
       const winner = this.determineRoundWinner(state);
-      console.log(`[RoundValidator] checkGameOver: winner=${winner}, scores=${JSON.stringify(state.scores)}`);
       return {
         gameOver: true,
         winner,
@@ -266,7 +255,6 @@ class RoundValidator {
       };
     }
     
-    console.log(`[RoundValidator] checkGameOver: game not over, round=${state.round}, maxRounds=${MAX_ROUNDS}`);
     return { gameOver: false };
   }
 }

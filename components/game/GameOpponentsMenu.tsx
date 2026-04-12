@@ -136,9 +136,7 @@ export function GameOpponentsMenu({
   };
 
   const handleQuitGame = () => {
-    console.log('[GameOpponentsMenu] Quit Game pressed');
     onClose();
-    console.log('[GameOpponentsMenu] Calling onQuitGame callback');
     onQuitGame();
   };
 

@@ -46,10 +46,6 @@ class Router {
    * @returns {{ type: string, payload: object }} - The routed action
    */
   route(actionType, payload, state, playerIndex) {
-    console.log('[Router] actionType:', actionType);
-    console.log('[Router] payload:', JSON.stringify(payload));
-    console.log('[Router] playerIndex:', playerIndex);
-
     switch (actionType) {
       case 'friendBuildDrop':
         return this.routeFriendBuildDrop(payload, state, playerIndex);

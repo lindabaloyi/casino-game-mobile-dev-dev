@@ -49,11 +49,7 @@ router.get('/', authenticate, async (req, res) => {
  */
 router.get('/requests', authenticate, async (req, res) => {
   try {
-    console.log('[Friends API] /requests called by user:', req.userId);
-    
     const { incoming, outgoing } = await FriendRequest.getAllRequests(req.userId);
-    console.log('[Friends API] Found incoming requests:', incoming.length);
-    console.log('[Friends API] Found outgoing requests:', outgoing.length);
     
     // Enrich with user data
     const User = require('../models/User');
@@ -94,8 +90,7 @@ router.get('/requests', authenticate, async (req, res) => {
       outgoing.map(req => enrichRequest(req, false))
     );
 
-    console.log('[Friends API] Returning incoming:', enrichedIncoming.length);
-    console.log('[Friends API] Returning outgoing:', enrichedOutgoing.length);
+    
     
     res.json({ 
       success: true, 
@@ -169,10 +164,7 @@ router.post('/request/:userId', authenticate, async (req, res) => {
 router.post('/accept/:requestId', authenticate, async (req, res) => {
   try {
     const { requestId } = req.params;
-    console.log('[Friends API] Accept request:', { requestId, userId: req.userId });
-    
     const request = await FriendRequest.acceptRequest(requestId, req.userId);
-    console.log('[Friends API] Accept result:', request);
     
     // Get user info for notification
     const fromUser = await User.findById(request.fromUserId.toString());

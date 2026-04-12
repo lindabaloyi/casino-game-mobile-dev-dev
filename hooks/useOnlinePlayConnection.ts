@@ -106,16 +106,7 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     ? (room?.room.playerCount ?? 0) 
     : (multiplayerResult?.lobbyPlayers?.length ?? 0);
     
-  // DEBUG: Log the lobby state
-  console.log('[useOnlinePlayConnection] Lobby DEBUG:', {
-    isPrivateRoom,
-    playersInLobby: playersInLobby,
-    lobbyPlayersLength: multiplayerResult?.lobbyPlayers?.length,
-    fromMultiplayer: multiplayerResult?.playersInLobby,
-    fromRoom: room?.room.playerCount
-  });
-    
-  const sendAction = isPrivateRoom 
+  const sendAction = isPrivateRoom
     ? (roomGameSync?.sendAction ?? noop)
     : (multiplayerResult?.sendAction ?? noop);
     
@@ -166,7 +157,7 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
   // Navigate to game when private room game starts
   useEffect(() => {
     if (isPrivateRoom && room?.room.status === 'started' && roomGameSync?.gameState) {
-      console.log('[useOnlinePlayConnection] Private room game started, transitioning to game board');
+      // Game started - component will handle transition
     }
   }, [isPrivateRoom, room?.room.status, roomGameSync?.gameState]);
 
@@ -182,11 +173,6 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
   const allClientsReady = isPrivateRoom
     ? (roomGameSync?.allClientsReady ?? false)
     : (multiplayerResult?.allClientsReady ?? false);
-
-  // Debug: Log game ready state changes
-  useEffect(() => {
-    console.log(`[useOnlinePlayConnection] DEBUG: mode=${mode}, gameState=${!!gameState}, gameReady=${gameReady}, allClientsReady=${allClientsReady}, isPrivateRoom=${isPrivateRoom}`);
-  }, [mode, gameState, gameReady, allClientsReady, isPrivateRoom]);
 
   return useMemo(() => ({
     gameState,

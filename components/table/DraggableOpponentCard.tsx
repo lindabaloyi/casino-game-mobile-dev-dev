@@ -113,8 +113,6 @@ export function DraggableOpponentCard({
         // Can extend own or teammate's build (in party mode)
         if (targetStack.stackType === 'build_stack' && isFriendlyBuild(targetStack.owner)) {
           if (onExtendBuild) {
-            console.log('[DraggableOpponentCard] Extending build:', targetStack.stackId);
-            // Use captured_<playerIndex> format so server knows which opponent's pile
             onExtendBuild(card, targetStack.stackId, `captured_${opponentIndex}`);
             handled = true;
             // Play sound on successful drop
@@ -132,7 +130,6 @@ export function DraggableOpponentCard({
           }
         } else if (targetStack.stackType === 'build_stack' && onCaptureBuild) {
           // Opponent's build stack - capture it!
-          console.log('[DraggableOpponentCard] Capturing opponent build:', targetStack.stackId, 'with card:', card.rank, card.suit);
           onCaptureBuild(card, targetStack.stackId, `captured_${opponentIndex}`);
           handled = true;
           // Play sound on successful drop

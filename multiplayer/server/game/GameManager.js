@@ -108,20 +108,15 @@ class GameManager {
   startTournamentGame() {
     const gameId = this._nextId++;
     
-    console.log(`[GameManager] Starting tournament game ${gameId}`);
-    
-    // Free-for-all uses 4 players but without team mechanics
+// Free-for-all uses 4 players but without team mechanics
     const gameState = initializeGame(4); // 4 players
     
     // Initialize tournament state using the shared action
-    // The action requires (state, payload, playerIndex) - we pass null for payload and 0 for playerIndex
     const tournamentState = startTournamentAction(gameState, null, 0);
 
     this.activeGames.set(gameId, tournamentState);
     this.socketPlayerMap.set(gameId, new Map());
     this.socketUserIdMap.set(gameId, new Map());
-
-    console.log(`[GameManager] Tournament game ${gameId} created with tournamentMode=${tournamentState.tournamentMode}`);
     return { gameId, gameState: tournamentState };
   }
 
@@ -156,7 +151,7 @@ class GameManager {
     const game = this.activeGames.get(gameId);
     if (game) {
       game.isClosed = true;
-      console.log(`[GameManager] Game ${gameId} marked as closed`);
+      
     }
   }
 
@@ -192,7 +187,6 @@ class GameManager {
     const gameState = this.activeGames.get(gameId);
     if (gameState && gameState.players && gameState.players[playerIndex]) {
       gameState.players[playerIndex].userId = userId;
-      console.log(`[GameManager] Set player ${playerIndex} userId to ${userId}`);
     }
   }
 
@@ -221,7 +215,6 @@ class GameManager {
       this.clientReadyMap.set(gameId, new Set());
     }
     this.clientReadyMap.get(gameId).add(playerIndex);
-    console.log(`[GameManager] Client ${playerIndex} marked ready for game ${gameId}`);
   }
 
   /**

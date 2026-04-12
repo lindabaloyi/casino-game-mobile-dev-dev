@@ -61,17 +61,11 @@ export default function ProfileScreen() {
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Debug: Log auth state on mount
-  useEffect(() => {
-    console.log('[ProfileScreen] Auth state:', { isAuthenticated: !!isAuthenticated, userId: user?._id, hasServerData: serverHasData });
-  }, [isAuthenticated, user, serverHasData]);
-
   // Force refresh on mount to get latest data from database
   useEffect(() => {
-    console.log('[ProfileScreen] Mounting - forcing refresh from database');
     // Call both refresh functions - they handle auth checks internally
-    forceRefresh().catch(err => console.log('[ProfileScreen] forceRefresh error:', err));
-    serverForceRefresh().catch(err => console.log('[ProfileScreen] serverForceRefresh error:', err));
+    forceRefresh().catch(() => {});
+    serverForceRefresh().catch(() => {});
   }, [forceRefresh, serverForceRefresh]);
 
   // Combined loading state - show loading if either source is loading
@@ -82,8 +76,6 @@ export default function ProfileScreen() {
   const error = serverError || localError || (!isAuthenticated && !serverHasData ? 'Please log in to see your profile data' : null);
 
   // Use server data if available, otherwise fall back to local
-  // DEBUG: Log what we receive
-  console.log('[Profile] serverHasData:', serverHasData, 'profileData:', JSON.stringify(profileData?.stats));
   const serverData = serverHasData && profileData ? {
     username: profileData.user?.username,
     avatar: profileData.profile?.avatar || profileData.user?.avatar,
@@ -91,7 +83,6 @@ export default function ProfileScreen() {
     losses: profileData.stats?.losses,
     totalGames: profileData.stats?.totalGames,
   } : null;
-  console.log('[Profile] serverData computed:', JSON.stringify(serverData));
   
   // Prefer server data when available
   const displayProfile = serverData ? serverData : profile;
