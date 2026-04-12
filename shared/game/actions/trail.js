@@ -34,6 +34,16 @@ function trail(state, payload, playerIndex) {
     throw new Error('Cannot trail - there is an active temp stack on the table. Capture or cancel it first.');
   }
 
+  // --- GUARDRAIL: Prevent trail when player has active extendBuild ---
+  const hasPendingExtension = state.tableCards?.some(
+    tc => tc.type === 'build_stack' &&
+         tc.owner === playerIndex &&
+         (tc.pendingExtension?.cards?.length > 0 || tc.pendingExtension?.looseCard)
+  );
+  if (hasPendingExtension) {
+    throw new Error('Cannot trail - you have an active build extension. Complete or cancel it first.');
+  }
+
   // --- UNIVERSAL RANK VALIDATION ---
   // Prevent trailing a card whose rank already exists as a loose card on the table
   const looseCards = state.tableCards.filter(tc => !tc.type);

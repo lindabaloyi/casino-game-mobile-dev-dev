@@ -110,6 +110,16 @@ function createTemp(state, payload, playerIndex) {
     throw new Error('Cannot create temp stack - there is already an active temp stack on the table. Capture or cancel it first.');
   }
 
+  // --- GUARDRAIL: Prevent create temp when player has active extendBuild ---
+  const hasPendingExtension = state.tableCards?.some(
+    tc => tc.type === 'build_stack' &&
+         tc.owner === playerIndex &&
+         (tc.pendingExtension?.cards?.length > 0 || tc.pendingExtension?.looseCard)
+  );
+  if (hasPendingExtension) {
+    throw new Error('Cannot create temp stack - you have an active build extension. Complete or cancel it first.');
+  }
+
   // STEP 1: Validate the card exists at the claimed source
   const cardInfo = findCardAtSource(state, card, cardSource, playerIndex);
   

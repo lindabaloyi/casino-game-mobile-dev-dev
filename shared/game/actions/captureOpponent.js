@@ -16,6 +16,16 @@ function captureOpponent(state, payload, playerIndex) {
     throw new Error('captureOpponent: targetStackId is required');
   }
 
+  // --- GUARDRAIL: Prevent captureOpponent when player has active extendBuild ---
+  const hasPendingExtension = state.tableCards?.some(
+    tc => tc.type === 'build_stack' &&
+         tc.owner === playerIndex &&
+         (tc.pendingExtension?.cards?.length > 0 || tc.pendingExtension?.looseCard)
+  );
+  if (hasPendingExtension) {
+    throw new Error('Cannot capture - you have an active build extension. Complete or cancel it first.');
+  }
+
   const newState = cloneState(state);
   const hand = newState.players[playerIndex].hand;
 
