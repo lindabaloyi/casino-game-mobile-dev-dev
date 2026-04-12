@@ -48,7 +48,6 @@ class QueueManager {
   getQueueRoomCode(gameType) {
     if (!this.queueRoomCodes[gameType]) {
       this.queueRoomCodes[gameType] = this._generateQueueRoomCode();
-      console.log(`[QueueManager] Generated room code ${this.queueRoomCodes[gameType]} for ${gameType} queue`);
     }
     return this.queueRoomCodes[gameType];
   }
@@ -58,8 +57,6 @@ class QueueManager {
   }
 
   addToQueue(socket, gameType, userId = null) {
-    console.log(`[DEBUG] [QueueManager] addToQueue: socket=${socket.id}, userId=${userId}, gameType=${gameType}`);
-
     const now = Date.now();
     const socketEntry = {
       id: socket.id,
@@ -69,40 +66,29 @@ class QueueManager {
       lastActivity: now
     };
 
-    console.log(`[DEBUG] [QueueManager] Adding to ${gameType} queue:`, socketEntry);
     this.waitingQueues[gameType].push(socketEntry);
-
-    console.log(`[DEBUG] [QueueManager] ${gameType} queue now has ${this.waitingQueues[gameType].length} players`);
-    const result = this._tryCreateGame(gameType);
-    console.log(`[DEBUG] [QueueManager] _tryCreateGame returned:`, result ? `array with ${result.length} items` : 'null');
-    return result;
+    return this._tryCreateGame(gameType);
   }
 
   _tryCreateGame(gameType) {
     const config = GAME_TYPES[gameType];
     const queue = this.waitingQueues[gameType];
 
-    console.log(`[DEBUG] [QueueManager] _tryCreateGame: gameType=${gameType}, queue.length=${queue.length}, minPlayers=${config.minPlayers}`);
-
     if (queue.length < config.minPlayers) {
-      console.log(`[DEBUG] [QueueManager] Not enough players, need ${config.minPlayers}, have ${queue.length}`);
       return null;
     }
 
     if (queue.length !== config.minPlayers) {
-      console.log(`[DEBUG] [QueueManager] Unexpected count, expected ${config.minPlayers}, have ${queue.length}`);
       return null;
     }
 
     const playerEntries = queue.splice(0, config.minPlayers);
-    console.log(`[DEBUG] [QueueManager] Extracted ${playerEntries.length} players from ${gameType} queue`);
 
     for (const entry of playerEntries) {
       if (!entry || !entry.socket || !entry.socket.id) {
-        console.error(`[DEBUG] [QueueManager] Invalid socket in ${gameType} queue`);
+        console.error(`[QueueManager] Invalid socket in ${gameType} queue`);
         return null;
       }
-      console.log(`[DEBUG] [QueueManager] Player entry: socket.id=${entry.socket.id}, userId=${entry.userId}`);
     }
 
     return playerEntries;
@@ -150,16 +136,12 @@ class QueueManager {
     const beforeCount = this.waitingQueues[gameType].length;
     this.waitingQueues[gameType] = this.waitingQueues[gameType].filter(entry => {
       if (!entry.socket || !isSocketValid(entry.socket, entry)) {
-        console.log(`[QueueManager] Removing stale socket ${entry.id} from ${gameType} queue (cleanup)`);
         return false;
       }
       return true;
     });
 
     const removed = beforeCount - this.waitingQueues[gameType].length;
-    if (removed > 0) {
-      console.log(`[QueueManager] Cleaned ${removed} stale entries from ${gameType} queue`);
-    }
     return removed;
   }
 

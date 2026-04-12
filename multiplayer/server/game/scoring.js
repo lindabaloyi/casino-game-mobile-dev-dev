@@ -5,7 +5,6 @@
 
 // Simple console-based logger
 const logger = {
-  debug: (...args) => console.log('[Scoring] DEBUG:', ...args),
   info: (...args) => console.log('[Scoring] INFO:', ...args),
   warn: (...args) => console.warn('[Scoring] WARN:', ...args),
   error: (...args) => console.error('[Scoring] ERROR:', ...args),
@@ -63,7 +62,6 @@ function calculatePlayerScore(capturedCards) {
   // 3. Spades bonus: Player with 6 spades has 2 points
   if (spadeCount >= 6) {
     score += 2;
-    logger.debug(`♠ Spades bonus: ${spadeCount} spades ≥ 6, +2 points`);
   }
 
   // 4. Card count bonuses:
@@ -71,22 +69,9 @@ function calculatePlayerScore(capturedCards) {
   //    - Exactly 20 cards   → 1 point
   if (totalCards >= 21) {
     score += 2;
-    logger.debug(`🃏 Card count bonus: ${totalCards} cards ≥ 21, +2 points`);
   } else if (totalCards === 20) {
     score += 1;
-    logger.debug(`🃏 Card count bonus: exactly 20 cards, +1 point`);
   }
-
-  logger.debug(`Player score calculation: ${score} points`, {
-    totalCards,
-    spadeCount,
-    cardPoints: capturedCards.reduce(
-      (sum, card) => sum + calculateCardPoints(card),
-      0,
-    ),
-    hasSpadesBonus: spadeCount >= 6,
-    hasCardCountBonus: totalCards >= 21,
-  });
 
   return score;
 }

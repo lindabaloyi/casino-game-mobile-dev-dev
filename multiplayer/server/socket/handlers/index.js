@@ -21,18 +21,15 @@ function attachSocketHandlers(socket, services) {
 
   // ── Authentication ─────────────────────────────────────────────────────────
   socket.on('authenticate', (userId) => {
-    console.log(`[Socket] authenticate received: userId = ${userId}, socket.id = ${socket.id}`);
     if (userId) {
       socket.userId = userId;
       socket.join(`user:${userId}`);
-      console.log(`[Socket] User ${userId} joined notification room, socket.userId now = ${socket.userId}`);
     }
   });
 
   socket.on('disconnecting', () => { /* Socket auto-leaves rooms on disconnect */ });
 
   socket.on('room-mode-connected', (data) => {
-    console.log(`[Socket] room-mode-connected: socket.id = ${socket.id}, mode = ${data?.mode}`);
     socket.roomMode = data?.mode;
   });
 
@@ -44,7 +41,6 @@ function attachSocketHandlers(socket, services) {
 
   // ── Matchmaking Queue Handlers ────────────────────────────────────────
   socket.on('join-two-hands-queue', async () => {
-    console.log(`[Socket] join-two-hands-queue received from ${socket.id}, userId=${socket.userId}`);
     if (!socket.userId) {
       socket.emit('error', { message: 'Please authenticate before joining queue' });
       return;
@@ -55,8 +51,6 @@ function attachSocketHandlers(socket, services) {
     if (result) {
       await broadcaster.broadcastGameStart(result);
     }
-    // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
-    // This ensures event listeners are registered before the broadcast is received
   });
 
   socket.on('join-party-queue', async () => {
@@ -65,12 +59,9 @@ function attachSocketHandlers(socket, services) {
     if (result) {
       await broadcaster.broadcastPartyGameStart(result);
     }
-    // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
-    // This ensures event listeners are registered before the broadcast is received
   });
 
   socket.on('join-three-hands-queue', async () => {
-    console.log(`[Socket] join-three-hands-queue:socket.id = ${socket.id}`);
     removeFromAllQueues();
     const result = unifiedMatchmaking.addToQueue(socket, 'three-hands', socket.userId);
     if (result) {
@@ -79,14 +70,11 @@ function attachSocketHandlers(socket, services) {
   });
 
   socket.on('join-four-hands-queue', async () => {
-    console.log(`[Socket] join-four-hands-queue:socket.id = ${socket.id}`);
     removeFromAllQueues();
     const result = unifiedMatchmaking.addToQueue(socket, 'four-hands', socket.userId);
     if (result) {
       await broadcaster.broadcastFourHandsGameStart(result);
     }
-    // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
-    // This ensures event listeners are registered before the broadcast is received
   });
 
   socket.on('join-freeforall-queue', async () => {
@@ -95,8 +83,6 @@ function attachSocketHandlers(socket, services) {
     if (result) {
       await broadcaster.broadcastFreeForAllGameStart(result);
     }
-    // Don't broadcast waiting state here - client will request it via 'request-lobby-status'
-    // This ensures event listeners are registered before the broadcast is received
   });
 
   socket.on('join-tournament-queue', async () => {
@@ -189,8 +175,6 @@ function attachSocketHandlers(socket, services) {
               const pSocket = services.io.sockets.sockets.get(player.socketId);
               if (pSocket) pSocket.emit('room-error', { message: startResult.error });
             });
-          } else {
-            console.log(`[Socket] Game started:gameId=${startResult.gameId}`);
           }
         }
       }
@@ -239,14 +223,12 @@ function attachSocketHandlers(socket, services) {
 
   // ── Game Coordination Handlers ────────────────────────────────────────
   socket.on('game-action', data => {
-    console.log('[Socket] Received game-action:', data.type);
     coordinator.handleGameAction(socket, data);
   });
   
   // Handle join-game for tournament phase transitions
   socket.on('join-tournament-game', (data) => {
     const { gameId } = data;
-    console.log(`[Socket] join-tournament-game received: gameId=${gameId}, socket=${socket.id}`);
     
     if (!gameId) {
       socket.emit('error', { message: 'join-tournament-game: gameId is required' });

@@ -79,11 +79,8 @@ class TournamentCoordinator {
     
     // Skip if tournament is transitioning (countdown in progress)
     if (tournament.status === 'transitioning') {
-      console.log(`[START_NEXT_HAND] Skipping - tournament is in transitioning state`);
       return;
     }
-    
-    console.log(`[START_NEXT_HAND] Phase=${tournament.phase}, hand=${tournament.currentHand + 1}/${tournament.totalHands}`);
     
     const activePlayers = tournament.players.filter(p => !p.eliminated);
     const playerCount = activePlayers.length;
@@ -92,7 +89,6 @@ class TournamentCoordinator {
     // Winner tag already set in handleHandComplete, will be used to set currentPlayer below
     
     const gameType = this._getGameTypeForPlayerCount(playerCount);
-    console.log(`[START_NEXT_HAND] Game type: ${gameType}, players: ${activePlayers.map(p => p.id).join(', ')}`);
     
     const playerEntries = activePlayers.map(p => ({
       socket: p.socket,
@@ -101,16 +97,13 @@ class TournamentCoordinator {
     
     const result = this.matchmaking._createGameFromEntries(gameType, playerEntries);
     if (!result) {
-      console.error(`[START_NEXT_HAND] ❌ Failed to create ${gameType} game!`);
+      console.error(`[TournamentCoordinator] Failed to create game`);
       return;
     }
-    
-    console.log(`[START_NEXT_HAND] ✅ Game created with ID: ${result.gameId}`);
-    
+
     const { gameId, gameState, players: resultPlayers } = result;
     
     // Ensure currentPlayer starts at 0 for the new game
-    console.log(`[START_NEXT_HAND] Initial currentPlayer: ${gameState.currentPlayer}`);
     
     // Set currentPlayer to winner (tagged winner will be P1)
     // Use the winnerUserId tag set at end of previous hand
@@ -118,7 +111,6 @@ class TournamentCoordinator {
     if (winnerUserId) {
       const winnerIdx = gameState.players.findIndex(p => p.userId === winnerUserId);
       if (winnerIdx !== -1) {
-        console.log(`[START_NEXT_HAND] Winner tagged: ${winnerUserId.substring(0, 8)}... → starting at index ${winnerIdx} (P1)`);
         gameState.currentPlayer = winnerIdx;
       }
     } else {
@@ -210,17 +202,10 @@ class TournamentCoordinator {
    */
   async handleHandComplete(gameState, results) {
     const tournament = this.activeTournaments.get(gameState.tournamentId);
-    console.log(`[TournamentCoordinator] handleHandComplete called, tournamentId: ${gameState.tournamentId}, found: ${!!tournament}`);
-    console.log(`[TournamentCoordinator] activeTournaments size: ${this.activeTournaments.size}`);
-    console.log(`[TournamentCoordinator] currentHand: ${tournament?.currentHand}, totalHands: ${tournament?.totalHands}`);
-    console.log(`[TournamentCoordinator] gameState.gameId: ${gameState.gameId}, results:`, results);
     
     if (!tournament) {
-      console.log(`[TournamentCoordinator] ❌ Tournament not found! Cannot emit game-over.`);
       return;
     }
-    
-    console.log(`[TournamentCoordinator] Hand ${gameState.tournamentHand} complete in ${gameState.tournamentPhase}`);
     
     // Index-based accumulation - same approach as game-over modal
     for (let i = 0; i < tournament.players.length; i++) {
@@ -235,8 +220,6 @@ class TournamentCoordinator {
         player.cumulativeSpades += captures.filter(c => c.suit === '♠').length;
         
         player.handsPlayed++;
-        
-        console.log(`[TournamentCoordinator] ${player.name}: +${gameState.scores[i]} = ${player.cumulativeScore} (spades: +${captures.filter(c => c.suit === '♠').length}=${player.cumulativeSpades}, cards: +${captures.length}=${player.cumulativeCards})`);
       }
     }
     
@@ -245,7 +228,6 @@ class TournamentCoordinator {
     
     // Get active (non-eliminated) players
     const active = tournament.players.filter(p => !p.eliminated);
-    console.log(`[HAND_END] Active players before elimination: ${active.length}`);
     
     // Use TournamentQualification module for proper ranking with tie-breaking
     const { determineQualification } = require('./TournamentQualification');
@@ -257,13 +239,10 @@ class TournamentCoordinator {
       const sortedByRank = qualResult.sortedPlayers; // Best first
       const lowest = sortedByRank[sortedByRank.length - 1]; // Last = lowest rank
       lowest.eliminated = true;
-      console.log(`[HAND_END] Eliminated ${lowest.id} (rank: ${sortedByRank.length}, score: ${lowest.cumulativeScore}, spades: ${lowest.cumulativeSpades}, cards: ${lowest.cumulativeCards})`);
-      console.log(`[HAND_END] Rankings:`, sortedByRank.map((p, i) => `${i + 1}.${p.id.substr(0, 6)}`).join(', '));
     }
 
     // Check remaining players
     const remaining = tournament.players.filter(p => !p.eliminated);
-    console.log(`[HAND_END] Remaining players: ${remaining.length}`);
     
     // Tag winner for next hand - winner will be P1
     const winner = qualResult.sortedPlayers[0];
@@ -276,24 +255,18 @@ class TournamentCoordinator {
       // When moving from 4→3 (QUALIFYING→SEMI_FINAL) or 3→2 (SEMI_FINAL→FINAL)
       nextPhase = qualResult.nextPhase;
       if (nextPhase !== tournament.phase) {
-        console.log(`[HAND_END] Phase transition: ${tournament.phase} → ${nextPhase}`);
         tournament.phase = nextPhase;
       }
     }
 
     if (remaining.length > 1) {
       // More than 1 player - start next hand with delay
-      console.log(`[HAND_END] Starting next hand with ${remaining.length} players in ${nextPhase}...`);
       setTimeout(async () => {
         await this._startNextHand(gameState.tournamentId);
       }, 10000);
     } else if (remaining.length === 1) {
       // Only 1 player left - declare winner
-      console.log(`[HAND_END] Tournament complete! Winner: ${remaining[0].id}`);
-      // TODO: Call _endTournament or emit tournament-complete
       this._endTournament(gameState.tournamentId, remaining);
-    } else {
-      console.log(`[HAND_END] ERROR: No players remaining!`);
     }
   }
 
@@ -307,8 +280,6 @@ class TournamentCoordinator {
     const winner = finalists[0];
     tournament.status = 'completed';
     tournament.winner = winner.id;
-    
-    console.log(`[TournamentCoordinator] Tournament complete! Winner: ${winner.name}`);
     
     for (const player of tournament.players) {
       const socket = player.socket;

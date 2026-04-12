@@ -73,7 +73,6 @@ class BroadcasterService {
    */
   async broadcastThreeHandsGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
-    console.log(`[Broadcaster] Broadcasting three-hands game start to ${players.length} players`);
 
     // Fetch player profile info
     const playerInfos = await this._getPlayerInfos(players);
@@ -94,7 +93,6 @@ class BroadcasterService {
    */
   async broadcastFreeForAllGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
-    console.log(`[Broadcaster] Broadcasting free-for-all game start to ${players.length} players`);
 
     // Fetch player profile info
     const playerInfos = await this._getPlayerInfos(players);
@@ -115,7 +113,6 @@ class BroadcasterService {
    */
   async broadcastFourHandsGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
-    console.log(`[Broadcaster] Broadcasting four-hands game start to ${players.length} players`);
 
     // Fetch player profile info
     const playerInfos = await this._getPlayerInfos(players);
@@ -136,7 +133,6 @@ class BroadcasterService {
    */
   async broadcastTournamentGameStart(gameResult) {
     const { gameId, gameState, players } = gameResult;
-    console.log(`[Broadcaster] Broadcasting tournament game start to ${players.length} players`);
 
     // Fetch player profile info
     const playerInfos = await this._getPlayerInfos(players);
@@ -163,14 +159,10 @@ class BroadcasterService {
     const gameSockets = mm.getGameSockets(gameId, this.io);
 
     if (gameSockets.length === 0) {
-      console.log(`[Broadcaster] ⚠️ No sockets in registry for game ${gameId}, trying room fallback`);
       // Fallback: use Socket.IO room-based broadcast since registry lookup failed
       this.io.to(`game-${gameId}`).emit('game-update', gameState);
       return;
     }
-
-    // Log state summary before broadcasting
-    console.log(`[Broadcaster] broadcastGameUpdate: gameId=${gameId}, tableCards=${gameState.tableCards?.length}, players captures: ${gameState.players?.map(p => p.captures?.length || 0).join(',')}`);
 
     // Deep clone to avoid serializing internal references
     const stateToSend = JSON.parse(JSON.stringify(gameState));
@@ -186,25 +178,7 @@ class BroadcasterService {
       ['SEMI_FINAL', 'FINAL_SHOWDOWN'].includes(gameState.tournamentPhase);
     
     if (isTournamentTransition) {
-      console.log(`[Broadcaster] Tournament transition detected - sending updated playerNumber to each client`);
-      
-      // DEBUG: Log tournament state before broadcasting
-      const playerStatuses = gameState.playerStatuses || {};
-      const tournamentScores = gameState.tournamentScores || {};
-      const qualifiedPlayersList = gameState.qualifiedPlayers || [];
-      
-      console.log(`\n🔍 TOURNAMENT DEBUG [BEFORE BROADCAST] — game ${gameId}`);
-      console.log(`Phase: ${gameState.tournamentPhase} | playerCount: ${gameState.playerCount}`);
-      
-      for (let i = 0; i < 4; i++) {
-        const pid = `player_${i}`;
-        const status = playerStatuses[pid] || 'N/A';
-        const points = tournamentScores[pid] ?? 'N/A';
-        const isQualified = qualifiedPlayersList.includes(pid);
-        console.log(`  P${i}: ${pid} | status: ${status.padEnd(10)} | pts: ${String(points).padEnd(4)} | qual: ${isQualified ? '✅' : '❌'}`);
-      }
-      console.log(`Qualified list: ${JSON.stringify(qualifiedPlayersList)}`);
-      console.log('----------------------------------------\n');
+      // Tournament transition - sending updated playerNumber to each client
     }
 
     gameSockets.forEach((gameSocket) => {
@@ -225,10 +199,6 @@ class BroadcasterService {
             playerNumber = playerIndex;
           }
         }
-      }
-      
-      if (isTournamentTransition) {
-        console.log(`[Broadcaster] Socket ${gameSocket.id.substr(0,8)} -> playerNumber: ${playerNumber}`);
       }
       
       // Emit with playerNumber so client can update their stored value
@@ -312,21 +282,14 @@ class BroadcasterService {
     const mm = matchmakingService || this.matchmaking;
     const gameSockets = mm.getGameSockets(gameId, this.io);
 
-    console.log(`[Broadcaster] broadcastToOthers: gameId=${gameId}, excludeSocket=${excludeSocketId}, event=${event}, totalSockets=${gameSockets.length}`);
-
     const otherSockets = gameSockets.filter(
       (socket) => socket.id !== excludeSocketId,
     );
 
-    console.log(`[Broadcaster] Sending to ${otherSockets.length} other players`);
-
     if (otherSockets.length > 0) {
       otherSockets.forEach((otherSocket) => {
-        console.log(`[Broadcaster] Emitting ${event} to socket:`, otherSocket.id);
         otherSocket.emit(event, data);
       });
-    } else {
-      console.log(`[Broadcaster] WARNING: No other players to send to!`);
     }
   }
 
@@ -336,22 +299,17 @@ class BroadcasterService {
    */
   broadcastToGame(gameId, event, data, matchmakingService = null) {
     const mm = matchmakingService || this.matchmaking;
-    console.log(`[Broadcaster] broadcastToGame: gameId=${gameId}, event=${event}, mm=${mm?.constructor?.name || 'default'}`);
     
     // Try matchmaking service first
     let gameSockets = mm.getGameSockets(gameId, this.io);
-    console.log(`[Broadcaster] Sockets from matchmaking: ${gameSockets.length}`);
     
     // Fallback: Use io.to directly for room-based messaging
     if (gameSockets.length === 0) {
-      console.log(`[Broadcaster] Trying direct io.to(${gameId}) fallback`);
       this.io.to(gameId).emit(event, data);
-      console.log(`[Broadcaster] Direct emit sent to room: ${gameId}`);
       return;
     }
 
     gameSockets.forEach((gameSocket) => {
-      console.log(`[Broadcaster] Emitting ${event} to socket:`, gameSocket.id);
       gameSocket.emit(event, data);
     });
   }

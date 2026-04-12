@@ -150,8 +150,7 @@ class PlayerProfileService {
    * @returns {Promise<Object|null>} Profile object or null
    */
   static async findByUserId(userId) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       if (!isValidObjectId(userId)) {
@@ -182,8 +181,7 @@ class PlayerProfileService {
    * @returns {Promise<Array>} Array of profile objects
    */
   static async findByUserIds(userIds) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -224,8 +222,7 @@ class PlayerProfileService {
    * @returns {Promise<Object>} Profile object
    */
   static async getOrCreate(userId) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       // First try to find existing
@@ -257,8 +254,8 @@ class PlayerProfileService {
    * @returns {Promise<Object>} Updated profile
    */
   static async update(userId, updates, expectedVersion = null) {
-    const timer = createTimer();
-    logger.enter({ userId, updates: Object.keys(updates), expectedVersion });
+    const timer = null;
+
     
     try {
       // Validate userId
@@ -301,14 +298,12 @@ class PlayerProfileService {
           // Version conflict - profile was modified by another request
           throw new ConflictError('Profile was modified by another request. Please refresh and try again.');
         }
-        // Upsert should have created the profile
-        throw new DatabaseError('Failed to update profile');
-      }
-      
-      logger.dbOperation('UPDATE_PROFILE', { userId, updates: Object.keys(updates) }, timer.startTime);
-      
-      
-      return result;
+      // Upsert should have created the profile
+      throw new DatabaseError('Failed to update profile');
+    }
+    
+    
+    return result;
     } catch (error) {
       
       
@@ -326,8 +321,7 @@ class PlayerProfileService {
    * @returns {Promise<Object>} Updated profile
    */
   static async incrementWins(userId) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       if (!isValidObjectId(userId)) {
@@ -373,8 +367,7 @@ class PlayerProfileService {
    * @returns {Promise<Object>} Updated profile
    */
   static async incrementLosses(userId) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       if (!isValidObjectId(userId)) {
@@ -421,8 +414,7 @@ class PlayerProfileService {
    * @returns {Promise<Object>} Updated profile with new stats
    */
   static async recordGameResult(userId, isWin) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       if (!isValidObjectId(userId)) {
@@ -454,8 +446,7 @@ class PlayerProfileService {
    * @returns {Promise<boolean>} Success status
    */
   static async addFriend(userId, friendId) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       // Validate both IDs
@@ -509,8 +500,7 @@ class PlayerProfileService {
    * @returns {Promise<boolean>} Success status
    */
   static async removeFriend(userId, friendId) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       // Validate both IDs
@@ -559,8 +549,7 @@ class PlayerProfileService {
    * @returns {Promise<boolean>} Success status
    */
   static async blockUser(userId, blockedUserId) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       if (!isValidObjectId(userId) || !isValidObjectId(blockedUserId)) {
@@ -604,8 +593,7 @@ class PlayerProfileService {
    * @returns {Promise<boolean>} Success status
    */
   static async unblockUser(userId, blockedUserId) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       if (!isValidObjectId(userId) || !isValidObjectId(blockedUserId)) {
@@ -648,8 +636,7 @@ class PlayerProfileService {
    * @returns {Promise<Array>} Array of friend profiles with user info
    */
   static async getFriendsWithInfo(userId) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       if (!isValidObjectId(userId)) {
@@ -713,8 +700,7 @@ class PlayerProfileService {
    * @returns {Promise<Array>} Array of player info objects
    */
   static async getPlayerInfos(userIds) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       if (!userIds || userIds.length === 0) {
@@ -754,8 +740,7 @@ class PlayerProfileService {
    * @returns {Promise<boolean>} Success status
    */
   static async delete(userId) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       if (!isValidObjectId(userId)) {
@@ -791,8 +776,7 @@ class PlayerProfileService {
    * @returns {Promise<Object>} Updated profile
    */
   static async resetStats(userId) {
-    const timer = createTimer();
-    
+    const timer = null;
     
     try {
       if (!isValidObjectId(userId)) {
@@ -841,7 +825,7 @@ class PlayerProfileService {
    * @returns {Promise<Array>} Array of user profiles with info
    */
   static async searchByUsername(searchTerm, limit = 20) {
-    const timer = createTimer();
+    const timer = null;
     
 
     try {

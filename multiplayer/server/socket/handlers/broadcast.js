@@ -11,9 +11,14 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
   async function broadcastTwoHandsWaiting() {
     const count = unifiedMatchmaking.getWaitingCount('two-hands');
     const roomCode = unifiedMatchmaking.getQueueRoomCode('two-hands');
-
     
-// CRITICAL: Map players to match queue order to prevent slot replacement
+    const queue = queueManager.waitingQueues['two-hands'];
+    if (!queue || queue.length === 0) return;
+    
+    const userIds = queue.map(entry => entry.userId).filter(Boolean);
+    const players = await PlayerProfile.getPlayerInfos(userIds);
+
+    // Map players to match queue order to prevent slot replacement
     const orderedPlayers = queue.map((entry, index) => {
       const playerInfo = players.find(p => p.userId === entry.userId);
       if (playerInfo) return playerInfo;
@@ -39,7 +44,9 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const roomCode = unifiedMatchmaking.getQueueRoomCode('party');
     
     
-    const queue = queueManager.waitingQueues.party;
+    const queue = queueManager.waitingQueues['party'];
+    if (!queue || queue.length === 0) return;
+    
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     
@@ -70,7 +77,9 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const roomCode = unifiedMatchmaking.getQueueRoomCode('three-hands');
 
     
-    const queue = queueManager.waitingQueues.freeforall;
+    const queue = queueManager.waitingQueues['freeforall'];
+    if (!queue || queue.length === 0) return;
+    
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     
@@ -134,7 +143,9 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const count = unifiedMatchmaking.getWaitingCount('freeforall');
     const roomCode = unifiedMatchmaking.getQueueRoomCode('freeforall');
     
-    const queue = queueManager.waitingQueues.freeforall;
+    const queue = queueManager.waitingQueues['freeforall'];
+    if (!queue || queue.length === 0) return;
+    
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     
@@ -168,7 +179,9 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const count = unifiedMatchmaking.getWaitingCount('tournament');
     const roomCode = unifiedMatchmaking.getQueueRoomCode('tournament');
     
-    const queue = queueManager.waitingQueues.tournament;
+    const queue = queueManager.waitingQueues['four-hands'];
+    if (!queue || queue.length === 0) return;
+    
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
     

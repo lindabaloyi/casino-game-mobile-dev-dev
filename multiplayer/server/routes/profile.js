@@ -20,6 +20,9 @@ const logger = {
   error: (...args) => console.error('[ProfileRoutes]', ...args),
   warn: (...args) => console.warn('[ProfileRoutes]', ...args),
   errorWithStack: (message, error) => console.error('[ProfileRoutes]', message, error?.stack || error),
+  enter: () => {},
+  exit: () => {},
+  apiCall: () => {}, // No-op
 };
 
 const { validateAndSanitize, isValidObjectId } = require('../utils/validation');
@@ -48,7 +51,6 @@ function authenticate(req, res, next) {
   }
 
   req.userId = decoded.userId;
-  logger.debug('Authentication successful', { userId: req.userId });
   next();
 }
 
@@ -201,8 +203,7 @@ router.get('/friends', authenticate, async (req, res, next) => {
       serverTime: new Date().toISOString()
     };
     
-    logger.apiCall('GET', '/api/profile/friends', 200, timer.elapsed());
-    logger.exit({ success: true, friendCount: friends.length });
+    
     
     res.json(response);
   } catch (error) {
@@ -232,8 +233,7 @@ router.post('/friends/:friendId', authenticate, async (req, res, next) => {
       serverTime: new Date().toISOString()
     };
     
-    logger.apiCall('POST', `/api/profile/friends/${friendId}`, 200, timer.elapsed());
-    logger.exit({ success: true });
+    
     
     res.json(response);
   } catch (error) {
@@ -263,8 +263,7 @@ router.delete('/friends/:friendId', authenticate, async (req, res, next) => {
       serverTime: new Date().toISOString()
     };
     
-    logger.apiCall('DELETE', `/api/profile/friends/${friendId}`, 200, timer.elapsed());
-    logger.exit({ success: true });
+    
     
     res.json(response);
   } catch (error) {
@@ -294,8 +293,7 @@ router.post('/block/:userId', authenticate, async (req, res, next) => {
       serverTime: new Date().toISOString()
     };
     
-    logger.apiCall('POST', `/api/profile/block/${blockedUserId}`, 200, timer.elapsed());
-    logger.exit({ success: true });
+    
     
     res.json(response);
   } catch (error) {
@@ -325,8 +323,7 @@ router.delete('/block/:userId', authenticate, async (req, res, next) => {
       serverTime: new Date().toISOString()
     };
     
-    logger.apiCall('DELETE', `/api/profile/block/${blockedUserId}`, 200, timer.elapsed());
-    logger.exit({ success: true });
+    
     
     res.json(response);
   } catch (error) {
@@ -402,8 +399,7 @@ router.get('/:userId/stats', async (req, res, next) => {
       serverTime: new Date().toISOString()
     };
     
-    logger.apiCall('GET', `/api/profile/${userId}/stats`, 200, timer.elapsed());
-    logger.exit({ success: true, mode });
+    
     
     res.json(response);
   } catch (error) {
@@ -434,8 +430,7 @@ router.post('/stats/win', authenticate, async (req, res, next) => {
       serverTime: new Date().toISOString()
     };
     
-    logger.apiCall('POST', '/api/profile/stats/win', 200, timer.elapsed());
-    logger.exit({ success: true, mode });
+    
     
     res.json(response);
   } catch (error) {
@@ -465,8 +460,7 @@ router.post('/stats/loss', authenticate, async (req, res, next) => {
       serverTime: new Date().toISOString()
     };
     
-    logger.apiCall('POST', '/api/profile/stats/loss', 200, timer.elapsed());
-    logger.exit({ success: true, mode });
+    
     
     res.json(response);
   } catch (error) {
@@ -492,8 +486,7 @@ router.delete('/stats', authenticate, async (req, res, next) => {
       serverTime: new Date().toISOString()
     };
     
-    logger.apiCall('DELETE', '/api/profile/stats', 200, timer.elapsed());
-    logger.exit({ success: true });
+    
     
     res.json(response);
   } catch (error) {
@@ -563,9 +556,6 @@ router.get('/', authenticate, async (req, res, next) => {
       serverTime: new Date().toISOString()
     };
     
-    logger.apiCall('GET', '/api/profile', 200, timer.elapsed());
-    logger.exit({ success: true });
-    
     res.json(response);
   } catch (error) {
     next(error);
@@ -629,9 +619,6 @@ router.put('/', authenticate, async (req, res, next) => {
       serverTime: new Date().toISOString()
     };
     
-    logger.apiCall('PUT', '/api/profile', 200, timer.elapsed());
-    logger.exit({ success: true });
-    
     res.json(response);
   } catch (error) {
     next(error);
@@ -663,9 +650,6 @@ router.patch('/avatar', authenticate, async (req, res, next) => {
       avatar: profile.avatar,
       serverTime: new Date().toISOString()
     };
-    
-    logger.apiCall('PATCH', '/api/profile/avatar', 200, timer.elapsed());
-    logger.exit({ success: true });
     
     res.json(response);
   } catch (error) {
@@ -733,9 +717,6 @@ router.get('/:userId', async (req, res, next) => {
       },
       serverTime: new Date().toISOString()
     };
-    
-    logger.apiCall('GET', `/api/profile/${userId}`, 200, timer.elapsed());
-    logger.exit({ success: true });
     
     res.json(response);
   } catch (error) {
