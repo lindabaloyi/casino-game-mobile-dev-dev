@@ -65,44 +65,40 @@ export function useTempStackDisplay(
 
     // Handle baseFixed (dual builds) - show deficit/excess
     if (stack.baseFixed && isExtending) {
-      // Compute effective sum with reset on exact matches
-      let effectiveSum = 0;
-      for (const card of pendingCards) {
-        effectiveSum += card.value;
-        if (effectiveSum === stack.value) {
-          effectiveSum = 0; // reset after exact match
-        }
-      }
+      // KISS: always sum all pending cards
+      const effectiveSum = pendingCards.reduce((sum, card) => sum + card.value, 0);
+
+      // Build value targets: working toward multiples of stack.value
+      const remaining = effectiveSum % stack.value;
 
       if (effectiveSum === 0) {
         value = stack.value?.toString() ?? '-';
         color = getBadgeColor(true);
+      } else if (remaining === 0) {
+        value = stack.value?.toString() ?? '-';
+        color = getBadgeColor(true);
       } else if (effectiveSum < stack.value) {
+        // Less than one build - show what's needed to complete it
         value = `-${stack.value - effectiveSum}`;
         color = getBadgeColor(false);
       } else {
-        value = `+${effectiveSum - stack.value}`;
+        // More than one build - show excess after completing full builds
+        value = `-${stack.value - remaining}`;
         color = getBadgeColor(false);
       }
     } else if (stack.baseFixed && !isExtending) {
       // Fixed but no pending - show the fixed value
       value = stack.value?.toString() ?? '-';
       color = getBadgeColor(true);
-    } else if (hint) {
-      if (hint.need === 0) {
-        // Complete stack - show target value with gold/purple badge
-        value = hint.value.toString();
-        color = getBadgeColor(true);
-      } else {
-        // Incomplete stack - show needed value with red badge
-        value = `-${hint.need}`;
-        color = getBadgeColor(false);
-      }
     } else {
-      // Fallback to server-provided values
-      const isComplete = stack.need === 0;
-      value = stack.need > 0 ? `-${stack.need}` : stack.value?.toString() ?? '-';
-      color = getBadgeColor(isComplete);
+      // Use server's need directly (now computed correctly)
+      if (stack.need && stack.need > 0) {
+        value = `-${stack.need}`;
+        color = getBadgeColor(false);
+      } else {
+        value = stack.value?.toString() ?? '-';
+        color = getBadgeColor(true);
+      }
     }
 
     return { displayValue: value, badgeColor: color };

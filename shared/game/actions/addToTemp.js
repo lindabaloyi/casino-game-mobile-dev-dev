@@ -218,6 +218,10 @@ function addToTemp(state, payload, playerIndex) {
     console.log('[addToTemp] Added to pendingExtension:', stack.pendingExtension.cards.map(p => `${p.card.rank}${p.card.suit}`).join(', '));
     console.log('[addToTemp] FULL pendingExtension after push:', JSON.stringify(stack.pendingExtension));
     
+    const pendingSum = stack.pendingExtension?.cards?.reduce((sum, p) => sum + p.card.value, 0) || 0;
+    const need = stack.value - pendingSum;
+    console.log('[addToTemp:DEBUG] added:', card.rank+card.suit, '| target:', stack.value, '| pending:', stack.pendingExtension?.cards?.map(p => p.card.rank+p.card.suit).join(','), '| need:', need);
+    
     return newState;
   }
 
@@ -231,6 +235,8 @@ function addToTemp(state, payload, playerIndex) {
   stack.base = buildInfo.value;
   stack.need = buildInfo.need;
   stack.buildType = buildInfo.buildType;
+
+  console.log('[addToTemp:DEBUG] added:', card.rank+card.suit, '| value:', stack.value, '| cards:', stack.cards.map(c => c.rank+c.suit).join(','), '| need:', stack.need);
 
   return newState;
 }

@@ -121,28 +121,35 @@ function calculateBuildValue(values) {
     return { value: values[0], need: 0, buildType: 'single' };
   }
   
-  // First try multi-build partition
+  // Calculate total sum of all cards
+  const total = values.reduce((a, b) => a + b, 0);
+  
+  // First try multi-build partition for value
   const multiBuild = calculateMultiBuildValue(values);
   if (multiBuild !== null) {
-    return multiBuild;
+    // Found valid multi-build, compute need as remainder to next full build
+    const targetValue = multiBuild.value;
+    const remaining = total % targetValue;
+    const need = remaining === 0 ? 0 : targetValue - remaining;
+    return { value: targetValue, need, buildType: multiBuild.buildType };
   }
   
   // Fall back to simple 2-card logic for incomplete stacks
-  const total = values.reduce((a, b) => a + b, 0);
-  
   if (total <= 10) {
     return { value: total, need: 0, buildType: 'sum' };
   }
   
-  // Difference build
+  // Difference build - use largest card as target value
   const sorted = [...values].sort((a, b) => b - a);
   const base = sorted[0];
-  const otherSum = sorted.slice(1).reduce((sum, c) => sum + c, 0);
-  const need = base - otherSum;
+  
+  // Compute need: what's needed to reach next multiple of base value
+  const remaining = total % base;
+  const need = remaining === 0 ? 0 : base - remaining;
   
   return { 
     value: base, 
-    need: need > 0 ? need : 0, 
+    need, 
     buildType: 'diff' 
   };
 }
