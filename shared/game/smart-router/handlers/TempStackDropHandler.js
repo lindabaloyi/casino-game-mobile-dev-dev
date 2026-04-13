@@ -57,8 +57,9 @@ class TempStackDropHandler {
 
     // Check 1: Complete build (need === 0) - card value matches build value
     // Also handles multi-build: cards form multiple valid builds (e.g., 6+3=9 AND 7+2=9)
+    // CRITICAL: Only allow capture when card is from player's HAND
     if (buildInfo && buildInfo.need === 0 && buildInfo.value > 0) {
-      if (card.value === buildInfo.value) {
+      if (card.value === buildInfo.value && cardSource === 'hand') {
         // Spare check: Does player have another card of same rank in hand?
         const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
         const hasSpare = sameRankCount > 1;
@@ -111,10 +112,11 @@ class TempStackDropHandler {
     */
 
     // Check 3: Same-rank capture (all cards same rank)
+    // CRITICAL: Only allow capture when card is from player's HAND
     const allSameRank = stack.cards.length > 0 &&
       stack.cards.every(c => c.rank === stack.cards[0].rank);
     
-    if (allSameRank && card.rank === stack.cards[0].rank) {
+    if (allSameRank && card.rank === stack.cards[0].rank && cardSource === 'hand') {
       // Spare check: Does player have another card of same rank in hand?
       const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
       const hasSpare = sameRankCount > 1;

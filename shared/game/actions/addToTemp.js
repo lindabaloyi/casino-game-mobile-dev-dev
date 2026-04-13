@@ -120,34 +120,10 @@ function addToTemp(state, payload, playerIndex) {
   }
   const stack = newState.tableCards[stackIdx];
 
-  // Try to find card at ANY valid source (hand, table, or captures)
-  // This allows players to add cards from anywhere, not just claimed source
+  // Find card at SPECIFIED source only (single source of truth)
+  // If source is invalid or card not found there, it will error
   let cardInfo = findCardAtSource(state, card, cardSource, playerIndex);
   let actualSource = cardSource;
-  
-  if (!cardInfo.found) {
-    // Try hand
-    cardInfo = findCardAtSource(state, card, 'hand', playerIndex);
-    if (cardInfo.found) {
-      actualSource = 'hand';
-    }
-  }
-  
-  if (!cardInfo.found) {
-    // Try table
-    cardInfo = findCardAtSource(state, card, 'table', playerIndex);
-    if (cardInfo.found) {
-      actualSource = 'table';
-    }
-  }
-  
-  if (!cardInfo.found) {
-    // Try captures
-    cardInfo = findCardAtSource(state, card, 'captured', playerIndex);
-    if (cardInfo.found) {
-      actualSource = 'captured';
-    }
-  }
   
   if (!cardInfo.found) {
     // 1. Check if card is already in the current stack (original state)
@@ -176,9 +152,9 @@ function addToTemp(state, payload, playerIndex) {
       return newState;
     }
 
-    // If still not found, it's a genuine error
-    console.error('[addToTemp] Card not found at any source and not in any temp stack');
-    throw new Error(`addToTemp: card ${card.rank}${card.suit} not found at any source (hand, table, or captured)`);
+    // If still not found at specified source, it's a genuine error
+    console.error('[addToTemp] Card not found at specified source:', cardSource);
+    throw new Error(`addToTemp: card ${card.rank}${card.suit} not found at source "${cardSource}"`);
   }
   
   // Log where we found the card for debugging
