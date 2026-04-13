@@ -72,11 +72,14 @@ class BroadcasterService {
    * Broadcast three-hands game start to all 3 players in a new three-hands game
    */
   async broadcastThreeHandsGameStart(gameResult) {
+    console.log('[Broadcaster] broadcastThreeHandsGameStart called');
     const { gameId, gameState, players } = gameResult;
+    console.log('[Broadcaster] gameId:', gameId, 'players:', players?.length);
 
     // Fetch player profile info
     const playerInfos = await this._getPlayerInfos(players);
 
+    console.log('[Broadcaster] emitting game-start to', players.length, 'players');
     players.forEach(({ socket, playerNumber }) => {
       socket.emit("game-start", {
         gameId,

@@ -22,10 +22,10 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const orderedPlayers = queue.map((entry, index) => {
       const playerInfo = players.find(p => p.userId === entry.userId);
       if (playerInfo) return playerInfo;
-      // Fallback for guest players - use the userId as username if available
+      // Fallback for guest players - use empty username, let client handle display
       return {
         userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId || `Player ${index + 1}`,
+        username: '',
         avatar: 'lion'
       };
     });
@@ -57,7 +57,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
       // Fallback for guest players
       return {
         userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+        username: entry.userId ? '' : '',
         avatar: 'lion',
 
       };
@@ -75,13 +75,17 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
   async function broadcastThreeHandsWaiting() {
     const count = unifiedMatchmaking.getWaitingCount('three-hands');
     const roomCode = unifiedMatchmaking.getQueueRoomCode('three-hands');
-
+    console.log('[Broadcast] broadcastThreeHandsWaiting called, count:', count);
     
     const queue = queueManager.waitingQueues['three-hands'];
-    if (!queue || queue.length === 0) return;
+    if (!queue || queue.length === 0) {
+      console.log('[Broadcast] no queue for three-hands, returning');
+      return;
+    }
     
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
+    console.log('[Broadcast] got player infos, count:', players?.length);
     
     // CRITICAL: Map players to match queue order to prevent slot replacement
     const orderedPlayers = queue.map((entry, index) => {
@@ -90,12 +94,13 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
       // Fallback for guest players
       return {
         userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+        username: entry.userId ? '' : '',
         avatar: 'lion',
 
       };
     });
     
+    console.log('[Broadcast] emitting three-hands-waiting, players:', orderedPlayers.length);
     queue.forEach(entry => {
       entry.socket.emit('three-hands-waiting', { 
         playersJoined: count,
@@ -118,7 +123,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
       if (playerInfo) return playerInfo;
       return {
         userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+        username: entry.userId ? '' : '',
         avatar: 'lion',
       };
     });
@@ -154,7 +159,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
       if (playerInfo) return playerInfo;
       return {
         userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+        username: entry.userId ? '' : '',
         avatar: 'lion',
       };
     });
@@ -192,7 +197,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
       // Fallback for guest players
       return {
         userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+        username: entry.userId ? '' : '',
         avatar: 'lion',
 
       };
@@ -216,12 +221,17 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
   }
 
   async function broadcastQueueState(gameType) {
+    console.log('[Broadcast] broadcastQueueState called, gameType:', gameType);
     const queue = queueManager.waitingQueues[gameType];
-    if (!queue || queue.length === 0) return;
+    if (!queue || queue.length === 0) {
+      console.log('[Broadcast] queue is empty for', gameType, ', returning');
+      return;
+    }
 
     // Get required players from queue manager config
     const playersNeeded = queueManager.getPlayersNeeded(gameType);
     const requiredPlayers = queue.length + playersNeeded;
+    console.log('[Broadcast] queue length:', queue.length, 'required:', requiredPlayers);
 
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
     const players = await PlayerProfile.getPlayerInfos(userIds);
@@ -230,7 +240,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
       const playerInfo = players.find(p => p.userId === entry.userId);
       return playerInfo || {
         userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+        username: entry.userId ? '' : '',
         avatar: 'lion'
       };
     });
@@ -242,6 +252,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
       roomCode: unifiedMatchmaking.getQueueRoomCode(gameType)
     };
 
+    console.log('[Broadcast] emitting queue-state-update, players:', orderedPlayers.length);
     // Use io.to() for simultaneous broadcast to ALL sockets in queue
     // This ensures ALL clients receive the update at the same time
     queue.forEach(entry => {

@@ -18,7 +18,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Socket } from 'socket.io-client';
 import { getSocket, getCurrentSocket, isSocketConnected, disconnectSocket, onSocketStateChange } from './socketManager';
-import { useAuth } from '../useAuth';
 
 export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament' | 'private';
 
@@ -50,27 +49,17 @@ export function useSocketConnection(
   const isPrivateMode = mode === 'private';
   const isPrivateRoomGame = !!roomCode; // Private room with actual game mode
   
-  // Get user authentication info
-  const { user } = useAuth();
-  
   const [socket, setSocket] = useState<Socket | null>(getCurrentSocket());
   const [isConnected, setIsConnected] = useState(isSocketConnected());
   const [error, setError] = useState<string | null>(null);
   
-  // Track whether we've already authenticated and joined queues on this socket
+  // Track whether we've already joined queues on this socket
   const hasSetupRef = useRef(false);
-  const lastUserIdRef = useRef<string | null>(null);
 
-  // Setup the socket: authenticate, join queues (only once per socket lifecycle)
+  // Setup the socket: join queues (only once per socket lifecycle)
   const setupSocket = useCallback((sock: Socket) => {
     if (!sock?.connected) return;
     
-    // Authenticate after connecting if user is logged in
-    if (user?._id && lastUserIdRef.current !== user._id) {
-      sock.emit('authenticate', user._id);
-      lastUserIdRef.current = user._id;
-    }
-
     // Skip auto-queue for private mode or private room games (room-based games handle their own flow)
     if (isPrivateMode || isPrivateRoomGame) {
       // Emit room mode so server knows this socket is for private room gameplay
@@ -82,39 +71,38 @@ export function useSocketConnection(
     if (hasSetupRef.current) return;
     hasSetupRef.current = true;
 
-    // Delay queue join to ensure authentication is processed
-    setTimeout(() => {
-      // Two-hands mode: join the two-hands queue when connected
-      if (isTwoHandsMode) {
-        sock.emit('join-two-hands-queue');
-      }
+    // Join the appropriate queue immediately on connect
+    // Two-hands mode: join the two-hands queue when connected
+    if (isTwoHandsMode) {
+      sock.emit('join-two-hands-queue');
+    }
 
-      // Party mode: join the party queue when connected
-      if (isPartyMode) {
-        sock.emit('join-party-queue');
-      }
+    // Party mode: join the party queue when connected
+    if (isPartyMode) {
+      sock.emit('join-party-queue');
+    }
 
-      // Three-hands mode: join the three-hands queue when connected
-      if (mode === 'three-hands') {
-        sock.emit('join-three-hands-queue');
-      }
+    // Three-hands mode: join the three-hands queue when connected
+    if (mode === 'three-hands') {
+      console.log('[Client] emit join-three-hands-queue');
+      sock.emit('join-three-hands-queue');
+    }
 
-      // Four-hands mode: join the four-hands queue when connected
-      if (mode === 'four-hands') {
-        sock.emit('join-four-hands-queue');
-      }
+    // Four-hands mode: join the four-hands queue when connected
+    if (mode === 'four-hands') {
+      sock.emit('join-four-hands-queue');
+    }
 
-      // Free-for-all mode: join the freeforall queue when connected
-      if (mode === 'freeforall') {
-        sock.emit('join-freeforall-queue');
-      }
+    // Free-for-all mode: join the freeforall queue when connected
+    if (mode === 'freeforall') {
+      sock.emit('join-freeforall-queue');
+    }
 
-      // Tournament mode: join the tournament queue when connected
-      if (mode === 'tournament') {
-        sock.emit('join-tournament-queue');
-      }
-    }, 200);
-  }, [mode, isPartyMode, isTwoHandsMode, isPrivateMode, isPrivateRoomGame, roomCode, user]);
+    // Tournament mode: join the tournament queue when connected
+    if (mode === 'tournament') {
+      sock.emit('join-tournament-queue');
+    }
+  }, [mode, isPartyMode, isTwoHandsMode, isPrivateMode, isPrivateRoomGame, roomCode]);
 
   // Connect the shared socket on mount
   useEffect(() => {

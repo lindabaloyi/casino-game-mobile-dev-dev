@@ -69,8 +69,9 @@ export function useLobbyState(
   const [newPlayerNotification, setNewPlayerNotification] = useState<string | null>(null);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
-  // Use ref to track previous player count for notification
+  // Use refs to track previous state for notification comparison
   const prevPlayerCountRef = useRef(0);
+  const prevLobbyPlayersRef = useRef<LobbyPlayerInfo[]>([]);
   
   // Use ref to track if game has started (avoids stale closure in event handlers)
   const gameStartedRef = useRef(false);
@@ -96,33 +97,46 @@ export function useLobbyState(
 
   // Helper to detect new player and show notification
   const handleLobbyUpdate = (newPlayers: LobbyPlayerInfo[]) => {
-    const prevCount = prevPlayerCountRef.current;
+    const prevPlayers = prevLobbyPlayersRef.current;
+    const prevCount = prevPlayers.length;
     const newCount = newPlayers.length;
+    
+    console.log('[Debug] handleLobbyUpdate: prevCount=', prevCount, 'newCount=', newCount);
     
     // If new player joined (and we weren't at max)
     if (newCount > prevCount && prevCount < requiredPlayers) {
       // Find the new player (one that wasn't in the previous list)
-      const prevUserIds = new Set(lobbyPlayers.map(p => p.userId));
+      const prevUserIds = new Set(prevPlayers.map(p => p.userId));
       const newPlayer = newPlayers.find(p => !prevUserIds.has(p.userId));
       
-      if (newPlayer) {
+      console.log('[Debug] New player detected:', newPlayer);
+      
+      if (newPlayer && newPlayer.username) {
+        console.log('[Debug] Setting notification for:', newPlayer.username);
         setNewPlayerNotification(`${newPlayer.username} joined!`);
       }
     }
     
     prevPlayerCountRef.current = newCount;
+    prevLobbyPlayersRef.current = newPlayers;
   };
 
   // Transform server data to display format for PlayerCard
   const transformToDisplayPlayers = (players: LobbyPlayerInfo[]): LobbyDisplayPlayer[] => {
-    return players.map((p, index) => ({
+    console.log('[Debug] transformToDisplayPlayers: inputCount=', players.length);
+    console.log('[Debug] transformToDisplayPlayers: players=', JSON.stringify(players));
+    
+    const result = players.map((p, index) => ({
       id: p.userId || `player-${index}`,
-      username: p.username || `Player ${index + 1}`,
+      username: p.username || '',
       avatar: p.avatar || 'lion',
       isReady: true,
       isConnected: true,
-      ping: Math.floor(Math.random() * 100) + 30, // Placeholder ping
+      ping: Math.floor(Math.random() * 100) + 30,
     }));
+    
+    console.log('[Debug] transformToDisplayPlayers: output=', JSON.stringify(result));
+    return result;
   };
 
   const clearNotification = () => setNewPlayerNotification(null);
@@ -143,138 +157,48 @@ export function useLobbyState(
       players?: LobbyPlayerInfo[]; 
       roomCode?: string;
     }) => {
-      console.log(`[Client] queue-state-update received: gameType=${data.gameType}, players=${data.players?.length || 0}, required=${data.requiredPlayers}`);
+      console.log('[Debug] handleQueueStateUpdate received:', JSON.stringify(data));
+      
       if (gameStartedRef.current) {
+        console.log('[Debug] Game already started, ignoring');
         return;
       }
       setIsInLobby(true);
-      handleLobbyUpdate(data.players || []);
-      setLobbyPlayers(data.players || []);
+      const playersData = data.players || [];
+      console.log('[Debug] handleQueueStateUpdate: playersData length=', playersData.length);
+      handleLobbyUpdate(playersData);
+      setLobbyPlayers(playersData);
       if (data.roomCode) {
         setRoomCode(data.roomCode);
       }
     };
 
-    // Handle party-waiting (4-player mode)
-    const handlePartyWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
-      if (gameStartedRef.current) {
-        return;
-      }
-      setIsInLobby(true);
-      handleLobbyUpdate(data.players || []);
-      setLobbyPlayers(data.players || []);
-      if ((data as any).roomCode) {
-        setRoomCode((data as any).roomCode);
-      }
-    };
-
-    // Handle three-hands-waiting (3-player mode)
-    const handleThreeHandsWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
-      if (gameStartedRef.current) {
-        return;
-      }
-      setIsInLobby(true);
-      handleLobbyUpdate(data.players || []);
-      setLobbyPlayers(data.players || []);
-      if ((data as any).roomCode) {
-        setRoomCode((data as any).roomCode);
-      }
-    };
-
-    // Handle freeforall-waiting (4-player free-for-all mode)
-    const handleFreeForAllWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
-      if (gameStartedRef.current) {
-        return;
-      }
-      setIsInLobby(true);
-      handleLobbyUpdate(data.players || []);
-      setLobbyPlayers(data.players || []);
-      if ((data as any).roomCode) {
-        setRoomCode((data as any).roomCode);
-      }
-    };
-
-    // Handle tournament-waiting (4-player tournament mode)
-    const handleTournamentWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
-      if (gameStartedRef.current) {
-        return;
-      }
-      setIsInLobby(true);
-      handleLobbyUpdate(data.players || []);
-      setLobbyPlayers(data.players || []);
-      if ((data as any).roomCode) {
-        setRoomCode((data as any).roomCode);
-      }
-    };
-
-    // Handle tournament-party waiting (server sends party-waiting for all 4-player modes)
-    const handleTournamentPartyWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
-      if (gameStartedRef.current) {
-        return;
-      }
-      setIsInLobby(true);
-      handleLobbyUpdate(data.players || []);
-      setLobbyPlayers(data.players || []);
-      if ((data as any).roomCode) {
-        setRoomCode((data as any).roomCode);
-      }
-    };
-
-    // Handle four-hands-waiting (4-player mode - distinct from party/freeforall/tournament)
-    const handleFourHandsWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
-      if (gameStartedRef.current) {
-        return;
-      }
-      setIsInLobby(true);
-      handleLobbyUpdate(data.players || []);
-      setLobbyPlayers(data.players || []);
-      if ((data as any).roomCode) {
-        setRoomCode((data as any).roomCode);
-      }
-    };
-
-    // Handle two-hands-waiting (2-player mode)
-    const handleTwoHandsWaiting = (data: { playersJoined: number; players?: LobbyPlayerInfo[] }) => {
-      if (gameStartedRef.current) {
-        return;
-      }
-      setIsInLobby(true);
-      handleLobbyUpdate(data.players || []);
-      setLobbyPlayers(data.players || []);
-      if ((data as any).roomCode) {
-        setRoomCode((data as any).roomCode);
-      }
-    };
-
     const handleGameStart = (data: any) => {
+      console.log('[Debug] handleGameStart received, gameId:', data.gameId);
+      console.log('[Debug] handleGameStart playerInfos:', JSON.stringify(data.playerInfos));
       gameStartedRef.current = true;
       setIsInLobby(false);
-      const actualPlayerCount = data.gameState?.playerCount || requiredPlayers;
-      setLobbyPlayers(prev => {
-        return Array(actualPlayerCount).fill(null).map((_, i) => prev[i] || { userId: `player_${i}`, username: `Player ${i + 1}`, avatar: 'lion' });
-      });
+      
+      // Use real player data from server instead of generating fake "Player 1", "Player 2", etc.
+      if (data.playerInfos && data.playerInfos.length > 0) {
+        console.log('[Debug] Using real playerInfos from server');
+        setLobbyPlayers(data.playerInfos);
+      } else {
+        console.log('[Debug] WARNING - falling back to fake player data (should not happen!)');
+        const actualPlayerCount = data.gameState?.playerCount || requiredPlayers;
+        setLobbyPlayers(Array(actualPlayerCount).fill(null).map((_, i) => ({ userId: `player_${i}`, username: `Player ${i + 1}`, avatar: 'lion' })));
+      }
+      
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
     };
 
-    // Listen to queue-state-update for unified server push (NEW - replaces per-type events)
+    // Listen to queue-state-update for unified server push (single source of truth)
     socket.on('queue-state-update', handleQueueStateUpdate);
     
-    // Legacy events - keep for backward compatibility during transition
-    // Listen to appropriate events based on player count (legacy - keep for backward compatibility)
-    if (requiredPlayers === 4) {
-      socket.on('party-waiting', handlePartyWaiting);
-      socket.on('freeforall-waiting', handleFreeForAllWaiting);
-      socket.on('four-hands-waiting', handleFourHandsWaiting);
-      socket.on('tournament-waiting', handleTournamentWaiting);
-    } else if (requiredPlayers === 3) {
-      socket.on('three-hands-waiting', handleThreeHandsWaiting);
-    } else if (requiredPlayers === 2) {
-      socket.on('duel-waiting', handleTwoHandsWaiting);
-    }
-    
+    // Game start event
     socket.on('game-start', handleGameStart);
 
     // No more polling needed - server pushes queue-state-update on any change
@@ -283,17 +207,6 @@ export function useLobbyState(
 
     return () => {
       socket.off('queue-state-update', handleQueueStateUpdate);
-      
-      if (requiredPlayers === 4) {
-        socket.off('party-waiting', handlePartyWaiting);
-        socket.off('freeforall-waiting', handleFreeForAllWaiting);
-        socket.off('four-hands-waiting', handleFourHandsWaiting);
-        socket.off('tournament-waiting', handleTournamentWaiting);
-      } else if (requiredPlayers === 3) {
-        socket.off('three-hands-waiting', handleThreeHandsWaiting);
-      } else if (requiredPlayers === 2) {
-        socket.off('duel-waiting', handleTwoHandsWaiting);
-      }
       socket.off('game-start', handleGameStart);
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);

@@ -20,9 +20,6 @@
 import React, { useEffect } from 'react';
 import { 
   StyleSheet, 
-  View, 
-  Text, 
-  ActivityIndicator, 
   BackHandler,
   Clipboard,
   Alert,
@@ -88,33 +85,12 @@ export default function OnlinePlayScreen() {
     }
   };
 
-  // Handle ready toggle - pass through to connection
-  const handleSetIsReady = (ready: boolean) => {
-    // Toggle via connection's toggle mechanism or directly
-    // For now, use connection's isReady from lobby state
-  };
-
-  // Not connected yet - show connecting screen
-  if (!connection.isConnected) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.connectingCard}>
-          <ActivityIndicator size="large" color="#FFD700" />
-          <Text style={styles.connectingTitle}>Connecting...</Text>
-          <Text style={styles.connectingSubtitle}>
-            {connection.isPrivateRoom ? 'Joining private room...' : modeConfig.connectingSubtitle}
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
   // Player disconnected - show reconnection prompt
   if (connection.playerDisconnected) {
     return <ErrorScreen type="disconnected" />;
   }
 
-  // Show lobby while waiting for game to start
+  // Show lobby while waiting for game to start (always - no separate connecting screen)
   if (connection.gameState == null || !connection.gameReady || !connection.allClientsReady) {
     return (
       <Lobby
@@ -130,6 +106,7 @@ export default function OnlinePlayScreen() {
         roomCode={connection.roomCode}
         isGameStarting={connection.gameState != null && (!connection.gameReady || !connection.allClientsReady)}
         onNotificationDismiss={connection.clearNotification}
+        isConnected={connection.isConnected}
       />
     );
   }
@@ -162,23 +139,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f4d0f',
-  },
-  // Connecting Screen
-  connectingCard: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  connectingTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginTop: 20,
-  },
-  connectingSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 8,
   },
 });

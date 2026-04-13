@@ -43,6 +43,7 @@ function attachSocketHandlers(socket, services) {
   // ── Matchmaking Queue Handlers ────────────────────────────────────────
   socket.on('join-two-hands-queue', async () => {
     if (!socket.userId) {
+      console.log('[Server] Queue join BLOCKED - no auth, socket:', socket.id);
       socket.emit('error', { message: 'Please authenticate before joining queue' });
       return;
     }
@@ -69,6 +70,12 @@ function attachSocketHandlers(socket, services) {
   socket.on('join-party-queue', async () => {
     console.log(`[Socket] join-party-queue received from ${socket.id}, userId: ${socket.userId}`);
     
+    if (!socket.userId) {
+      console.log('[Server] Queue join BLOCKED - no auth, socket:', socket.id);
+      socket.emit('error', { message: 'Please authenticate before joining queue' });
+      return;
+    }
+
     if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
       console.log(`[Socket] ${socket.id} already in queue, ignoring duplicate`);
       socket.emit('error', { message: 'You are already in a queue' });
@@ -91,6 +98,12 @@ function attachSocketHandlers(socket, services) {
   });
 
   socket.on('join-three-hands-queue', async () => {
+    console.log('[Server] join-three-hands-queue, userId:', socket.userId);
+    if (!socket.userId) {
+      console.log('[Server] Queue join BLOCKED - no auth, socket:', socket.id);
+      socket.emit('error', { message: 'Please authenticate before joining queue' });
+      return;
+    }
     if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
       socket.emit('error', { message: 'You are already in a queue' });
       return;
@@ -103,16 +116,24 @@ function attachSocketHandlers(socket, services) {
 
     removeFromAllQueues();
     const result = unifiedMatchmaking.addToQueue(socket, 'three-hands', socket.userId);
-    console.log(`[Socket] join-three-hands result: ${result ? 'game started' : 'waiting for players'}`);
+    console.log('[Server] addToQueue result:', result ? 'game created' : 'waiting');
     if (result) {
+      console.log('[Server] calling broadcastThreeHandsGameStart');
       await broadcaster.broadcastThreeHandsGameStart(result);
     } else {
+      console.log('[Server] calling broadcastQueueState');
       await broadcastQueueState('three-hands');
     }
   });
 
   socket.on('join-four-hands-queue', async () => {
     console.log(`[Socket] join-four-hands-queue received from ${socket.id}, userId: ${socket.userId}`);
+    
+    if (!socket.userId) {
+      console.log('[Server] Queue join BLOCKED - no auth, socket:', socket.id);
+      socket.emit('error', { message: 'Please authenticate before joining queue' });
+      return;
+    }
     
     if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
       console.log(`[Socket] ${socket.id} already in queue, ignoring duplicate`);
@@ -135,6 +156,12 @@ function attachSocketHandlers(socket, services) {
   });
 
   socket.on('join-freeforall-queue', async () => {
+    if (!socket.userId) {
+      console.log('[Server] Queue join BLOCKED - no auth, socket:', socket.id);
+      socket.emit('error', { message: 'Please authenticate before joining queue' });
+      return;
+    }
+    
     if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
       socket.emit('error', { message: 'You are already in a queue' });
       return;
@@ -156,6 +183,12 @@ function attachSocketHandlers(socket, services) {
 
   socket.on('join-tournament-queue', async () => {
     console.log(`[Socket] join-tournament-queue received from ${socket.id}, userId: ${socket.userId}`);
+    
+    if (!socket.userId) {
+      console.log('[Server] Queue join BLOCKED - no auth, socket:', socket.id);
+      socket.emit('error', { message: 'Please authenticate before joining queue' });
+      return;
+    }
     
     if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
       console.log(`[Socket] ${socket.id} already in queue, ignoring duplicate`);

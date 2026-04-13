@@ -35,6 +35,37 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
+// Socket.IO middleware - extract userId from auth cookie
+const User = require('./models/User');
+io.use(async (socket, next) => {
+  try {
+    const cookieHeader = socket.handshake.headers.cookie;
+    if (cookieHeader) {
+      const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+        const [key, value] = cookie.trim().split('=');
+        acc[key] = value;
+        return acc;
+      }, {});
+      
+      const authToken = cookies['auth_token'];
+      if (authToken) {
+        const decoded = User.verifyToken(authToken);
+        if (decoded) {
+          socket.userId = decoded.userId;
+          console.log('[Socket.io middleware] Socket', socket.id, 'authenticated as', socket.userId);
+        }
+      }
+    }
+    if (!socket.userId) {
+      console.log('[Socket.io middleware] Socket', socket.id, 'guest (no auth cookie)');
+    }
+    next();
+  } catch (err) {
+    console.error('[Socket.io middleware] Error:', err.message);
+    next();
+  }
+});
+
 // Middleware
 app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());

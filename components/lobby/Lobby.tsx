@@ -59,6 +59,8 @@ interface LobbyProps {
   isGameStarting?: boolean;
   /** Callback to dismiss notification */
   onNotificationDismiss?: () => void;
+  /** Socket connection status */
+  isConnected?: boolean;
 }
 
 export const Lobby: React.FC<LobbyProps> = ({
@@ -75,6 +77,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   roomCode,
   isGameStarting,
   onNotificationDismiss,
+  isConnected = true,
 }) => {
   const { height, width } = useWindowDimensions();
   const needsScroll = height < 600;
@@ -93,9 +96,15 @@ export const Lobby: React.FC<LobbyProps> = ({
           <Text style={styles.headerTitle}>{modeConfig.title}</Text>
           <Text style={styles.headerSubtitle}>{modeConfig.subtitle}</Text>
         </View>
-        <View style={styles.connectionBadge}>
-          <Ionicons name="wifi" size={16} color="#4CAF50" />
-          <Text style={styles.connectionText}>Live</Text>
+        <View style={[styles.connectionBadge, !isConnected && styles.connectionBadgeDisconnected]}>
+          <Ionicons 
+            name={isConnected ? "wifi" : "wifi-outline"} 
+            size={16} 
+            color={isConnected ? "#4CAF50" : "#FFC107"} 
+          />
+          <Text style={[styles.connectionText, !isConnected && styles.connectionTextDisconnected]}>
+            {isConnected ? "Live" : "Connecting..."}
+          </Text>
         </View>
       </View>
 
@@ -246,7 +255,11 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 15,
   },
+  connectionBadgeDisconnected: {
+    backgroundColor: 'rgba(255,193,7,0.2)',
+  },
   connectionText: { color: '#4CAF50', fontSize: 12, fontWeight: '600', marginLeft: 4 },
+  connectionTextDisconnected: { color: '#FFC107' },
   lobbyScroll: { flex: 1 },
   lobbyContent: { paddingHorizontal: 16, paddingBottom: 30 },
   lobbyContentScrollable: { paddingBottom: 50 },

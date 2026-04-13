@@ -42,26 +42,33 @@ class UnifiedMatchmakingService {
   }
 
   addToQueue(socket, gameType, userId = null) {
+    console.log('[Matchmaking] addToQueue called, gameType:', gameType, 'userId:', userId);
     if (this.socketRegistry.get(socket.id)) {
-      console.log(`[UnifiedMatchmaking] Socket ${socket.id} already in queue/game, skipping`);
+      console.log('[Matchmaking] Socket', socket.id, 'already in queue/game, skipping');
       return null;
     }
 
     this.socketRegistry.set(socket.id, null, gameType, userId);
     const playerEntries = this.queueManager.addToQueue(socket, gameType, userId);
+    console.log('[Matchmaking] queueManager.addToQueue returned, playerEntries:', playerEntries?.length);
 
     if (!playerEntries) {
+      console.log('[Matchmaking] playerEntries is null, returning null');
       return null;
     }
 
+    console.log('[Matchmaking] calling _createGame with', playerEntries.length, 'players');
     return this._createGame(gameType, playerEntries);
   }
 
   _createGame(gameType, playerEntries) {
+    console.log('[Matchmaking] _createGame called, gameType:', gameType, 'players:', playerEntries?.length);
     const result = this.gameFactory.createGame(gameType, playerEntries);
     if (!result) {
+      console.log('[Matchmaking] gameFactory.createGame returned null');
       return null;
     }
+    console.log('[Matchmaking] game created, gameId:', result.gameId);
 
     const { gameId, gameState, players } = result;
 
