@@ -94,7 +94,15 @@ function validateOpponentCaptureCards(stackCards, captureCard, playerIndex) {
   // Get the stack card values (not including capture card)
   const stackValues = stackCards.map(c => c.value);
   const stackTotal = stackValues.reduce((a, b) => a + b, 0);
-  
+
+  // Check if stack cards are all same rank (e.g., [2,2,2]) - allow capture with that rank
+  const stackRanks = stackCards.map(c => c.rank);
+  const stackAllSameRank = stackRanks.length > 1 && stackRanks.every(r => r === stackRanks[0]);
+  if (stackAllSameRank && captureCard.value === stackValues[0]) {
+    // Same-rank stack - opponent capture cards allowed
+    return { valid: true, reason: 'Same-rank stack: opponent capture cards allowed' };
+  }
+
   // Determine if the capture is for a sum build or difference build:
   // - If stackTotal equals captureValue: it's a sum build (all cards add up exactly)
   // - If stackTotal > captureValue: it's a difference build (captureValue = largest card)

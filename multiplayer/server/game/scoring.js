@@ -37,12 +37,15 @@ function calculateCardPoints(card) {
 /**
  * Calculate score for a player's captured cards
  * @param {Array} capturedCards - Array of captured card objects
+ * @param {string} gameType - 'standard', 'three-hands', or 'party' (default: 'standard')
  * @returns {number} Total score for the player
  */
-function calculatePlayerScore(capturedCards) {
+function calculatePlayerScore(capturedCards, gameType = 'standard') {
   if (!capturedCards || !Array.isArray(capturedCards)) {
     return 0;
   }
+
+  const isThreeHands = gameType === 'three-hands';
 
   let score = 0;
 
@@ -59,18 +62,18 @@ function calculatePlayerScore(capturedCards) {
 
   const totalCards = capturedCards.length;
 
-  // 3. Spades bonus: Player with 6 spades has 2 points
-  if (spadeCount >= 6) {
+  // 3. Spades bonus: NOT included for three-hands mode
+  if (!isThreeHands && spadeCount >= 6) {
     score += 2;
   }
 
-  // 4. Card count bonuses:
-  //    - 21 or more cards → 2 points
-  //    - Exactly 20 cards   → 1 point
-  if (totalCards >= 21) {
-    score += 2;
-  } else if (totalCards === 20) {
-    score += 1;
+  // 4. Card count bonuses: NOT included for three-hands mode
+  if (!isThreeHands) {
+    if (totalCards >= 21) {
+      score += 2;
+    } else if (totalCards === 20) {
+      score += 1;
+    }
   }
 
   return score;
@@ -372,9 +375,10 @@ function updateScores(gameState) {
 /**
  * Get detailed score breakdown for a player
  * @param {Array} capturedCards - Array of captured card objects
+ * @param {string} gameType - 'standard', 'three-hands', or 'party' (default: 'standard')
  * @returns {Object} Detailed breakdown of score components
  */
-function getScoreBreakdown(capturedCards) {
+function getScoreBreakdown(capturedCards, gameType = 'standard') {
   if (!capturedCards || !Array.isArray(capturedCards)) {
     return {
       totalCards: 0,
@@ -393,6 +397,8 @@ function getScoreBreakdown(capturedCards) {
       acePoints: 0,
     };
   }
+
+  const isThreeHands = gameType === 'three-hands';
 
   // Count specific cards for detailed breakdown
   const tenDiamondCards = capturedCards.filter(
@@ -428,18 +434,20 @@ function getScoreBreakdown(capturedCards) {
     return sum + calculateCardPoints(card);
   }, 0);
 
-  // Calculate bonuses
+  // Calculate bonuses (NOT included for three-hands mode)
   let spadeBonus = 0;
   let cardCountBonus = 0;
 
-  if (spadeCount >= 6) {
-    spadeBonus = 2;
-  }
+  if (!isThreeHands) {
+    if (spadeCount >= 6) {
+      spadeBonus = 2;
+    }
 
-  if (totalCards >= 21) {
-    cardCountBonus = 2;
-  } else if (totalCards === 20) {
-    cardCountBonus = 1;
+    if (totalCards >= 21) {
+      cardCountBonus = 2;
+    } else if (totalCards === 20) {
+      cardCountBonus = 1;
+    }
   }
 
   // Format cards for display
@@ -456,13 +464,16 @@ function getScoreBreakdown(capturedCards) {
     };
   }).filter(Boolean);
 
+  // Total score: base points only for three-hands
+  const totalScore = isThreeHands ? cardPoints : cardPoints + spadeBonus + cardCountBonus;
+
   return {
     totalCards,
     spadeCount,
     cardPoints,
     spadeBonus,
     cardCountBonus,
-    totalScore: cardPoints + spadeBonus + cardCountBonus,
+    totalScore,
     cards: formattedCards,
     // Detailed breakdown by card type
     tenDiamondCount,

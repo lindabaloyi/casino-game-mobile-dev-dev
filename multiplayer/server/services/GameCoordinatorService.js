@@ -295,6 +295,9 @@ class GameCoordinatorService {
     const finalScores = finalizedState.scores || [0, 0];
     const playerCount = finalizedState.playerCount || 2;
     
+    // Determine gameType for scoring (three-hands uses different scoring)
+    const gameType = playerCount === 3 ? 'three-hands' : playerCount === 4 && finalizedState.players.some(p => p.team) ? 'party' : 'standard';
+    
     const capturedCards = [];
     const scoreBreakdowns = [];
     const tableCardsRemaining = finalizedState.tableCards?.length || 0;
@@ -346,7 +349,7 @@ class GameCoordinatorService {
     for (let i = 0; i < playerCount; i++) {
       capturedCards.push(finalizedState.players[i]?.captures?.length || 0);
       const captures = finalizedState.players[i]?.captures || [];
-      scoreBreakdowns.push(scoring.getScoreBreakdown(captures));
+      scoreBreakdowns.push(scoring.getScoreBreakdown(captures, gameType));
     }
     
     finalizedState.gameOver = true;
@@ -364,6 +367,7 @@ class GameCoordinatorService {
       teamScoreBreakdowns,
       isPartyMode,
       isTournamentMode,
+      gameType,
       playerStatuses,
       qualifiedPlayers,
       ...(isTournamentMode && {

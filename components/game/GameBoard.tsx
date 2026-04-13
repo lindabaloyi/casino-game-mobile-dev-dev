@@ -836,6 +836,7 @@ export function GameBoard({
         teamScoreBreakdowns={gameOverData?.teamScoreBreakdowns}
         isPartyMode={gameOverData?.isPartyMode ?? isPartyMode}
         isTournamentMode={gameOverData?.isTournamentMode ?? (gameState.tournamentMode === 'knockout')}
+        gameType={gameOverData?.gameType}
         playerStatuses={gameState.playerStatuses}
         qualifiedPlayers={gameState.qualifiedPlayers}
         nextGameId={gameOverData?.nextGameId}

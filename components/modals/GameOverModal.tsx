@@ -71,6 +71,7 @@ interface GameOverModalProps {
   teamScoreBreakdowns?: TeamScoreBreakdowns;
   isPartyMode?: boolean;
   isTournamentMode?: boolean;
+  gameType?: 'standard' | 'three-hands' | 'party';
   playerStatuses?: { [playerId: string]: string };
   qualifiedPlayers?: string[];
   nextGameId?: number;
@@ -94,6 +95,7 @@ export function GameOverModal({
   teamScoreBreakdowns,
   isPartyMode,
   isTournamentMode,
+  gameType,
   playerStatuses,
   qualifiedPlayers,
   nextGameId,
