@@ -200,6 +200,16 @@ function startBuildCapture(state, payload, playerIndex) {
     throw new Error('startBuildCapture: build already has a pending capture');
   }
 
+  // --- GUARDRAIL: Prevent startBuildCapture when player has active extendBuild ---
+  const hasPendingExtension = state.tableCards?.some(
+    tc => tc.type === 'build_stack' &&
+         tc.owner === playerIndex &&
+         (tc.pendingExtension?.cards?.length > 0 || tc.pendingExtension?.looseCard)
+  );
+  if (hasPendingExtension) {
+    throw new Error('Cannot capture - you have an active build extension. Complete or cancel it first.');
+  }
+
   // Debug log to verify source
   console.log('[startBuildCapture] Searching for card', card, 'with source', cardSource);
   

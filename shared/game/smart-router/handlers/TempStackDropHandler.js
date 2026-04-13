@@ -15,7 +15,7 @@ class TempStackDropHandler {
    * @returns {object} - { type: string, payload: object }
    */
   handle(payload, state, playerIndex) {
-    const { stackId, card, cardSource } = payload;
+    const { stackId, card, source: cardSource } = payload;
 
     console.log('[TempStackDropHandler] Handling drop on temp stack:', stackId);
     console.log('[TempStackDropHandler] Card:', card?.rank, card?.value);
