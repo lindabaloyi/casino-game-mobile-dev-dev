@@ -2,7 +2,7 @@
  * Lobby
  * 
  * Main lobby component that displays the game room.
- * Composed from smaller components: PlayerCard, NotificationBanner, etc.
+ * Calls useLobby directly inside - single source of truth for lobby state.
  * 
  * Extracted from OnlinePlayScreen for better separation of concerns.
  */
@@ -15,82 +15,55 @@ import {
   StyleSheet,
   ScrollView,
   useWindowDimensions,
-  Animated,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Socket } from 'socket.io-client';
 import { PlayerCard } from './PlayerCard';
-import { NotificationBanner } from './NotificationBanner';
 import { GameMode, ModeConfig } from '../../utils/modeConfig';
+import { useLobby } from '../../hooks/useLobby';
 import { getAvatarEmoji, getPingColor, getPingIcon } from '../../hooks/useLobbyHelpers';
-
-export interface LobbyPlayer {
-  userId: string;
-  username: string;
-  avatar: string;
-  isReady?: boolean;
-}
-
-// Display format for PlayerCard
-interface DisplayPlayer {
-  id: string;
-  username: string;
-  avatar: string;
-  isReady: boolean;
-  isConnected: boolean;
-  ping: number;
-}
 
 interface LobbyProps {
   mode: GameMode;
   modeConfig: ModeConfig;
-  playersInLobby: number;
-  lobbyPlayers: LobbyPlayer[];
-  /** Display format for PlayerCard - contains ping, isReady, etc */
-  displayPlayers?: DisplayPlayer[];
-  isReady: boolean;
-  setIsReady: (ready: boolean) => void;
-  notification: string | null;
-  notificationAnim?: Animated.Value;
-  onCopyRoomCode?: () => void;
-  /** Real room code for private rooms (overrides mode-derived display) */
-  roomCode?: string | null;
-  /** Whether game is starting (waiting for all clients to be ready) */
-  isGameStarting?: boolean;
-  /** Callback to dismiss notification */
-  onNotificationDismiss?: () => void;
-  /** Socket connection status */
+  socket?: Socket | null;
+  playersInLobby?: number;
   isConnected?: boolean;
+  onCopyRoomCode?: () => void;
+  roomCode?: string | null;
+  isReady?: boolean;
+  setIsReady?: (ready: boolean) => void;
+  isGameStarting?: boolean;
 }
 
 export const Lobby: React.FC<LobbyProps> = ({
   mode,
   modeConfig,
-  playersInLobby,
-  lobbyPlayers,
-  displayPlayers,
-  isReady,
-  setIsReady,
-  notification,
-  notificationAnim,
-  onCopyRoomCode,
-  roomCode,
-  isGameStarting,
-  onNotificationDismiss,
+  socket,
+  playersInLobby: externalPlayersCount,
   isConnected = true,
+  onCopyRoomCode,
+  roomCode: externalRoomCode,
+  isReady: externalIsReady,
+  setIsReady: externalSetIsReady,
+  isGameStarting = false,
 }) => {
-  const { height, width } = useWindowDimensions();
+  const { height } = useWindowDimensions();
   const needsScroll = height < 600;
-  const playersNeeded = modeConfig.playerCount - playersInLobby;
-  const allReady = lobbyPlayers.length >= 2 && playersInLobby >= modeConfig.playerCount;
+
+  const { displayPlayers, isInLobby, roomCode, isReady, toggleReady, players } = useLobby(socket ?? null, mode);
+
+  const effectiveRoomCode = externalRoomCode ?? roomCode;
+  const effectiveIsReady = externalIsReady ?? isReady;
+  const effectiveToggleReady = externalSetIsReady ?? toggleReady;
+  const effectivePlayersCount = externalPlayersCount ?? players.length;
+
+  const playersNeeded = modeConfig.playerCount - effectivePlayersCount;
+  const allReady = effectivePlayersCount >= 2 && effectivePlayersCount >= modeConfig.playerCount;
 
   return (
     <View style={styles.container}>
-      <NotificationBanner
-        message={notification}
-        animValue={notificationAnim}
-      />
-
       <View style={styles.lobbyHeader}>
         <View style={styles.headerInfo}>
           <Text style={styles.headerTitle}>{modeConfig.title}</Text>
@@ -113,11 +86,11 @@ export const Lobby: React.FC<LobbyProps> = ({
         contentContainerStyle={[styles.lobbyContent, needsScroll && styles.lobbyContentScrollable]}
         showsVerticalScrollIndicator={false}
       >
-        {roomCode && (
+        {effectiveRoomCode && (
           <View style={styles.roomCodeCard}>
             <View style={styles.roomCodeContent}>
               <Text style={styles.roomCodeLabel}>Room Code</Text>
-              <Text style={styles.roomCodeValue}>{roomCode}</Text>
+              <Text style={styles.roomCodeValue}>{effectiveRoomCode}</Text>
             </View>
             <TouchableOpacity style={styles.copyButton} onPress={onCopyRoomCode}>
               <Ionicons name="copy-outline" size={20} color="#FFD700" />
@@ -127,15 +100,12 @@ export const Lobby: React.FC<LobbyProps> = ({
 
         <View style={styles.playersSection}>
           <Text style={styles.sectionTitle}>
-            Players ({playersInLobby}/{modeConfig.playerCount})
+            Players ({effectivePlayersCount}/{modeConfig.playerCount})
           </Text>
           <View style={styles.playersGrid}>
-            {/* Use displayPlayers for PlayerCard - has ping, isReady, etc */}
             {displayPlayers && displayPlayers.length > 0 ? (
               <>
-                {/* Player 0 (self) */}
                 <PlayerCard
-                  key="player-self"
                   player={displayPlayers[0]}
                   isOwn={true}
                   avatarEmoji={displayPlayers[0] ? getAvatarEmoji(displayPlayers[0].avatar) : undefined}
@@ -143,7 +113,6 @@ export const Lobby: React.FC<LobbyProps> = ({
                   pingIcon={getPingIcon}
                 />
                 
-                {/* Other slots */}
                 {[...Array(modeConfig.playerCount - 1)].map((_, idx) => {
                   const slotIndex = idx + 1;
                   const player = displayPlayers[slotIndex];
@@ -160,7 +129,6 @@ export const Lobby: React.FC<LobbyProps> = ({
                     );
                   }
                   
-                  // Empty slot
                   return (
                     <PlayerCard
                       key={`empty-${slotIndex}`}
@@ -170,10 +138,8 @@ export const Lobby: React.FC<LobbyProps> = ({
                 })}
               </>
             ) : (
-              /* Fallback: Show empty slots when no players */
               <>
                 <PlayerCard
-                  key="player-self"
                   isOwn={true}
                   slotIndex={0}
                 />
@@ -214,20 +180,22 @@ export const Lobby: React.FC<LobbyProps> = ({
           )}
         </View>
 
-        <TouchableOpacity
-          style={[styles.readyButton, isReady && styles.readyButtonActive]}
-          onPress={() => setIsReady(!isReady)}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={isReady ? 'checkmark-circle' : 'hand-right'}
-            size={24}
-            color={isReady ? '#0f4d0f' : '#FFD700'}
-          />
-          <Text style={[styles.readyButtonText, isReady && styles.readyButtonTextActive]}>
-            {isReady ? "I'm Ready!" : 'Click When Ready'}
-          </Text>
-        </TouchableOpacity>
+        {effectiveToggleReady && (
+          <TouchableOpacity
+            style={[styles.readyButton, effectiveIsReady && styles.readyButtonActive]}
+            onPress={() => effectiveToggleReady(!effectiveIsReady)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={effectiveIsReady ? 'checkmark-circle' : 'hand-right'}
+              size={24}
+              color={effectiveIsReady ? '#0f4d0f' : '#FFD700'}
+            />
+            <Text style={[styles.readyButtonText, effectiveIsReady && styles.readyButtonTextActive]}>
+              {effectiveIsReady ? "I'm Ready!" : 'Click When Ready'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.lobbyHint}>Share the room code with friends to join!</Text>
       </ScrollView>

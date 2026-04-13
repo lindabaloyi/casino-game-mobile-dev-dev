@@ -7,7 +7,7 @@
  */
 
 import { useMemo, useCallback } from 'react';
-import type { GameState } from './useMultiplayerGame';
+import type { GameState } from './useGameSession';
 import {
   getTeamFromIndex,
   getPlayerPositionLabel,

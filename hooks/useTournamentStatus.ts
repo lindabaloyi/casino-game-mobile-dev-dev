@@ -6,7 +6,7 @@
  */
 
 import { useMemo } from 'react';
-import type { GameState } from './useMultiplayerGame';
+import type { GameState } from './useGameSession';
 
 interface QualificationScore {
   totalPoints: number;

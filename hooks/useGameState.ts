@@ -1,5 +1,5 @@
 /**
  * Re-export hook for backward compatibility
- * @deprecated Use useMultiplayerGame from './useMultiplayerGame' instead
+ * @deprecated Use useGameSession from './useGameSession' instead
  */
-export { useMultiplayerGame, type Card, type GameState, type GameOverData, type OpponentDragState } from './useMultiplayerGame';
+export { useGameSession as useMultiplayerGame, type Card, type GameState, type GameOverData, type OpponentDragState } from './useGameSession';

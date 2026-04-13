@@ -7,14 +7,12 @@
  * - 4 players (four-hands, party, freeforall, tournament)
  * 
  * Refactored to use separated components:
- * - useOnlinePlayConnection hook for connection abstraction
+ * - useSocketConnection for connection lifecycle
+ * - useLobby for lobby state (single source of truth)
+ * - useGameSession for game state
  * - Lobby component for UI
  * - GameRoomContainer for game rendering with tournament support
  * - ErrorScreen for error states
- * 
- * Data flow:
- * - useLobbyState (via useMultiplayerGame) is the single source of truth for lobbyPlayers
- * - Server events drive lobby state, no mock data
  */
 
 import React, { useEffect } from 'react';
@@ -28,7 +26,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Lobby } from '../components/lobby/Lobby';
 import { GameRoomContainer } from '../components/lobby/GameRoomContainer';
 import { ErrorScreen } from '../components/lobby/ErrorScreen';
-import { useOnlinePlayConnection } from '../hooks/useOnlinePlayConnection';
+import { useSocketConnection, useGameStateSync, useOpponentDrag } from '../hooks/multiplayer';
+import { useLobby } from '../hooks/useLobby';
+import { useGameSession } from '../hooks/useGameSession';
 import { useSoundContext } from '../hooks/useSoundContext';
 import { MODE_CONFIG, GameMode } from '../utils/modeConfig';
 
@@ -43,7 +43,6 @@ export default function OnlinePlayScreen() {
   const roomCodeParam = params.roomCode || null;
   const modeConfig = MODE_CONFIG[mode];
 
-  // Handle hardware back button (Android)
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (router.canGoBack()) {
@@ -57,80 +56,84 @@ export default function OnlinePlayScreen() {
     return () => backHandler.remove();
   }, [router]);
 
-  // Set in-game mode for lower background music volume
   const { setInGameMode } = useSoundContext();
 
-  // Unified connection hook - single source of truth for lobby state
-  const connection = useOnlinePlayConnection({
-    mode,
-    roomCode: roomCodeParam,
-  });
+  const { socket, isConnected } = useSocketConnection({ mode, roomCode: roomCodeParam });
+  const lobby = useLobby(socket, mode);
+  const game = useGameSession(socket, mode);
 
-  // Set in-game mode when game starts
+  const opponentDrag = useOpponentDrag(socket);
+
   useEffect(() => {
-    if (connection.gameState != null) {
+    if (game.gameState != null) {
       setInGameMode(true);
     }
     return () => {
       setInGameMode(false);
     };
-  }, [connection.gameState, setInGameMode]);
+  }, [game.gameState, setInGameMode]);
 
-  // Copy room code to clipboard
   const handleCopyRoomCode = () => {
-    const code = connection.roomCode;
+    const code = lobby.roomCode;
     if (code) {
       Clipboard.setString(code);
       Alert.alert('Copied!', `Room code "${code}" copied to clipboard`);
     }
   };
 
-  // Player disconnected - show reconnection prompt
-  if (connection.playerDisconnected) {
+  if (game.playerDisconnected) {
     return <ErrorScreen type="disconnected" />;
   }
 
-  // Show lobby while waiting for game to start (always - no separate connecting screen)
-  if (connection.gameState == null || !connection.gameReady || !connection.allClientsReady) {
+  if (!isConnected) {
     return (
       <Lobby
         mode={mode}
         modeConfig={modeConfig}
-        playersInLobby={connection.playersInLobby}
-        lobbyPlayers={connection.lobbyPlayers}
-        displayPlayers={connection.displayPlayers}
-        isReady={connection.isReady || false}
-        setIsReady={connection.toggleReady || (() => {})}
-        notification={connection.newPlayerNotification}
+        socket={socket}
+        playersInLobby={lobby.players.length}
+        isConnected={false}
         onCopyRoomCode={handleCopyRoomCode}
-        roomCode={connection.roomCode}
-        isGameStarting={connection.gameState != null && (!connection.gameReady || !connection.allClientsReady)}
-        onNotificationDismiss={connection.clearNotification}
-        isConnected={connection.isConnected}
       />
     );
   }
 
-  // Show game with tournament support
+  if (!game.gameState || !game.gameReady || !game.allClientsReady) {
+    return (
+      <Lobby
+        mode={mode}
+        modeConfig={modeConfig}
+        socket={socket}
+        playersInLobby={lobby.players.length}
+        isConnected={true}
+        onCopyRoomCode={handleCopyRoomCode}
+        roomCode={lobby.roomCode}
+        isReady={lobby.isReady}
+        setIsReady={lobby.toggleReady}
+        isGameStarting={game.gameState != null && (!game.gameReady || !game.allClientsReady)}
+      />
+    );
+  }
+
   return (
     <GameRoomContainer
-      gameState={connection.gameState as any}
-      gameOverData={connection.gameOverData}
-      playerNumber={connection.playerNumber}
-      sendAction={connection.sendAction}
-      startNextRound={connection.startNextRound}
+      gameState={game.gameState}
+      gameOverData={game.gameOverData}
+      playerNumber={game.playerNumber}
+      sendAction={game.sendAction}
+      startNextRound={game.startNextRound}
       onRestart={() => {
-        connection.requestSync();
+        game.requestSync();
       }}
       onBackToMenu={() => {
         router.replace('/(tabs)');
       }}
-      error={connection.error}
-      clearError={connection.clearError}
-      opponentDrag={connection.opponentDrag as any}
-      emitDragStart={connection.emitDragStart as any}
-      emitDragMove={connection.emitDragMove as any}
-      emitDragEnd={connection.emitDragEnd as any}
+      error={game.error}
+      clearError={game.clearError}
+      opponentDrag={opponentDrag.opponentDrag}
+      emitDragStart={opponentDrag.emitDragStart}
+      emitDragMove={opponentDrag.emitDragMove}
+      emitDragEnd={opponentDrag.emitDragEnd}
     />
   );
 }

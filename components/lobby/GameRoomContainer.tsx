@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { GameBoard } from '../game/GameBoard';
 import { useTournamentStatus } from '../../hooks/useTournamentStatus';
 import { SpectatorView, QualificationReviewModal } from '../tournament';
-import type { GameState, GameOverData, OpponentDragState } from '../../hooks/useMultiplayerGame';
+import type { GameState, GameOverData, OpponentDragState } from '../../hooks/useGameSession';
 
 export interface GameRoomContainerProps {
   gameState: GameState;
