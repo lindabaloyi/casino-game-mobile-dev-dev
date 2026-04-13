@@ -74,22 +74,30 @@ export function useLobby(socket: Socket | null, gameMode: GameMode): UseLobbyRes
     };
 
     socket.on('queue-state-update', handleQueueUpdate);
+    socket.on('duel-waiting', handleQueueUpdate);
     socket.on('three-hands-waiting', handleQueueUpdate);
     socket.on('party-waiting', handleQueueUpdate);
     socket.on('four-hands-waiting', handleQueueUpdate);
+    socket.on('four-hands-ready', handleQueueUpdate);
     socket.on('freeforall-waiting', handleQueueUpdate);
+    socket.on('freeforall-ready', handleQueueUpdate);
     socket.on('tournament-waiting', handleQueueUpdate);
+    socket.on('tournament-ready', handleQueueUpdate);
     socket.on('game-start', handleGameStart);
 
     socket.emit('request-lobby-status');
 
     return () => {
       socket.off('queue-state-update', handleQueueUpdate);
+      socket.off('duel-waiting', handleQueueUpdate);
       socket.off('three-hands-waiting', handleQueueUpdate);
       socket.off('party-waiting', handleQueueUpdate);
       socket.off('four-hands-waiting', handleQueueUpdate);
+      socket.off('four-hands-ready', handleQueueUpdate);
       socket.off('freeforall-waiting', handleQueueUpdate);
+      socket.off('freeforall-ready', handleQueueUpdate);
       socket.off('tournament-waiting', handleQueueUpdate);
+      socket.off('tournament-ready', handleQueueUpdate);
       socket.off('game-start', handleGameStart);
     };
   }, [socket]);
