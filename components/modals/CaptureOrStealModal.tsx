@@ -23,6 +23,7 @@ interface CaptureOrStealModalProps {
   buildValue: number;
   buildCards: Card[];
   extendedTarget: number;
+  showStealOnly?: boolean;
   onCapture: () => void;
   onExtend: () => void;
   onCancel: () => void;
@@ -35,6 +36,7 @@ export function CaptureOrStealModal({
   buildValue,
   buildCards,
   extendedTarget,
+  showStealOnly = false,
   onCapture,
   onExtend,
   onCancel,
@@ -57,7 +59,7 @@ export function CaptureOrStealModal({
     <ModalSurface
       visible={visible}
       theme="red"
-      title="Choose Action"
+      title={showStealOnly ? "Confirm Steal" : "Choose Action"}
       onClose={onCancel}
       maxWidth="md"
     >
@@ -83,27 +85,43 @@ export function CaptureOrStealModal({
         />
       </View>
 
-      {/* New value display */}
-      <Text style={styles.newValueText}>
-        After extend: {newValue}
-      </Text>
+      {/* New value display - only show for choice scenario */}
+      {!showStealOnly && (
+        <Text style={styles.newValueText}>
+          After extend: {newValue}
+        </Text>
+      )}
 
-      {/* Action buttons - cleaner text like StealBuildModal */}
-      <TouchableOpacity 
-        style={styles.btnRed} 
-        onPress={handleCapture}
-        activeOpacity={0.82}
-      >
-        <Text style={styles.btnText}>Capture {buildValue}</Text>
-      </TouchableOpacity>
-       
-      <TouchableOpacity 
-        style={styles.btnGreen} 
-        onPress={handleExtend}
-        activeOpacity={0.82}
-      >
-        <Text style={styles.btnText}>Steal Build</Text>
-      </TouchableOpacity>
+      {/* Action buttons - conditional based on showStealOnly */}
+      {showStealOnly ? (
+        // Pure steal: show only confirm button
+        <TouchableOpacity 
+          style={styles.btnGreen} 
+          onPress={handleExtend}
+          activeOpacity={0.82}
+        >
+          <Text style={styles.btnText}>Confirm Steal</Text>
+        </TouchableOpacity>
+      ) : (
+        // Choice scenario: show both capture and steal options
+        <>
+          <TouchableOpacity 
+            style={styles.btnRed} 
+            onPress={handleCapture}
+            activeOpacity={0.82}
+          >
+            <Text style={styles.btnText}>Capture {buildValue}</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.btnGreen} 
+            onPress={handleExtend}
+            activeOpacity={0.82}
+          >
+            <Text style={styles.btnText}>Steal Build</Text>
+          </TouchableOpacity>
+        </>
+      )}
       
       <TouchableOpacity 
         style={styles.btnGhost} 

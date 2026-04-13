@@ -73,6 +73,7 @@ interface GameModalsProps {
   captureOrStealBuildValue?: number;
   captureOrStealBuildCards?: Card[];
   captureOrStealExtendedTarget?: number;
+  captureOrStealShowStealOnly?: boolean;
   onConfirmCapture?: () => void;
   onConfirmExtendChoice?: () => void;
   onCancelCaptureOrSteal?: () => void;
@@ -125,6 +126,7 @@ export function GameModals({
   captureOrStealBuildValue,
   captureOrStealBuildCards,
   captureOrStealExtendedTarget,
+  captureOrStealShowStealOnly,
   onConfirmCapture,
   onConfirmExtendChoice,
   onCancelCaptureOrSteal,
@@ -215,6 +217,7 @@ export function GameModals({
           buildValue={captureOrStealBuildValue ?? 0}
           buildCards={captureOrStealBuildCards ?? []}
           extendedTarget={captureOrStealExtendedTarget ?? 0}
+          showStealOnly={captureOrStealShowStealOnly ?? false}
           onCapture={onConfirmCapture ?? (() => {})}
           onExtend={onConfirmExtendChoice ?? (() => {})}
           onCancel={onCancelCaptureOrSteal ?? (() => {})}

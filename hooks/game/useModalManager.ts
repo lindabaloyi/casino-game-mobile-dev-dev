@@ -110,6 +110,7 @@ export function useModalManager() {
     buildCards: Card[];
     extendedTarget: number;
     stackId: string;
+    showStealOnly?: boolean;
   }) => {
     setCaptureOrStealData(data);
     setShowCaptureOrStealModal(true);

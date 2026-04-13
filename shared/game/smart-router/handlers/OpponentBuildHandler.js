@@ -88,7 +88,7 @@ class OpponentBuildHandler {
     
     console.log('[OpponentBuildHandler] 🤚 Hand card - delegating to CaptureRouter');
     return this.captureRouter.route(
-      { card, targetType: 'build', targetStackId: stackId },
+      { card, targetType: 'build', targetStackId: stackId, cardSource: source },
       state,
       playerIndex
     );

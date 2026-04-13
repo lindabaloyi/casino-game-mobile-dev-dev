@@ -33,7 +33,7 @@ class CaptureRouter {
       // Pass state and playerIndex to check for spare cards
       return this.routeOwnBuild(payload, stack, state, playerIndex);
     } else {
-      return this.routeOpponentBuild(payload, stack, playerIndex);
+      return this.routeOpponentBuild(payload, stack, state, playerIndex);
     }
   }
 
@@ -81,9 +81,10 @@ class CaptureRouter {
   }
 
   /**
-   * Route capture of opponent's build (unchanged)
+   * Route capture of opponent's build
+   * Distinguishes between pure steals and choice scenarios
    */
-  routeOpponentBuild(payload, stack, playerIndex) {
+  routeOpponentBuild(payload, stack, state, playerIndex) {
     const { card, cardSource } = payload;
     
     // Card value matches build value = capture (not steal)
@@ -92,21 +93,71 @@ class CaptureRouter {
     }
     
     // CRITICAL: Steal can ONLY be initiated with a card from player's hand
-    // Table cards and captured cards cannot be used to steal
     const source = cardSource || 'hand';
     if (source !== 'hand') {
       console.log(`[CaptureRouter] Invalid steal attempt - card source is '${source}', only 'hand' allowed for steal`);
       throw new Error(`Cannot steal build - card must be from hand, not from ${source}`);
     }
     
-    // Validate steal attempt
+    // Validate steal attempt - throws if invalid
     if (!StealValidator.isValid(stack, payload.card)) {
       throw new Error(StealValidator.getErrorMessage(stack, payload.card));
     }
     
+    // Check for CHOICE scenario (CaptureOrSteal modal)
+    // ALL conditions must be met:
+    // 1. Card value = Build value (capture possible)
+    // 2. Build value ≤ 5 (small build)
+    // 3. Build has NO base (can extend)
+    // 4. Player has extension card (to make new build value)
+    const isCapturePossible = payload.card.value === stack.value;
+    const isSmallBuild = stack.value <= 5;
+    const hasBase = stack.hasBase === true;
+    const extendedValue = stack.value + payload.card.value;
+    const playerHand = state.players[playerIndex]?.hand || [];
+    const hasExtendedCard = playerHand.some(c => c.value === extendedValue);
+    
+    // Choice scenario: ALL conditions met
+    if (isCapturePossible && isSmallBuild && !hasBase && hasExtendedCard) {
+      console.log('[CaptureRouter] Choice scenario - show both capture and steal options');
+      return { 
+        type: 'choice', 
+        payload: { 
+          card: payload.card, 
+          stackId: payload.targetStackId,
+          showStealOnly: false,  // Show both options
+          options: [
+            { 
+              action: 'captureOpponent', 
+              params: { card: payload.card, targetType: 'build', targetStackId: payload.targetStackId } 
+            },
+            { 
+              action: 'stealBuild', 
+              params: { card: payload.card, stackId: payload.targetStackId, cardSource: source } 
+            }
+          ]
+        }
+      };
+    }
+    
+    // Pure steal: any other valid steal (showStealOnly: true)
+    // This includes:
+    // - Card value < Build value
+    // - Card value > Build value (as long as Build + Card ≤ 10)
+    console.log('[CaptureRouter] Pure steal - show only steal option');
     return { 
-      type: 'stealBuild', 
-      payload: { card: payload.card, stackId: payload.targetStackId, cardSource: source } 
+      type: 'choice', 
+      payload: { 
+        card: payload.card, 
+        stackId: payload.targetStackId,
+        showStealOnly: true,  // Show only steal option
+        options: [
+          { 
+            action: 'stealBuild', 
+            params: { card: payload.card, stackId: payload.targetStackId, cardSource: source } 
+          }
+        ]
+      }
     };
   }
 }

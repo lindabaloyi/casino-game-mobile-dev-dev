@@ -274,38 +274,33 @@ export function GameBoard({
   // Note: Recall is now triggered via double-tap on teammate's capture pile
   // No modal needed - handled by handleRecallAttempt callback
 
-  // === Capture vs Steal modal for pendingChoice ===
-  // When server returns pendingChoice (small build with newTarget in hand), show modal
-  // Only show for the player who triggered the choice (identified by pendingChoice.playerIndex)
-  // GUARDRAIL: Only show when targeting opponent's build, not own builds
+  // === Modal handling for pendingChoice ===
+  // showStealOnly: true → show only "Confirm Steal" option
+  // showStealOnly: false → show both "Capture" and "Steal" options
   useEffect(() => {
     const pendingChoice = (gameState as any)?.pendingChoice;
     
     // Open modal when pendingChoice appears
     if (pendingChoice && pendingChoice.playerIndex === playerNumber && modals.captureOrStealData === null) {
-      // GUARDRAIL: Check if this is an opponent's build
-      // buildOwner is provided by server in pendingChoice object
       const buildOwner = pendingChoice.buildOwner;
       const isOwnBuild = buildOwner === playerNumber;
       
-      if (isOwnBuild) {
-        // GUARDRAIL: Don't show CaptureOrStealModal for own builds
-        // Own builds should be handled through normal capture flow
-        // Don't open modal - server will handle own build capture through normal flow
-      } else {
+      if (!isOwnBuild) {
+        // Use single modal for all scenarios
         modals.openCaptureOrStealModal({
           card: pendingChoice.card,
           buildValue: pendingChoice.buildValue || (pendingChoice.card?.value || 5),
           buildCards: pendingChoice.buildCards || [],
           extendedTarget: pendingChoice.extendedTarget || 10,
           stackId: pendingChoice.stackId,
+          showStealOnly: pendingChoice.showStealOnly || false,
         });
       }
     }
-    // Close modal when pendingChoice is cleared by server (action completed successfully)
+    // Close modal when pendingChoice is cleared by server
     else if (!pendingChoice && modals.showCaptureOrStealModal) {
       modals.closeCaptureOrStealModal();
-      modals.onStealCompleted(); // Show end turn button after successful capture
+      modals.onStealCompleted();
     }
   }, [gameState, modals, playerNumber]);
 
@@ -453,40 +448,6 @@ export function GameBoard({
   ) => {
     // Hide end turn button when player makes a new action
     modals.hideEndTurnButton();
-
-    // PRE-CHECK: If dropping on opponent's build with hand card, check if we should show steal modal
-    // Note: In party mode, don't show steal modal for teammate builds - server handles extension/rejection
-    
-    if (source === 'hand' && stackOwner !== playerNumber) {
-      // Use gameState.tableCards directly instead of computed.table for latest state
-      const tableCards = gameState.tableCards ?? [];
-      const targetBuild = tableCards.find(
-        (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
-      ) as any;
-
-      if (targetBuild) {
-        // In party mode: check if this is a teammate - if so, don't show steal modal
-        // Let the server handle it (either extend or reject)
-        const isPartyMode = gameState.playerCount === 4;
-        const isTeammate = isPartyMode && areTeammates(playerNumber, targetBuild.owner);
-        
-        if (isTeammate) {
-          // Proceed to server (no steal modal)
-        } else {
-          // Check if this would be a steal (not a capture, not a base build, value < 10)
-          const isCapture = card.value === targetBuild.value;
-          const isBaseBuild = targetBuild.hasBase === true;
-          const isValue10 = targetBuild.value === 10;
-          const isSteal = !isCapture && !isBaseBuild && !isValue10;
-
-          if (isSteal) {
-            // Show steal modal instead of directly sending action
-            modals.openStealModal(card, targetBuild);
-            return;
-          }
-        }
-      }
-    }
 
     // Forward to server - use specific action based on ownership
     // Determine if friendly build (own or teammate)
@@ -836,6 +797,7 @@ export function GameBoard({
         captureOrStealBuildValue={modals.captureOrStealData?.buildValue}
         captureOrStealBuildCards={modals.captureOrStealData?.buildCards}
         captureOrStealExtendedTarget={modals.captureOrStealData?.extendedTarget}
+        captureOrStealShowStealOnly={modals.captureOrStealData?.showStealOnly}
         onConfirmCapture={() => modals.captureOrStealData && actionHandlers.handleConfirmCaptureChoice(modals.captureOrStealData)}
         onConfirmExtendChoice={() => modals.captureOrStealData && actionHandlers.handleConfirmExtendChoice(modals.captureOrStealData)}
         onCancelCaptureOrSteal={modals.closeCaptureOrStealModal}
