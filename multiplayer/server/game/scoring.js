@@ -331,14 +331,16 @@ function updateScores(gameState) {
   const players = gameState.players || [];
   const playerCount = gameState.playerCount || players.length;
 
-  // Calculate per-player scores
+  // Determine gameType for scoring (three-hands uses base points only, no bonuses)
+  const isThreeHands = playerCount === 3;
+  const isPartyMode = playerCount === 4 && players.some(p => p.team);
+  const gameType = isThreeHands ? 'three-hands' : (isPartyMode ? 'party' : 'standard');
+
+  // Calculate per-player scores (pass gameType to exclude bonuses for three-hands)
   const perPlayerScores = players.map(p => 
-    calculatePlayerScore(p.captures || [])
+    calculatePlayerScore(p.captures || [], gameType)
   );
   gameState.scores = perPlayerScores;
-
-  // Detect party mode: 4 players with team properties
-  const isPartyMode = playerCount === 4 && players.some(p => p.team);
   
   // Calculate team scores for 4-player party mode only (when teams exist)
   if (playerCount === 4 && isPartyMode) {
