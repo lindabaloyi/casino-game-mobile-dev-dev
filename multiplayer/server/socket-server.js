@@ -8,6 +8,7 @@ const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const os = require('os');
 
 // Database
@@ -35,9 +36,18 @@ const io = new Server(server, {
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
+app.use(cookieParser());
 app.use(express.json());
 app.use((req, res, next) => { req.io = io; next(); });
+
+const HEARTBEAT_TIMEOUT_MS = 15000;
+
+function isSocketAlive(socket) {
+  if (!socket || !socket.connected) return false;
+  const lastHeartbeat = socket._lastHeartbeat || 0;
+  return (Date.now() - lastHeartbeat) < HEARTBEAT_TIMEOUT_MS;
+}
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -55,6 +65,14 @@ let gameManager, actionRouter, unifiedMatchmaking, roomService, broadcaster, coo
 
 // ── Connection handling ──
 io.on('connection', socket => {
+  socket._lastHeartbeat = Date.now();
+  console.log(`[Socket] ${socket.id} connected, _lastHeartbeat initialized: ${socket._lastHeartbeat}`);
+  
+  socket.on('heartbeat', () => {
+    socket._lastHeartbeat = Date.now();
+    socket.emit('heartbeat-ack');
+  });
+
   const services = { io, gameManager, roomService, unifiedMatchmaking, broadcaster, coordinator };
   attachSocketHandlers(socket, services);
 });

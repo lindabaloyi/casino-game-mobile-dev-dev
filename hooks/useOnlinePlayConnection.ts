@@ -62,6 +62,12 @@ export interface UseOnlinePlayConnectionResult {
   isPrivateRoom: boolean;
   /** Player info from server lobby (when available) */
   lobbyPlayers: { userId: string; username: string; avatar: string }[];
+  /** Display format for PlayerCard component */
+  displayPlayers: { id: string; username: string; avatar: string; isReady: boolean; isConnected: boolean; ping: number }[];
+  /** Notification when new player joins */
+  newPlayerNotification: string | null;
+  /** Clear the notification */
+  clearNotification: () => void;
 }
 
 // No-op functions - defined outside component to avoid recreation
@@ -165,6 +171,18 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     ? [] // Private rooms don't use matchmaking lobby players
     : (multiplayerResult?.lobbyPlayers ?? []);
 
+  const displayPlayers = isPrivateRoom
+    ? []
+    : (multiplayerResult?.displayPlayers ?? []);
+
+  const newPlayerNotification = isPrivateRoom
+    ? null
+    : (multiplayerResult?.newPlayerNotification ?? null);
+
+  const clearNotification = isPrivateRoom
+    ? noop
+    : (multiplayerResult?.clearNotification ?? noop);
+
   // Game ready state for multiplayer
   const gameReady = isPrivateRoom
     ? (roomGameSync?.gameReady ?? false)
@@ -196,6 +214,9 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     roomStatus,
     isPrivateRoom,
     lobbyPlayers,
+    displayPlayers,
+    newPlayerNotification,
+    clearNotification,
   }), [
     gameState,
     gameOverData,
@@ -218,6 +239,9 @@ export function useOnlinePlayConnection(options: UseOnlinePlayConnectionOptions)
     roomStatus,
     isPrivateRoom,
     lobbyPlayers,
+    displayPlayers,
+    newPlayerNotification,
+    clearNotification,
   ]);
 }
 

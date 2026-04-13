@@ -9,16 +9,21 @@ const GameStats = require('../models/GameStats');
 const router = express.Router();
 
 // Middleware to verify authentication
+// Supports both Bearer token (deprecated) and cookie-based auth
 function authenticate(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  let token = req.cookies?.auth_token;
+
+  if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  if (!token) {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  const token = authHeader.split(' ')[1];
   const User = require('../models/User');
   const decoded = User.verifyToken(token);
-  
+
   if (!decoded) {
     return res.status(401).json({ error: 'Invalid token' });
   }

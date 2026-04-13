@@ -56,6 +56,8 @@ export interface UseMultiplayerGameResult {
   toggleReady: () => void;
   /** Player info from server lobby (when available) */
   lobbyPlayers: ReturnType<typeof useLobbyState>['lobbyPlayers'];
+  /** Display format for PlayerCard component */
+  displayPlayers: ReturnType<typeof useLobbyState>['displayPlayers'];
   /** Room code for sharing with friends (null for private rooms - use room hook instead) */
   roomCode: string | null;
   /** Whether the opponent disconnected */
@@ -84,6 +86,12 @@ export interface UseMultiplayerGameResult {
   emitDragEnd: ReturnType<typeof useOpponentDrag>['emitDragEnd'];
   /** Start the next round (called after round-end modal) */
   startNextRound: () => void;
+  /** Display format for PlayerCard component */
+  displayPlayers: ReturnType<typeof useLobbyState>['displayPlayers'];
+  /** Notification when new player joins */
+  newPlayerNotification: string | null;
+  /** Clear the notification */
+  clearNotification: () => void;
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -142,7 +150,10 @@ export function useMultiplayerGame(options: UseMultiplayerGameOptions): UseMulti
     allPlayersReady: lobby.allPlayersReady,
     toggleReady: lobby.toggleReady,
     lobbyPlayers: lobby.lobbyPlayers,
+    displayPlayers: lobby.displayPlayers,
     roomCode: lobby.roomCode,
+    newPlayerNotification: lobby.newPlayerNotification,
+    clearNotification: lobby.clearNotification,
     playerDisconnected: false, // TODO: Add to gameSync if needed
     
     // Game ready state

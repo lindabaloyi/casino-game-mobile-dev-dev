@@ -24,7 +24,6 @@ interface PlayerCardProps {
   player?: PlayerData;
   isOwn?: boolean;
   slotIndex?: number;
-  placeholderName?: string; // For dynamic slot names
   avatarEmoji?: string;
   pingColor?: (ping: number) => string;
   pingIcon?: (ping: number) => any;
@@ -62,7 +61,6 @@ export function PlayerCard({
   player,
   isOwn,
   slotIndex,
-  placeholderName,
   avatarEmoji,
   pingColor = defaultGetPingColor,
   pingIcon = defaultGetPingIcon,
@@ -76,19 +74,10 @@ export function PlayerCard({
 }: PlayerCardProps) {
   // Handle new object-based interface
   if (player) {
-    const isPlayerReady = player.isReady;
-    // Use player username if available, otherwise use placeholderName
-    // If no player.username and no placeholderName, default to slot-based name
-    let displayName: string;
-    if (player.username && player.username.trim()) {
-      displayName = player.username;
-    } else if (placeholderName) {
-      displayName = placeholderName;
-    } else if (isOwn) {
-      displayName = 'You';
-    } else {
-      displayName = `Player ${(slotIndex ?? 0) + 1}`;
-    }
+    const isPlayerReady = player.isReady ?? true;
+    const displayName = (player.username && player.username.trim()) 
+      ? player.username 
+      : (isOwn ? 'You' : `Player ${(slotIndex ?? 0) + 1}`);
     
     const emoji = avatarEmoji || getAvatarEmoji(player.avatar);
 
@@ -130,17 +119,15 @@ export function PlayerCard({
     );
   }
 
-  // Handle empty slot (new interface)
+  // Handle empty slot
   if (slotIndex !== undefined) {
-    const displayName = placeholderName || `Player ${slotIndex + 1}`;
-    
     return (
       <View style={[styles.card, styles.cardEmpty]}>
         <View style={[styles.avatar, styles.avatarEmpty]}>
           <Ionicons name="person-outline" size={24} color="rgba(255,255,255,0.3)" />
         </View>
         <Text style={styles.nameEmpty}>Waiting...</Text>
-        <Text style={styles.slotText}>{displayName}</Text>
+        <Text style={styles.slotText}>Slot {slotIndex + 1}</Text>
       </View>
     );
   }

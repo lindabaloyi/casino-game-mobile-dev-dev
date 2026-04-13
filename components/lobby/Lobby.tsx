@@ -22,23 +22,43 @@ import { Ionicons } from '@expo/vector-icons';
 import { PlayerCard } from './PlayerCard';
 import { NotificationBanner } from './NotificationBanner';
 import { GameMode, ModeConfig } from '../../utils/modeConfig';
-import { AVATAR_OPTIONS } from '../../hooks/usePlayerProfile';
-import { LobbyPlayer } from '../../hooks/useLobbyMock';
+import { getAvatarEmoji, getPingColor, getPingIcon } from '../../hooks/useLobbyHelpers';
+
+export interface LobbyPlayer {
+  userId: string;
+  username: string;
+  avatar: string;
+  isReady?: boolean;
+}
+
+// Display format for PlayerCard
+interface DisplayPlayer {
+  id: string;
+  username: string;
+  avatar: string;
+  isReady: boolean;
+  isConnected: boolean;
+  ping: number;
+}
 
 interface LobbyProps {
   mode: GameMode;
   modeConfig: ModeConfig;
   playersInLobby: number;
   lobbyPlayers: LobbyPlayer[];
+  /** Display format for PlayerCard - contains ping, isReady, etc */
+  displayPlayers?: DisplayPlayer[];
   isReady: boolean;
   setIsReady: (ready: boolean) => void;
   notification: string | null;
-  notificationAnim: Animated.Value;
+  notificationAnim?: Animated.Value;
   onCopyRoomCode?: () => void;
   /** Real room code for private rooms (overrides mode-derived display) */
   roomCode?: string | null;
   /** Whether game is starting (waiting for all clients to be ready) */
   isGameStarting?: boolean;
+  /** Callback to dismiss notification */
+  onNotificationDismiss?: () => void;
 }
 
 export const Lobby: React.FC<LobbyProps> = ({
@@ -46,6 +66,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   modeConfig,
   playersInLobby,
   lobbyPlayers,
+  displayPlayers,
   isReady,
   setIsReady,
   notification,
@@ -53,47 +74,12 @@ export const Lobby: React.FC<LobbyProps> = ({
   onCopyRoomCode,
   roomCode,
   isGameStarting,
+  onNotificationDismiss,
 }) => {
   const { height, width } = useWindowDimensions();
   const needsScroll = height < 600;
   const playersNeeded = modeConfig.playerCount - playersInLobby;
-  const allReady = lobbyPlayers.length >= 2 && lobbyPlayers.every(p => p.isReady);
-
-  const getAvatarEmoji = (avatarId: string) => {
-    const avatar = AVATAR_OPTIONS.find(a => a.id === avatarId);
-    return avatar?.emoji || '🎮';
-  };
-
-  const getPingColor = (ping: number) => {
-    if (ping < 100) return '#4CAF50';
-    if (ping < 200) return '#FFC107';
-    return '#F44336';
-  };
-
-  const getPingIcon = (ping: number) => {
-    if (ping < 100) return 'wifi';
-    if (ping < 200) return 'wifi';
-    return 'wifi-outline';
-  };
-
-  // Get dynamic placeholder name for empty slots based on game mode
-  const getSlotPlaceholder = (slotIndex: number, mode: GameMode) => {
-    if (slotIndex === 0) {
-      return 'You';
-    }
-    
-    // Mode-specific placeholder names
-    const placeholders: Record<GameMode, string[]> = {
-      'two-hands': ['You', 'Opponent'],
-      'three-hands': ['You', 'Player 2', 'Player 3'],
-      'four-hands': ['You', 'Player 2', 'Player 3', 'Player 4'],
-      'party': ['You', 'Teammate 1', 'Opponent 1', 'Opponent 2'],
-      'freeforall': ['You', 'Player 2', 'Player 3', 'Player 4'],
-      'tournament': ['You', 'Player 2', 'Player 3', 'Player 4'],
-    };
-    
-    return placeholders[mode]?.[slotIndex] || `Player ${slotIndex + 1}`;
-  };
+  const allReady = lobbyPlayers.length >= 2 && playersInLobby >= modeConfig.playerCount;
 
   return (
     <View style={styles.container}>
@@ -135,45 +121,61 @@ export const Lobby: React.FC<LobbyProps> = ({
             Players ({playersInLobby}/{modeConfig.playerCount})
           </Text>
           <View style={styles.playersGrid}>
-            {/* Player 0 (self) - show even if not connected yet */}
-            <PlayerCard
-              key="player-self"
-              player={lobbyPlayers[0]}
-              isOwn={true}
-              slotIndex={0}
-              placeholderName={getSlotPlaceholder(0, mode)}
-              avatarEmoji={lobbyPlayers[0] ? getAvatarEmoji(lobbyPlayers[0].avatar) : undefined}
-              pingColor={getPingColor}
-              pingIcon={getPingIcon}
-            />
-            
-            {/* Other slots */}
-            {[...Array(modeConfig.playerCount - 1)].map((_, idx) => {
-              const slotIndex = idx + 1;
-              const player = lobbyPlayers[slotIndex];
-              
-              if (player) {
-                return (
-                  <PlayerCard
-                    key={`player-${slotIndex}`}
-                    player={player}
-                    placeholderName={getSlotPlaceholder(slotIndex, mode)}
-                    avatarEmoji={getAvatarEmoji(player.avatar)}
-                    pingColor={getPingColor}
-                    pingIcon={getPingIcon}
-                  />
-                );
-              }
-              
-              // Empty slot
-              return (
+            {/* Use displayPlayers for PlayerCard - has ping, isReady, etc */}
+            {displayPlayers && displayPlayers.length > 0 ? (
+              <>
+                {/* Player 0 (self) */}
                 <PlayerCard
-                  key={`empty-${slotIndex}`}
-                  slotIndex={slotIndex}
-                  placeholderName={getSlotPlaceholder(slotIndex, mode)}
+                  key="player-self"
+                  player={displayPlayers[0]}
+                  isOwn={true}
+                  avatarEmoji={displayPlayers[0] ? getAvatarEmoji(displayPlayers[0].avatar) : undefined}
+                  pingColor={getPingColor}
+                  pingIcon={getPingIcon}
                 />
-              );
-            })}
+                
+                {/* Other slots */}
+                {[...Array(modeConfig.playerCount - 1)].map((_, idx) => {
+                  const slotIndex = idx + 1;
+                  const player = displayPlayers[slotIndex];
+                  
+                  if (player) {
+                    return (
+                      <PlayerCard
+                        key={`player-${slotIndex}`}
+                        player={player}
+                        avatarEmoji={getAvatarEmoji(player.avatar)}
+                        pingColor={getPingColor}
+                        pingIcon={getPingIcon}
+                      />
+                    );
+                  }
+                  
+                  // Empty slot
+                  return (
+                    <PlayerCard
+                      key={`empty-${slotIndex}`}
+                      slotIndex={slotIndex}
+                    />
+                  );
+                })}
+              </>
+            ) : (
+              /* Fallback: Show empty slots when no players */
+              <>
+                <PlayerCard
+                  key="player-self"
+                  isOwn={true}
+                  slotIndex={0}
+                />
+                {[...Array(modeConfig.playerCount - 1)].map((_, idx) => (
+                  <PlayerCard
+                    key={`empty-${idx + 1}`}
+                    slotIndex={idx + 1}
+                  />
+                ))}
+              </>
+            )}
           </View>
         </View>
 

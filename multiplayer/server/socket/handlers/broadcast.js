@@ -77,7 +77,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const roomCode = unifiedMatchmaking.getQueueRoomCode('three-hands');
 
     
-    const queue = queueManager.waitingQueues['freeforall'];
+    const queue = queueManager.waitingQueues['three-hands'];
     if (!queue || queue.length === 0) return;
     
     const userIds = queue.map(entry => entry.userId).filter(Boolean);
@@ -97,7 +97,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     });
     
     queue.forEach(entry => {
-      entry.socket.emit('freeforall-waiting', { 
+      entry.socket.emit('three-hands-waiting', { 
         playersJoined: count,
         players: orderedPlayers,
         roomCode: roomCode,
@@ -215,6 +215,42 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     });
   }
 
+  async function broadcastQueueState(gameType) {
+    const queue = queueManager.waitingQueues[gameType];
+    if (!queue || queue.length === 0) return;
+
+    // Get required players from queue manager config
+    const playersNeeded = queueManager.getPlayersNeeded(gameType);
+    const requiredPlayers = queue.length + playersNeeded;
+
+    const userIds = queue.map(entry => entry.userId).filter(Boolean);
+    const players = await PlayerProfile.getPlayerInfos(userIds);
+
+    const orderedPlayers = queue.map((entry, index) => {
+      const playerInfo = players.find(p => p.userId === entry.userId);
+      return playerInfo || {
+        userId: entry.userId || `guest-${index + 1}`,
+        username: entry.userId ? 'Unknown' : `Player ${index + 1}`,
+        avatar: 'lion'
+      };
+    });
+
+    const payload = {
+      gameType,
+      requiredPlayers,
+      players: orderedPlayers,
+      roomCode: unifiedMatchmaking.getQueueRoomCode(gameType)
+    };
+
+    // Use io.to() for simultaneous broadcast to ALL sockets in queue
+    // This ensures ALL clients receive the update at the same time
+    queue.forEach(entry => {
+      entry.socket.emit('queue-state-update', payload);
+    });
+    
+    console.log(`[Broadcast] queue-state-update sent to ${queue.length} players for ${gameType}`);
+  }
+
   return {
     broadcastTwoHandsWaiting,
     broadcastPartyWaiting,
@@ -222,6 +258,7 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     broadcastFourHandsWaiting,
     broadcastFreeForAllWaiting,
     broadcastTournamentWaiting,
+    broadcastQueueState,
   };
 }
 

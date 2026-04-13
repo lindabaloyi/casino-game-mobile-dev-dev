@@ -16,6 +16,26 @@ let socketInstance: Socket | null = null;
 let connectionPromise: Promise<Socket> | null = null;
 let isConnected = false;
 let listeners: Set<(connected: boolean, socket: Socket | null) => void> = new Set();
+let heartbeatInterval: NodeJS.Timeout | null = null;
+
+const HEARTBEAT_INTERVAL_MS = 5000;
+
+function startHeartbeat(socket: Socket) {
+  stopHeartbeat();
+  heartbeatInterval = setInterval(() => {
+    if (socket.connected) {
+      socket.emit('heartbeat');
+      console.log('[SocketManager] Heartbeat sent');
+    }
+  }, HEARTBEAT_INTERVAL_MS);
+}
+
+function stopHeartbeat() {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+}
 
 function notifyListeners() {
   listeners.forEach(cb => cb(isConnected, socketInstance));
@@ -46,17 +66,23 @@ export async function getSocket(): Promise<Socket> {
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
-        reconnectionAttemptsMax: 5,
         timeout: 15000,
-        forceNew: false, // IMPORTANT: reuse existing connection
+        forceNew: false,
       });
 
       return new Promise<Socket>((resolve, reject) => {
-        socketInstance!.on('connect', () => {
+socketInstance!.on('connect', () => {
           isConnected = true;
           connectionPromise = null;
           notifyListeners();
+          startHeartbeat(socketInstance!);
           resolve(socketInstance!);
+        });
+
+        socketInstance!.on('disconnect', () => {
+          isConnected = false;
+          stopHeartbeat();
+          notifyListeners();
         });
 
         socketInstance!.on('connect_error', (err) => {
@@ -115,6 +141,7 @@ export function onSocketStateChange(
  * Disconnect the socket (only call when app is closing).
  */
 export function disconnectSocket(): void {
+  stopHeartbeat();
   if (socketInstance) {
     socketInstance.disconnect();
     socketInstance = null;

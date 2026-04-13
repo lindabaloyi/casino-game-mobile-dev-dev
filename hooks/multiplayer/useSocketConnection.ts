@@ -114,31 +114,6 @@ export function useSocketConnection(
         sock.emit('join-tournament-queue');
       }
     }, 200);
-    
-    // Party mode: join the party queue when connected
-    if (isPartyMode) {
-      sock.emit('join-party-queue');
-    }
-    
-    // Three-hands mode: join the three-hands queue when connected
-    if (mode === 'three-hands') {
-      sock.emit('join-three-hands-queue');
-    }
-    
-    // Four-hands mode: join the four-hands queue when connected
-    if (mode === 'four-hands') {
-      sock.emit('join-four-hands-queue');
-    }
-    
-    // Free-for-all mode: join the freeforall queue when connected
-    if (mode === 'freeforall') {
-      sock.emit('join-freeforall-queue');
-    }
-    
-    // Tournament mode: join the tournament queue when connected
-    if (mode === 'tournament') {
-      sock.emit('join-tournament-queue');
-    }
   }, [mode, isPartyMode, isTwoHandsMode, isPrivateMode, isPrivateRoomGame, roomCode, user]);
 
   // Connect the shared socket on mount

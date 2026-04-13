@@ -22,7 +22,6 @@ const GUEST_PROFILE_KEY = 'guest_profile';
 const GUEST_GAME_PROGRESS_KEY = 'guest_game_progress';
 const AUTH_CACHE_PROFILE_KEY = 'auth_cache_profile';
 const AUTH_CACHE_PROGRESS_KEY = 'auth_cache_progress';
-const TOKEN_STORAGE_KEY = 'casino_auth_token';
 
 function profileDebugLog(_tag: string, _message: string, _data?: any) {
   // Debug logging disabled
@@ -126,39 +125,45 @@ function validateAvatar(avatar: string): { valid: boolean; error?: string } {
   return { valid: true };
 }
 
-// Get auth token
-async function getAuthToken(): Promise<string | null> {
+async function checkAuthState(): Promise<{ authenticated: boolean; user?: any }> {
   try {
-    const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-    return token;
-  } catch (error) {
-    return null;
+    const response = await fetch(`${SERVER_URL}/api/auth/me`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return { authenticated: true, user: data.user };
+    }
+    return { authenticated: false };
+  } catch {
+    return { authenticated: false };
   }
 }
 
 // API helper with retry logic
+// Authentication is now handled via HTTP-only cookies
 async function apiCall<T>(
   endpoint: string,
   options: RequestInit = {},
   retries = 3,
   retryDelay = 1000
 ): Promise<T> {
-  const token = await getAuthToken();
-  
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }),
     ...options.headers,
   };
   
   let lastError: Error | null = null;
   
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const response = await fetch(`${SERVER_URL}${endpoint}`, {
-        ...options,
-        headers,
-      });
+for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(`${SERVER_URL}${endpoint}`, {
+          ...options,
+          headers,
+          credentials: 'include',
+        });
       
       if (!response.ok) {
         if (response.status === 401) {
@@ -210,11 +215,11 @@ export function usePlayerProfile(): UsePlayerProfileResult {
     loadProfile();
   }, []);
 
-  // Clear local profile when user logs out (detect by auth token change)
+  // Clear local profile when user logs out (detect by auth state change)
   useEffect(() => {
     const checkAuthChange = async () => {
-      const token = await getAuthToken();
-      if (!token) {
+      const { authenticated: isAuth } = await checkAuthState();
+      if (!isAuth) {
         await AsyncStorage.removeItem(STORAGE_KEY);
         setProfile(DEFAULT_PROFILE);
         setIsLoading(false);
@@ -231,12 +236,9 @@ export function usePlayerProfile(): UsePlayerProfileResult {
    * - Auth mode: Read from player_profile (cache), then sync with server
    */
   const loadProfile = async () => {
-    // Determine which storage key to use based on auth state
-    const token = await getAuthToken();
-    const isAuth = !!token;
+    const { authenticated: isAuth } = await checkAuthState();
 
     try {
-      // First load from local storage
       const storageKey = isAuth ? STORAGE_KEY : GUEST_PROFILE_KEY;
 
       const stored = await AsyncStorage.getItem(storageKey);
@@ -244,23 +246,18 @@ export function usePlayerProfile(): UsePlayerProfileResult {
         const parsed = JSON.parse(stored);
         setProfile({ ...DEFAULT_PROFILE, ...parsed });
       } else {
-        // No guest data exists - this is a new guest, create default
         if (!isAuth) {
-          // Auto-create guest profile
           const newGuestProfile = { ...DEFAULT_PROFILE };
           await AsyncStorage.setItem(GUEST_PROFILE_KEY, JSON.stringify(newGuestProfile));
         }
       }
     } catch (error) {
-      // Error loading profile
     }
 
-    // Then try to sync with server (only if authenticated)
     if (isAuth) {
       await syncWithServer();
     }
 
-    // Set loading false after sync completes
     setIsLoading(false);
   };
 
@@ -272,9 +269,7 @@ export function usePlayerProfile(): UsePlayerProfileResult {
    * - Auth mode: Write to player_profile (cache)
    */
   const saveProfile = async (newProfile: PlayerProfile) => {
-    // Determine which storage key to use based on auth state
-    const token = await getAuthToken();
-    const isAuth = !!token;
+    const { authenticated: isAuth } = await checkAuthState();
     const storageKey = isAuth ? STORAGE_KEY : GUEST_PROFILE_KEY;
     
     try {
@@ -289,15 +284,10 @@ export function usePlayerProfile(): UsePlayerProfileResult {
     }
   };
 
-  /**
-   * Sync with server to get latest profile data
-   */
+/**
+    * Sync with server to get latest profile data
+    */
   const syncWithServer = useCallback(async () => {
-    const token = await getAuthToken();
-    if (!token) {
-      return;
-    }
-    
     setIsSyncing(true);
     setSyncStatus('syncing');
     setError(null);
@@ -351,7 +341,7 @@ export function usePlayerProfile(): UsePlayerProfileResult {
     }
     
     const trimmed = username.trim().slice(0, 15) || 'Player';
-    const token = await getAuthToken();
+    const { authenticated: isAuth } = await checkAuthState();
     
     try {
       // Optimistic update
@@ -359,7 +349,7 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       await saveProfile(newProfile);
       
       // Sync with server
-      if (token) {
+      if (isAuth) {
         const response = await apiCall<{ success: boolean; error?: string }>(
           '/api/profile',
           {
@@ -404,7 +394,7 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       return false;
     }
     
-    const token = await getAuthToken();
+    const { authenticated: isAuth } = await checkAuthState();
     
     try {
       // Optimistic update
@@ -412,7 +402,7 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       await saveProfile(newProfile);
       
       // Sync with server
-      if (token) {
+      if (isAuth) {
         const response = await apiCall<{ success: boolean; error?: string }>(
           '/api/profile',
           {
@@ -503,8 +493,8 @@ export function usePlayerProfile(): UsePlayerProfileResult {
       await saveProfile(newProfile);
       
       // Sync with server
-      const token = await getAuthToken();
-      if (token) {
+      const { authenticated: isAuth } = await checkAuthState();
+      if (isAuth) {
         const response = await apiCall<{ success: boolean }>(
           '/api/profile/stats',
           { method: 'DELETE' },

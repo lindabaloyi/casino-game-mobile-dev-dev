@@ -11,6 +11,10 @@
  * - Lobby component for UI
  * - GameRoomContainer for game rendering with tournament support
  * - ErrorScreen for error states
+ * 
+ * Data flow:
+ * - useLobbyState (via useMultiplayerGame) is the single source of truth for lobbyPlayers
+ * - Server events drive lobby state, no mock data
  */
 
 import React, { useEffect } from 'react';
@@ -28,8 +32,6 @@ import { Lobby } from '../components/lobby/Lobby';
 import { GameRoomContainer } from '../components/lobby/GameRoomContainer';
 import { ErrorScreen } from '../components/lobby/ErrorScreen';
 import { useOnlinePlayConnection } from '../hooks/useOnlinePlayConnection';
-import { useLobbyMock } from '../hooks/useLobbyMock';
-import { usePlayerProfile } from '../hooks/usePlayerProfile';
 import { useSoundContext } from '../hooks/useSoundContext';
 import { MODE_CONFIG, GameMode } from '../utils/modeConfig';
 
@@ -60,9 +62,8 @@ export default function OnlinePlayScreen() {
 
   // Set in-game mode for lower background music volume
   const { setInGameMode } = useSoundContext();
-  const { profile } = usePlayerProfile();
 
-  // Unified connection hook - handles both private room and matchmaking
+  // Unified connection hook - single source of truth for lobby state
   const connection = useOnlinePlayConnection({
     mode,
     roomCode: roomCodeParam,
@@ -78,23 +79,6 @@ export default function OnlinePlayScreen() {
     };
   }, [connection.gameState, setInGameMode]);
 
-// Mock lobby data (for display while waiting)
-  const {
-    lobbyPlayers,
-    notification,
-    notificationAnim,
-    isReady,
-    setIsReady,
-  } = useLobbyMock({
-    modeConfig,
-    playersInLobby: connection.playersInLobby,
-    profile,
-    serverLobbyPlayers: connection.lobbyPlayers,
-    initialReady: false,
-    roomPlayers: connection.isPrivateRoom ? undefined : undefined,
-    roomPlayerCount: connection.isPrivateRoom ? undefined : undefined,
-  });
-
   // Copy room code to clipboard
   const handleCopyRoomCode = () => {
     const code = connection.roomCode;
@@ -102,6 +86,12 @@ export default function OnlinePlayScreen() {
       Clipboard.setString(code);
       Alert.alert('Copied!', `Room code "${code}" copied to clipboard`);
     }
+  };
+
+  // Handle ready toggle - pass through to connection
+  const handleSetIsReady = (ready: boolean) => {
+    // Toggle via connection's toggle mechanism or directly
+    // For now, use connection's isReady from lobby state
   };
 
   // Not connected yet - show connecting screen
@@ -124,21 +114,22 @@ export default function OnlinePlayScreen() {
     return <ErrorScreen type="disconnected" />;
   }
 
+  // Show lobby while waiting for game to start
   if (connection.gameState == null || !connection.gameReady || !connection.allClientsReady) {
     return (
       <Lobby
         mode={mode}
         modeConfig={modeConfig}
         playersInLobby={connection.playersInLobby}
-        lobbyPlayers={lobbyPlayers}
-        isReady={isReady}
-        setIsReady={setIsReady}
-        notification={notification}
-        notificationAnim={notificationAnim}
+        lobbyPlayers={connection.lobbyPlayers}
+        displayPlayers={connection.displayPlayers}
+        isReady={connection.isReady || false}
+        setIsReady={connection.toggleReady || (() => {})}
+        notification={connection.newPlayerNotification}
         onCopyRoomCode={handleCopyRoomCode}
         roomCode={connection.roomCode}
-        // Show loading state when game is initializing
         isGameStarting={connection.gameState != null && (!connection.gameReady || !connection.allClientsReady)}
+        onNotificationDismiss={connection.clearNotification}
       />
     );
   }

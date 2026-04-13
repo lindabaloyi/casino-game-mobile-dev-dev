@@ -17,6 +17,7 @@ function attachSocketHandlers(socket, services) {
     broadcastFourHandsWaiting,
     broadcastFreeForAllWaiting,
     broadcastTournamentWaiting,
+    broadcastQueueState,
   } = createBroadcastHelpers(unifiedMatchmaking, services.io);
 
   // ── Authentication ─────────────────────────────────────────────────────────
@@ -45,47 +46,128 @@ function attachSocketHandlers(socket, services) {
       socket.emit('error', { message: 'Please authenticate before joining queue' });
       return;
     }
+
+    if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
+      socket.emit('error', { message: 'You are already in a queue' });
+      return;
+    }
+
+    if (unifiedMatchmaking.isUserInGame(socket.userId)) {
+      socket.emit('error', { message: 'You are already in a game' });
+      return;
+    }
     
     removeFromAllQueues();
     const result = unifiedMatchmaking.addToQueue(socket, 'two-hands', socket.userId);
     if (result) {
       await broadcaster.broadcastGameStart(result);
+    } else {
+      await broadcastQueueState('two-hands');
     }
   });
 
   socket.on('join-party-queue', async () => {
+    console.log(`[Socket] join-party-queue received from ${socket.id}, userId: ${socket.userId}`);
+    
+    if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
+      console.log(`[Socket] ${socket.id} already in queue, ignoring duplicate`);
+      socket.emit('error', { message: 'You are already in a queue' });
+      return;
+    }
+
+    if (unifiedMatchmaking.isUserInGame(socket.userId)) {
+      socket.emit('error', { message: 'You are already in a game' });
+      return;
+    }
+
     removeFromAllQueues();
     const result = unifiedMatchmaking.addToQueue(socket, 'party', socket.userId);
+    console.log(`[Socket] addToQueue result: ${result ? 'game started' : 'waiting for players'}`);
     if (result) {
       await broadcaster.broadcastPartyGameStart(result);
+    } else {
+      await broadcastQueueState('party');
     }
   });
 
   socket.on('join-three-hands-queue', async () => {
+    if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
+      socket.emit('error', { message: 'You are already in a queue' });
+      return;
+    }
+
+    if (unifiedMatchmaking.isUserInGame(socket.userId)) {
+      socket.emit('error', { message: 'You are already in a game' });
+      return;
+    }
+
     removeFromAllQueues();
     const result = unifiedMatchmaking.addToQueue(socket, 'three-hands', socket.userId);
+    console.log(`[Socket] join-three-hands result: ${result ? 'game started' : 'waiting for players'}`);
     if (result) {
       await broadcaster.broadcastThreeHandsGameStart(result);
+    } else {
+      await broadcastQueueState('three-hands');
     }
   });
 
   socket.on('join-four-hands-queue', async () => {
+    console.log(`[Socket] join-four-hands-queue received from ${socket.id}, userId: ${socket.userId}`);
+    
+    if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
+      console.log(`[Socket] ${socket.id} already in queue, ignoring duplicate`);
+      socket.emit('error', { message: 'You are already in a queue' });
+      return;
+    }
+
+    if (unifiedMatchmaking.isUserInGame(socket.userId)) {
+      socket.emit('error', { message: 'You are already in a game' });
+      return;
+    }
+
     removeFromAllQueues();
     const result = unifiedMatchmaking.addToQueue(socket, 'four-hands', socket.userId);
     if (result) {
       await broadcaster.broadcastFourHandsGameStart(result);
+    } else {
+      await broadcastQueueState('four-hands');
     }
   });
 
   socket.on('join-freeforall-queue', async () => {
+    if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
+      socket.emit('error', { message: 'You are already in a queue' });
+      return;
+    }
+
+    if (unifiedMatchmaking.isUserInGame(socket.userId)) {
+      socket.emit('error', { message: 'You are already in a game' });
+      return;
+    }
+
     removeFromAllQueues();
     const result = unifiedMatchmaking.addToQueue(socket, 'freeforall', socket.userId);
     if (result) {
       await broadcaster.broadcastFreeForAllGameStart(result);
+    } else {
+      await broadcastQueueState('freeforall');
     }
   });
 
   socket.on('join-tournament-queue', async () => {
+    console.log(`[Socket] join-tournament-queue received from ${socket.id}, userId: ${socket.userId}`);
+    
+    if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
+      console.log(`[Socket] ${socket.id} already in queue, ignoring duplicate`);
+      socket.emit('error', { message: 'You are already in a queue' });
+      return;
+    }
+
+    if (unifiedMatchmaking.isUserInGame(socket.userId)) {
+      socket.emit('error', { message: 'You are already in a game' });
+      return;
+    }
+
     removeFromAllQueues();
     
     // Use 'four-hands' game type - same as free-for-all matchmaking
@@ -137,6 +219,8 @@ function attachSocketHandlers(socket, services) {
       
       // Register tournament with coordinator for hand tracking
       tournamentCoordinator.registerExistingGameAsTournament(gameState, players, io);
+    } else {
+      await broadcastQueueState('four-hands');
     }
   });
 
@@ -168,7 +252,25 @@ function attachSocketHandlers(socket, services) {
         });
         
         if (room.status === 'ready') {
-          
+          const ghostPlayers = room.players.filter(p => {
+            const s = services.io.sockets.sockets.get(p.socketId);
+            return !s || !s.connected;
+          });
+
+          if (ghostPlayers.length > 0) {
+            ghostPlayers.forEach(ghost => {
+              roomService.leaveRoom({ id: ghost.socketId });
+              console.warn(`[RoomService] Evicted ghost ${ghost.socketId} from room ${data.roomCode}`);
+            });
+
+            const updatedRoom = roomService.getRoomStatus(data.roomCode);
+            updatedRoom?.players.forEach(p => {
+              const ps = services.io.sockets.sockets.get(p.socketId);
+              ps?.emit('room-updated', { room: updatedRoom, reason: 'player_dropped' });
+            });
+            return;
+          }
+
           const startResult = roomService.startRoomGame(room.code, services.io);
           if (!startResult.success) {
             room.players.forEach(player => {

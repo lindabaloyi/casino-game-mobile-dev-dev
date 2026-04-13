@@ -107,6 +107,17 @@ router.post('/register', async (req, res) => {
 
     console.log('[Auth] User registered with merged guest data:', { userId: user._id, mergedStats: { wins: mergedWins, losses: mergedLosses, totalGames: mergedTotalGames } });
 
+    // Generate JWT token
+    const token = User.generateToken(user._id.toString());
+
+    // Set HTTP-only cookie
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    });
+
     // Return user without password
     const { password: _, ...userWithoutPassword } = user;
     res.status(201).json({ 
@@ -244,11 +255,18 @@ router.post('/login', async (req, res) => {
     // Return user without password
     delete user.passwordHash;
 
+    // Set HTTP-only cookie
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    });
+
     // Return user without password
     const { password: _, ...userWithoutPassword } = user;
     res.json({ 
       success: true, 
-      token,
       user: userWithoutPassword,
       mergedStats
     });
@@ -259,9 +277,42 @@ router.post('/login', async (req, res) => {
 });
 
 /**
+ * GET /api/auth/me
+ * Get current authenticated user from cookie
+ */
+router.get('/me', async (req, res) => {
+  try {
+    const token = req.cookies?.auth_token;
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const decoded = User.verifyToken(token);
+    if (!decoded) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    const { password: _, ...userWithoutPassword } = user;
+    res.json({ 
+      success: true, 
+      user: userWithoutPassword 
+    });
+  } catch (error) {
+    console.error('[Auth] Me error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
  * POST /api/auth/verify
  * Verify token (for session persistence)
  * Headers: { Authorization: Bearer <token> }
+ * Deprecated: Use /api/auth/me instead
  */
 router.post('/verify', async (req, res) => {
   try {
@@ -291,6 +342,19 @@ router.post('/verify', async (req, res) => {
     console.error('[Auth] Verify error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+/**
+ * POST /api/auth/logout
+ * Clear auth cookie
+ */
+router.post('/logout', async (req, res) => {
+  res.clearCookie('auth_token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax'
+  });
+  res.json({ success: true });
 });
 
 module.exports = router;

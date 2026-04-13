@@ -7,13 +7,15 @@ const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const CODE_LENGTH = 6;
 const QUEUE_TIMEOUT_MS = 10 * 60 * 1000;
 const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000;
+const HEARTBEAT_TIMEOUT_MS = 15000;
 
 const GAME_TYPES = {
   'two-hands': { minPlayers: 2, maxPlayers: 2 },
   'three-hands': { minPlayers: 3, maxPlayers: 3 },
   'four-hands': { minPlayers: 4, maxPlayers: 4 },
   'party': { minPlayers: 4, maxPlayers: 4 },
-  'freeforall': { minPlayers: 4, maxPlayers: 4 }
+  'freeforall': { minPlayers: 4, maxPlayers: 4 },
+  'tournament': { minPlayers: 4, maxPlayers: 4 }
 };
 
 class QueueManager {
@@ -56,6 +58,31 @@ class QueueManager {
     this.queueRoomCodes[gameType] = null;
   }
 
+  _isSocketAlive(socket, entry) {
+    if (!socket || !socket.connected) {
+      return false;
+    }
+
+    const lastHeartbeat = socket._lastHeartbeat || 0;
+    const timeSinceHeartbeat = Date.now() - lastHeartbeat;
+    if (lastHeartbeat && timeSinceHeartbeat > HEARTBEAT_TIMEOUT_MS) {
+      console.warn(`[Queue] ${entry.id} heartbeat stale: ${timeSinceHeartbeat}ms > ${HEARTBEAT_TIMEOUT_MS}ms`);
+      return false;
+    }
+
+    if (entry.joinedAt && (Date.now() - entry.joinedAt > QUEUE_TIMEOUT_MS)) {
+      console.warn(`[Queue] ${entry.id} queue timeout: ${Date.now() - entry.joinedAt}ms > ${QUEUE_TIMEOUT_MS}ms`);
+      return false;
+    }
+
+    if (entry.lastActivity && (Date.now() - entry.lastActivity > INACTIVITY_TIMEOUT_MS)) {
+      console.warn(`[Queue] ${entry.id} inactivity timeout: ${Date.now() - entry.lastActivity}ms > ${INACTIVITY_TIMEOUT_MS}ms`);
+      return false;
+    }
+
+    return true;
+  }
+
   addToQueue(socket, gameType, userId = null) {
     const now = Date.now();
     const socketEntry = {
@@ -67,6 +94,9 @@ class QueueManager {
     };
 
     this.waitingQueues[gameType].push(socketEntry);
+    const config = GAME_TYPES[gameType];
+    console.log(`[Queue] ${userId || socket.id} joined ${gameType} queue (now: ${this.waitingQueues[gameType].length}/${config.minPlayers})`);
+    
     return this._tryCreateGame(gameType);
   }
 
@@ -82,20 +112,42 @@ class QueueManager {
       return null;
     }
 
+    const candidates = queue.slice(0, config.minPlayers);
+    const staleIndices = [];
+
+    for (let i = 0; i < candidates.length; i++) {
+      const entry = candidates[i];
+      if (!entry?.socket || !this._isSocketAlive(entry.socket, entry)) {
+        console.warn(`[Queue] Stale socket ${entry?.id} in ${gameType} queue — evicting`);
+        staleIndices.push(i);
+      }
+    }
+
+    if (staleIndices.length > 0) {
+      staleIndices.reverse().forEach(i => queue.splice(i, 1));
+      console.log(`[Queue] Evicted ${staleIndices.length} stale player(s) from ${gameType} queue`);
+      return null;
+    }
+
     const playerEntries = queue.splice(0, config.minPlayers);
 
     for (const entry of playerEntries) {
       if (!entry || !entry.socket || !entry.socket.id) {
-        console.error(`[QueueManager] Invalid socket in ${gameType} queue`);
+        console.error(`[Queue] Invalid socket in ${gameType} queue`);
         return null;
       }
     }
 
+    console.log(`[Queue] Creating ${gameType} game with players: ${playerEntries.map(e => e.userId || e.id).join(', ')}`);
     return playerEntries;
   }
 
   removeFromQueue(socketId) {
     for (const gameType of Object.keys(this.waitingQueues)) {
+      const entry = this.waitingQueues[gameType].find(e => e.id === socketId);
+      if (entry) {
+        console.log(`[Queue] ${entry.userId || socketId} left ${gameType} queue (now: ${this.waitingQueues[gameType].length - 1})`);
+      }
       this.waitingQueues[gameType] = this.waitingQueues[gameType].filter(entry => entry.id !== socketId);
     }
   }
@@ -120,7 +172,7 @@ class QueueManager {
     for (const gameType of Object.keys(this.waitingQueues)) {
       this.waitingQueues[gameType] = this.waitingQueues[gameType].filter(entry => {
         if (!entry.socket || !entry.socket.connected) {
-          console.log(`[QueueManager] Removing stale socket ${entry.id} from ${gameType} queue`);
+          console.log(`[Queue] Removing stale socket ${entry.id} from ${gameType} queue`);
           return false;
         }
         return true;
@@ -142,6 +194,9 @@ class QueueManager {
     });
 
     const removed = beforeCount - this.waitingQueues[gameType].length;
+    if (removed > 0) {
+      console.log(`[Queue] Cleanup ${gameType}: removed ${removed} stale player(s)`);
+    }
     return removed;
   }
 
@@ -150,7 +205,47 @@ class QueueManager {
     for (const gameType of Object.keys(this.waitingQueues)) {
       totalRemoved += this.cleanup(gameType, isSocketValid);
     }
+    this._logQueueStatus();
     return totalRemoved;
+  }
+
+  _logQueueStatus() {
+    const status = [];
+    for (const [gameType, queue] of Object.entries(this.waitingQueues)) {
+      if (queue.length > 0) {
+        const config = GAME_TYPES[gameType];
+        const players = queue.map(e => e.userId || e.id).join(', ');
+        status.push(`${gameType}: ${queue.length}/${config.minPlayers} [${players}]`);
+      }
+    }
+    if (status.length > 0) {
+      console.log(`[Queue] Status: ${status.join(' | ')}`);
+    } else {
+      console.log(`[Queue] Status: (empty)`);
+    }
+  }
+
+  getQueueDiagnostics() {
+    const queues = {};
+    for (const [gameType, queue] of Object.entries(this.waitingQueues)) {
+      const config = GAME_TYPES[gameType];
+      queues[gameType] = {
+        count: queue.length,
+        minPlayers: config.minPlayers,
+        players: queue.map(entry => ({
+          socketId: entry.id,
+          userId: entry.userId,
+          joinedAt: entry.joinedAt,
+          lastActivity: entry.lastActivity,
+          lastHeartbeat: entry.socket?._lastHeartbeat || null,
+          isConnected: entry.socket?.connected || false
+        }))
+      };
+    }
+    return {
+      queues,
+      lastUpdate: Date.now()
+    };
   }
 
   broadcastWaitingUpdate(gameType) {

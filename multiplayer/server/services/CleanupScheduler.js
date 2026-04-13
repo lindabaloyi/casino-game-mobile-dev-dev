@@ -5,6 +5,7 @@
 
 const QUEUE_TIMEOUT_MS = 10 * 60 * 1000;
 const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000;
+const HEARTBEAT_TIMEOUT_MS = 30000;
 
 class CleanupScheduler {
   constructor(queueManager, socketRegistry, intervalMs = 10000) {
@@ -17,6 +18,10 @@ class CleanupScheduler {
 
   _isSocketValid(socket, entry) {
     if (!socket.connected) {
+      return false;
+    }
+
+    if (socket._lastHeartbeat && (Date.now() - socket._lastHeartbeat > HEARTBEAT_TIMEOUT_MS)) {
       return false;
     }
 

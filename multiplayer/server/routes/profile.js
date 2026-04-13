@@ -32,19 +32,22 @@ const router = express.Router();
 
 /**
  * Middleware to verify authentication
+ * Supports both Bearer token (deprecated) and cookie-based auth
  */
 function authenticate(req, res, next) {
-  const timer = null;
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    logger.warn('Authentication failed - missing or invalid token');
+  let token = req.cookies?.auth_token;
+
+  if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  if (!token) {
+    logger.warn('Authentication failed - no token');
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  const token = authHeader.split(' ')[1];
   const decoded = User.verifyToken(token);
-  
+
   if (!decoded) {
     logger.warn('Authentication failed - invalid token');
     return res.status(401).json({ error: 'Invalid token' });
