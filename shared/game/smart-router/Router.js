@@ -63,8 +63,9 @@ class Router {
         return this.routeCreateTemp(payload, state, playerIndex);
 
       case 'addToTemp':
-        // Direct passthrough - validation happens in handler
-        return { type: actionType, payload };
+        // Route through TempStackDropHandler to check if capture is possible
+        // (auto-capture when complete build + no spare, otherwise addToTemp)
+        return this.tempHandler.handle(payload, state, playerIndex);
 
       case 'acceptTemp':
         return this.tempRouter.routeAcceptTemp(payload, state, playerIndex);

@@ -333,7 +333,7 @@ test('Router has case for opponentBuildDrop (throws on missing stack)', () => {
   expect(threw).toBe(true);
 });
 
-test('Router has case for addToTemp', () => {
+test('Router has case for addToTemp (valid stack)', () => {
   const router = new Router();
   const state = createTestState([
     { hand: [] },
@@ -342,13 +342,41 @@ test('Router has case for addToTemp', () => {
     { hand: [] }
   ]);
   
+  // Valid temp stack exists
+  state.tableCards = [
+    { type: 'temp_stack', stackId: 'temp_0', owner: 0, cards: [createCard('3', 'S', 3)] }
+  ];
+  
   const result = router.route('addToTemp', {
-    stackId: 'test',
-    card: {},
+    stackId: 'temp_0',
+    card: createCard('5', 'H', 5),
     cardSource: 'hand'
   }, state, 0);
   
   expect(result.type).toBe('addToTemp');
+});
+
+test('Router throws for addToTemp on non-existent stack', () => {
+  const router = new Router();
+  const state = createTestState([
+    { hand: [] },
+    { hand: [] },
+    { hand: [] },
+    { hand: [] }
+  ]);
+  
+  // No temp stack exists - should throw
+  let threw = false;
+  try {
+    router.route('addToTemp', {
+      stackId: 'nonexistent',
+      card: createCard('5', 'H', 5),
+      cardSource: 'hand'
+    }, state, 0);
+  } catch (e) {
+    threw = true;
+  }
+  expect(threw).toBe(true);
 });
 
 test('Router has case for trail with valid card', () => {

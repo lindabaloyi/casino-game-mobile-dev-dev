@@ -120,8 +120,34 @@ function addToTemp(state, payload, playerIndex) {
   }
   const stack = newState.tableCards[stackIdx];
 
-  // Validate card exists at claimed source
-  const cardInfo = findCardAtSource(state, card, cardSource, playerIndex);
+  // Try to find card at ANY valid source (hand, table, or captures)
+  // This allows players to add cards from anywhere, not just claimed source
+  let cardInfo = findCardAtSource(state, card, cardSource, playerIndex);
+  let actualSource = cardSource;
+  
+  if (!cardInfo.found) {
+    // Try hand
+    cardInfo = findCardAtSource(state, card, 'hand', playerIndex);
+    if (cardInfo.found) {
+      actualSource = 'hand';
+    }
+  }
+  
+  if (!cardInfo.found) {
+    // Try table
+    cardInfo = findCardAtSource(state, card, 'table', playerIndex);
+    if (cardInfo.found) {
+      actualSource = 'table';
+    }
+  }
+  
+  if (!cardInfo.found) {
+    // Try captures
+    cardInfo = findCardAtSource(state, card, 'captured', playerIndex);
+    if (cardInfo.found) {
+      actualSource = 'captured';
+    }
+  }
   
   if (!cardInfo.found) {
     // 1. Check if card is already in the current stack (original state)
@@ -151,30 +177,33 @@ function addToTemp(state, payload, playerIndex) {
     }
 
     // If still not found, it's a genuine error
-    console.error('[addToTemp] Card not found at source and not in any temp stack');
-    throw new Error(`addToTemp: card ${card.rank}${card.suit} not found at source ${cardSource}`);
+    console.error('[addToTemp] Card not found at any source and not in any temp stack');
+    throw new Error(`addToTemp: card ${card.rank}${card.suit} not found at any source (hand, table, or captured)`);
   }
+  
+  // Log where we found the card for debugging
+  console.log(`[addToTemp] Found card ${card.rank}${card.suit} at source: ${actualSource}`);
 
-  // Remove card from the source location in cloned state
+  // Remove card from the ACTUAL source where we found it
   let firstCard = null;
   let originalIndex = -1;
   let originalOwner = playerIndex;
   
-  if (cardSource === 'table') {
+  if (actualSource === 'table') {
     originalIndex = cardInfo.index;
     [firstCard] = newState.tableCards.splice(cardInfo.index, 1);
-  } else if (cardSource === 'hand') {
+  } else if (actualSource === 'hand') {
     originalIndex = cardInfo.index;
     const hand = newState.players[playerIndex].hand;
     [firstCard] = hand.splice(cardInfo.index, 1);
-  } else if (cardSource === 'captured' || (cardSource && cardSource.startsWith('captured_'))) {
+  } else if (actualSource === 'captured' || (actualSource && actualSource.startsWith('captured_'))) {
     // Use the ownerIndex from cardInfo if available, otherwise fall back to playerIndex
     originalOwner = cardInfo.ownerIndex !== undefined ? cardInfo.ownerIndex : playerIndex;
     originalIndex = cardInfo.index;
     [firstCard] = newState.players[originalOwner].captures.splice(cardInfo.index, 1);
   }
 
-  console.log('[addToTemp] Removed card from source:', cardSource, 'at index:', originalIndex, 'originalOwner:', originalOwner);
+  console.log('[addToTemp] Removed card from source:', actualSource, 'at index:', originalIndex, 'originalOwner:', originalOwner);
 
   if (!firstCard) {
     throw new Error('addToTemp: failed to remove card after validation');
@@ -183,14 +212,14 @@ function addToTemp(state, payload, playerIndex) {
   // Store card with original index and owner for proper restoration on cancel
   const storedCard = {
     ...firstCard,
-    source: cardSource,
+    source: actualSource,
     originalIndex: originalIndex,
     originalOwner: originalOwner
   };
 
   // LIMIT: Max 2 cards from player's hand per temp stack per turn
   // Cards from table or captures don't count toward this limit
-  if (cardSource === 'hand') {
+  if (actualSource === 'hand') {
     const handCardsCount = stack.cards.filter(c => c.source === 'hand').length;
     if (handCardsCount >= 1) {
       throw new Error('Cannot add more than 1 card from hand to temp stack (limit is 1)');

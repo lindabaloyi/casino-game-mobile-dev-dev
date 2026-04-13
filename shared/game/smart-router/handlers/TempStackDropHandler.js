@@ -56,19 +56,34 @@ class TempStackDropHandler {
     console.log('[TempStackDropHandler] Player hand:', playerHand.map(c => c.rank));
 
     // Check 1: Complete build (need === 0) - card value matches build value
+    // Also handles multi-build: cards form multiple valid builds (e.g., 6+3=9 AND 7+2=9)
     if (buildInfo && buildInfo.need === 0 && buildInfo.value > 0) {
       if (card.value === buildInfo.value) {
-        const matchingCards = playerHand.filter(c => c.value === buildInfo.value);
+        // Spare check: Does player have another card of same rank in hand?
+        const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
+        const hasSpare = sameRankCount > 1;
         
-        // Only auto-capture if player has EXACTLY ONE matching card
-        if (matchingCards.length === 1) {
-          console.log(`[TempStackDropHandler] Complete build, single matching card - capturing!`);
+        if (!hasSpare) {
+          // Multi-build: log the build type for debugging
+          if (buildInfo.buildType === 'multi') {
+            console.log(`[TempStackDropHandler] Multi-build (${stackValues.join('+')}=${buildInfo.value}), no spare → CAPTURE`);
+          } else {
+            console.log(`[TempStackDropHandler] Complete build, no spare → CAPTURE`);
+          }
           return {
             type: 'captureTemp',
             payload: { card, stackId, source: cardSource }
           };
-        } else if (matchingCards.length > 1) {
-          console.log(`[TempStackDropHandler] Multiple matching cards (${matchingCards.length}), adding to temp for choice`);
+        } else {
+          if (buildInfo.buildType === 'multi') {
+            console.log(`[TempStackDropHandler] Multi-build, has spare → ADD TO TEMP`);
+          } else {
+            console.log(`[TempStackDropHandler] Complete build, has spare → ADD TO TEMP`);
+          }
+          return {
+            type: 'addToTemp',
+            payload: { card, stackId, source: cardSource }
+          };
         }
       }
     }
@@ -100,17 +115,22 @@ class TempStackDropHandler {
       stack.cards.every(c => c.rank === stack.cards[0].rank);
     
     if (allSameRank && card.rank === stack.cards[0].rank) {
-      const matchingCards = playerHand.filter(c => c.rank === stack.cards[0].rank);
+      // Spare check: Does player have another card of same rank in hand?
+      const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
+      const hasSpare = sameRankCount > 1;
       
-      // Only auto-capture if player has EXACTLY ONE matching card
-      if (matchingCards.length === 1) {
-        console.log(`[TempStackDropHandler] Same rank capture - single matching card`);
+      if (!hasSpare) {
+        console.log(`[TempStackDropHandler] Same rank, no spare → CAPTURE`);
         return {
           type: 'captureTemp',
           payload: { card, stackId, source: cardSource }
         };
-      } else if (matchingCards.length > 1) {
-        console.log(`[TempStackDropHandler] Multiple matching cards (${matchingCards.length}), adding to temp for choice`);
+      } else {
+        console.log(`[TempStackDropHandler] Same rank, has spare → ADD TO TEMP`);
+        return {
+          type: 'addToTemp',
+          payload: { card, stackId, source: cardSource }
+        };
       }
     }
 
