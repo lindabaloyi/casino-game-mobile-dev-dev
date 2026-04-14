@@ -17,7 +17,7 @@ import {
 import { ModalSurface } from './ModalSurface';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from '../../types';
-import { getBuildHint, canPartitionConsecutively } from '../../utils/buildCalculator';
+import { getBuildHint, canPartitionConsecutively } from '../../shared/game/buildCalculator';
 
 interface PlayOptionsModalProps {
   visible: boolean;

@@ -12,7 +12,7 @@
 
 import { useMemo, useCallback } from 'react';
 import { Card, TempStack, BuildStack } from '../../types';
-import { getBuildHint } from '../../utils/buildCalculator';
+import { getBuildHint } from '../../shared/game/buildCalculator';
 
 export interface AutoCaptureResult {
   shouldAutoCapture: boolean;

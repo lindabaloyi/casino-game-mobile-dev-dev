@@ -282,6 +282,52 @@ function getConsecutivePartition(values, target) {
   return sum === 0 ? groups : [];
 }
 
+/**
+ * Returns a hint for an incomplete stack:
+ * - If the stack is already complete: { value: target, need: 0 }
+ * - If there is a legal subset that leaves exactly one card: { value: target, need: target - remaining }
+ * - Otherwise: null
+ *
+ * @param {number[]} values - Array of card values
+ * @returns {{ value: number, need: number }|null} Hint object or null
+ */
+function getBuildHint(values) {
+  const n = values.length;
+  if (n < 2) return null;
+
+  // First check if the whole set is already a valid multi-build
+  const completeTarget = calculateMultiBuildValue(values);
+  if (completeTarget !== null) {
+    return { value: completeTarget.value, need: 0 };
+  }
+
+  // Search for a subset (size >= 2) that forms a legal build and leaves exactly one card
+  for (let size = 2; size <= n; size++) {
+    for (let mask = 0; mask < (1 << n); mask++) {
+      if (bitCount(mask) !== size) continue;
+
+      const subsetIndices = [];
+      for (let i = 0; i < n; i++) {
+        if (mask & (1 << i)) subsetIndices.push(i);
+      }
+      const subsetValues = subsetIndices.map(i => values[i]);
+      const target = getBuildTargetForSubset(subsetValues);
+      if (target === null) continue;
+
+      const remainingIndices = Array.from({ length: n }, (_, i) => i).filter(i => !(mask & (1 << i)));
+      if (remainingIndices.length === 1) {
+        const remainingValue = values[remainingIndices[0]];
+        const need = target - remainingValue;
+        if (need >= 1 && need <= 10) {
+          return { value: target, need };
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 module.exports = {
   calculateBuildValue,
   calculateMultiBuildValue,
@@ -290,4 +336,5 @@ module.exports = {
   canCaptureBuild,
   canPartitionConsecutively,
   getConsecutivePartition,
+  getBuildHint,
 };

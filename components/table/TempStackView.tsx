@@ -19,9 +19,9 @@ import { TempStack } from './types';
 import { TempStackBounds, CapturePileBounds } from '../../hooks/useDrag';
 import { getStackConfig } from '../../constants/stackActions';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
-import { useStackRegistration } from './hooks/useStackRegistration';
-import { useTempStackCards } from './hooks/useTempStackCards';
-import { useTempStackDisplay } from './hooks/useTempStackDisplay';
+import { useStackRegistration } from '../../hooks/table/useStackRegistration';
+import { useTempStackCards } from '../../hooks/table/useTempStackCards';
+import { useTempStackDisplay } from '../../hooks/table/useTempStackDisplay';
 import { BuildValueBadge } from './components/BuildValueBadge';
 import { TypeBadge } from './components/TypeBadge';
 

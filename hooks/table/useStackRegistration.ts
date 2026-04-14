@@ -6,7 +6,7 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { View } from 'react-native';
-import { TempStackBounds } from '../../../hooks/useDrag';
+import { TempStackBounds } from '../useDrag';
 
 interface UseStackRegistrationProps {
   stackId: string;

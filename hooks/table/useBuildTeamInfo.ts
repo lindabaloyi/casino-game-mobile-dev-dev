@@ -9,14 +9,14 @@ import {
   getTeamFromIndex, 
   getPlayerTag,
   getPlayerPositionLabel
-} from '../../../shared/game/team';
+} from '../../shared/game/team';
 import { 
   TEAM_A_COLORS,
   TEAM_B_COLORS,
   getPlayerColors,
   type TeamId,
   type TeamColors 
-} from '../../../constants/teamColors';
+} from '../../constants/teamColors';
 
 
 interface UseBuildTeamInfoProps {

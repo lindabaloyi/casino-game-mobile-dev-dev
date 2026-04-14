@@ -7,7 +7,7 @@ import { useCallback, useRef } from 'react';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS, SharedValue } from 'react-native-reanimated';
 import { BuildStack } from '../types';
-import { CapturePileBounds } from '../../../hooks/useDrag';
+import { CapturePileBounds } from '../useDrag';
 
 interface UseBuildDragProps {
   /** The build stack being dragged */

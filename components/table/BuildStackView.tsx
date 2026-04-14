@@ -25,8 +25,8 @@ import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-nativ
 import { BuildStack } from './types';
 import { TempStackBounds } from '../../hooks/useDrag';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
-import { useBuildDisplayValue } from './hooks/useBuildDisplayValue';
-import { useBuildTeamInfo } from './hooks/useBuildTeamInfo';
+import { useBuildDisplayValue } from '../../hooks/table/useBuildDisplayValue';
+import { useBuildTeamInfo } from '../../hooks/table/useBuildTeamInfo';
 import { BuildValueBadge, OwnerIndicator, BuildCards } from './components';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ const BADGE_H      = 22;
 const STACK_PAD    = 0;
 
 // Re-export constants for backwards compatibility
-export { CANONICAL_PURPLE, PLAYER_1_GOLD, PLAYER_2_PURPLE } from './hooks/useBuildTeamInfo';
+export { CANONICAL_PURPLE, PLAYER_1_GOLD, PLAYER_2_PURPLE } from '../../hooks/table/useBuildTeamInfo';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 

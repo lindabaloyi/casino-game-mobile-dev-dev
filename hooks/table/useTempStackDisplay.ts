@@ -5,14 +5,14 @@
  */
 
 import { useMemo } from 'react';
-import { getBuildHint } from '../../../utils/buildCalculator';
+import { getBuildHint } from '../../shared/game/buildCalculator';
 import { TempStack, Card } from '../types';
-import { getTeamFromIndex } from '../../../shared/game/team';
+import { getTeamFromIndex } from '../../shared/game/team';
 import { 
   TEAM_A_COLORS, 
   TEAM_B_COLORS,
   getPlayerColors
-} from '../../../constants/teamColors';
+} from '../../constants/teamColors';
 
 // Re-export player colors for convenience (using getPlayerColors internally)
 export const COLORS = {
