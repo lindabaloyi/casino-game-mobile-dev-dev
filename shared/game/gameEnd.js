@@ -5,8 +5,7 @@
 
 const { cloneState } = require('./clone');
 
-// Note: We import scoring dynamically inside the function to avoid circular dependencies
-// const { updateScores } = require('../multiplayer/server/game/scording');
+const { updateScores } = require('./scoring');
 
 /**
  * End-of-game cleanup: give remaining table cards to the player who made the last capture.
@@ -43,8 +42,6 @@ function finalizeGame(state) {
   }
 
   // Calculate final scores
-  // Dynamic import to avoid circular dependency
-  const { updateScores } = require('../../multiplayer/server/game/scoring');
   updateScores(newState);
 
   newState.gameOver = true;

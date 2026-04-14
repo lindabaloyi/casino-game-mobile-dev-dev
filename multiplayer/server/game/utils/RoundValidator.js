@@ -11,7 +11,7 @@
 
 const { cloneDeep } = require('../../../../shared/utils/cloneDeep');
 const { allPlayersTurnEnded, forceEndTurn, createRoundPlayers, startNextRound } = require('../../../../shared/game');
-const { getWinnerIndex, getRankings } = require('../../game/scoring');
+const { getWinnerIndex, getRankings } = require('../../../../shared/game/scoring');
 
 class RoundValidator {
   static STARTING_CARDS = 10;

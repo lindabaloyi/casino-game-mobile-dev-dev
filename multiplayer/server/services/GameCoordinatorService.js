@@ -15,7 +15,7 @@
 
 const RoundValidator = require('../game/utils/RoundValidator');
 const { allPlayersTurnEnded, resetTurnFlags, startPlayerTurn, forceEndTurn, finalizeGame } = require('../../../shared/game');
-const scoring = require('../game/scoring');
+const scoring = require('../../../shared/game/scoring');
 const TournamentCoordinator = require('./TournamentCoordinator');
 const GamePersistenceService = require('./GamePersistenceService');
 const GameStats = require('../models/GameStats');

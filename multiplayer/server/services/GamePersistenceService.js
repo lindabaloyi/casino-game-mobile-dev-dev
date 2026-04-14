@@ -6,7 +6,7 @@
 
 const GameState = require('../models/GameState');
 const GameStats = require('../models/GameStats');
-const scoring = require('../game/scoring');
+const scoring = require('../../../shared/game/scoring');
 
 class GamePersistenceService {
   /**

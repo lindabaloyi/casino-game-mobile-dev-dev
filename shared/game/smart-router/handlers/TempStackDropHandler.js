@@ -89,7 +89,7 @@ class TempStackDropHandler {
       }
     }
 
-    // Check 2: Incomplete build - card matches the "need" value
+    // Check 2: Incomplete build - card matches the "need" values
     // REMOVED: Don't auto-capture incomplete builds - let player choose to extend or capture
     // Players should be able to add cards to incomplete builds without forced capture
     /*
