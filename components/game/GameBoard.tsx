@@ -39,6 +39,7 @@ import { OpponentGhostCard } from './OpponentGhostCard';
 import { ErrorBanner } from '../shared/ErrorBanner';
 import { Card as TableCard } from '../../types';
 import { GameOverModal } from '../modals/GameOverModal';
+import { TournamentWinnerModal } from '../game-over/TournamentWinnerModal';
 import { HomeMenuButton } from './HomeMenuButton';
 import { OpponentProfileModal } from '../modals/OpponentProfileModal';
 import { useOpponentInfo } from '../../hooks/useOpponentInfo';
@@ -108,6 +109,7 @@ export function GameBoard({
   // Local state
   const [errorVersion, setErrorVersion] = useState(0);
   const [dragVersion, setDragVersion] = useState(0);
+  const [showTournamentWinner, setShowTournamentWinner] = useState(false);
   
   // Track round transitions to prevent double triggers
   const lastProcessedRound = useRef<number>(0);
@@ -196,6 +198,16 @@ export function GameBoard({
     // Show modal for all games (tournament and non-tournament) - same behavior
     return true;
   }, [isGameOver, gameState.tournamentMode, gameOverData]);
+
+  // Show tournament winner modal when game over and player won tournament
+  useEffect(() => {
+    if (shouldShowStandardGameOver && 
+        gameState.tournamentMode === 'knockout' && 
+        gameState.tournamentPhase === 'COMPLETED' &&
+        gameState.playerStatuses?.[gameState.players?.[playerNumber]?.userId ?? ''] === 'WINNER') {
+      setShowTournamentWinner(true);
+    }
+  }, [shouldShowStandardGameOver, gameState.tournamentMode, gameState.tournamentPhase, gameState.playerStatuses, gameState.players, playerNumber]);
   
   // Turn timer - 20 second countdown
   const turnTimer = useTurnTimer({
@@ -844,6 +856,18 @@ export function GameBoard({
         transitionType={gameOverData?.transitionType}
         countdownSeconds={gameOverData?.countdownSeconds}
         eliminatedPlayers={gameOverData?.eliminatedPlayers}
+        playerId={(() => {
+          const pid = gameState.players?.[playerNumber]?.userId;
+          console.log('[GameBoard] Passing playerId to GameOverModal:', {
+            playerNumber,
+            playerId: pid,
+            qualifiedPlayers: gameState.qualifiedPlayers,
+            tournamentPhase: gameState.tournamentPhase,
+            playerStatuses: gameState.playerStatuses,
+          });
+          return pid;
+        })()}
+        tournamentPhase={gameState.tournamentPhase}
         onTransitionToNextGame={() => {
           if (gameOverData?.nextGameId) {
             sendAction({ type: 'join-tournament-game', payload: { gameId: gameOverData.nextGameId } });
@@ -852,6 +876,18 @@ export function GameBoard({
         onPlayAgain={onRestart ? handlePlayAgain : undefined}
         onBackToMenu={onBackToMenu}
       />
+
+      {/* Tournament Winner Modal - shown when player wins entire tournament */}
+      {gameState.tournamentMode === 'knockout' && 
+       gameState.tournamentPhase === 'COMPLETED' && 
+       gameState.playerStatuses?.[gameState.players?.[playerNumber]?.userId ?? ''] === 'WINNER' && (
+        <TournamentWinnerModal
+          visible={shouldShowStandardGameOver && showTournamentWinner}
+          winnerName={`Player ${playerNumber + 1}`}
+          tournamentScore={gameState.tournamentScores?.[gameState.players?.[playerNumber]?.userId]}
+          onClose={() => setShowTournamentWinner(false)}
+        />
+      )}
 
       {/* Home Menu Button - Bottom left corner */}
       <HomeMenuButton

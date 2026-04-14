@@ -241,6 +241,29 @@ class TournamentCoordinator {
       lowest.eliminated = true;
     }
 
+    // Update gameState with player statuses for client display
+    gameState.playerStatuses = {};
+    gameState.qualifiedPlayers = [];
+
+    // Set qualified status for players who made it
+    qualResult.qualified.forEach(p => {
+      gameState.playerStatuses[p.id] = 'QUALIFIED';
+      gameState.qualifiedPlayers.push(p.id);
+    });
+
+    // Set eliminated status for players who were knocked out
+    qualResult.eliminated.forEach(p => {
+      gameState.playerStatuses[p.id] = 'ELIMINATED';
+    });
+
+    // Set winner status for the top player
+    if (qualResult.sortedPlayers[0]) {
+      gameState.playerStatuses[qualResult.sortedPlayers[0].id] = 'WINNER';
+    }
+
+    console.log('[TournamentCoordinator] Updated gameState playerStatuses:', JSON.stringify(gameState.playerStatuses));
+    console.log('[TournamentCoordinator] Updated gameState qualifiedPlayers:', JSON.stringify(gameState.qualifiedPlayers));
+
     // Check remaining players
     const remaining = tournament.players.filter(p => !p.eliminated);
     
@@ -305,7 +328,7 @@ class TournamentCoordinator {
   handleRoundEnd(gameState, gameId, lastAction) {
     const phase = gameState?.tournamentPhase;
     
-    if (phase === 'QUALIFYING' || phase === 'SEMI_FINAL' || phase === 'FINAL') {
+    if (phase === 'QUALIFYING' || phase === 'SEMI_FINAL' || phase === 'FINAL' || phase === 'FINAL_SHOWDOWN') {
       return this._handleTournamentRoundEnd(gameState, gameId);
     }
     

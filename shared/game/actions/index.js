@@ -53,11 +53,6 @@ const actionHandlers = {
 
   // ── Tournament (Knockout Mode) ─────────────────────────────────────────────────
   startTournament:         require('./startTournament'),
-  endTournamentRound:     require('./endTournamentRound'),
-  endFinalShowdown:        require('./endFinalShowdown'),
-  startQualificationReview: require('./startQualificationReview'),
-  startSemifinal:          require('./startQualificationReview'),
-  advanceFromQualificationReview: require('./advanceFromQualificationReview'),
 
   // ── Multi-Card Capture (Opponent) ───────────────────────────────────────────
   startBuildCapture:  require('./startBuildCapture'),
