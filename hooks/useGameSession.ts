@@ -48,7 +48,6 @@ export interface UseGameSessionResult {
 export function getPlayerCount(mode: GameMode): number {
   switch (mode) {
     case 'party':
-    case 'freeforall':
     case 'four-hands':
     case 'tournament':
       return 4;

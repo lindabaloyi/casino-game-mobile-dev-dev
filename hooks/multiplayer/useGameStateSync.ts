@@ -48,7 +48,7 @@ export interface ShiyaRecall {
 export interface GameState {
   gameId?: number; // Set when received from server (via game-start event)
   deck: Card[];
-  gameMode?: 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament';
+  gameMode?: 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'tournament';
   players: {
     id: number;
     name: string;
@@ -473,8 +473,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
             gameMode = 'four-hands'; // 4-player mode
           } else if (serverMode === 'three-hands') {
             gameMode = 'three-hands';
-          } else if (serverMode === 'freeforall') {
-            gameMode = 'freeforall';
           } else if (serverMode === 'tournament') {
             gameMode = 'tournament';
           } else {

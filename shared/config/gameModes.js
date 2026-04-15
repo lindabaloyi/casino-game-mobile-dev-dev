@@ -46,16 +46,6 @@ const GAME_MODES = [
     players: '4 Players',
   },
   {
-    id: 'freeforall',
-    key: 'freeforall',
-    title: 'Free For All',
-    subtitle: 'Free For All',
-    description: 'Free for all mode',
-    expectedPlayers: 4,
-    icon: 'trophy',
-    players: '4 Players',
-  },
-  {
     id: 'tournament',
     key: 'tournament',
     title: 'Tournament',

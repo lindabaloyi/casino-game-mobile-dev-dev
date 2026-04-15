@@ -144,42 +144,6 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     });
   }
 
-  async function broadcastFreeForAllWaiting() {
-    const count = unifiedMatchmaking.getWaitingCount('freeforall');
-    const roomCode = unifiedMatchmaking.getQueueRoomCode('freeforall');
-    
-    const queue = queueManager.waitingQueues['freeforall'];
-    if (!queue || queue.length === 0) return;
-    
-    const userIds = queue.map(entry => entry.userId).filter(Boolean);
-    const players = await PlayerProfile.getPlayerInfos(userIds);
-    
-    const orderedPlayers = queue.map((entry, index) => {
-      const playerInfo = players.find(p => p.userId === entry.userId);
-      if (playerInfo) return playerInfo;
-      return {
-        userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId ? '' : '',
-        avatar: 'lion',
-      };
-    });
-    
-    queue.forEach(entry => {
-      if (count === 4) {
-        entry.socket.emit('freeforall-ready', {
-          playerCount: 4,
-          message: '4 players ready - starting game!'
-        });
-      } else {
-        entry.socket.emit('freeforall-waiting', { 
-          playersJoined: count,
-          players: orderedPlayers,
-          roomCode: roomCode,
-        });
-      }
-    });
-  }
-
   async function broadcastTournamentWaiting() {
     const count = unifiedMatchmaking.getWaitingCount('tournament');
     const roomCode = unifiedMatchmaking.getQueueRoomCode('tournament');
@@ -267,7 +231,6 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     broadcastPartyWaiting,
     broadcastThreeHandsWaiting,
     broadcastFourHandsWaiting,
-    broadcastFreeForAllWaiting,
     broadcastTournamentWaiting,
     broadcastQueueState,
   };

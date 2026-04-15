@@ -106,7 +106,7 @@ class BroadcasterService {
         gameState,
         playerNumber,
         playerInfos,
-        gameMode: 'freeforall',
+        gameMode: 'four-hands',
       });
     });
   }

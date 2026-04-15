@@ -14,7 +14,6 @@ const GAME_TYPES = {
   'three-hands': { minPlayers: 3, maxPlayers: 3 },
   'four-hands': { minPlayers: 4, maxPlayers: 4 },
   'party': { minPlayers: 4, maxPlayers: 4 },
-  'freeforall': { minPlayers: 4, maxPlayers: 4 },
   'tournament': { minPlayers: 4, maxPlayers: 4 }
 };
 

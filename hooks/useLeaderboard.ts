@@ -64,7 +64,7 @@ export interface UseLeaderboardResult {
 }
 
 // Game modes supported
-export type GameMode = '2h' | '3h' | '4h' | '4hp' | '4hk';
+export type GameMode = '2h' | '3h' | '4h' | '4hp';
 
 // Map frontend mode abbreviations to backend mode names
 function mapToBackendMode(mode: GameMode): string {
@@ -73,7 +73,6 @@ function mapToBackendMode(mode: GameMode): string {
     '3h': 'three-hands',
     '4h': 'four-hands',
     '4hp': 'party',  // 4-hand party mode
-    '4hk': 'freeforall', // 4-hand knockout/free-for-all
   };
   return modeMap[mode] || 'two-hands';
 }

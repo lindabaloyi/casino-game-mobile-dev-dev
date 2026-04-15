@@ -19,7 +19,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Socket } from 'socket.io-client';
 import { getSocket, getCurrentSocket, isSocketConnected, disconnectSocket, onSocketStateChange } from './socketManager';
 
-export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'freeforall' | 'tournament' | 'private';
+export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'tournament' | 'private';
 
 export interface UseSocketConnectionOptions {
   mode: GameMode;
@@ -91,11 +91,6 @@ export function useSocketConnection(
     // Four-hands mode: join the four-hands queue when connected
     if (mode === 'four-hands') {
       sock.emit('join-four-hands-queue');
-    }
-
-    // Free-for-all mode: join the freeforall queue when connected
-    if (mode === 'freeforall') {
-      sock.emit('join-freeforall-queue');
     }
 
     // Tournament mode: join the tournament queue when connected

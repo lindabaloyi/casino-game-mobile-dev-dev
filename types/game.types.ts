@@ -119,9 +119,9 @@ export interface GameState {
   teamScores: [number, number]; // [Team A, Team B]
   playerCount: number; // 2 or 4 players
   
-  // Game mode: 'two-hands', 'three-hands', 'four-hands', 'party', 'freeforall'
+  // Game mode: 'two-hands', 'three-hands', 'four-hands', 'party'
   // Used by client to determine rendering (team colors vs individual colors)
-  gameMode?: 'two-hands' | 'three-hands' | 'four-hands' | 'party' | 'freeforall';
+  gameMode?: 'two-hands' | 'three-hands' | 'four-hands' | 'party';
   
   // Turn tracking per round
   roundPlayers: RoundPlayers;

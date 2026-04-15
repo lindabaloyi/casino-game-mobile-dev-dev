@@ -66,7 +66,7 @@ class RoomService {
         maxPlayers = 2;
       } else if (gameMode === 'three-hands') {
         maxPlayers = 3;
-      } else if (gameMode === 'four-hands' || gameMode === 'party' || gameMode === 'freeforall') {
+      } else if (gameMode === 'four-hands' || gameMode === 'party') {
         maxPlayers = 4;
       } else {
         throw new Error(`Unknown game mode: ${gameMode}`);
@@ -254,7 +254,6 @@ class RoomService {
     const isThreeHands = room.gameMode === 'three-hands';
     const isFourHands = room.gameMode === 'four-hands';
     const isParty = room.gameMode === 'party';
-    const isFreeForAll = room.gameMode === 'freeforall';
     
     // Determine required players based on game mode - explicit handling
     let requiredPlayers;
@@ -269,9 +268,6 @@ class RoomService {
       requiredPlayers = 4;
       playerCount = 4;
     } else if (isParty) {
-      requiredPlayers = 4;
-      playerCount = 4;
-    } else if (isFreeForAll) {
       requiredPlayers = 4;
       playerCount = 4;
     } else {

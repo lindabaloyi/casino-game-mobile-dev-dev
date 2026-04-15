@@ -43,7 +43,6 @@ const MODE_PLAYER_COUNT: Record<string, number> = {
   'two-hands': 2,
   'three-hands': 3,
   'party': 4,
-  'freeforall': 4,
   'tournament': 4,
   'four-hands': 4,
 };
@@ -79,8 +78,6 @@ export function useLobby(socket: Socket | null, gameMode: GameMode): UseLobbyRes
     socket.on('party-waiting', handleQueueUpdate);
     socket.on('four-hands-waiting', handleQueueUpdate);
     socket.on('four-hands-ready', handleQueueUpdate);
-    socket.on('freeforall-waiting', handleQueueUpdate);
-    socket.on('freeforall-ready', handleQueueUpdate);
     socket.on('tournament-waiting', handleQueueUpdate);
     socket.on('tournament-ready', handleQueueUpdate);
     socket.on('game-start', handleGameStart);
@@ -94,8 +91,6 @@ export function useLobby(socket: Socket | null, gameMode: GameMode): UseLobbyRes
       socket.off('party-waiting', handleQueueUpdate);
       socket.off('four-hands-waiting', handleQueueUpdate);
       socket.off('four-hands-ready', handleQueueUpdate);
-      socket.off('freeforall-waiting', handleQueueUpdate);
-      socket.off('freeforall-ready', handleQueueUpdate);
       socket.off('tournament-waiting', handleQueueUpdate);
       socket.off('tournament-ready', handleQueueUpdate);
       socket.off('game-start', handleGameStart);

@@ -20,6 +20,33 @@ function bitCount(mask) {
 }
 
 /**
+ * Generates all combinations of a specific size from an array.
+ * @param {number[]} arr - Source array
+ * @param {number} size - Combination size
+ * @returns {number[][]} Array of combinations
+ */
+function getCombinations(arr, size) {
+  const results = [];
+  const n = arr.length;
+  const maxMask = 1 << n;
+  
+  for (let mask = 0; mask < maxMask; mask++) {
+    if (bitCount(mask) !== size) continue;
+    
+    const combination = [];
+    for (let i = 0; i < n; i++) {
+      if (mask & (1 << i)) {
+        combination.push(arr[i]);
+      }
+    }
+    if (combination.length === size) {
+      results.push(combination);
+    }
+  }
+  return results;
+}
+
+/**
  * Returns the build target for a single subset if it forms a legal build.
  * 
  * Legal builds:
@@ -133,7 +160,25 @@ function calculateBuildValue(values) {
     const need = remaining === 0 ? 0 : targetValue - remaining;
     return { value: targetValue, need, buildType: multiBuild.buildType };
   }
-  
+
+  // Check if any subset forms a complete build (sum <= 10)
+  // This handles cases like [7,3,7] where 7+3=10 is a complete subset
+  for (let size = 2; size < values.length; size++) {
+    const subsets = getCombinations(values, size);
+    for (const subset of subsets) {
+      const subsetTotal = subset.reduce((a, b) => a + b, 0);
+      if (subsetTotal <= 10) {
+        const remaining = total - subsetTotal;
+        if (remaining > 0) {
+          const need = subsetTotal - remaining;
+          if (need > 0) {
+            return { value: subsetTotal, need, buildType: 'sum-incomplete' };
+          }
+        }
+      }
+    }
+  }
+
   // Fall back to simple 2-card logic for incomplete stacks
   if (total <= 10) {
     return { value: total, need: 0, buildType: 'sum' };

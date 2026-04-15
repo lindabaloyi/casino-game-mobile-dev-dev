@@ -10,7 +10,7 @@
   * - 2-player: LEFT = opponent, RIGHT = player
   * - 3-player: LEFT = opponent 1 + opponent 2, RIGHT = player
   * - 4-player party: LEFT = opponent + teammate, RIGHT = player + opponent
-  * - 4-player freeforall: LEFT = 2 opponents, RIGHT = player + opponent
+  * - 4-player four-hands: LEFT = 2 opponents, RIGHT = player + opponent
   */
 
 import React, { useEffect } from 'react';
@@ -66,8 +66,8 @@ interface CapturedCardsViewProps {
   isPartyMode?: boolean;
   /** Current player index - for highlighting current turn */
   currentPlayerIndex?: number;
-  /** Game mode type - for special rendering (two-hands for 3-player, freeforall for 4-player) */
-  gameMode?: 'two-hands' | 'three-hands' | 'party' | 'four-hands' | 'freeforall' | 'tournament';
+  /** Game mode type - for special rendering (two-hands for 3-player, four-hands for 4-player) */
+  gameMode?: 'two-hands' | 'three-hands' | 'party' | 'four-hands' | 'tournament';
   /** Callback when player attempts to recall from a capture pile (Shiya) */
   onRecallAttempt?: (targetPlayerIndex: number) => void;
 }
@@ -148,7 +148,7 @@ export function CapturedCardsView({
    // For 2-player: LEFT = opponent, RIGHT = player
    // For 3-player: LEFT = opponent 1 + opponent 2, RIGHT = player
    // For 4-player party: LEFT = opponent + teammate, RIGHT = player + opponent
-   // For 4-player freeforall: LEFT = 2 opponents, RIGHT = player + opponent
+   // For 4-player four-hands: LEFT = 2 opponents, RIGHT = player + opponent
    
    let leftSideIndices: number[];
    let rightSideIndices: number[];
@@ -169,7 +169,7 @@ export function CapturedCardsView({
      leftSideIndices = [validOpponentIndices[0], validTeammateIndex];
      rightSideIndices = [playerNumber, validOpponentIndices[1] ?? playerNumber];
    } else {
-     // 4-player free-for-all: left = 2 opponents, right = player + opponent
+     // 4-player four-hands: left = 2 opponents, right = player + opponent
      leftSideIndices = validOpponentIndices.slice(0, 2);
      rightSideIndices = [playerNumber, validOpponentIndices[2] ?? playerNumber];
    }

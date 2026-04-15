@@ -22,7 +22,7 @@ class TrailRouter {
    */
   route(payload, state, playerIndex) {
     // Determine party mode: check if any player has a team property
-    // In party mode, players have team: 'A' or 'B'. In freeforall, they have no team.
+    // In party mode, players have team: 'A' or 'B'. In four-hands, they have no team.
     const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
     const { card } = payload;
     

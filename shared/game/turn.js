@@ -273,7 +273,7 @@ function skipDisconnectedPlayer(state, disconnectedPlayerIndex) {
  * Advance turn to the next player
  * Also increments turnCounter to track total turns played
  * For party mode (gameMode === 'party'), uses team-based turn order: Team A P1 → Team B P1 → Team A P2 → Team B P2
- * For all other modes (freeforall, three-hands, tournament), uses simple sequential order: 0 → 1 → 2 → 3 (or 0 → 1 → 2 for 3 players)
+ * For all other modes (four-hands, three-hands, tournament), uses simple sequential order: 0 → 1 → 2 → 3 (or 0 → 1 → 2 for 3 players)
  * FIXED: Now skips eliminated players in tournament mode
  * @param {object} state - Game state
  * @returns {object} Updated state
@@ -285,7 +285,7 @@ function nextTurn(state) {
   let newPlayer;
   
   // Use party turn order only for party mode (gameMode === 'party')
-  // For freeforall, three-hands, tournament - use simple sequential order
+  // For four-hands, three-hands, tournament - use simple sequential order
   if (isPartyGame(state)) {
     newPlayer = getNextPartyPlayer(oldPlayer);
   } else {

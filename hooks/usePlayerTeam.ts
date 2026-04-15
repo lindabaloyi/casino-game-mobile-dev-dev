@@ -8,11 +8,11 @@ import { useMemo } from 'react';
 import { getTeamFromIndex, areTeammates } from '../shared/game/team';
 import { TEAM_A_COLORS, TEAM_B_COLORS, getPlayerColors, type TeamColors } from '../constants/teamColors';
 
-type GameMode = 'two-hands' | 'three-hands' | 'party' | 'four-hands' | 'freeforall' | 'tournament' | undefined;
+type GameMode = 'two-hands' | 'three-hands' | 'party' | 'four-hands' | 'tournament' | undefined;
 
 export function usePlayerTeam(playerNumber: number, playerCount: number, gameMode?: GameMode) {
-  // Free-for-all mode: 4-player without teams
-  const isFreeForAll = gameMode === 'freeforall' || (playerCount === 4 && gameMode !== 'party');
+  // 4-player without teams (four-hands mode)
+  const isFreeForAll = playerCount === 4 && gameMode !== 'party';
   const isPartyMode = gameMode === 'party' || (playerCount === 4 && !isFreeForAll);
   // Fix: 'two-hands' is 2-player mode, not 3-player mode
   const isThreePlayerMode = gameMode === 'three-hands' || playerCount === 3;

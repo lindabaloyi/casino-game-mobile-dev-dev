@@ -36,7 +36,7 @@ const COLORS = {
 // Mode definitions for the toggle - dynamically generated from centralized config
 const MODES = [
   { id: 'all', label: 'All' },
-  ...GAME_MODES.filter(mode => mode.key !== 'tournament' && mode.key !== 'freeforall').map(mode => ({
+  ...GAME_MODES.filter(mode => mode.key !== 'tournament').map(mode => ({
     id: mode.key,
     label: mode.title
   }))

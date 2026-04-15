@@ -41,7 +41,7 @@ function stealBuild(state, payload, playerIndex) {
   newState.pendingChoice = null;
   
   // Determine party mode: check if any player has a team property (indicates party mode)
-  // In party mode, players have team: 'A' or 'B'. In freeforall, they have no team.
+  // In party mode, players have team: 'A' or 'B'. In four-hands, they have no team.
   const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
 
   const stackIdx = newState.tableCards.findIndex(
@@ -115,7 +115,7 @@ function stealBuild(state, payload, playerIndex) {
   buildStack.hasBase = groups.length > 1;
   
   // --- VALIDATION: Check opponent(s) don't have build with same value ---
-  // In party mode: check both opponents (not teammates); in freeforall: check all other players
+  // In party mode: check both opponents (not teammates); in four-hands: check all other players
   // In three-hands mode: check the other two players
   let opponentHasSameValue = false;
   

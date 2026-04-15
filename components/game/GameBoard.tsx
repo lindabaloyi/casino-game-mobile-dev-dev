@@ -161,7 +161,7 @@ export function GameBoard({
     return gameState.gameMode || (
       gameState.playerCount === 2 ? 'two-hands' :
       gameState.playerCount === 3 ? 'two-hands' :
-      (gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team)) ? 'party' : 'freeforall'
+      (gameState.playerCount === 4 && gameState.players?.some((p: any) => p?.team)) ? 'party' : 'four-hands'
     );
   }, [gameState.gameMode, gameState.playerCount, gameState.players]);
 

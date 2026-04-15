@@ -28,11 +28,11 @@ interface ModeInfo {
   players: string;
 }
 
-// Filter out tournament and freeforall modes for private rooms, map to ModeInfo format
+// Filter out tournament mode for private rooms, map to ModeInfo format
 const GAME_MODES: ModeInfo[] = CENTRAL_GAME_MODES
-  .filter(mode => mode.key !== 'tournament' && mode.key !== 'freeforall')
+  .filter(mode => mode.key !== 'tournament')
   .map(mode => ({
-    id: mode.id,
+    id: mode.id as GameModeOption,
     title: mode.title,
     subtitle: mode.subtitle,
     players: mode.players,

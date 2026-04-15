@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { GAME_MODES as CENTRAL_GAME_MODES } from '../../shared/config/gameModes';
 
-export type GameModeOption = 'two-hands' | 'three-hands' | 'four-hands' | 'party' | 'freeforall';
+export type GameModeOption = 'two-hands' | 'three-hands' | 'four-hands' | 'party';
 
 interface GameModeInfo {
   id: GameModeOption;
@@ -32,11 +32,11 @@ interface GameModeInfo {
   players: string;
 }
 
-// Filter out tournament and freeforall modes for the menu, map to GameModeInfo format
+// Filter out tournament mode for the menu, map to GameModeInfo format
 const GAME_MODES: GameModeInfo[] = CENTRAL_GAME_MODES
-  .filter(mode => mode.key !== 'tournament' && mode.key !== 'freeforall')
+  .filter(mode => mode.key !== 'tournament')
   .map(mode => ({
-    id: mode.id,
+    id: mode.id as GameModeOption,
     title: mode.title,
     subtitle: mode.subtitle,
     description: mode.description,

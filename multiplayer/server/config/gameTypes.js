@@ -34,14 +34,5 @@ module.exports = {
         gameManager.addPlayerToGame(gameId, sockets[i].id, i, userIds[i] || null);
       }
     }
-  },
-  'freeforall': {
-    minPlayers: 4,
-    createGame: (gameManager) => gameManager.startGame(4, false),
-    registerPlayers: (gameId, sockets, gameManager, userIds) => {
-      for (let i = 0; i < 4; i++) {
-        gameManager.addPlayerToGame(gameId, sockets[i].id, i, userIds[i] || null);
-      }
-    }
   }
 };

@@ -66,8 +66,8 @@ function initializeGame(playerCount = 2, isPartyMode = false) {
     moveCount: 0,
     gameOver: false,
     playerCount,
-    // Game mode to help client rendering (party mode has teams, free-for-all does not)
-    gameMode: isPartyMode ? 'party' : (playerCount === 4 ? 'freeforall' : (playerCount === 3 ? 'three-hands' : 'two-hands')),
+    // Game mode to help client rendering (party mode has teams, four-hands does not)
+    gameMode: isPartyMode ? 'party' : (playerCount === 4 ? 'four-hands' : (playerCount === 3 ? 'three-hands' : 'two-hands')),
     stackCounters: { tempP1: 0, tempP2: 0, tempP3: 0, tempP4: 0, buildP1: 0, buildP2: 0, buildP3: 0, buildP4: 0 },
     // Turn tracking per round
     roundPlayers,

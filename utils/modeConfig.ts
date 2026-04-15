@@ -5,7 +5,7 @@
  * Extracted from OnlinePlayScreen for better separation of concerns.
  */
 
-export type GameMode = 'two-hands' | 'three-hands' | 'four-hands' | 'party' | 'freeforall' | 'tournament';
+export type GameMode = 'two-hands' | 'three-hands' | 'four-hands' | 'party' | 'tournament';
 
 export interface ModeConfig {
   title: string;
@@ -43,13 +43,6 @@ export const MODE_CONFIG: Record<GameMode, ModeConfig> = {
     connectingSubtitle: 'Finding players for party mode',
     playerCount: 4,
     isTeamMode: true,
-  },
-  'freeforall': {
-    title: '🎴 Free For All',
-    subtitle: '4 Player Battle',
-    connectingSubtitle: 'Finding opponents for free for all',
-    playerCount: 4,
-    isTeamMode: false,
   },
   'tournament': {
     title: '🏆 Tournament',

@@ -17,7 +17,7 @@ export default function CreateRoomScreen() {
   const gameMode: GameMode = ((params.mode as string) || 'two-hands') as GameMode;
   
   // Map game mode to max players
-  const maxPlayers = (gameMode === 'party' || gameMode === 'four-hands' || gameMode === 'freeforall') 
+  const maxPlayers = (gameMode === 'party' || gameMode === 'four-hands') 
     ? 4 
     : (gameMode === 'three-hands' ? 3 : 2);
 

@@ -4,7 +4,7 @@
  * A unified networked game mode lobby that supports:
  * - 2 players (two-hands)
  * - 3 players (three-hands)
- * - 4 players (four-hands, party, freeforall, tournament)
+ * - 4 players (four-hands, party, tournament)
  * 
  * Refactored to use separated components:
  * - useSocketConnection for connection lifecycle

@@ -15,7 +15,6 @@ function attachSocketHandlers(socket, services) {
     broadcastPartyWaiting,
     broadcastThreeHandsWaiting,
     broadcastFourHandsWaiting,
-    broadcastFreeForAllWaiting,
     broadcastTournamentWaiting,
     broadcastQueueState,
   } = createBroadcastHelpers(unifiedMatchmaking, services.io);
@@ -152,32 +151,6 @@ function attachSocketHandlers(socket, services) {
       await broadcaster.broadcastFourHandsGameStart(result);
     } else {
       await broadcastQueueState('four-hands');
-    }
-  });
-
-  socket.on('join-freeforall-queue', async () => {
-    if (!socket.userId) {
-      console.log('[Server] Queue join BLOCKED - no auth, socket:', socket.id);
-      socket.emit('error', { message: 'Please authenticate before joining queue' });
-      return;
-    }
-    
-    if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
-      socket.emit('error', { message: 'You are already in a queue' });
-      return;
-    }
-
-    if (unifiedMatchmaking.isUserInGame(socket.userId)) {
-      socket.emit('error', { message: 'You are already in a game' });
-      return;
-    }
-
-    removeFromAllQueues();
-    const result = unifiedMatchmaking.addToQueue(socket, 'freeforall', socket.userId);
-    if (result) {
-      await broadcaster.broadcastFreeForAllGameStart(result);
-    } else {
-      await broadcastQueueState('freeforall');
     }
   });
 
@@ -431,7 +404,6 @@ function attachSocketHandlers(socket, services) {
       'three-hands': { event: 'three-hands-waiting', broadcast: broadcastThreeHandsWaiting },
       'party': { event: 'party-waiting', broadcast: broadcastPartyWaiting },
       'four-hands': { event: 'four-hands-waiting', broadcast: broadcastFourHandsWaiting },
-      'freeforall': { event: 'freeforall-waiting', broadcast: broadcastFreeForAllWaiting },
       'tournament': { event: 'tournament-waiting', broadcast: broadcastTournamentWaiting },
     };
     
