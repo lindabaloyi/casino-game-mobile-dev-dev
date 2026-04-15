@@ -125,6 +125,7 @@ export interface GameOverData {
   isTournamentMode?: boolean;
   playerStatuses?: { [playerId: string]: 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'WINNER' };
   qualifiedPlayers?: string[];
+  tournamentPhase?: 'QUALIFYING' | 'SEMI_FINAL' | 'FINAL' | 'FINAL_SHOWDOWN' | 'COMPLETED';
   qualificationScores?: { [playerId: string]: { totalPoints: number; cardPoints: number; tenDiamondPoints: number; twoSpadePoints: number; acePoints: number; spadeBonus: number; cardCountBonus: number; rank?: number } };
   // Tournament transition data
   nextGameId?: number;

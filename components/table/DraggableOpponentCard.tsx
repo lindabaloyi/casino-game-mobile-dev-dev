@@ -101,6 +101,7 @@ export function DraggableOpponentCard({
     }
 
     let handled = false;
+    let targetStack: { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null = null;
 
     // Check if dropped on a loose card
     const targetCardResult = findCardAtPoint(absX, absY);
@@ -136,8 +137,6 @@ export function DraggableOpponentCard({
       });
       
       // Priority: build stack first, then temp stack
-      let targetStack: { stackId: string; owner: number; stackType: 'temp_stack' | 'build_stack' } | null = null;
-      
       if (buildStack) {
         targetStack = { ...buildStack, stackType: 'build_stack' as const };
       } else if (tempStack) {

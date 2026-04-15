@@ -200,14 +200,30 @@ export function GameBoard({
   }, [isGameOver, gameState.tournamentMode, gameOverData]);
 
   // Show tournament winner modal when game over and player won tournament
+  // Check for COMPLETED phase OR gameOver (use gameOverData for latest state from server)
+  const currentTournamentPhase = gameOverData?.tournamentPhase ?? gameState.tournamentPhase;
+  const isTournamentComplete = 
+    currentTournamentPhase === 'COMPLETED' || 
+    gameState.gameOver;
+  
+  // Use score-based winner detection (same as GameOverModal for non-tournament games)
+  const localPlayerScore = gameState.scores?.[playerNumber] ?? 0;
+  const maxScore = Math.max(...(gameState.scores ?? [0]));
+  const isLocalPlayerWinner = localPlayerScore === maxScore && localPlayerScore > 0;
+  
   useEffect(() => {
-    if (shouldShowStandardGameOver && 
-        gameState.tournamentMode === 'knockout' && 
-        gameState.tournamentPhase === 'COMPLETED' &&
-        gameState.playerStatuses?.[gameState.players?.[playerNumber]?.userId ?? ''] === 'WINNER') {
-      setShowTournamentWinner(true);
+    const showTournamentModal = shouldShowStandardGameOver && 
+      gameState.tournamentMode === 'knockout' && 
+      isTournamentComplete &&
+      isLocalPlayerWinner;
+    
+    if (showTournamentModal) {
+      const timer = setTimeout(() => {
+        setShowTournamentWinner(true);
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [shouldShowStandardGameOver, gameState.tournamentMode, gameState.tournamentPhase, gameState.playerStatuses, gameState.players, playerNumber]);
+  }, [shouldShowStandardGameOver, gameState.tournamentMode, isTournamentComplete, isLocalPlayerWinner]);
   
   // Turn timer - 20 second countdown
   const turnTimer = useTurnTimer({
@@ -849,25 +865,15 @@ export function GameBoard({
         isPartyMode={gameOverData?.isPartyMode ?? isPartyMode}
         isTournamentMode={gameOverData?.isTournamentMode ?? (gameState.tournamentMode === 'knockout')}
         gameType={gameOverData?.gameType}
-        playerStatuses={gameState.playerStatuses}
-        qualifiedPlayers={gameState.qualifiedPlayers}
+        playerStatuses={gameOverData?.playerStatuses ?? gameState.playerStatuses}
+        qualifiedPlayers={gameOverData?.qualifiedPlayers ?? gameState.qualifiedPlayers}
         nextGameId={gameOverData?.nextGameId}
         nextPhase={gameOverData?.nextPhase}
         transitionType={gameOverData?.transitionType}
         countdownSeconds={gameOverData?.countdownSeconds}
         eliminatedPlayers={gameOverData?.eliminatedPlayers}
-        playerId={(() => {
-          const pid = gameState.players?.[playerNumber]?.userId;
-          console.log('[GameBoard] Passing playerId to GameOverModal:', {
-            playerNumber,
-            playerId: pid,
-            qualifiedPlayers: gameState.qualifiedPlayers,
-            tournamentPhase: gameState.tournamentPhase,
-            playerStatuses: gameState.playerStatuses,
-          });
-          return pid;
-        })()}
-        tournamentPhase={gameState.tournamentPhase}
+        playerId={gameState.players?.[playerNumber]?.userId}
+        tournamentPhase={gameOverData?.tournamentPhase ?? gameState.tournamentPhase}
         onTransitionToNextGame={() => {
           if (gameOverData?.nextGameId) {
             sendAction({ type: 'join-tournament-game', payload: { gameId: gameOverData.nextGameId } });
@@ -877,17 +883,17 @@ export function GameBoard({
         onBackToMenu={onBackToMenu}
       />
 
-      {/* Tournament Winner Modal - shown when player wins entire tournament */}
+{/* Tournament Winner Modal - shown on top of GameOverModal when player wins tournament */}
       {gameState.tournamentMode === 'knockout' && 
-       gameState.tournamentPhase === 'COMPLETED' && 
-       gameState.playerStatuses?.[gameState.players?.[playerNumber]?.userId ?? ''] === 'WINNER' && (
-        <TournamentWinnerModal
-          visible={shouldShowStandardGameOver && showTournamentWinner}
-          winnerName={`Player ${playerNumber + 1}`}
-          tournamentScore={gameState.tournamentScores?.[gameState.players?.[playerNumber]?.userId]}
-          onClose={() => setShowTournamentWinner(false)}
-        />
-      )}
+       isTournamentComplete && 
+       isLocalPlayerWinner && (
+         <TournamentWinnerModal
+           visible={showTournamentWinner}
+           winnerName={`Player ${playerNumber + 1}`}
+           tournamentScore={gameState.tournamentScores?.[gameState.players?.[playerNumber]?.userId]}
+           onClose={() => setShowTournamentWinner(false)}
+         />
+       )}
 
       {/* Home Menu Button - Bottom left corner */}
       <HomeMenuButton

@@ -272,6 +272,13 @@ class TournamentCoordinator {
     tournament.winnerUserId = winner.id;
     console.log(`[HAND_END] Winner tagged: ${winner.id.substring(0, 8)}... (will start next hand as P1)`);
 
+    // Tournament complete - set phase to COMPLETED
+    if (remaining.length === 1) {
+      gameState.tournamentPhase = 'COMPLETED';
+      gameState.gameOver = true;
+      gameState.tournamentStatus = 'completed';
+    }
+
     // Determine if phase should transition based on player count
     let nextPhase = tournament.phase;
     if (qualResult.nextPhase && remaining.length > 1) {
@@ -288,38 +295,14 @@ class TournamentCoordinator {
         await this._startNextHand(gameState.tournamentId);
       }, 10000);
     } else if (remaining.length === 1) {
-      // Only 1 player left - declare winner
-      this._endTournament(gameState.tournamentId, remaining);
+      // Tournament complete - clean up
+      const tournament = this.activeTournaments.get(gameState.tournamentId);
+      if (tournament) {
+        tournament.status = 'completed';
+        tournament.winner = winner.id;
+        this.activeTournaments.delete(gameState.tournamentId);
+      }
     }
-  }
-
-  /**
-   * End tournament - declare winner
-   */
-  async _endTournament(tournamentId, finalists) {
-    const tournament = this.activeTournaments.get(tournamentId);
-    if (!tournament) return;
-    
-    const winner = finalists[0];
-    tournament.status = 'completed';
-    tournament.winner = winner.id;
-    
-    for (const player of tournament.players) {
-      const socket = player.socket;
-      if (!socket) continue;
-      
-      const rank = finalists.findIndex(f => f.id === player.id) + 1;
-      
-      socket.emit('tournament-complete', {
-        winner: winner.id,
-        winnerName: winner.name,
-        finalRank: rank,
-        totalScore: player.cumulativeScore,
-        leaderboard: finalists.map(p => ({ id: p.id, name: p.name, score: p.cumulativeScore }))
-      });
-    }
-    
-    this.activeTournaments.delete(tournamentId);
   }
 
   /**
@@ -355,9 +338,6 @@ class TournamentCoordinator {
     if (isHandComplete) {
       console.log(`[HAND_END] Hand ${gameState.tournamentHand} complete, calling handleHandComplete`);
       
-      // Ensure gameOver is set so we can track it
-      gameState.gameOver = true;
-      
       const finalScores = gameState.scores || [];
       const playerIds = gameState.players.map(p => p.id);
       
@@ -369,7 +349,7 @@ class TournamentCoordinator {
       };
       
       this.handleHandComplete(gameState, results);
-      return { state: gameState, gameOver: true, nextHand: true };
+      return { state: gameState, gameOver: gameState.gameOver, nextHand: true };
     }
     
     return { state: gameState, gameOver: false };
