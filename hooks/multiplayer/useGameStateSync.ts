@@ -302,6 +302,20 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
   // Store gameId for emitClientReady
   const gameIdRef = useRef<number | null>(null);
 
+  // Log ALL socket events received (global interceptor)
+  useEffect(() => {
+    if (!socket) return;
+    const onAny = (event: string, ...args: any[]) => {
+      console.log(`[Client] 📡 Socket event received: ${event}`, args[0]?.gameId);
+    };
+    socket.onAny(onAny);
+    return () => {
+      try {
+        socket.offAny(onAny);
+      } catch (e) {}
+    };
+  }, [socket]);
+
   // Handle game-start event
   useEffect(() => {
     if (!socket) {
@@ -309,6 +323,7 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     }
 
     const handleGameStart = (data: any) => {
+      console.log(`[Client] ✅ game-start RECEIVED on socket ${socket?.id}`, data?.gameId);
       if (!data.gameState) {
         return;
       }
@@ -339,6 +354,7 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       }
     };
 
+    console.log(`[Client] 🎧 Attaching game-start listener on socket ${socket?.id} at ${Date.now()}`);
     socket.on('game-start', handleGameStart);
 
     return () => {
@@ -512,7 +528,24 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     };
   }, [socket]);
 
-  // Handle errors
+  // Handle errors - ignore room-error to prevent game state interference
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleError = (data: { message: string }) => {
+      console.warn('[Client] 💥 Server error (ignored):', data.message);
+      // Do NOT setError here - it interferes with game state transitions
+      // The error is logged but doesn't affect gameState
+    };
+
+    socket.on('error', handleError);
+
+    return () => {
+      socket.off('error', handleError);
+    };
+  }, [socket]);
+
+  // Handle room-error - ignore completely after game-start is received
   useEffect(() => {
     if (!socket) return;
 
@@ -541,6 +574,21 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
   const requestSync = useCallback(() => {
     socket?.emit('request-sync');
   }, [socket]);
+
+  // Fallback: request game state if not received within 2 seconds
+  // This handles race conditions where game-start emits before listener attaches
+  useEffect(() => {
+    if (!socket?.connected) return;
+    
+    const timeout = setTimeout(() => {
+      if (!gameState) {
+        console.log('[Client] ⏰ Fallback: no game-state received, emitting request-sync');
+        socket.emit('request-sync');
+      }
+    }, 2000);
+    
+    return () => clearTimeout(timeout);
+  }, [socket?.connected, gameState]);
 
   const clearError = useCallback(() => {
     setError(null);

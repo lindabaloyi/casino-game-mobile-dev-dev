@@ -1,33 +1,27 @@
 /**
- * useRoom
- * 
- * Handles private room creation and joining on the client.
- * Works with Socket.IO to manage room lifecycle.
+ * useRoom - Simplified room lifecycle hook
  * 
  * Responsibilities:
- *  - Create a new room and get room code
- *  - Join an existing room by code
- *  - Leave current room
- *  - Poll for room status updates
- *  - Handle room events (created, joined, updated, error)
+ * - Create rooms
+ * - Join rooms  
+ * - Leave rooms
+ * - Handle room events (created, joined, updated, error)
  * 
- * Usage:
- *   const { room, createRoom, joinRoom, leaveRoom, startGame, error } = useRoom(socket);
+ * Does NOT handle game state - that's useGameState's job.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Socket } from 'socket.io-client';
-
-export type GameMode = 'two-hands' | 'party' | 'three-hands' | 'four-hands' | 'tournament';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { Socket } from 'socket.io-client';
 
 export interface RoomPlayer {
   socketId: string;
   isHost: boolean;
+  joinedAt?: number;
 }
 
 export interface RoomState {
   roomCode: string | null;
-  gameMode: GameMode | null;
+  gameMode: string | null;
   status: 'none' | 'waiting' | 'ready' | 'started' | 'error';
   players: RoomPlayer[];
   maxPlayers: number;
@@ -36,27 +30,17 @@ export interface RoomState {
 }
 
 export interface UseRoomOptions {
-  /** Room code to auto-join on mount */
   roomCode?: string | null;
 }
 
 export interface UseRoomResult {
-  /** Current room state */
   room: RoomState;
-  /** Error message if any */
   error: string | null;
-  /** Whether we're in a room */
   isInRoom: boolean;
-  /** Create a new room */
-  createRoom: (gameMode: GameMode, maxPlayers: number) => void;
-  /** Join an existing room by code */
+  createRoom: (gameMode: string, maxPlayers: number) => void;
   joinRoom: (roomCode: string) => void;
-  /** Leave current room */
   leaveRoom: () => void;
-  /** Start the game (host only) */
   startGame: () => void;
-  /** Clear error */
-  clearError: () => void;
 }
 
 export function useRoom(socket: Socket | null, options?: UseRoomOptions): UseRoomResult {
@@ -69,38 +53,28 @@ export function useRoom(socket: Socket | null, options?: UseRoomOptions): UseRoo
     playerCount: 0,
     isHost: false,
   });
+  
   const [error, setError] = useState<string | null>(null);
-  
-  // Track if we've auto-joined to prevent duplicates
-  const hasAutoJoinedRef = useRef(false);
-  
-  // Track if we're the host
   const isHostRef = useRef(false);
+  
+  // Permanent guard to prevent duplicate join-room emissions
+  const joinAttemptedRef = useRef<string | null>(null);
 
-  // Auto-join room when roomCode is provided and socket is ready
-  // Guard with hasAutoJoinedRef to prevent duplicate join-room emissions
+  // Auto-join room when roomCode is provided
   useEffect(() => {
     if (!socket?.connected) return;
     if (!options?.roomCode) return;
-    if (hasAutoJoinedRef.current) return;
-    if (room.status !== 'none') return;
+    if (joinAttemptedRef.current === options.roomCode) return;
     
-    console.log('[Debug] useRoom: auto-joining room', options.roomCode);
-    hasAutoJoinedRef.current = true;
-    socket.emit('join-room', { roomCode: options.roomCode.toUpperCase() });
-  }, [socket?.connected, options?.roomCode, room.status]);
+    const code = options.roomCode.toUpperCase();
+    joinAttemptedRef.current = code;
+    socket.emit('join-room', { roomCode: code });
+  }, [socket?.connected, options?.roomCode]);
 
-  // Reset guard when room code changes or room is cleared
-  useEffect(() => {
-    if (!options?.roomCode) {
-      hasAutoJoinedRef.current = false;
-    }
-  }, [options?.roomCode]);
-
+  // Room event listeners
   useEffect(() => {
     if (!socket) return;
 
-    // Handle room created
     const handleRoomCreated = (data: { roomCode: string; room: any }) => {
       setRoom({
         roomCode: data.roomCode,
@@ -115,7 +89,6 @@ export function useRoom(socket: Socket | null, options?: UseRoomOptions): UseRoo
       setError(null);
     };
 
-    // Handle room joined
     const handleRoomJoined = (data: { room: any }) => {
       setRoom({
         roomCode: data.room.code,
@@ -130,7 +103,6 @@ export function useRoom(socket: Socket | null, options?: UseRoomOptions): UseRoo
       setError(null);
     };
 
-    // Handle room updated
     const handleRoomUpdated = (data: { room: any }) => {
       setRoom(prev => ({
         ...prev,
@@ -140,7 +112,6 @@ export function useRoom(socket: Socket | null, options?: UseRoomOptions): UseRoo
       }));
     };
 
-    // Handle room left
     const handleRoomLeft = () => {
       setRoom({
         roomCode: null,
@@ -152,18 +123,14 @@ export function useRoom(socket: Socket | null, options?: UseRoomOptions): UseRoo
         isHost: false,
       });
       isHostRef.current = false;
-      setError(null);
+      joinAttemptedRef.current = null;
     };
 
-// Handle room error
     const handleRoomError = (data: { message: string }) => {
-      setError(data.message);
-      setRoom(prev => ({ ...prev, status: prev.status === 'error' ? 'waiting' : prev.status }));
-    };
-
-    // Handle game start (from server)
-    const handleGameStart = () => {
-      setRoom(prev => ({ ...prev, status: 'started' }));
+      // Only set error if not already in game
+      if (room.status !== 'started') {
+        setError(data.message);
+      }
     };
 
     socket.on('room-created', handleRoomCreated);
@@ -171,7 +138,6 @@ export function useRoom(socket: Socket | null, options?: UseRoomOptions): UseRoo
     socket.on('room-updated', handleRoomUpdated);
     socket.on('room-left', handleRoomLeft);
     socket.on('room-error', handleRoomError);
-    socket.on('game-start', handleGameStart);
 
     return () => {
       socket.off('room-created', handleRoomCreated);
@@ -179,54 +145,44 @@ export function useRoom(socket: Socket | null, options?: UseRoomOptions): UseRoo
       socket.off('room-updated', handleRoomUpdated);
       socket.off('room-left', handleRoomLeft);
       socket.off('room-error', handleRoomError);
-      socket.off('game-start', handleGameStart);
     };
-  }, [socket]);
+  }, [socket, room.status]);
 
-  const createRoom = useCallback((gameMode: GameMode, maxPlayers: number) => {
-    if (!socket?.connected) {
-      setError('Not connected to server');
-      return;
-    }
+  const createRoom = useCallback((gameMode: string, maxPlayers: number) => {
+    if (!socket?.connected) return;
     socket.emit('create-room', { gameMode, maxPlayers });
   }, [socket]);
 
   const joinRoom = useCallback((roomCode: string) => {
-    if (!socket?.connected) {
-      setError('Not connected to server');
-      return;
-    }
-    socket.emit('join-room', { roomCode: roomCode.toUpperCase() });
+    if (!socket?.connected) return;
+    const code = roomCode.toUpperCase();
+    if (joinAttemptedRef.current === code) return; // Guard against duplicate
+    joinAttemptedRef.current = code;
+    socket.emit('join-room', { roomCode: code });
   }, [socket]);
 
   const leaveRoom = useCallback(() => {
     if (!socket?.connected) return;
     socket.emit('leave-room');
+    joinAttemptedRef.current = null;
   }, [socket]);
 
   const startGame = useCallback(() => {
     if (!socket?.connected) return;
-    if (!isHostRef.current) {
-      setError('Only the host can start the game');
-      return;
-    }
+    if (!isHostRef.current) return;
     socket.emit('start-room-game');
   }, [socket]);
 
-  const clearError = useCallback(() => {
-    setError(null);
-    setRoom(prev => ({ ...prev, status: prev.status === 'error' ? 'waiting' : prev.status }));
-  }, []);
+  const isInRoom = room.status !== 'none' && room.status !== 'started';
 
   return {
     room,
     error,
-    isInRoom: room.status !== 'none' && room.status !== 'started',
+    isInRoom,
     createRoom,
     joinRoom,
     leaveRoom,
     startGame,
-    clearError,
   };
 }
 

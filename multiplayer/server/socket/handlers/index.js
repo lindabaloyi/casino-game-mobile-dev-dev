@@ -31,6 +31,9 @@ function attachSocketHandlers(socket, services) {
 
   socket.on('room-mode-connected', (data) => {
     socket.roomMode = data?.mode;
+    // Remove from matchmaking queue when connecting to private room
+    removeFromAllQueues();
+    console.log('[Server] room-mode-connected: removed from queue, mode:', data?.mode);
   });
 
   // ── Helper: Remove socket from all queues ─────────────────────────────

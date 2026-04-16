@@ -113,19 +113,29 @@ class RoomService {
       return { success: false, error: 'Room not found' };
     }
 
-    if (room.status !== 'waiting') {
-      return { success: false, error: 'Room is no longer accepting players' };
+    // Check if player already in room (reconnection) - allow this even if room is ready
+    const existingPlayer = room.players.find(p => p.socketId === socket.id);
+    if (existingPlayer) {
+      this.socketRoomMap.set(socket.id, code);
+      console.log(`[RoomService] Socket ${socket.id} reconnected to room ${code}`);
+      return {
+        success: true,
+        room: this._serializeRoom(room)
+      };
     }
 
+    // New player - check capacity first
     if (room.players.length >= room.maxPlayers) {
       return { success: false, error: 'Room is full' };
     }
 
-    // Check if player already in room (reconnection)
-    const existingPlayer = room.players.find(p => p.socketId === socket.id);
-    if (!existingPlayer) {
-      room.players.push({ socketId: socket.id, isHost: false, joinedAt: Date.now() });
+    // Then check if room is accepting players
+    if (room.status !== 'waiting') {
+      return { success: false, error: 'Room is no longer accepting players' };
     }
+
+    // Add new player
+    room.players.push({ socketId: socket.id, isHost: false, joinedAt: Date.now() });
 
     this.socketRoomMap.set(socket.id, code);
     room.lastActivity = Date.now();
@@ -321,14 +331,15 @@ class RoomService {
         username: socket.username || null,
         avatar: socket.avatar || null,
       }));
-      console.log(`[RoomService] Broadcasting game-start for party game ${gameId} with playerInfos:`, JSON.stringify(playerInfos));
+      console.log(`[RoomService] 🎮 Emitting game-start to sockets:`, sockets.map(s => s.id));
       
       // Emit game-start to all players - include gameState and playerInfos
-      sockets.forEach(socket => {
+      sockets.forEach((socket, idx) => {
+        console.log(`[RoomService] → Sending to socket ${socket.id} as player ${idx}`);
         socket.emit('game-start', { 
           gameId, 
           gameState,
-          playerNumber: sockets.indexOf(socket),
+          playerNumber: idx,
           playerInfos,
         });
       });
@@ -362,14 +373,15 @@ class RoomService {
         username: socket.username || null,
         avatar: socket.avatar || null,
       }));
-      console.log(`[RoomService] Broadcasting game-start for ${room.gameMode} game ${gameId} with playerInfos:`, JSON.stringify(playerInfos));
+      console.log(`[RoomService] 🎮 Emitting game-start to sockets:`, sockets.map(s => s.id));
 
       // Emit game-start to all players - include gameState and playerInfos
-      sockets.forEach(socket => {
+      sockets.forEach((socket, idx) => {
+        console.log(`[RoomService] → Sending to socket ${socket.id} as player ${idx}`);
         socket.emit('game-start', { 
           gameId, 
           gameState,
-          playerNumber: sockets.indexOf(socket),
+          playerNumber: idx,
           playerInfos,
         });
       });

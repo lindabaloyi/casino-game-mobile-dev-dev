@@ -5,7 +5,7 @@
  * Extracted from OnlinePlayScreen for better separation of concerns.
  */
 
-export type GameMode = 'two-hands' | 'three-hands' | 'four-hands' | 'party' | 'tournament';
+export type GameMode = 'two-hands' | 'three-hands' | 'four-hands' | 'party' | 'tournament' | 'private';
 
 export interface ModeConfig {
   title: string;
@@ -49,6 +49,13 @@ export const MODE_CONFIG: Record<GameMode, ModeConfig> = {
     subtitle: '4 Player Knockout',
     connectingSubtitle: 'Finding players for tournament',
     playerCount: 4,
+    isTeamMode: false,
+  },
+  'private': {
+    title: '🔐 Private Room',
+    subtitle: 'Private Game',
+    connectingSubtitle: 'Waiting for players',
+    playerCount: 0,
     isTeamMode: false,
   },
 };

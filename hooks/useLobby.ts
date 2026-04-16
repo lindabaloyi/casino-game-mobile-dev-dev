@@ -45,6 +45,7 @@ const MODE_PLAYER_COUNT: Record<string, number> = {
   'party': 4,
   'tournament': 4,
   'four-hands': 4,
+  'private': 0,  // Private rooms don't use matchmaking
 };
 
 export function useLobby(socket: Socket | null, gameMode: GameMode): UseLobbyResult {
@@ -56,6 +57,15 @@ export function useLobby(socket: Socket | null, gameMode: GameMode): UseLobbyRes
 
   useEffect(() => {
     if (!socket) return;
+
+    // Skip all lobby logic for private rooms - they don't use matchmaking
+    if (gameMode === 'private') {
+      console.log('[Debug] useLobby: skipping - private mode, no matchmaking');
+      return;  // No queue events, no request-lobby-status
+    }
+    console.log('[Debug] useLobby: setting up queue listeners for:', gameMode);
+
+    console.log('[Debug] useLobby: setting up queue listeners for', gameMode);
 
     const handleQueueUpdate = (data: {
       gameType?: string;

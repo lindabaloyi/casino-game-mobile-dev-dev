@@ -60,8 +60,16 @@ export function useSocketConnection(
   const setupSocket = useCallback((sock: Socket) => {
     if (!sock?.connected) return;
     
-    // Skip auto-queue for private mode or private room games (room-based games handle their own flow)
-    if (isPrivateMode || isPrivateRoomGame) {
+    // Skip auto-queue when roomCode is provided (private room handles its own flow)
+    // This must come FIRST before any queue join logic
+    if (roomCode) {
+      console.log('[Client] Private room mode detected, skipping queue join');
+      sock.emit('room-mode-connected', { mode, roomCode });
+      return;
+    }
+
+    // Skip auto-queue for private mode (room-based games handle their own flow)
+    if (isPrivateMode) {
       // Emit room mode so server knows this socket is for private room gameplay
       sock.emit('room-mode-connected', { mode, roomCode });
       return;
@@ -98,6 +106,18 @@ export function useSocketConnection(
       sock.emit('join-tournament-queue');
     }
   }, [mode, isPartyMode, isTwoHandsMode, isPrivateMode, isPrivateRoomGame, roomCode]);
+
+  // Watch for roomCode becoming available after initial mount
+  // This handles the case where useLocalSearchParams isn't available on first render
+  useEffect(() => {
+    if (!roomCode) return;
+    
+    const sock = getCurrentSocket();
+    if (sock?.connected) {
+      console.log('[Client] roomCode now available, emitting room-mode-connected');
+      sock.emit('room-mode-connected', { mode, roomCode });
+    }
+  }, [roomCode, mode]);
 
   // Connect the shared socket on mount
   useEffect(() => {
