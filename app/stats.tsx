@@ -44,30 +44,7 @@ const MODES = [
 
 type ModeId = typeof MODES[number]['id'];
 
-interface StatCardProps {
-  label: string;
-  value: string;
-  icon: string;
-  suffix?: string;
-  highlight?: boolean;
-}
 
-function StatCard({ label, value, icon, suffix, highlight }: StatCardProps) {
-  return (
-    <View style={[styles.statCard, highlight && styles.statCardHighlight]}>
-      <View style={[styles.statIcon, highlight && styles.statIconHighlight]}>
-        <Text style={styles.statIconText}>{icon}</Text>
-      </View>
-      <View style={styles.statInfo}>
-        <Text style={styles.statLabel}>{label}</Text>
-        <View style={styles.statValueRow}>
-          <Text style={[styles.statValue, highlight && styles.statValueHighlight]}>{value}</Text>
-          {suffix && <Text style={styles.statSuffix}>{suffix}</Text>}
-        </View>
-      </View>
-    </View>
-  );
-}
 
 export const options = {
   headerShown: false,
@@ -100,16 +77,6 @@ export default function StatsScreen() {
     ? ((modeStats.wins / modeStats.games) * 100).toFixed(1)
     : '0.0';
 
-  // Calculate averages per game (using total games for card stats since they're not mode-specific)
-  const games = stats?.totalGames || 1;
-  const avgAces = stats ? (stats.acesKept / games).toFixed(1) : '0.0';
-  const avgSpades = stats ? (stats.spadesCountKept / games).toFixed(1) : '0.0';
-  const avgTwoSpades = stats ? (stats.twoSpadesKept / games).toFixed(1) : '0.0';
-  const avgTenDiamonds = stats ? ((stats.tenDiamondsKept * 2) / games).toFixed(1) : '0.0';
-  const avgSpadesBonus = stats ? (stats.spadesBonusCount / games).toFixed(1) : '0.0';
-  const avgCards20 = stats ? (stats.cardCountBonus20 / games).toFixed(1) : '0.0';
-  const avgCards21 = stats ? (stats.cardCountBonus21 / games).toFixed(1) : '0.0';
-
   // Format number with commas
   const formatNumber = (num: number) => num.toLocaleString();
 
@@ -134,7 +101,7 @@ export default function StatsScreen() {
           <Text style={[styles.sectionTitle, { color: COLORS.primary, textAlign: 'center' }]}>
             Failed to load stats
           </Text>
-          <Text style={[styles.statLabel, { textAlign: 'center', marginTop: 10 }]}>
+          <Text style={[styles.statBoxLabel, { textAlign: 'center', marginTop: 10 }]}>
             {error}
           </Text>
           <TouchableOpacity
@@ -247,92 +214,7 @@ export default function StatsScreen() {
           </View>
         </View>
 
-        {/* Card Points Section - Shows Averages */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Card Points Captured</Text>
-          <View style={styles.statsGrid}>
-            <StatCard 
-              label="Aces" 
-              value={avgAces}
-              icon="🅰️" 
-              suffix="pts"
-            />
-            <StatCard 
-              label="Spades (all)" 
-              value={avgSpades}
-              icon="♠️" 
-              suffix="cards"
-            />
-            <StatCard 
-              label="Two Spades" 
-              value={avgTwoSpades}
-              icon="🃏" 
-              suffix="cards"
-            />
-            <StatCard 
-              label="Ten Diamonds" 
-              value={avgTenDiamonds}
-              icon="💎" 
-              suffix="pts"
-            />
-          </View>
-        </View>
-
-        {/* Bonuses Section - Shows Averages */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Bonuses Earned</Text>
-          <View style={styles.statsGrid}>
-            <StatCard 
-              label="Spades Bonus" 
-              value={avgSpadesBonus}
-              icon="🎴" 
-              suffix="times"
-              highlight={!!(stats && stats.spadesBonusCount > 0)}
-            />
-            <StatCard 
-              label="20 Cards" 
-              value={avgCards20}
-              icon="🃏" 
-              suffix="times"
-              highlight={!!(stats && stats.cardCountBonus20 > 0)}
-            />
-            <StatCard 
-              label="21+ Cards" 
-              value={avgCards21}
-              icon="🎯" 
-              suffix="times"
-              highlight={!!(stats && stats.cardCountBonus21 > 0)}
-            />
-          </View>
-        </View>
-
-        {/* Win/Loss Breakdown */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Win/Loss Breakdown</Text>
-          <View style={styles.breakdownCard}>
-            <View style={styles.breakdownRow}>
-              <View style={styles.breakdownItem}>
-                <Text style={styles.breakdownValue}>{modeStats?.wins || 0}</Text>
-                <Text style={styles.breakdownLabel}>Wins</Text>
-              </View>
-              <View style={styles.breakdownDivider} />
-              <View style={styles.breakdownItem}>
-                <Text style={styles.breakdownValue}>{modeStats?.losses || 0}</Text>
-                <Text style={styles.breakdownLabel}>Losses</Text>
-              </View>
-            </View>
-            {/* Progress bar */}
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill, 
-                  { width: `${modeStats && modeStats.games > 0 ? (modeStats.wins / modeStats.games * 100) : 0}%` }
-                ]} 
-              />
-            </View>
-            <Text style={styles.breakdownNote}>Win/Loss ratio</Text>
-          </View>
-        </View>
+        
 
         {/* Bottom padding */}
         <View style={styles.bottomPadding} />
@@ -474,113 +356,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     marginTop: 2,
-  },
-  statsGrid: {
-    gap: 8,
-  },
-  statCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.08)',
-  },
-  statCardHighlight: {
-    backgroundColor: `${COLORS.primary}12`,
-    borderColor: `${COLORS.primary}30`,
-  },
-  statIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: 'rgba(27, 94, 32, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  statIconHighlight: {
-    backgroundColor: `${COLORS.primary}20`,
-  },
-  statIconText: {
-    fontSize: 16,
-  },
-  statInfo: {
-    flex: 1,
-  },
-  statLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  statValueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginTop: 2,
-  },
-  statValue: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  statValueHighlight: {
-    color: COLORS.primary,
-  },
-  statSuffix: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  breakdownCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 10,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.08)',
-  },
-  breakdownRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  breakdownItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  breakdownDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  breakdownValue: {
-    color: COLORS.text,
-    fontSize: 28,
-    fontWeight: '700',
-  },
-  breakdownLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 4,
-    marginTop: 14,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 4,
-  },
-  breakdownNote: {
-    color: COLORS.textMuted,
-    fontSize: 10,
-    textAlign: 'center',
-    marginTop: 8,
   },
   bottomPadding: {
     height: 40,

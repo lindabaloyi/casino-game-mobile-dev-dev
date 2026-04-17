@@ -186,6 +186,7 @@ function dropToCapture(state, payload, playerIndex) {
       cards: capturedCards.map(c => ({ ...c })),
     };
     
+    console.log(`[dropToCapture] 🎯 Player ${playerIndex} captured temp stack! Value: ${stack.value}, Cards: ${capturedCards.map(c => c.rank+c.suit).join(', ')}`);
     newState = createRecallEntries(newState, playerIndex, capturedItem);
     
     newState.players[playerIndex].captures.push(...capturedCards);
@@ -253,6 +254,7 @@ function dropToCapture(state, payload, playerIndex) {
       cards: buildCards.map(c => ({ ...c })),
     };
     
+    console.log(`[dropToCapture] 🎯 Player ${playerIndex} captured build stack! Value: ${stack.value}, Cards: ${buildCards.map(c => c.rank+c.suit).join(', ')}`);
     newState = createRecallEntries(newState, playerIndex, capturedItem);
 
     // Remove the build from table

@@ -27,13 +27,6 @@ export interface PlayerStatsData {
   modeStats: Record<typeof GAME_MODE_KEYS[number], ModeStats>;
   totalPointsKept: number;
   pointRetentionPerGame: number;
-  acesKept: number;
-  tenDiamondsKept: number;
-  twoSpadesKept: number;
-  spadesCountKept: number;
-  spadesBonusCount: number;
-  cardCountBonus20: number;
-  cardCountBonus21: number;
   motoTrophyCount: number;
   createdAt: string;
   updatedAt: string;

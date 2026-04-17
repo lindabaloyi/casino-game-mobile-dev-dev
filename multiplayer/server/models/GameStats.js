@@ -20,15 +20,7 @@
  *   // Point retention stats
  *   totalPointsKept: number,
  *   pointRetentionPerGame: number,
- *   // Card-specific stats
- *   acesKept: number,
- *   tenDiamondsKept: number,
- *   twoSpadesKept: number,
- *   // Bonus tracking
- *   spadesBonusCount: number,
- *   cardCountBonus20: number,
- *   cardCountBonus21: number,
- *   // Moto Trophy (score >= 11)
+*   // Moto Trophy (score >= 11)
  *   motoTrophyCount: number,
  *   createdAt: Date,
  *   updatedAt: Date
@@ -69,15 +61,6 @@ class GameStats {
       // Point retention stats
       totalPointsKept: 0,
       pointRetentionPerGame: 0,
-      // Card-specific stats
-      acesKept: 0,
-      tenDiamondsKept: 0,
-      twoSpadesKept: 0,
-      spadesCountKept: 0,   // Count of all spade cards captured
-      // Bonus tracking
-      spadesBonusCount: 0,
-      cardCountBonus20: 0,
-      cardCountBonus21: 0,
       // Moto Trophy (score >= 11)
       motoTrophyCount: 0,
       createdAt: new Date(),
@@ -130,15 +113,8 @@ class GameStats {
       won = false, 
       lost = false, 
       draw = false,
-      // New point retention fields
+      // Point retention fields
       pointsKept = 0,
-      acesKept = 0,
-      tenDiamondsKept = 0,
-      twoSpadesKept = 0,
-      spadesCountKept = 0,
-      spadesBonusCount = 0,
-      cardCountBonus20 = 0,
-      cardCountBonus21 = 0,
       motoTrophyCount = 0
     } = gameResult;
     
@@ -178,13 +154,6 @@ class GameStats {
         totalGames: 1,
         // Point retention stats
         totalPointsKept: pointsKept,
-        acesKept: acesKept,
-        tenDiamondsKept: tenDiamondsKept,
-        twoSpadesKept: twoSpadesKept,
-        spadesCountKept: spadesCountKept,
-        spadesBonusCount: spadesBonusCount,
-        cardCountBonus20: cardCountBonus20,
-        cardCountBonus21: cardCountBonus21,
         motoTrophyCount: motoTrophyCount,
       };
       

@@ -10,7 +10,7 @@
  *  - Shows action strip (Accept/Cancel) when there's a pending stack
  */
 
-import React, { useMemo, useRef, useCallback } from 'react';
+import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions, TouchableOpacity, Text } from 'react-native';
 import { DraggableHandCard } from '../cards/DraggableHandCard';
 import { DropBounds } from '../../hooks/useDrag';
@@ -108,6 +108,10 @@ interface Props {
   onPlayButtonSound?: () => void;
   /** Double-tap callback for creating single-card temp stacks */
   onDoubleTapCard?: (card: Card) => void;
+  /** Pending shiya - shows shiya button on action strip */
+  pendingShiya?: { playerIndex: number; recallId: string; expiresAt: number } | null;
+  /** Callback when shiya button is pressed */
+  onShiya?: (recallId: string) => void;
 }
 
 // Default card dimensions - matching capture pile (56x84)
@@ -118,6 +122,50 @@ const CARD_OVERLAP_PERCENT = 0.3;
 // Compact card dimensions (when dragging)
 const COMPACT_CARD_WIDTH = CARD_WIDTH;
 const COMPACT_CARD_HEIGHT = CARD_HEIGHT;
+
+// Shiya button component with 3-second auto-dismiss
+function ShiyaButton({ 
+  recallId, 
+  expiresAt, 
+  onShiya, 
+  onPlayButtonSound 
+}: { 
+  recallId: string; 
+  expiresAt: number; 
+  onShiya: (id: string) => void; 
+  onPlayButtonSound?: () => void;
+}) {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const remaining = expiresAt - Date.now();
+    if (remaining <= 0) {
+      setVisible(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setVisible(false);
+    }, remaining);
+
+    return () => clearTimeout(timer);
+  }, [expiresAt]);
+
+  if (!visible) return null;
+
+  return (
+    <TouchableOpacity
+      style={styles.shiyaButton}
+      onPress={() => {
+        if (onPlayButtonSound) onPlayButtonSound();
+        onShiya(recallId);
+      }}
+      accessibilityLabel="Shiya"
+    >
+      <Text style={styles.shiyaButtonText}>Shiya</Text>
+    </TouchableOpacity>
+  );
+}
 
 export function PlayerHandArea({
   hand,
@@ -150,6 +198,8 @@ export function PlayerHandArea({
   onTrailSound,
   onPlayButtonSound,
   onDoubleTapCard,
+  pendingShiya,
+  onShiya,
 }: Props) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   
@@ -356,6 +406,18 @@ export function PlayerHandArea({
         </View>
       ) : null}
 
+      {/* Shiya button - shown when teammate captures with matching card */}
+      {pendingShiya && pendingShiya.playerIndex === playerNumber && onShiya && (
+        <View style={styles.shiyaContainer}>
+          <ShiyaButton 
+            recallId={pendingShiya.recallId}
+            expiresAt={pendingShiya.expiresAt}
+            onShiya={onShiya}
+            onPlayButtonSound={onPlayButtonSound}
+          />
+        </View>
+      )}
+
       {/* End Turn button - shown after steal - styled to match StackActionStrip */}
       {showEndTurnButton && onEndTurn && (
         <View style={styles.endTurnContainer}>
@@ -457,6 +519,29 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+  shiyaContainer: {
+    position: 'absolute',
+    right: 8,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shiyaButton: {
+    backgroundColor: '#D32F2F',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderWidth: 2,
+    borderColor: '#B71C1C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shiyaButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });
 

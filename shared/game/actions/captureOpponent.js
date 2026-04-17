@@ -5,6 +5,7 @@
 
 const { cloneState, nextTurn, startPlayerTurn, triggerAction, finalizeGame } = require('../');
 const { hasAnyActiveTempStack, getPlayerTempStack } = require('../tempStackHelpers');
+const { createRecallEntries } = require('../recallHelpers');
 
 function captureOpponent(state, payload, playerIndex) {
   const { card, targetStackId } = payload;
@@ -130,6 +131,17 @@ function captureOpponent(state, payload, playerIndex) {
 
   // Track last capture for end-of-game cleanup
   newState.lastCapturePlayer = playerIndex;
+
+  // Create recall entries for teammates
+  const capturedItem = {
+    stackId: buildStack.stackId,
+    type: 'build_stack',
+    value: buildStack.value,
+    owner: buildStack.owner,
+    cards: [...buildStack.cards, capturingCard],
+  };
+  console.log(`[captureOpponent] 🎯 Player ${playerIndex} captured build stack! Value: ${buildStack.value}, Cards: ${buildStack.cards.map(c => c.rank+c.suit).join(', ')} + ${capturingCard.rank}${capturingCard.suit}`);
+  newState = createRecallEntries(newState, playerIndex, capturedItem);
 
   // Mark turn as started and ended (capture auto-ends turn)
   startPlayerTurn(newState, playerIndex);

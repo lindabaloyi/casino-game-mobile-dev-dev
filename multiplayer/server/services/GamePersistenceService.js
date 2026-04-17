@@ -95,13 +95,6 @@ class GamePersistenceService {
             cardsCaptured: captures.length,
             // Point retention stats
             pointsKept: playerScore,
-            acesKept: scoreBreakdown.aceCount || 0,
-            tenDiamondsKept: scoreBreakdown.tenDiamondCount || 0,
-            twoSpadesKept: scoreBreakdown.twoSpadeCount || 0,
-            spadesCountKept: scoreBreakdown.spadeCount || 0,
-            spadesBonusCount: scoreBreakdown.spadeBonus > 0 ? 1 : 0,
-            cardCountBonus20: scoreBreakdown.cardCountBonus === 1 ? 1 : 0,
-            cardCountBonus21: scoreBreakdown.cardCountBonus === 2 ? 1 : 0,
             motoTrophyCount: playerScore >= 11 ? 1 : 0,
           }, gameMode);
           

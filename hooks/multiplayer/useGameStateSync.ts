@@ -101,6 +101,8 @@ export interface GameState {
       [stackId: string]: ShiyaRecall;
     };
   };
+  // Pending shiya button - shows on action strip when teammate captures with matching card
+  pendingShiya?: { playerIndex: number; recallId: string; expiresAt: number } | null;
   // Tournament mode (knockout)
   tournamentMode?: 'knockout' | null;
   tournamentPhase?: 'QUALIFYING' | 'SEMI_FINAL' | 'FINAL_SHOWDOWN' | 'COMPLETED' | null;

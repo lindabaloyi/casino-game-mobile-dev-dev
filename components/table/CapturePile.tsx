@@ -56,8 +56,6 @@ interface CapturePileProps {
   /** Team utilities */
   getPlayerLabel: (idx: number) => string;
   getPlayerTeamColors: (idx: number) => TeamColors;
-  /** Callback for double-tap to recall captured items (Shiya) */
-  onRecallAttempt?: (targetPlayerIndex: number) => void;
 }
 
 export function CapturePile({
@@ -83,7 +81,6 @@ export function CapturePile({
   unregisterCapturePile,
   getPlayerLabel,
   getPlayerTeamColors,
-  onRecallAttempt,
 }: CapturePileProps) {
 
   // Get top card (last in array = most recently captured)
@@ -95,21 +92,6 @@ export function CapturePile({
   // Ref for measuring this pile
   const pileRef = useRef<View>(null);
   const hasRegisteredRef = useRef(false);
-  const lastTapRef = useRef<number>(0);
-
-  // Handle double-tap for Shiya recall
-  const handlePress = useCallback(() => {
-    const now = Date.now();
-    const DOUBLE_TAP_DELAY = 300; // ms
-    
-    if (onRecallAttempt && captures.length > 0) {
-      if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-        // Double tap detected - attempt recall
-        onRecallAttempt(playerIndex);
-      }
-    }
-    lastTapRef.current = now;
-  }, [playerIndex, captures.length, onRecallAttempt]);
 
   // Register pile bounds on mount
   useEffect(() => {
@@ -188,7 +170,6 @@ export function CapturePile({
   return (
     <TouchableOpacity
       ref={pileRef}
-      onPress={handlePress}
       activeOpacity={0.8}
       style={[
         styles.captureSection,

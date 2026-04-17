@@ -135,6 +135,11 @@ function recall(state, payload, playerIndex) {
       Object.keys(newState.shiyaRecalls[playerIndex]).length === 0) {
     delete newState.shiyaRecalls[playerIndex];
   }
+
+  // Clear pending shiya button
+  if (newState.pendingShiya && newState.pendingShiya.recallId === recallId) {
+    newState.pendingShiya = null;
+  }
     
   return newState;
 }

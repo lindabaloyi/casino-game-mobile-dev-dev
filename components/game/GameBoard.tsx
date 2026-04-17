@@ -379,48 +379,6 @@ export function GameBoard({
     }
   }, [gameState, playerNumber, modals]);
 
-  // Handle recall attempt from capture pile (Shiya post-capture)
-  const handleRecallAttempt = useCallback((targetPlayerIndex: number) => {
-    // Check party mode
-    if (gameState.playerCount !== 4) {
-      return;
-    }
-    
-    // Check if target is a teammate
-    if (!areTeammates(playerNumber, targetPlayerIndex)) {
-      return;
-    }
-    
-    // Get target player's captures
-    const targetCaptures = gameState.players?.[targetPlayerIndex]?.captures ?? [];
-    
-    if (targetCaptures.length === 0) {
-      return;
-    }
-    
-    // Get player's hand
-    const myHand = gameState.players?.[playerNumber]?.hand ?? [];
-    
-    // Check if player has any matching cards in hand
-    // For simplicity, we attempt to recall the most recent capture
-    // The server will validate if there's a match
-    const mostRecentCapture = targetCaptures[targetCaptures.length - 1];
-    const hasMatch = myHand.some((card: any) => card.rank === mostRecentCapture.rank);
-    
-    if (!hasMatch) {
-      // Could show feedback here
-      return;
-    }
-    
-    // Use unified recall - the server will validate that this player is the activator
-    // Get the recall ID from shiyaRecalls
-    const myRecalls = gameState.shiyaRecalls?.[playerNumber] as Record<string, any> | undefined;
-    if (myRecalls && Object.keys(myRecalls).length > 0) {
-      const recallId = Object.keys(myRecalls)[0];
-      actions.recall(recallId);
-    }
-  }, [gameState, playerNumber, actions]);
-
   // Drag handlers
   // IMPORTANT: Use gameState.tableCards directly instead of computed.table
   // to avoid stale closure issues with memoized selectors
@@ -725,7 +683,6 @@ export function GameBoard({
         // ExtensionOverlay should still show when extendingBuildId is set
         disableOverlays={!!computed.overlayStackId}
         onBuildTap={handleBuildTap}
-        onRecallAttempt={handleRecallAttempt}
         onPlayButtonSound={playButton}
         onCardPlayed={playCardContact}
         pendingDropCard={dragOverlay.pendingDropCard}
@@ -769,6 +726,9 @@ export function GameBoard({
         // Game state for party mode
         gameState={gameState}
         currentPlayer={gameState.currentPlayer}
+        // Shiya button
+        pendingShiya={gameState.pendingShiya}
+        onShiya={(recallId: string) => actions.recall(recallId)}
       />
 
       <DragGhost 

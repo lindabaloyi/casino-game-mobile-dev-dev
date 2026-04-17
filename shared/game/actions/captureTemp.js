@@ -348,8 +348,9 @@ function captureTemp(state, payload, playerIndex) {
       ...stack.cards.map(c => ({ ...c })),
       { ...capturedCard }
     ],
-  };
-  
+};
+   
+  console.log(`[captureTemp] 🎯 Player ${playerIndex} captured temp stack! Value: ${stack.value}, Cards: ${stack.cards.map(c => c.rank+c.suit).join(', ')} + ${capturedCard.rank}${capturedCard.suit}`);
   newState = createRecallEntries(newState, playerIndex, capturedItem);
   
   console.log(`[captureTemp] Player ${playerIndex} captured temp stack with ${capturedStackCards.length + 1} cards, score: ${capturedScore}`);

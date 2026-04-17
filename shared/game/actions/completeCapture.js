@@ -97,6 +97,7 @@ function completeCapture(state, payload, playerIndex) {
     ],
   };
   
+  console.log(`[completeCapture] 🎯 Player ${playerIndex} captured build! Value: ${buildStack.value}, Cards: ${[...capturedBuildCards, ...capturedPendingCards].map(c => c.rank+c.suit).join(', ')}`);
   newState = createRecallEntries(newState, playerIndex, capturedItem);
 
   console.log('[completeCapture] Success – captured build', stackId);

@@ -133,6 +133,7 @@ function captureOwn(state, payload, playerIndex) {
       ],
     };
     
+    console.log(`[captureOwn] 🎯 Player ${playerIndex} captured own build! Value: ${buildStack.value}, Cards: ${buildStack.cards.map(c => c.rank+c.suit).join(', ')} + ${capturingCard.rank}${capturingCard.suit}`);
     newState = createRecallEntries(newState, playerIndex, capturedItem);
     
     // --- DYNAMIC: Remove teamCapturedBuilds when original owner captures their own build ---

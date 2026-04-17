@@ -60,6 +60,9 @@ function getTeammates(state, playerIdx) {
  * NEW BEHAVIOR: Always create recall entries for the capturer's teammates
  * when any capture occurs - no Shiya activation required.
  * 
+ * Also sets pendingShiya for teammates who have a matching card in hand,
+ * showing a Shiya button on their action strip.
+ * 
  * @param {object} state - Game state (cloned)
  * @param {number} capturerIdx - Player who did the capturing
  * @param {object} capturedItem - The exact table item being captured
@@ -75,6 +78,10 @@ function createRecallEntries(state, capturerIdx, capturedItem) {
   // Get teammates of the capturer (excluding self)
   const teammates = getTeammates(state, capturerIdx);
   if (teammates.length === 0) return state;
+
+  // Get the ranks of captured cards
+  const capturedCards = getCardsFromItem(capturedItem);
+  const capturedRanks = [...new Set(capturedCards.map(c => c.rank))];
 
   // Initialize shiyaRecalls if needed
   if (!state.shiyaRecalls) {
@@ -98,11 +105,29 @@ function createRecallEntries(state, capturerIdx, capturedItem) {
       description: generateDescription(capturedItem),
     };
 
+    // Check if teammate has a matching card in hand - if so, show shiya button
+    const teammateHand = state.players[teammateIdx].hand;
+    const hasMatchingCard = teammateHand.some(card => 
+      capturedRanks.includes(card.rank)
+    );
+
+    if (hasMatchingCard && !state.pendingShiya) {
+      state.pendingShiya = {
+        playerIndex: teammateIdx,
+        recallId: recallId,
+        expiresAt: Date.now() + 3000, // 3 seconds
+      };
+      console.log(`[SHIYA] 🔔 Player ${teammateIdx} SHIYA BUTTON ACTIVATED! Matching card in hand. Captured ranks: [${capturedRanks.join(', ')}], recallId: ${recallId}`);
+    } else if (hasMatchingCard && state.pendingShiya) {
+      console.log(`[SHIYA] Player ${teammateIdx} has matching card but pendingShiya already set - no button shown`);
+    }
+
     console.log(`[createRecallEntries] Created recall for teammate ${teammateIdx}:`, {
       recallId,
       originalStackId: capturedItem.stackId,
       type: capturedItem.type,
       value: capturedItem.value,
+      hasMatchingCard,
     });
   }
 

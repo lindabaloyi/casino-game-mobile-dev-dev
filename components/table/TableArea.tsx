@@ -131,8 +131,6 @@ interface Props {
   
   /** Callback when a build is tapped - for Shiya selection or dual builds */
   onBuildTap?: (stack: BuildStack | TempStack) => void;
-  /** Callback when player attempts to recall from a capture pile (Shiya) */
-  onRecallAttempt?: (targetPlayerIndex: number) => void;
   /** Optional callback for button click sound */
   onPlayButtonSound?: () => void;
   /** Sound callback - called on ANY successful drop of opponent's captured card */
@@ -201,7 +199,6 @@ export function TableArea({
   currentPlayerIndex,
   gameMode,
   onBuildTap,
-  onRecallAttempt,
   onPlayButtonSound,
   onCardPlayed,
   onDoubleTapCard,
@@ -329,7 +326,6 @@ export function TableArea({
         isPartyMode={isPartyMode}
         currentPlayerIndex={currentPlayerIndex}
         gameMode={gameMode}
-        onRecallAttempt={onRecallAttempt}
       />
     </View>
   );

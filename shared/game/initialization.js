@@ -79,6 +79,9 @@ function initializeGame(playerCount = 2, isPartyMode = false) {
     teamCapturedBuilds: {},
     // Shiya recalls - ephemeral recall offers for each player
     shiyaRecalls: {},
+    // Pending shiya button - shows on action strip when teammate captures with matching card
+    // { playerIndex: number, recallId: string, expiresAt: number }
+    pendingShiya: null,
     // === TOURNAMENT STATE ===
     tournamentMode: null, // 'knockout' or null
     tournamentPhase: null, // 'QUALIFYING' | 'QUALIFICATION_REVIEW' | 'SEMI_FINAL' | 'FINAL_SHOWDOWN' | 'COMPLETED'
@@ -203,6 +206,9 @@ function initializeTestGame(playerCount = 2) {
     teamCapturedBuilds: {},
     // Shiya recalls - ephemeral recall offers for each player
     shiyaRecalls: {},
+    // Pending shiya button - shows on action strip when teammate captures with matching card
+    // { playerIndex: number, recallId: string, expiresAt: number }
+    pendingShiya: null,
   };
 }
 
