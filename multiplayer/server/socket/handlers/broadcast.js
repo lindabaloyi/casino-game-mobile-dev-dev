@@ -5,6 +5,10 @@
 
 const PlayerProfile = require('../../models/PlayerProfile');
 
+const isValidObjectId = (id) => {
+  return id && /^[0-9a-fA-F]{24}$/.test(id);
+};
+
 function createBroadcastHelpers(unifiedMatchmaking, io) {
   const queueManager = unifiedMatchmaking.queueManager;
 
@@ -15,16 +19,14 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const queue = queueManager.waitingQueues['two-hands'];
     if (!queue || queue.length === 0) return;
     
-    const userIds = queue.map(entry => entry.userId).filter(Boolean);
-    const players = await PlayerProfile.getPlayerInfos(userIds);
+    const validUserIds = queue.map(entry => entry.userId).filter(isValidObjectId);
+    const players = await PlayerProfile.getPlayerInfos(validUserIds);
 
-    // Map players to match queue order to prevent slot replacement
     const orderedPlayers = queue.map((entry, index) => {
       const playerInfo = players.find(p => p.userId === entry.userId);
       if (playerInfo) return playerInfo;
-      // Fallback for guest players - use empty username, let client handle display
       return {
-        userId: entry.userId || `guest-${index + 1}`,
+        userId: entry.userId || `guest_${index + 1}`,
         username: '',
         avatar: 'lion'
       };
@@ -47,19 +49,16 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const queue = queueManager.waitingQueues['party'];
     if (!queue || queue.length === 0) return;
     
-    const userIds = queue.map(entry => entry.userId).filter(Boolean);
-    const players = await PlayerProfile.getPlayerInfos(userIds);
+    const validUserIds = queue.map(entry => entry.userId).filter(isValidObjectId);
+    const players = await PlayerProfile.getPlayerInfos(validUserIds);
     
-    // CRITICAL: Map players to match queue order to prevent slot replacement
     const orderedPlayers = queue.map((entry, index) => {
       const playerInfo = players.find(p => p.userId === entry.userId);
       if (playerInfo) return playerInfo;
-      // Fallback for guest players
       return {
-        userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId ? '' : '',
-        avatar: 'lion',
-
+        userId: entry.userId || `guest_${index + 1}`,
+        username: '',
+        avatar: 'lion'
       };
     });
     
@@ -83,20 +82,16 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
       return;
     }
     
-    const userIds = queue.map(entry => entry.userId).filter(Boolean);
-    const players = await PlayerProfile.getPlayerInfos(userIds);
-    console.log('[Broadcast] got player infos, count:', players?.length);
+    const validUserIds = queue.map(entry => entry.userId).filter(isValidObjectId);
+    const players = await PlayerProfile.getPlayerInfos(validUserIds);
     
-    // CRITICAL: Map players to match queue order to prevent slot replacement
     const orderedPlayers = queue.map((entry, index) => {
       const playerInfo = players.find(p => p.userId === entry.userId);
       if (playerInfo) return playerInfo;
-      // Fallback for guest players
       return {
-        userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId ? '' : '',
-        avatar: 'lion',
-
+        userId: entry.userId || `guest_${index + 1}`,
+        username: '',
+        avatar: 'lion'
       };
     });
     
@@ -115,16 +110,16 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const roomCode = unifiedMatchmaking.getQueueRoomCode('four-hands');
     
     const queue = queueManager.waitingQueues['four-hands'];
-    const userIds = queue.map(entry => entry.userId).filter(Boolean);
-    const players = await PlayerProfile.getPlayerInfos(userIds);
+    const validUserIds = queue.map(entry => entry.userId).filter(isValidObjectId);
+    const players = await PlayerProfile.getPlayerInfos(validUserIds);
     
     const orderedPlayers = queue.map((entry, index) => {
       const playerInfo = players.find(p => p.userId === entry.userId);
       if (playerInfo) return playerInfo;
       return {
-        userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId ? '' : '',
-        avatar: 'lion',
+        userId: entry.userId || `guest_${index + 1}`,
+        username: '',
+        avatar: 'lion'
       };
     });
     
@@ -151,19 +146,16 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const queue = queueManager.waitingQueues['four-hands'];
     if (!queue || queue.length === 0) return;
     
-    const userIds = queue.map(entry => entry.userId).filter(Boolean);
-    const players = await PlayerProfile.getPlayerInfos(userIds);
+    const validUserIds = queue.map(entry => entry.userId).filter(isValidObjectId);
+    const players = await PlayerProfile.getPlayerInfos(validUserIds);
     
-    // CRITICAL: Map players to match queue order to prevent slot replacement
     const orderedPlayers = queue.map((entry, index) => {
       const playerInfo = players.find(p => p.userId === entry.userId);
       if (playerInfo) return playerInfo;
-      // Fallback for guest players
       return {
-        userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId ? '' : '',
-        avatar: 'lion',
-
+        userId: entry.userId || `guest_${index + 1}`,
+        username: '',
+        avatar: 'lion'
       };
     });
     
@@ -197,14 +189,14 @@ function createBroadcastHelpers(unifiedMatchmaking, io) {
     const requiredPlayers = queue.length + playersNeeded;
     console.log('[Broadcast] queue length:', queue.length, 'required:', requiredPlayers);
 
-    const userIds = queue.map(entry => entry.userId).filter(Boolean);
-    const players = await PlayerProfile.getPlayerInfos(userIds);
+    const validUserIds = queue.map(entry => entry.userId).filter(isValidObjectId);
+    const players = await PlayerProfile.getPlayerInfos(validUserIds);
 
     const orderedPlayers = queue.map((entry, index) => {
       const playerInfo = players.find(p => p.userId === entry.userId);
       return playerInfo || {
-        userId: entry.userId || `guest-${index + 1}`,
-        username: entry.userId ? '' : '',
+        userId: entry.userId || `guest_${index + 1}`,
+        username: '',
         avatar: 'lion'
       };
     });

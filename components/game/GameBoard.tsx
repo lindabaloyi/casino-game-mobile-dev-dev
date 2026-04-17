@@ -746,7 +746,10 @@ export function GameBoard({
         currentPlayer={gameState.currentPlayer}
         // Shiya button
         pendingShiya={gameState.pendingShiya}
-        onShiya={(recallId: string) => actions.recall(recallId)}
+        onShiya={(recallId: string) => {
+          playShiya();  // Play sound immediately when Shiya button is pressed
+          actions.recall(recallId);
+        }}
       />
       {console.log('[GameBoard] pendingShiya passed to PlayerHandArea:', gameState.pendingShiya, 'my playerNumber:', playerNumber)}
 

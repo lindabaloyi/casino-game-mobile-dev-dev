@@ -44,24 +44,20 @@ function attachSocketHandlers(socket, services) {
 
   // ── Matchmaking Queue Handlers ────────────────────────────────────────
   socket.on('join-two-hands-queue', async () => {
-    if (!socket.userId) {
-      console.log('[Server] Queue join BLOCKED - no auth, socket:', socket.id);
-      socket.emit('error', { message: 'Please authenticate before joining queue' });
-      return;
-    }
+    const playerId = socket.userId || socket.id;
 
-    if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
+    if (unifiedMatchmaking.isSocketInQueue(socket.id, unifiedMatchmaking.queueManager)) {
       socket.emit('error', { message: 'You are already in a queue' });
       return;
     }
 
-    if (unifiedMatchmaking.isUserInGame(socket.userId)) {
+    if (unifiedMatchmaking.isSocketInGame(socket.id)) {
       socket.emit('error', { message: 'You are already in a game' });
       return;
     }
     
     removeFromAllQueues();
-    const result = unifiedMatchmaking.addToQueue(socket, 'two-hands', socket.userId);
+    const result = unifiedMatchmaking.addToQueue(socket, 'two-hands', playerId);
     if (result) {
       await broadcaster.broadcastGameStart(result);
     } else {
@@ -71,26 +67,21 @@ function attachSocketHandlers(socket, services) {
 
   socket.on('join-party-queue', async () => {
     console.log(`[Socket] join-party-queue received from ${socket.id}, userId: ${socket.userId}`);
-    
-    if (!socket.userId) {
-      console.log('[Server] Queue join BLOCKED - no auth, socket:', socket.id);
-      socket.emit('error', { message: 'Please authenticate before joining queue' });
-      return;
-    }
+    const playerId = socket.userId || socket.id;
 
-    if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
+    if (unifiedMatchmaking.isSocketInQueue(socket.id, unifiedMatchmaking.queueManager)) {
       console.log(`[Socket] ${socket.id} already in queue, ignoring duplicate`);
       socket.emit('error', { message: 'You are already in a queue' });
       return;
     }
 
-    if (unifiedMatchmaking.isUserInGame(socket.userId)) {
+    if (unifiedMatchmaking.isSocketInGame(socket.id)) {
       socket.emit('error', { message: 'You are already in a game' });
       return;
     }
 
     removeFromAllQueues();
-    const result = unifiedMatchmaking.addToQueue(socket, 'party', socket.userId);
+    const result = unifiedMatchmaking.addToQueue(socket, 'party', playerId);
     console.log(`[Socket] addToQueue result: ${result ? 'game started' : 'waiting for players'}`);
     if (result) {
       await broadcaster.broadcastPartyGameStart(result);
@@ -101,23 +92,20 @@ function attachSocketHandlers(socket, services) {
 
   socket.on('join-three-hands-queue', async () => {
     console.log('[Server] join-three-hands-queue, userId:', socket.userId);
-    if (!socket.userId) {
-      console.log('[Server] Queue join BLOCKED - no auth, socket:', socket.id);
-      socket.emit('error', { message: 'Please authenticate before joining queue' });
-      return;
-    }
-    if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
+    const playerId = socket.userId || socket.id;
+
+    if (unifiedMatchmaking.isSocketInQueue(socket.id, unifiedMatchmaking.queueManager)) {
       socket.emit('error', { message: 'You are already in a queue' });
       return;
     }
 
-    if (unifiedMatchmaking.isUserInGame(socket.userId)) {
+    if (unifiedMatchmaking.isSocketInGame(socket.id)) {
       socket.emit('error', { message: 'You are already in a game' });
       return;
     }
 
     removeFromAllQueues();
-    const result = unifiedMatchmaking.addToQueue(socket, 'three-hands', socket.userId);
+    const result = unifiedMatchmaking.addToQueue(socket, 'three-hands', playerId);
     console.log('[Server] addToQueue result:', result ? 'game created' : 'waiting');
     if (result) {
       console.log('[Server] calling broadcastThreeHandsGameStart');
@@ -130,26 +118,21 @@ function attachSocketHandlers(socket, services) {
 
   socket.on('join-four-hands-queue', async () => {
     console.log(`[Socket] join-four-hands-queue received from ${socket.id}, userId: ${socket.userId}`);
+    const playerId = socket.userId || socket.id;
     
-    if (!socket.userId) {
-      console.log('[Server] Queue join BLOCKED - no auth, socket:', socket.id);
-      socket.emit('error', { message: 'Please authenticate before joining queue' });
-      return;
-    }
-    
-    if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
+    if (unifiedMatchmaking.isSocketInQueue(socket.id, unifiedMatchmaking.queueManager)) {
       console.log(`[Socket] ${socket.id} already in queue, ignoring duplicate`);
       socket.emit('error', { message: 'You are already in a queue' });
       return;
     }
 
-    if (unifiedMatchmaking.isUserInGame(socket.userId)) {
+    if (unifiedMatchmaking.isSocketInGame(socket.id)) {
       socket.emit('error', { message: 'You are already in a game' });
       return;
     }
 
     removeFromAllQueues();
-    const result = unifiedMatchmaking.addToQueue(socket, 'four-hands', socket.userId);
+    const result = unifiedMatchmaking.addToQueue(socket, 'four-hands', playerId);
     if (result) {
       await broadcaster.broadcastFourHandsGameStart(result);
     } else {
@@ -159,20 +142,15 @@ function attachSocketHandlers(socket, services) {
 
   socket.on('join-tournament-queue', async () => {
     console.log(`[Socket] join-tournament-queue received from ${socket.id}, userId: ${socket.userId}`);
+    const playerId = socket.userId || socket.id;
     
-    if (!socket.userId) {
-      console.log('[Server] Queue join BLOCKED - no auth, socket:', socket.id);
-      socket.emit('error', { message: 'Please authenticate before joining queue' });
-      return;
-    }
-    
-    if (unifiedMatchmaking.socketRegistry.isUserInQueue(socket.userId, unifiedMatchmaking.queueManager)) {
+    if (unifiedMatchmaking.isSocketInQueue(socket.id, unifiedMatchmaking.queueManager)) {
       console.log(`[Socket] ${socket.id} already in queue, ignoring duplicate`);
       socket.emit('error', { message: 'You are already in a queue' });
       return;
     }
 
-    if (unifiedMatchmaking.isUserInGame(socket.userId)) {
+    if (unifiedMatchmaking.isSocketInGame(socket.id)) {
       socket.emit('error', { message: 'You are already in a game' });
       return;
     }
@@ -180,7 +158,7 @@ function attachSocketHandlers(socket, services) {
     removeFromAllQueues();
     
     // Use 'four-hands' game type - same as free-for-all matchmaking
-    const result = unifiedMatchmaking.addToQueue(socket, 'four-hands', socket.userId);
+    const result = unifiedMatchmaking.addToQueue(socket, 'four-hands', playerId);
     
     if (result) {
       
@@ -198,9 +176,9 @@ function attachSocketHandlers(socket, services) {
       
       // Initialize scores for each player
       for (let i = 0; i < players.length; i++) {
-        const playerId = players[i].userId || `player_${i}`;
-        gameState.tournamentScores[playerId] = 0;
-        gameState.playerStatuses[playerId] = 'ACTIVE';
+        const pId = players[i].userId || `guest_player_${i}`;
+        gameState.tournamentScores[pId] = 0;
+        gameState.playerStatuses[pId] = 'ACTIVE';
       }
       
       gameManager.saveGameState(gameId, gameState);

@@ -123,16 +123,30 @@ export function useSound() {
     };
   }, []);
 
+  // Helper to verify sound is loaded before playing
+  const verifySound = async (sound: Audio.Sound | null): Promise<boolean> => {
+    if (!sound) return false;
+    try {
+      const status = await sound.getStatusAsync();
+      return status.isLoaded === true;
+    } catch {
+      return false;
+    }
+  };
+
   // Play card contact sound
   const playCardContact = useCallback(async () => {
-    if (!isLoadedRef.current || !soundsRef.current.cardContact) {
+    const sound = soundsRef.current.cardContact;
+    if (!isLoadedRef.current || !sound) {
       return;
     }
 
     try {
-      // Reset to beginning before playing
-      await soundsRef.current.cardContact.setPositionAsync(0);
-      await soundsRef.current.cardContact.playAsync();
+      if (!(await verifySound(sound))) {
+        return;
+      }
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
     } catch (error) {
       console.error('[useSound] Error playing card contact sound:', error);
     }
@@ -140,14 +154,17 @@ export function useSound() {
 
   // Play capture sound
   const playCapture = useCallback(async () => {
-    if (!isLoadedRef.current || !soundsRef.current.capture) {
+    const sound = soundsRef.current.capture;
+    if (!isLoadedRef.current || !sound) {
       return;
     }
 
     try {
-      // Reset to beginning before playing
-      await soundsRef.current.capture.setPositionAsync(0);
-      await soundsRef.current.capture.playAsync();
+      if (!(await verifySound(sound))) {
+        return;
+      }
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
     } catch (error) {
       console.error('[useSound] Error playing capture sound:', error);
     }
@@ -155,15 +172,18 @@ export function useSound() {
 
   // Play trail sound at 2x speed
   const playTrail = useCallback(async () => {
-    if (!isLoadedRef.current || !soundsRef.current.trail) {
+    const sound = soundsRef.current.trail;
+    if (!isLoadedRef.current || !sound) {
       return;
     }
 
     try {
-      // Reset to beginning and set playback rate to 2x
-      await soundsRef.current.trail.setPositionAsync(0);
-      await soundsRef.current.trail.setRateAsync(2.0, true); // 2x speed
-      await soundsRef.current.trail.playAsync();
+      if (!(await verifySound(sound))) {
+        return;
+      }
+      await sound.setPositionAsync(0);
+      await sound.setRateAsync(2.0, true);
+      await sound.playAsync();
     } catch (error) {
       console.error('[useSound] Error playing trail sound:', error);
     }
@@ -171,14 +191,17 @@ export function useSound() {
 
   // Play table card drag sound (for dragging loose cards on table)
   const playTableCardDrag = useCallback(async () => {
-    if (!isLoadedRef.current || !soundsRef.current.cardContact) {
+    const sound = soundsRef.current.cardContact;
+    if (!isLoadedRef.current || !sound) {
       return;
     }
 
     try {
-      // Reset to beginning before playing
-      await soundsRef.current.cardContact.setPositionAsync(0);
-      await soundsRef.current.cardContact.playAsync();
+      if (!(await verifySound(sound))) {
+        return;
+      }
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
     } catch (error) {
       console.error('[useSound] Error playing table card drag sound:', error);
     }
@@ -186,14 +209,17 @@ export function useSound() {
 
   // Play button click sound
   const playButton = useCallback(async () => {
-    if (!isLoadedRef.current || !soundsRef.current.button) {
+    const sound = soundsRef.current.button;
+    if (!isLoadedRef.current || !sound) {
       return;
     }
 
     try {
-      // Reset to beginning before playing
-      await soundsRef.current.button.setPositionAsync(0);
-      await soundsRef.current.button.playAsync();
+      if (!(await verifySound(sound))) {
+        return;
+      }
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
     } catch (error) {
       console.error('[useSound] Error playing button sound:', error);
     }
@@ -201,14 +227,17 @@ export function useSound() {
 
   // Play shiya sound
   const playShiya = useCallback(async () => {
-    if (!isLoadedRef.current || !soundsRef.current.shiya) {
+    const sound = soundsRef.current.shiya;
+    if (!isLoadedRef.current || !sound) {
       return;
     }
 
     try {
-      // Reset to beginning before playing
-      await soundsRef.current.shiya.setPositionAsync(0);
-      await soundsRef.current.shiya.playAsync();
+      if (!(await verifySound(sound))) {
+        return;
+      }
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
     } catch (error) {
       console.error('[useSound] Error playing shiya sound:', error);
     }

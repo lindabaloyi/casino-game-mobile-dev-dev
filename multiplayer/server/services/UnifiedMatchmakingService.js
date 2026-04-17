@@ -142,8 +142,17 @@ class UnifiedMatchmakingService {
     return this.socketRegistry.isUserInQueue(userId, this.queueManager);
   }
 
+  isSocketInQueue(socketId, queueManager) {
+    return queueManager.isInQueue(socketId) !== null;
+  }
+
   isUserInGame(userId) {
     return this.socketRegistry.isUserInGame(userId);
+  }
+
+  isSocketInGame(socketId) {
+    const info = this.socketRegistry.get(socketId);
+    return info && info.gameId;
   }
 
   shutdown() {
