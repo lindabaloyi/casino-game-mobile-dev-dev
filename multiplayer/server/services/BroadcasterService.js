@@ -18,15 +18,18 @@ class BroadcasterService {
    * Helper: Get player info for all players in a game
    */
   async _getPlayerInfos(players) {
-    const userIds = players
-      .map(p => p.userId)
-      .filter(Boolean);
+    const isValidObjectId = (id) => id && /^[0-9a-fA-F]{24}$/.test(id);
     
-    if (userIds.length === 0) {
+    const validUserIds = players
+      .map(p => p.userId)
+      .filter(Boolean)
+      .filter(isValidObjectId);
+    
+    if (validUserIds.length === 0) {
       return [];
     }
     
-    return PlayerProfile.getPlayerInfos(userIds);
+    return PlayerProfile.getPlayerInfos(validUserIds);
   }
 
   /**
