@@ -208,8 +208,8 @@ export default function StatsScreen() {
             </View>
             <View style={[styles.statBox, styles.statBoxHighlight]}>
               <Text style={styles.statBoxIcon}>🏆</Text>
-              <Text style={styles.statBoxValueGold}>{stats ? stats.motoTrophyCount : '0'}</Text>
-              <Text style={styles.statBoxLabel}>Moto Trophies</Text>
+              <Text style={styles.statBoxValueGold}>{stats ? stats.motorAchievementCount : '0'}</Text>
+              <Text style={styles.statBoxLabel}>Motor Achievements</Text>
             </View>
           </View>
         </View>

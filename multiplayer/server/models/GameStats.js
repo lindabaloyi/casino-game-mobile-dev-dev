@@ -20,8 +20,8 @@
  *   // Point retention stats
  *   totalPointsKept: number,
  *   pointRetentionPerGame: number,
-*   // Moto Trophy (score >= 11)
- *   motoTrophyCount: number,
+*   // Motor Achievement (score >= 11)
+ *   motorAchievementCount: number,
  *   createdAt: Date,
  *   updatedAt: Date
  * }
@@ -61,8 +61,8 @@ class GameStats {
       // Point retention stats
       totalPointsKept: 0,
       pointRetentionPerGame: 0,
-      // Moto Trophy (score >= 11)
-      motoTrophyCount: 0,
+      // Motor Achievement (score >= 11)
+      motorAchievementCount: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -115,7 +115,7 @@ class GameStats {
       draw = false,
       // Point retention fields
       pointsKept = 0,
-      motoTrophyCount = 0
+      motorAchievementCount = 0
     } = gameResult;
     
     // Validate mode
@@ -154,7 +154,7 @@ class GameStats {
         totalGames: 1,
         // Point retention stats
         totalPointsKept: pointsKept,
-        motoTrophyCount: motoTrophyCount,
+        motorAchievementCount: motorAchievementCount,
       };
       
       // Increment overall wins/losses
@@ -209,7 +209,7 @@ class GameStats {
         wins: result?.wins,
         losses: result?.losses,
         totalPointsKept: result?.totalPointsKept,
-        motoTrophyCount: result?.motoTrophyCount,
+        motorAchievementCount: result?.motorAchievementCount,
         modeStats: result?.modeStats?.[mode]
       });
 
@@ -346,7 +346,7 @@ class GameStats {
 
   /**
    * Get top players by a specific stat
-   * @param {string} statKey - Stat key to sort by (e.g., 'pointRetentionPerGame', 'motoTrophyCount')
+   * @param {string} statKey - Stat key to sort by (e.g., 'pointRetentionPerGame', 'motorAchievementCount')
    * @param {number} limit - Number of top players to return
    * @returns {Promise<Array>} Array of top player stats
    */

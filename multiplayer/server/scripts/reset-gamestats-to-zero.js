@@ -1,6 +1,6 @@
 /**
  * Migration script to reset all GameStats to zero
- * Resets: totalGames, wins, losses, totalPointsKept, pointRetentionPerGame, motoTrophyCount, modeStats
+ * Resets: totalGames, wins, losses, totalPointsKept, pointRetentionPerGame, motorAchievementCount, modeStats
  */
 
 const { MongoClient } = require('mongodb');
@@ -26,7 +26,7 @@ async function resetGameStats() {
           losses: 0,
           totalPointsKept: 0,
           pointRetentionPerGame: 0,
-          motoTrophyCount: 0,
+          motorAchievementCount: 0,
           modeStats: {
             twoHands: { games: 0, wins: 0, losses: 0 },
             threeHands: { games: 0, wins: 0, losses: 0 },

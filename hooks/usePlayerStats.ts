@@ -27,7 +27,7 @@ export interface PlayerStatsData {
   modeStats: Record<typeof GAME_MODE_KEYS[number], ModeStats>;
   totalPointsKept: number;
   pointRetentionPerGame: number;
-  motoTrophyCount: number;
+  motorAchievementCount: number;
   createdAt: string;
   updatedAt: string;
 }

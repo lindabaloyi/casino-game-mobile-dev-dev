@@ -105,15 +105,31 @@ class FriendlyBuildHandler {
     if (isFromHand || isFromCaptured) {
       if (isSameRankBuild) {
         if (isOwnBuild) {
-          const playerHand = state.players[playerIndex]?.hand || [];
-          const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
-          const hasSpare = sameRankCount > 1;
-          if (hasSpare) {
-            console.log('[FriendlyBuildHandler] Same‑rank own build, has spare → EXTEND');
+          // Check for pending extension first - if exists, must extend
+          if (stack.pendingExtension?.cards?.length > 0) {
+            console.log('[FriendlyBuildHandler] Same‑rank own build with pending extension → EXTEND');
             return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
+          }
+          
+          // For capture to work, card value must equal build value (same-rank = same value)
+          const canCapture = card.value === stack.value;
+          
+          if (canCapture) {
+            // Only check spares when capture is actually possible
+            const playerHand = state.players[playerIndex]?.hand || [];
+            const sameRankCount = playerHand.filter(c => c.rank === card.rank).length;
+            const hasSpare = sameRankCount > 1;
+            if (hasSpare) {
+              console.log('[FriendlyBuildHandler] Same‑rank own build, has spare → EXTEND');
+              return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
+            } else {
+              console.log('[FriendlyBuildHandler] Same‑rank own build, no spare → CAPTURE');
+              return { type: 'captureOwn', payload: { card, targetType: 'build', targetStackId: stackId } };
+            }
           } else {
-            console.log('[FriendlyBuildHandler] Same‑rank own build, no spare → CAPTURE');
-            return { type: 'captureOwn', payload: { card, targetType: 'build', targetStackId: stackId } };
+            // Card can't capture (value doesn't match build) - must extend
+            console.log('[FriendlyBuildHandler] Same‑rank own build, card value differs → EXTEND');
+            return this.extendRouter.route({ stackId, card, cardSource: source }, state, playerIndex);
           }
         } else {
           console.log('[FriendlyBuildHandler] Same‑rank teammate\'s build → EXTEND');

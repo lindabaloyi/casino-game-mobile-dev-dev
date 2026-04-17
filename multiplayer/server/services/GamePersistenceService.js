@@ -95,7 +95,7 @@ class GamePersistenceService {
             cardsCaptured: captures.length,
             // Point retention stats
             pointsKept: playerScore,
-            motoTrophyCount: playerScore >= 11 ? 1 : 0,
+            motorAchievementCount: playerScore >= 11 ? 1 : 0,
           }, gameMode);
           
           console.log(`[Persistence] 📊 Stats AFTER update for ${player.name}:`, {
@@ -103,7 +103,7 @@ class GamePersistenceService {
             wins: updatedStats?.wins || 0,
             losses: updatedStats?.losses || 0,
             totalPointsKept: updatedStats?.totalPointsKept || 0,
-            motoTrophyCount: updatedStats?.motoTrophyCount || 0
+            motorAchievementCount: updatedStats?.motorAchievementCount || 0
           });
         } catch (updateError) {
           console.error(`[Persistence] ❌ FAILED to update stats for ${player.name}:`, updateError.message);

@@ -40,6 +40,7 @@ import { ErrorBanner } from '../shared/ErrorBanner';
 import { Card as TableCard } from '../../types';
 import { GameOverModal } from '../modals/GameOverModal';
 import { TournamentWinnerModal } from '../game-over/TournamentWinnerModal';
+import { MotorAchievementModal } from '../game-over/MotorAchievementModal';
 import { HomeMenuButton } from './HomeMenuButton';
 import { OpponentProfileModal } from '../modals/OpponentProfileModal';
 import { useOpponentInfo } from '../../hooks/useOpponentInfo';
@@ -110,6 +111,7 @@ export function GameBoard({
   const [errorVersion, setErrorVersion] = useState(0);
   const [dragVersion, setDragVersion] = useState(0);
   const [showTournamentWinner, setShowTournamentWinner] = useState(false);
+  const [showMotorAchievement, setShowMotorAchievement] = useState(false);
   
   // Track round transitions to prevent double triggers
   const lastProcessedRound = useRef<number>(0);
@@ -224,6 +226,22 @@ export function GameBoard({
       return () => clearTimeout(timer);
     }
   }, [shouldShowStandardGameOver, gameState.tournamentMode, isTournamentComplete, isLocalPlayerWinner]);
+
+  // Show Motor Achievement modal when player scores 11+ points
+  const finalScore = gameOverData?.finalScores?.[playerNumber] ?? gameState.scores?.[playerNumber] ?? 0;
+  const earnedMotorAchievement = shouldShowStandardGameOver && finalScore >= 11;
+  console.log('[MotorAchievement] shouldShowStandardGameOver:', shouldShowStandardGameOver, 'finalScore:', finalScore, 'earned:', earnedMotorAchievement);
+
+  useEffect(() => {
+    console.log('[MotorAchievement] useEffect triggered, earnedMotorAchievement:', earnedMotorAchievement, 'score:', finalScore);
+    if (earnedMotorAchievement) {
+      console.log('[MotorAchievement] Showing modal for score:', finalScore);
+      const timer = setTimeout(() => {
+        setShowMotorAchievement(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [earnedMotorAchievement, finalScore]);
   
   // Turn timer - 20 second countdown
   const turnTimer = useTurnTimer({
@@ -847,13 +865,20 @@ export function GameBoard({
       {gameState.tournamentMode === 'knockout' && 
        isTournamentComplete && 
        isLocalPlayerWinner && (
-         <TournamentWinnerModal
-           visible={showTournamentWinner}
-           winnerName={`Player ${playerNumber + 1}`}
-           tournamentScore={gameState.tournamentScores?.[gameState.players?.[playerNumber]?.userId]}
-           onClose={() => setShowTournamentWinner(false)}
-         />
-       )}
+          <TournamentWinnerModal
+            visible={showTournamentWinner}
+            winnerName={`Player ${playerNumber + 1}`}
+            tournamentScore={gameState.tournamentScores?.[gameState.players?.[playerNumber]?.userId]}
+            onClose={() => setShowTournamentWinner(false)}
+          />
+        )}
+
+      {/* Motor Achievement Modal - shown when player scores 11+ points */}
+      <MotorAchievementModal
+        visible={showMotorAchievement}
+        score={finalScore}
+        onClose={() => setShowMotorAchievement(false)}
+      />
 
       {/* Home Menu Button - Bottom left corner */}
       <HomeMenuButton
