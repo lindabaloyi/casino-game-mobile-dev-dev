@@ -75,6 +75,9 @@ function createRecallEntries(state, capturerIdx, capturedItem) {
     return state;
   }
 
+  console.log('[SHIYA createRecallEntries] START - capturerIdx:', capturerIdx, 'capturedItem:', capturedItem ? 'exists' : 'null/undefined');
+  console.log('[SHIYA createRecallEntries] state.players count:', state.players?.length);
+
   // Get teammates of the capturer (excluding self)
   const teammates = getTeammates(state, capturerIdx);
   if (teammates.length === 0) return state;
@@ -106,10 +109,15 @@ function createRecallEntries(state, capturerIdx, capturedItem) {
     };
 
     // Check if teammate has a matching card in hand - if so, show shiya button
-    const teammateHand = state.players[teammateIdx].hand;
-    const hasMatchingCard = teammateHand.some(card => 
-      capturedRanks.includes(card.rank)
+    // FIX: Only check the capture card (last card in array), not all captured cards
+    console.log('[SHIYA DEBUG] capturedItem:', JSON.stringify(capturedItem));
+    const teammateHand = state.players[teammateIdx]?.hand || [];
+    const captureCard = capturedItem?.cards?.[capturedItem.cards.length - 1];
+    console.log('[SHIYA DEBUG] teammateIdx:', teammateIdx, 'teammateHand length:', teammateHand.length, 'captureCard:', captureCard);
+    const hasMatchingCard = captureCard && teammateHand.some(card => 
+      card.rank === captureCard.rank
     );
+    console.log('[SHIYA DEBUG] hasMatchingCard:', hasMatchingCard);
 
     if (hasMatchingCard && !state.pendingShiya) {
       state.pendingShiya = {
@@ -117,9 +125,9 @@ function createRecallEntries(state, capturerIdx, capturedItem) {
         recallId: recallId,
         expiresAt: Date.now() + 3000, // 3 seconds
       };
-      console.log(`[SHIYA] 🔔 Player ${teammateIdx} SHIYA BUTTON ACTIVATED! Matching card in hand. Captured ranks: [${capturedRanks.join(', ')}], recallId: ${recallId}`);
+      console.log(`[SHIYA] 🔔 Player ${teammateIdx} SHIYA BUTTON ACTIVATED! Teammate of capturer ${capturerIdx}, Capture card: ${captureCard?.rank}${captureCard?.suit}, recallId: ${recallId}`);
     } else if (hasMatchingCard && state.pendingShiya) {
-      console.log(`[SHIYA] Player ${teammateIdx} has matching card but pendingShiya already set - no button shown`);
+      console.log(`[SHIYA] Player ${teammateIdx} (teammate of capturer ${capturerIdx}) has matching card but pendingShiya already set - no button shown`);
     }
 
     console.log(`[createRecallEntries] Created recall for teammate ${teammateIdx}:`, {

@@ -748,6 +748,7 @@ export function GameBoard({
         pendingShiya={gameState.pendingShiya}
         onShiya={(recallId: string) => actions.recall(recallId)}
       />
+      {console.log('[GameBoard] pendingShiya passed to PlayerHandArea:', gameState.pendingShiya, 'my playerNumber:', playerNumber)}
 
       <DragGhost 
         draggingCard={dragOverlay.draggingCard}

@@ -437,6 +437,7 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
         }
       }
       
+      console.log('[Client GameSync] pendingShiya received:', state.pendingShiya, 'playerNumber:', playerNumber);
       setGameState(state);
     };
 

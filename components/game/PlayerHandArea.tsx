@@ -417,6 +417,7 @@ export function PlayerHandArea({
           />
         </View>
       )}
+      {console.log('[PlayerHandArea] SHIYA check - pendingShiya:', pendingShiya, 'playerNumber:', playerNumber, 'onShiya:', typeof onShiya === 'function' ? 'exists' : 'missing')}
 
       {/* End Turn button - shown after steal - styled to match StackActionStrip */}
       {showEndTurnButton && onEndTurn && (

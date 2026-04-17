@@ -169,6 +169,7 @@ class BroadcasterService {
 
     // Deep clone to avoid serializing internal references
     const stateToSend = JSON.parse(JSON.stringify(gameState));
+    console.log('[Broadcaster] pendingShiya in broadcast:', stateToSend.pendingShiya);
 
     // Get socket->player index mapping from gameManager if available
     const socketPlayerMap = this.gameManager?.socketPlayerMap?.get(gameId);

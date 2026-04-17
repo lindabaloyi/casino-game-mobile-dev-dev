@@ -141,6 +141,7 @@ function captureOpponent(state, payload, playerIndex) {
     cards: [...buildStack.cards, capturingCard],
   };
   console.log(`[captureOpponent] 🎯 Player ${playerIndex} captured build stack! Value: ${buildStack.value}, Cards: ${buildStack.cards.map(c => c.rank+c.suit).join(', ')} + ${capturingCard.rank}${capturingCard.suit}`);
+  console.log('[captureOpponent DEBUG] calling createRecallEntries with capturedItem:', JSON.stringify(capturedItem));
   if (isPartyMode) {
     newState = createRecallEntries(newState, playerIndex, capturedItem);
   }

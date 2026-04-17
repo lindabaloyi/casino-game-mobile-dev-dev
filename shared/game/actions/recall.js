@@ -100,9 +100,16 @@ function recall(state, payload, playerIndex) {
   
   console.log(`[recall] Player ${playerIndex} has matching card - recall validated`);
    
-  // Convert to normal build stack - remove all Shiya/temp flags and overlays
+// Convert to normal build stack - remove all Shiya/temp flags and overlays
   const cards = getCardsFromItem(capturedItem);
-   
+  
+  // Fix: For single card (loose card recall), use card's actual value
+  // not the doubled value stored in capturedItem.value
+  const isSingleCardRecall = cards.length === 1 && capturedItem.type !== 'build_stack' && capturedItem.type !== 'temp_stack';
+  const buildValue = isSingleCardRecall 
+    ? cards[0].value  // Use actual card value (5) for loose card recall
+    : capturedItem.value;  // Use original for build/temp
+
   // Create a normal build stack (not temp_stack, no Shiya overlays)
   // Preserve original build values from capturedItem
   const restoredItem = {
@@ -110,7 +117,7 @@ function recall(state, payload, playerIndex) {
     stackId: generateStackId(newState, 'build', playerIndex),
     cards: cards.map(c => ({ ...c })),
     owner: playerIndex,  // New owner is the recalling player
-    value: capturedItem.value,        // Preserve original build value
+    value: buildValue,
     base: capturedItem.base,          // Preserve original base
     need: capturedItem.need,          // Preserve original need
     buildType: capturedItem.buildType, // Preserve original build type
@@ -119,12 +126,14 @@ function recall(state, payload, playerIndex) {
     shiyaPlayer: undefined,
   };
   
-  newState.tableCards.push(restoredItem);
-  
+newState.tableCards.push(restoredItem);
+
   console.log(`[recall] Restored item to table:`, {
     stackId: restoredItem.stackId,
     type: restoredItem.type,
     cards: restoredItem.cards?.length || 1,
+    buildValue: buildValue,
+    isSingleCardRecall: isSingleCardRecall,
   });
    
   // Clear the recall entry
