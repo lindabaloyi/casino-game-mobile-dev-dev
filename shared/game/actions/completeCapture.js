@@ -16,6 +16,9 @@ function completeCapture(state, payload, playerIndex) {
   if (!stackId) throw new Error('completeCapture: missing stackId');
 
   let newState = cloneState(state);
+  
+  // Check party mode for recall entries
+  const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
 
   // Remove capture card from player's hand if it came from hand
   if (captureCard && captureCardSource === 'hand') {
@@ -98,7 +101,9 @@ function completeCapture(state, payload, playerIndex) {
   };
   
   console.log(`[completeCapture] 🎯 Player ${playerIndex} captured build! Value: ${buildStack.value}, Cards: ${[...capturedBuildCards, ...capturedPendingCards].map(c => c.rank+c.suit).join(', ')}`);
-  newState = createRecallEntries(newState, playerIndex, capturedItem);
+  if (isPartyMode) {
+    newState = createRecallEntries(newState, playerIndex, capturedItem);
+  }
 
   console.log('[completeCapture] Success – captured build', stackId);
 

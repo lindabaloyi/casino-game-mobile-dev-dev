@@ -27,7 +27,7 @@ function captureOpponent(state, payload, playerIndex) {
     throw new Error('Cannot capture - you have an active build extension. Complete or cancel it first.');
   }
 
-  const newState = cloneState(state);
+  let newState = cloneState(state);
   const hand = newState.players[playerIndex].hand;
 
   // Clear any pending choice from previous modal interactions
@@ -141,7 +141,9 @@ function captureOpponent(state, payload, playerIndex) {
     cards: [...buildStack.cards, capturingCard],
   };
   console.log(`[captureOpponent] 🎯 Player ${playerIndex} captured build stack! Value: ${buildStack.value}, Cards: ${buildStack.cards.map(c => c.rank+c.suit).join(', ')} + ${capturingCard.rank}${capturingCard.suit}`);
-  newState = createRecallEntries(newState, playerIndex, capturedItem);
+  if (isPartyMode) {
+    newState = createRecallEntries(newState, playerIndex, capturedItem);
+  }
 
   // Mark turn as started and ended (capture auto-ends turn)
   startPlayerTurn(newState, playerIndex);

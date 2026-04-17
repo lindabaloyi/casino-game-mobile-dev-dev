@@ -248,6 +248,9 @@ function captureTemp(state, payload, playerIndex) {
   
   let newState = cloneState(state);
   
+  // Check party mode for recall entries
+  const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
+  
   // Find the temp stack
   const stackIdx = newState.tableCards.findIndex(
     tc => tc.type === 'temp_stack' && tc.stackId === stackId,
@@ -351,7 +354,9 @@ function captureTemp(state, payload, playerIndex) {
 };
    
   console.log(`[captureTemp] 🎯 Player ${playerIndex} captured temp stack! Value: ${stack.value}, Cards: ${stack.cards.map(c => c.rank+c.suit).join(', ')} + ${capturedCard.rank}${capturedCard.suit}`);
-  newState = createRecallEntries(newState, playerIndex, capturedItem);
+  if (isPartyMode) {
+    newState = createRecallEntries(newState, playerIndex, capturedItem);
+  }
   
   console.log(`[captureTemp] Player ${playerIndex} captured temp stack with ${capturedStackCards.length + 1} cards, score: ${capturedScore}`);
   

@@ -44,6 +44,9 @@ function captureOwn(state, payload, playerIndex) {
 
   let newState = cloneState(state);
   const hand = newState.players[playerIndex].hand;
+  
+  // Check party mode for recall entries
+  const isPartyMode = state.playerCount === 4 && state.players.some(p => p.team);
 
   const handIdx = hand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
   if (handIdx === -1) {
@@ -134,7 +137,9 @@ function captureOwn(state, payload, playerIndex) {
     };
     
     console.log(`[captureOwn] 🎯 Player ${playerIndex} captured own build! Value: ${buildStack.value}, Cards: ${buildStack.cards.map(c => c.rank+c.suit).join(', ')} + ${capturingCard.rank}${capturingCard.suit}`);
-    newState = createRecallEntries(newState, playerIndex, capturedItem);
+    if (isPartyMode) {
+      newState = createRecallEntries(newState, playerIndex, capturedItem);
+    }
     
     // --- DYNAMIC: Remove teamCapturedBuilds when original owner captures their own build ---
     // If the player who captured is the originalOwner of any build in teamCapturedBuilds,

@@ -129,6 +129,7 @@ class GameCoordinatorService {
       }
     } catch (err) {
       console.error(`[Coordinator] game-action failed: ${err.message}`);
+      console.error('[Coordinator] Full stack trace:', err.stack);
       this.broadcaster.sendError(socket, err.message);
     }
   }
