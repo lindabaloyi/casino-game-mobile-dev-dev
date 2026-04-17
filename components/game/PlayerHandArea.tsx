@@ -10,8 +10,8 @@
  *  - Shows action strip (Accept/Cancel) when there's a pending stack
  */
 
-import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, View, useWindowDimensions, TouchableOpacity, Text } from 'react-native';
+import React, { useMemo, useRef, useCallback, useState, useEffect, memo } from 'react';
+import { FlatList, ScrollView, StyleSheet, View, useWindowDimensions, TouchableOpacity, Text } from 'react-native';
 import { DraggableHandCard } from '../cards/DraggableHandCard';
 import { DropBounds } from '../../hooks/useDrag';
 import { TableItem } from '../table/types';
@@ -167,7 +167,7 @@ function ShiyaButton({
   );
 }
 
-export function PlayerHandArea({
+function PlayerHandAreaImpl({
   hand,
   isMyTurn,
   playerNumber,
@@ -303,21 +303,13 @@ export function PlayerHandArea({
     ];
   }, [shouldCenterCards]);
 
-  return (
-    <View style={[styles.container, { height: containerHeight, paddingLeft: centerOffset, paddingRight: containerPaddingHorizontal }]}>
-      <ScrollView
+return (
+    <View style={[styles.container, { height: containerHeight, paddingLeft: centerOffset, paddingRight: centerOffset }]}>
+      <FlatList
         horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.scroll}
-        contentContainerStyle={cardRowStyle}
-        scrollEnabled={!isMyTurn}
-      >
-        {sortedHand.map((card, index) => {
+        data={sortedHand}
+        renderItem={({ item: card, index }) => {
           const cardId = `${card.rank}${card.suit}`;
-          // Hide card if:
-          // 1. Opponent is actively dragging this card, OR
-          // 2. Card has been dropped (has targetId) - from opponent, OR
-          // 3. LOCAL: Card is pending drop - our own drop not yet confirmed (optimistic UI)
           const isPendingDrop = pendingDropCard && 
             pendingDropSource === 'hand' &&
             pendingDropCard.rank === card.rank && 
@@ -341,37 +333,45 @@ export function PlayerHandArea({
                 height: responsiveCardHeight,
                 marginRight: index === sortedHand.length - 1 ? 0 : -cardOverlap,
                 zIndex: index + 1,
-                overflow: 'hidden', // Clip to show only top half
+                overflow: 'hidden',
               }}
             >
               <DraggableHandCard
-                  card={card}
-                  dropBounds={dropBounds}
-                  findCardAtPoint={findCardAtPoint}
-                  findTempStackAtPoint={findTempStackAtPoint}
-                  findBuildStackAtPoint={findBuildStackAtPoint}
-                  isMyTurn={isMyTurn}
-                  playerNumber={playerNumber}
-                  playerHand={hand}
-                  tableCards={tableCards}
-                  onDropOnBuildStack={onDropOnBuildStack}
-                  onDropOnTempStack={onDropOnTempStack}
-                  onDropOnLooseCard={onDropOnLooseCard}
-                  onDropOnTable={handleDropOnTable}
-                  onDragStart={onDragStart}
-                  onDragMove={onDragMove}
-                  onDragEnd={onDragEnd}
-                  isHidden={isHidden}
-                  cardWidth={responsiveCardWidth}
-                  cardHeight={responsiveCardHeight}
-                  onCardContact={onCardContact}
-                  onDoubleTap={onDoubleTapCard}
-                />
-              </View>
-            );
-        })}
-      </ScrollView>
-      
+                card={card}
+                dropBounds={dropBounds}
+                findCardAtPoint={findCardAtPoint}
+                findTempStackAtPoint={findTempStackAtPoint}
+                findBuildStackAtPoint={findBuildStackAtPoint}
+                isMyTurn={isMyTurn}
+                playerNumber={playerNumber}
+                playerHand={hand}
+                tableCards={tableCards}
+                onDropOnBuildStack={onDropOnBuildStack}
+                onDropOnTempStack={onDropOnTempStack}
+                onDropOnLooseCard={onDropOnLooseCard}
+                onDropOnTable={handleDropOnTable}
+                onDragStart={onDragStart}
+                onDragMove={onDragMove}
+                onDragEnd={onDragEnd}
+                isHidden={isHidden}
+                cardWidth={responsiveCardWidth}
+                cardHeight={responsiveCardHeight}
+                onCardContact={onCardContact}
+                onDoubleTap={onDoubleTapCard}
+              />
+            </View>
+          );
+        }}
+        keyExtractor={(item) => `${item.rank}${item.suit}`}
+        showsHorizontalScrollIndicator={false}
+        scrollEnabled={!isMyTurn}
+        contentContainerStyle={cardRowStyle}
+        initialNumToRender={6}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+removeClippedSubviews={true}
+      />
+       
       {/* Action strip for pending stack - positioned on the right side */}
       {(activeStackId && activeStackType && onAcceptStack && onCancelStack) ? (
         <View style={styles.actionStripContainer}>
@@ -417,7 +417,6 @@ export function PlayerHandArea({
           />
         </View>
       )}
-      {console.log('[PlayerHandArea] SHIYA check - pendingShiya:', pendingShiya, 'playerNumber:', playerNumber, 'onShiya:', typeof onShiya === 'function' ? 'exists' : 'missing')}
 
       {/* End Turn button - shown after steal - styled to match StackActionStrip */}
       {showEndTurnButton && onEndTurn && (
@@ -545,5 +544,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 });
+
+export const PlayerHandArea = memo(PlayerHandAreaImpl);
 
 export default PlayerHandArea;

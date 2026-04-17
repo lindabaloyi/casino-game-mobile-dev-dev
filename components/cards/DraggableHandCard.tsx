@@ -20,7 +20,7 @@
  *   JS thread where refs are always fresh.
  */
 
-import React, { MutableRefObject } from 'react';
+import React, { MutableRefObject, memo } from 'react';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -88,7 +88,7 @@ interface Props {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function DraggableHandCard({
+function DraggableHandCardImpl({
   card,
   dropBounds,
   findCardAtPoint,
@@ -272,5 +272,7 @@ export function DraggableHandCard({
     </GestureDetector>
   );
 }
+
+export const DraggableHandCard = memo(DraggableHandCardImpl);
 
 export default DraggableHandCard;

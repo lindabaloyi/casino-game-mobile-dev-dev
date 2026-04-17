@@ -6,7 +6,7 @@
  * matching the capture pile dimensions for consistency.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, memo } from 'react';
 import { View, Image, StyleSheet, useWindowDimensions } from 'react-native';
 import { getCardImage, preloadCardImages } from './cardImageMap';
 import { isRedSuit } from '../../types/card.types';
@@ -17,23 +17,19 @@ import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 interface PlayingCardProps {
   rank: string | number;
   suit: string;
-  /** Kept for API compatibility, but ignored (no back image available) */
   faceDown?: boolean;
   style?: any;
-  /** Card width - defaults to 56 (matching capture pile) */
   width?: number;
-  /** Card height - defaults to 84 (matching capture pile) */
   height?: number;
 }
 
-// Border colors - no longer used (borderless design)
 // Keeping for reference
 // const RED_BORDER = '#C62828';
 // const BLACK_BORDER = '#1A1A1A';
 
 // ── Component ─────────────────────────────────────────────────────────────
 
-export function PlayingCard({
+function PlayingCardImpl({
   rank,
   suit,
   faceDown = false,
@@ -88,6 +84,10 @@ export function PlayingCard({
   );
 }
 
+export const PlayingCard = memo(PlayingCardImpl);
+
+export default PlayingCard;
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
@@ -109,5 +109,3 @@ const styles = StyleSheet.create({
     borderRadius: 8, // Rounded corners for image
   },
 });
-
-export default PlayingCard;
