@@ -35,6 +35,7 @@ import { TableArea } from '../table/TableArea';
 import { PlayerHandArea } from './PlayerHandArea';
 import { GameModals } from './GameModals';
 import { DragGhost } from './DragGhost';
+import { DragProvider } from '../../hooks/drag/DragContext';
 import { OpponentGhostCard } from './OpponentGhostCard';
 import { ErrorBanner } from '../shared/ErrorBanner';
 import { Card as TableCard } from '../../types';
@@ -618,13 +619,8 @@ export function GameBoard({
 
   // Render
   return (
-    <SafeAreaView style={styles.root}>
-      {serverError && (
-        <ErrorBanner 
-          message={serverError.message} 
-          onClose={onServerErrorClose} 
-        />
-      )}
+    <DragProvider>
+      <SafeAreaView style={styles.root}>
 
       {/* Corner timer - top right corner */}
       <CornerTimer
@@ -903,6 +899,7 @@ export function GameBoard({
         onSendFriendRequest={handleSendFriendRequest}
       />
     </SafeAreaView>
+    </DragProvider>
   );
 }
 

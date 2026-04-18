@@ -4,19 +4,16 @@
  * Extracted from CapturedCardsView for better separation of concerns.
  */
 
-import React, { useCallback } from 'react';
-import { useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
 import { OpponentDragState } from '../../hooks/useGameState';
 import { areTeammates } from '../../shared/game/team';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
-
-// Phase 2: Throttle interval - 16ms = 60fps for smooth drag
-const DRAG_MOVE_THROTTLE_MS = 16;
+import { useDragContext } from '../../hooks/drag/DragContext';
 
 export interface DraggableOpponentCardProps {
   card: Card;
@@ -74,6 +71,19 @@ export function DraggableOpponentCard({
   const translateY = useSharedValue(0);
   const isDragging = useSharedValue(false);
   const draggedCard = useSharedValue<Card | null>(null);
+  
+  // Use DragContext for UI-thread ghost
+  const { dragX, dragY, draggingCard: contextDraggingCard, dragSource } = useDragContext();
+
+  // Handler for drag start (JS thread)
+  const handleDragStartInternal = useCallback((x: number, y: number) => {
+    if (onDragStart) {
+      onDragStart(card, x, y);
+    }
+    if (onDragMove) {
+      onDragMove(x, y);
+    }
+  }, [card, onDragStart, onDragMove]);
 
   const handleDragEndInternal = useCallback((card: Card, absX: number, absY: number) => {
     console.log('[DraggableOpponentCard] handleDragEndInternal START:', {
@@ -217,34 +227,32 @@ export function DraggableOpponentCard({
     draggedCard.value = null;
   }, [onDragEnd, findCardAtPoint, findTempStackAtPoint, onExtendBuild, onCaptureBuild, onCardPlayed, playerNumber, isFriendlyBuild, translateX, translateY, isDragging, draggedCard, opponentIndex]);
 
-  // Phase 2: Throttling - limit JS callbacks to 60fps
-  const lastMoveTime = useRef(0);
-
-  // Phase 2: Throttled drag move handler
-  const handleDragMoveThrottled = useCallback((x: number, y: number) => {
-    const now = Date.now();
-    if (now - lastMoveTime.current >= DRAG_MOVE_THROTTLE_MS) {
-      lastMoveTime.current = now;
-      onDragMove?.(x, y);
-    }
-  }, [onDragMove]);
-
+  // Pan gesture - full UI thread path
   const panGesture = Gesture.Pan()
     .enabled(isMyTurn)
     .onStart((event) => {
       isDragging.value = true;
       draggedCard.value = card;
-      if (onDragStart) onDragStart(card, event.absoluteX, event.absoluteY);
-      onDragMove?.(event.absoluteX, event.absoluteY);
+      // Write to DragContext for ghost
+      contextDraggingCard.value = card;
+      dragSource.value = 'captured';
+      dragX.value = event.absoluteX;
+      dragY.value = event.absoluteY;
+      runOnJS(handleDragStartInternal)(event.absoluteX, event.absoluteY);
     })
     .onUpdate((event) => {
       if (isDragging.value) {
+        // Pure UI thread - update context for ghost
         translateX.value = event.translationX;
         translateY.value = event.translationY;
-        runOnJS(handleDragMoveThrottled)(event.absoluteX, event.absoluteY);
+        dragX.value = event.absoluteX;
+        dragY.value = event.absoluteY;
       }
     })
     .onEnd((event) => {
+      // Clear context
+      contextDraggingCard.value = null;
+      dragSource.value = null;
       if (isDragging.value && draggedCard.value) {
         handleDragEndInternal(draggedCard.value, event.absoluteX, event.absoluteY);
       }

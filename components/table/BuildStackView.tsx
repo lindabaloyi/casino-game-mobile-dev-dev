@@ -27,6 +27,7 @@ import { TempStackBounds } from '../../hooks/useDrag';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 import { useBuildDisplayValue } from '../../hooks/table/useBuildDisplayValue';
 import { useBuildTeamInfo } from '../../hooks/table/useBuildTeamInfo';
+import { useDragContext } from '../../hooks/drag/DragContext';
 import { BuildValueBadge, OwnerIndicator, BuildCards } from './components';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -88,6 +89,9 @@ export function BuildStackView({
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const isDragging = useSharedValue(false);
+  
+  // Use DragContext for UI-thread ghost
+  const { dragX, dragY, draggingCard, dragSource } = useDragContext();
 
   // Get cards from stack
   const bottom = stack.cards[0];
@@ -201,22 +205,32 @@ export function BuildStackView({
     }
   }, [findCapturePileAtPoint, onDropToCapture, onDragEnd, stack, playerNumber, translateX, translateY, isDragging]);
 
-  // Create pan gesture - instant movement
+  // Create pan gesture - zero-JS path
   const panGesture = useMemo(() => 
     Gesture.Pan()
       .enabled(!!canDrag)
       .onStart(() => {
         isDragging.value = true;
+        // Write to DragContext for ghost
+        draggingCard.value = { rank: stack.cards[0].rank, suit: stack.cards[0].suit, value: stack.cards[0].value };
+        dragSource.value = 'table';
+        dragX.value = 0;
+        dragY.value = 0;
         runOnJS(handleDragStartInternal)();
       })
       .onUpdate((event) => {
         if (isDragging.value) {
+          // Update UI thread context for ghost
           translateX.value = event.translationX;
           translateY.value = event.translationY;
-          runOnJS(handleDragMoveInternal)(event.absoluteX, event.absoluteY);
+          dragX.value = event.absoluteX;
+          dragY.value = event.absoluteY;
         }
       })
       .onEnd((event) => {
+        // Clear context
+        draggingCard.value = null;
+        dragSource.value = null;
         runOnJS(handleDragEndInternal)(event.absoluteX, event.absoluteY);
       })
   , [canDrag, handleDragStartInternal, handleDragMoveInternal, handleDragEndInternal]);

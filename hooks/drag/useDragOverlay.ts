@@ -45,6 +45,8 @@ export function useDragOverlay() {
   };
 
   const moveDrag = (x: number, y: number) => {
+    // Pure UI thread update - no React state, no JS callback
+    // Used by DragGhost via useAnimatedStyle() on UI thread
     overlayX.value = x - CARD_WIDTH / 2;
     overlayY.value = y - CARD_HEIGHT / 2;
   };

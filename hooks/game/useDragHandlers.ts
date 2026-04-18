@@ -1,5 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useDragOverlay } from '../drag/useDragOverlay';
+
+// Network emit debounce interval (100ms = 10fps for multiplayer sync)
+const NETWORK_EMIT_INTERVAL_MS = 100;
 import { CARD_WIDTH, CARD_HEIGHT, DEFAULT_TABLE_WIDTH, DEFAULT_TABLE_HEIGHT } from '../../utils/constants';
 
 interface DropBounds {
@@ -95,12 +98,20 @@ export function useDragHandlers({
     }
   }, [dragOverlay, emitDragStart, getNormalizedPosition]);
 
+  const lastNetworkEmitTime = useRef(0);
+
   const handleDragMove = useCallback((absoluteX: number, absoluteY: number) => {
+    // UI thread visual update (shared value)
     dragOverlay.moveDrag(absoluteX, absoluteY);
 
+    // Network emit debounced - only send every 100ms
     if (emitDragMove && dragOverlay.draggingCard) {
-      const norm = getNormalizedPosition(absoluteX, absoluteY);
-      emitDragMove(dragOverlay.draggingCard, norm);
+      const now = Date.now();
+      if (now - lastNetworkEmitTime.current >= NETWORK_EMIT_INTERVAL_MS) {
+        lastNetworkEmitTime.current = now;
+        const norm = getNormalizedPosition(absoluteX, absoluteY);
+        emitDragMove(dragOverlay.draggingCard, norm);
+      }
     }
   }, [dragOverlay, emitDragMove, getNormalizedPosition]);
 

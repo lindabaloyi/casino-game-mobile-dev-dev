@@ -24,9 +24,7 @@ import { useTempStackCards } from '../../hooks/table/useTempStackCards';
 import { useTempStackDisplay } from '../../hooks/table/useTempStackDisplay';
 import { BuildValueBadge } from './components/BuildValueBadge';
 import { TypeBadge } from './components/TypeBadge';
-
-// Phase 2: Throttle interval - 16ms = 60fps for smooth drag
-const DRAG_MOVE_THROTTLE_MS = 16;
+import { useDragContext } from '../../hooks/drag/DragContext';
 
 // Double-click threshold in milliseconds
 const DOUBLE_CLICK_THRESHOLD = 300;
@@ -88,6 +86,9 @@ export function TempStackView({
   const translateY = useSharedValue(0);
   const isDragging = useSharedValue(false);
   
+  // Use DragContext for UI-thread ghost
+  const { dragX, dragY, draggingCard, dragSource } = useDragContext();
+  
   // Track last tap time for double-click detection
   const lastTapRef = useRef<number>(0);
 
@@ -122,17 +123,6 @@ export function TempStackView({
   }, [onDragStart, stack]);
 
   // Phase 2: Throttling - limit JS callbacks to 60fps
-  const lastMoveTime = useRef(0);
-
-  // Phase 2: Throttled drag move handler
-  const handleDragMoveInternal = useCallback((x: number, y: number) => {
-    const now = Date.now();
-    if (now - lastMoveTime.current >= DRAG_MOVE_THROTTLE_MS) {
-      lastMoveTime.current = now;
-      onDragMove?.(x, y);
-    }
-  }, [onDragMove]);
-
   const handleDragEndInternal = useCallback((absX: number, absY: number) => {
     translateX.value = 0;
     translateY.value = 0;
@@ -159,18 +149,29 @@ export function TempStackView({
     .enabled(!!canDrag)
     .onStart(() => {
       isDragging.value = true;
+      // Write to DragContext for ghost (use top card)
+      const topCard = stack.cards[stack.cards.length - 1];
+      if (topCard) {
+        draggingCard.value = topCard;
+      }
+      dragSource.value = 'table';
+      dragX.value = 0;
+      dragY.value = 0;
       runOnJS(handleDragStartInternal)();
-      // Immediate first move for responsiveness
-      onDragMove?.(0, 0);
     })
     .onUpdate((event) => {
       if (isDragging.value) {
+        // Update context for ghost
         translateX.value = event.translationX;
         translateY.value = event.translationY;
-        runOnJS(handleDragMoveInternal)(event.absoluteX, event.absoluteY);
+        dragX.value = event.absoluteX;
+        dragY.value = event.absoluteY;
       }
     })
     .onEnd((event) => {
+      // Clear context
+      draggingCard.value = null;
+      dragSource.value = null;
       runOnJS(handleDragEndInternal)(event.absoluteX, event.absoluteY);
     });
 

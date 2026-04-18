@@ -20,7 +20,7 @@
  *   JS thread where refs are always fresh.
  */
 
-import React, { MutableRefObject, memo, useRef, useCallback } from 'react';
+import React, { MutableRefObject, memo } from 'react';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -31,14 +31,12 @@ import Animated, {
 import { PlayingCard } from './PlayingCard';
 import { DropBounds } from '../../hooks/useDrag';
 import { TableItem } from '../table/types';
+import { useDragContext } from '../../hooks/drag/DragContext';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 // Card dimensions - using shared constants for consistency
 const DEFAULT_CARD_WIDTH = CARD_WIDTH; // 56
 const DEFAULT_CARD_HEIGHT = CARD_HEIGHT; // 84
-
-// Phase 2: Throttle interval - 16ms = 60fps for smooth drag
-const DRAG_MOVE_THROTTLE_MS = 16;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -116,25 +114,15 @@ function DraggableHandCardImpl({
 }: Props) {
   const opacity = useSharedValue(1);
   
-  // Phase 2: UI-thread shared values for ghost position (no JS callback needed)
-  const dragX = useSharedValue(0);
-  const dragY = useSharedValue(0);
-  
-  // Phase 2: Throttling - limit JS callbacks to 60fps
-  const lastMoveTime = useRef(0);
+  // Use DragContext for UI-thread ghost position
+  const { dragX, dragY, draggingCard, dragSource } = useDragContext();
 
-  // ── JS-thread helpers ─────────────────────────────────────────────────────
-
-  // Phase 2: Throttled drag move handler
-  const handleDragMoveThrottled = useCallback((x: number, y: number) => {
-    const now = Date.now();
-    if (now - lastMoveTime.current >= DRAG_MOVE_THROTTLE_MS) {
-      lastMoveTime.current = now;
-      onDragMove?.(x, y);
-    }
-  }, [onDragMove]);
-
-  function handleDragStart(x: number, y: number) { 
+  function handleDragStart(x: number, y: number) {
+    // Update context for DragGhost
+    draggingCard.value = card;
+    dragSource.value = 'hand';
+    dragX.value = x;
+    dragY.value = y; 
     if (onDragStart) {
       onDragStart(card, x, y);
     }
@@ -244,24 +232,28 @@ function DraggableHandCardImpl({
       runOnJS(handleDoubleTapCard)();
     });
 
-  // Pan gesture for dragging cards - instant movement
+  // Pan gesture for dragging cards - zero-JS path
+  // Ghost moves via DragContext shared values (UI thread only)
   const panGesture = Gesture.Pan()
     .enabled(isMyTurn)
     .onStart(e => {
       opacity.value = 0;
+      // Write to context for DragGhost
+      draggingCard.value = card;
+      dragSource.value = 'hand';
       dragX.value = e.absoluteX;
       dragY.value = e.absoluteY;
       runOnJS(handleDragStart)(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {
-      // Update ghost on UI thread - no JS callback
+      // Pure UI thread - update context for DragGhost
       dragX.value = e.absoluteX;
       dragY.value = e.absoluteY;
-      // Throttled JS callback for game logic
-      runOnJS(handleDragMoveThrottled)(e.absoluteX, e.absoluteY);
     })
     .onEnd(e => {
-      // Reset shared values to avoid stale values
+      // Clear context
+      draggingCard.value = null;
+      dragSource.value = null;
       dragX.value = 0;
       dragY.value = 0;
       runOnJS(handleDrop)(e.absoluteX, e.absoluteY);
