@@ -12,7 +12,6 @@
  */
 
 import { Image, ImageRequireSource, Platform } from 'react-native';
-import FastImage from 'react-native-fast-image';
 
 // Unicode to ASCII suit mapping
 const SUIT_MAP: Record<string, string> = {
@@ -150,6 +149,7 @@ export function preloadCardImages(): void {
   if (Platform.OS === 'web') return;
   
   try {
+    const FastImage = require('react-native-fast-image').default;
     const sources = Object.values(cardImages) as any[];
     FastImage.preload(sources);
   } catch (error) {

@@ -9,9 +9,13 @@
 import React, { useEffect, memo } from 'react';
 import { View, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { Image as RNImage } from 'react-native';
-import FastImage from 'react-native-fast-image';
 import { getCardImage, preloadCardImages } from './cardImageMap';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
+
+// Dynamic require: FastImage only on native, null on web - avoids loading native module on web
+const FastImage = Platform.OS !== 'web' 
+  ? require('react-native-fast-image').default 
+  : null;
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,9 +71,9 @@ function PlayingCardImpl({
     );
   }
 
-  // Platform-conditional image rendering with fallback
+  // Platform-conditional image rendering
+  // FastImage is null on web (never loaded), so we use RNImage directly
   const renderCardImage = () => {
-    // Web: use standard RN Image (guaranteed to work with drag/drop)
     if (Platform.OS === 'web') {
       return (
         <RNImage
@@ -80,25 +84,14 @@ function PlayingCardImpl({
       );
     }
     
-    // Native: try FastImage first, fallback to RN Image if it fails
-    try {
-      return (
-        <FastImage
-          source={imageSource}
-          style={styles.cardImage}
-          resizeMode={FastImage.resizeMode.stretch}
-        />
-      );
-    } catch (error) {
-      console.warn('[PlayingCard] FastImage failed, falling back to RN Image');
-      return (
-        <RNImage
-          source={imageSource}
-          style={styles.cardImage}
-          resizeMode="stretch"
-        />
-      );
-    }
+    // Native: use FastImage for caching (guaranteed to be loaded via dynamic require)
+    return (
+      <FastImage
+        source={imageSource}
+        style={styles.cardImage}
+        resizeMode={FastImage.resizeMode.stretch}
+      />
+    );
   };
 
   // Render card without border - just rounded corners
