@@ -6,11 +6,11 @@
  * matching the capture pile dimensions for consistency.
  */
 
-import React, { useEffect, memo } from 'react';
+import React, { memo } from 'react';
 import { View, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { Image as RNImage } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { getCardImage, preloadCardImages } from './cardImageMap';
+import { getCardImage } from './cardImageMap';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -39,11 +39,6 @@ function PlayingCardImpl({
   height = CARD_HEIGHT,
 }: PlayingCardProps) {
   const { width: screenWidth } = useWindowDimensions();
-
-  // Preload images on mount
-  useEffect(() => {
-    preloadCardImages();
-  }, []);
 
   // Calculate responsive dimensions that scale with screen but maintain aspect ratio
   const cardWidth = Math.min(width, screenWidth / 5); // Max 5 cards per row

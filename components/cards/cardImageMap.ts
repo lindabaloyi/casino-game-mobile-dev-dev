@@ -12,7 +12,6 @@
  */
 
 import { Image, ImageRequireSource, Platform } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
 
 // Unicode to ASCII suit mapping
 const SUIT_MAP: Record<string, string> = {
@@ -144,19 +143,10 @@ export function hasCardImage(rank: string, suit: string): boolean {
 
 /**
  * Preload all card images for smoother rendering
- * Only works on native (mobile) - no-op on web
+ * No-op: bundled images are always available instantly via require()
  */
 export function preloadCardImages(): void {
-  if (Platform.OS === 'web') return;
-  
-  try {
-    const sources = Object.values(cardImages);
-    sources.forEach((src: any) => {
-      if (src) ExpoImage.prefetch(src);
-    });
-  } catch (error) {
-    console.warn('[cardImageMap] preload failed:', error);
-  }
+  // No-op: card images are bundled with app, already available
 }
 
 /**
