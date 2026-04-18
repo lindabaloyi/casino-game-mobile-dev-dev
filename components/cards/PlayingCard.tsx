@@ -9,13 +9,9 @@
 import React, { useEffect, memo } from 'react';
 import { View, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { Image as RNImage } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { getCardImage, preloadCardImages } from './cardImageMap';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
-
-// Dynamic require: FastImage only on native, null on web - avoids loading native module on web
-const FastImage = Platform.OS !== 'web' 
-  ? require('react-native-fast-image').default 
-  : null;
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,7 +68,7 @@ function PlayingCardImpl({
   }
 
   // Platform-conditional image rendering
-  // FastImage is null on web (never loaded), so we use RNImage directly
+  // Web: RNImage (full drag/drop support), Native: expo-image (caching)
   const renderCardImage = () => {
     if (Platform.OS === 'web') {
       return (
@@ -84,12 +80,13 @@ function PlayingCardImpl({
       );
     }
     
-    // Native: use FastImage for caching (guaranteed to be loaded via dynamic require)
+    // Native: use expo-image for caching
     return (
-      <FastImage
+      <ExpoImage
         source={imageSource}
         style={styles.cardImage}
-        resizeMode={FastImage.resizeMode.stretch}
+        contentFit="cover"
+        cachePolicy="memory-disk"
       />
     );
   };

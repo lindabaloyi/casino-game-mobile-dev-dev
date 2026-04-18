@@ -12,6 +12,7 @@
  */
 
 import { Image, ImageRequireSource, Platform } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 // Unicode to ASCII suit mapping
 const SUIT_MAP: Record<string, string> = {
@@ -149,11 +150,12 @@ export function preloadCardImages(): void {
   if (Platform.OS === 'web') return;
   
   try {
-    const FastImage = require('react-native-fast-image').default;
-    const sources = Object.values(cardImages) as any[];
-    FastImage.preload(sources);
+    const sources = Object.values(cardImages);
+    sources.forEach((src: any) => {
+      if (src) ExpoImage.prefetch(src);
+    });
   } catch (error) {
-    console.warn('[cardImageMap] FastImage.preload failed:', error);
+    console.warn('[cardImageMap] preload failed:', error);
   }
 }
 
