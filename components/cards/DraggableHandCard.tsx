@@ -20,7 +20,7 @@
  *   JS thread where refs are always fresh.
  */
 
-import React, { MutableRefObject, memo } from 'react';
+import React, { MutableRefObject, memo, useRef, useCallback } from 'react';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -36,6 +36,9 @@ import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 // Card dimensions - using shared constants for consistency
 const DEFAULT_CARD_WIDTH = CARD_WIDTH; // 56
 const DEFAULT_CARD_HEIGHT = CARD_HEIGHT; // 84
+
+// Phase 2: Throttle interval - 16ms = 60fps for smooth drag
+const DRAG_MOVE_THROTTLE_MS = 16;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -112,23 +115,33 @@ function DraggableHandCardImpl({
   onCardContact,
 }: Props) {
   const opacity = useSharedValue(1);
+  
+  // Phase 2: UI-thread shared values for ghost position (no JS callback needed)
+  const dragX = useSharedValue(0);
+  const dragY = useSharedValue(0);
+  
+  // Phase 2: Throttling - limit JS callbacks to 60fps
+  const lastMoveTime = useRef(0);
 
   // ── JS-thread helpers ─────────────────────────────────────────────────────
 
+  // Phase 2: Throttled drag move handler
+  const handleDragMoveThrottled = useCallback((x: number, y: number) => {
+    const now = Date.now();
+    if (now - lastMoveTime.current >= DRAG_MOVE_THROTTLE_MS) {
+      lastMoveTime.current = now;
+      onDragMove?.(x, y);
+    }
+  }, [onDragMove]);
+
   function handleDragStart(x: number, y: number) { 
-    // Pass the actual position to parent
     if (onDragStart) {
       onDragStart(card, x, y);
     }
-    
-    // Immediately send the first move event with the starting position
+    // Immediate first move for responsiveness
     if (onDragMove) {
       onDragMove(x, y);
     }
-  }
-  
-  function handleDragMove(x: number, y: number) { 
-    if (onDragMove) onDragMove(x, y); 
   }
 
   function handleSnapBack() {
@@ -231,19 +244,26 @@ function DraggableHandCardImpl({
       runOnJS(handleDoubleTapCard)();
     });
 
-  // Pan gesture for dragging cards
+  // Pan gesture for dragging cards - instant movement
   const panGesture = Gesture.Pan()
     .enabled(isMyTurn)
     .onStart(e => {
       opacity.value = 0;
-      // Call handleDragStart which will store position AND send first move
+      dragX.value = e.absoluteX;
+      dragY.value = e.absoluteY;
       runOnJS(handleDragStart)(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {
-      runOnJS(handleDragMove)(e.absoluteX, e.absoluteY);
+      // Update ghost on UI thread - no JS callback
+      dragX.value = e.absoluteX;
+      dragY.value = e.absoluteY;
+      // Throttled JS callback for game logic
+      runOnJS(handleDragMoveThrottled)(e.absoluteX, e.absoluteY);
     })
     .onEnd(e => {
-      // Pass ONLY coordinates to JS thread
+      // Reset shared values to avoid stale values
+      dragX.value = 0;
+      dragY.value = 0;
       runOnJS(handleDrop)(e.absoluteX, e.absoluteY);
     });
 

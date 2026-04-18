@@ -4,15 +4,19 @@
  * Extracted from CapturedCardsView for better separation of concerns.
  */
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback } from 'react';
+import { useRef } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
 import { OpponentDragState } from '../../hooks/useGameState';
 import { areTeammates } from '../../shared/game/team';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
+
+// Phase 2: Throttle interval - 16ms = 60fps for smooth drag
+const DRAG_MOVE_THROTTLE_MS = 16;
 
 export interface DraggableOpponentCardProps {
   card: Card;
@@ -213,34 +217,37 @@ export function DraggableOpponentCard({
     draggedCard.value = null;
   }, [onDragEnd, findCardAtPoint, findTempStackAtPoint, onExtendBuild, onCaptureBuild, onCardPlayed, playerNumber, isFriendlyBuild, translateX, translateY, isDragging, draggedCard, opponentIndex]);
 
+  // Phase 2: Throttling - limit JS callbacks to 60fps
+  const lastMoveTime = useRef(0);
+
+  // Phase 2: Throttled drag move handler
+  const handleDragMoveThrottled = useCallback((x: number, y: number) => {
+    const now = Date.now();
+    if (now - lastMoveTime.current >= DRAG_MOVE_THROTTLE_MS) {
+      lastMoveTime.current = now;
+      onDragMove?.(x, y);
+    }
+  }, [onDragMove]);
+
   const panGesture = Gesture.Pan()
     .enabled(isMyTurn)
     .onStart((event) => {
-      console.log('[DraggableOpponentCard] DRAG START:', {
-        card: `${card.rank}${card.suit}`,
-        opponentIndex,
-        playerNumber,
-        isMyTurn,
-        absX: event.absoluteX,
-        absY: event.absoluteY
-      });
       isDragging.value = true;
       draggedCard.value = card;
       if (onDragStart) onDragStart(card, event.absoluteX, event.absoluteY);
+      onDragMove?.(event.absoluteX, event.absoluteY);
     })
     .onUpdate((event) => {
       if (isDragging.value) {
         translateX.value = event.translationX;
         translateY.value = event.translationY;
-        if (onDragMove) onDragMove(event.absoluteX, event.absoluteY);
+        runOnJS(handleDragMoveThrottled)(event.absoluteX, event.absoluteY);
       }
     })
     .onEnd((event) => {
       if (isDragging.value && draggedCard.value) {
         handleDragEndInternal(draggedCard.value, event.absoluteX, event.absoluteY);
       }
-      // Note: Position reset is now handled in handleDragEndInternal
-      // Only reset dragging state here in case handleDragEndInternal wasn't called
       isDragging.value = false;
       draggedCard.value = null;
     });

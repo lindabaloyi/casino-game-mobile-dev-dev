@@ -25,6 +25,9 @@ import { useTempStackDisplay } from '../../hooks/table/useTempStackDisplay';
 import { BuildValueBadge } from './components/BuildValueBadge';
 import { TypeBadge } from './components/TypeBadge';
 
+// Phase 2: Throttle interval - 16ms = 60fps for smooth drag
+const DRAG_MOVE_THROTTLE_MS = 16;
+
 // Double-click threshold in milliseconds
 const DOUBLE_CLICK_THRESHOLD = 300;
 
@@ -118,9 +121,15 @@ export function TempStackView({
     }
   }, [onDragStart, stack]);
 
+  // Phase 2: Throttling - limit JS callbacks to 60fps
+  const lastMoveTime = useRef(0);
+
+  // Phase 2: Throttled drag move handler
   const handleDragMoveInternal = useCallback((x: number, y: number) => {
-    if (onDragMove) {
-      onDragMove(x, y);
+    const now = Date.now();
+    if (now - lastMoveTime.current >= DRAG_MOVE_THROTTLE_MS) {
+      lastMoveTime.current = now;
+      onDragMove?.(x, y);
     }
   }, [onDragMove]);
 
@@ -151,6 +160,8 @@ export function TempStackView({
     .onStart(() => {
       isDragging.value = true;
       runOnJS(handleDragStartInternal)();
+      // Immediate first move for responsiveness
+      onDragMove?.(0, 0);
     })
     .onUpdate((event) => {
       if (isDragging.value) {

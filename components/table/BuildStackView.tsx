@@ -201,7 +201,7 @@ export function BuildStackView({
     }
   }, [findCapturePileAtPoint, onDropToCapture, onDragEnd, stack, playerNumber, translateX, translateY, isDragging]);
 
-  // Create pan gesture
+  // Create pan gesture - instant movement
   const panGesture = useMemo(() => 
     Gesture.Pan()
       .enabled(!!canDrag)

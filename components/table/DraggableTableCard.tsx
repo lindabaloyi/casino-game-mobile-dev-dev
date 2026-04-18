@@ -9,7 +9,7 @@
  * always read fresh.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useCallback } from 'react';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -21,6 +21,9 @@ import { useWindowDimensions } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
+
+// Phase 2: Throttle interval - 16ms = 60fps for smooth drag
+const DRAG_MOVE_THROTTLE_MS = 16;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -81,15 +84,27 @@ export function DraggableTableCard({
   
   const opacity = useSharedValue(1);
   const cardId = `${card.rank}${card.suit}`;
+  
+  // Phase 2: UI-thread shared values for ghost position
+  const dragX = useSharedValue(0);
+  const dragY = useSharedValue(0);
+  
+  // Phase 2: Throttling - limit JS callbacks to 60fps
+  const lastMoveTime = useRef(0);
 
   // ── JS-thread handlers ────────────────────────────────────────────────────
 
+  // Phase 2: Throttled drag move handler
+  const _onDragMoveThrottled = useCallback((x: number, y: number) => {
+    const now = Date.now();
+    if (now - lastMoveTime.current >= DRAG_MOVE_THROTTLE_MS) {
+      lastMoveTime.current = now;
+      onDragMove?.(x, y);
+    }
+  }, [onDragMove]);
+
   function _onDragStart(x: number, y: number) { 
     if (onDragStart) onDragStart(card, x, y); 
-  }
-  
-  function _onDragMove(x: number, y: number) { 
-    if (onDragMove) onDragMove(x, y); 
   }
 
   function handleSnapBack() {
@@ -160,18 +175,27 @@ export function DraggableTableCard({
       runOnJS(handleDoubleTapCard)();
     });
 
-  // Pan gesture for dragging cards
+  // Pan gesture for dragging cards - instant movement
   const panGesture = Gesture.Pan()
     .enabled(isMyTurn)
     .onStart(e => {
       opacity.value = 0;
+      dragX.value = e.absoluteX;
+      dragY.value = e.absoluteY;
       runOnJS(_onDragStart)(e.absoluteX, e.absoluteY);
-      runOnJS(_onDragMove)(e.absoluteX, e.absoluteY);
+      onDragMove?.(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {
-      runOnJS(_onDragMove)(e.absoluteX, e.absoluteY);
+      // Update ghost on UI thread - no JS callback
+      dragX.value = e.absoluteX;
+      dragY.value = e.absoluteY;
+      // Throttled JS callback
+      runOnJS(_onDragMoveThrottled)(e.absoluteX, e.absoluteY);
     })
     .onEnd(e => {
+      // Reset shared values to avoid stale values
+      dragX.value = 0;
+      dragY.value = 0;
       runOnJS(handleDrop)(e.absoluteX, e.absoluteY);
     });
 
