@@ -7,9 +7,10 @@
  */
 
 import React, { useEffect, memo } from 'react';
-import { View, Image, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions, Platform } from 'react-native';
+import { Image as RNImage } from 'react-native';
+import FastImage from 'react-native-fast-image';
 import { getCardImage, preloadCardImages } from './cardImageMap';
-import { isRedSuit } from '../../types/card.types';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -66,6 +67,40 @@ function PlayingCardImpl({
     );
   }
 
+  // Platform-conditional image rendering with fallback
+  const renderCardImage = () => {
+    // Web: use standard RN Image (guaranteed to work with drag/drop)
+    if (Platform.OS === 'web') {
+      return (
+        <RNImage
+          source={imageSource}
+          style={styles.cardImage}
+          resizeMode="stretch"
+        />
+      );
+    }
+    
+    // Native: try FastImage first, fallback to RN Image if it fails
+    try {
+      return (
+        <FastImage
+          source={imageSource}
+          style={styles.cardImage}
+          resizeMode={FastImage.resizeMode.stretch}
+        />
+      );
+    } catch (error) {
+      console.warn('[PlayingCard] FastImage failed, falling back to RN Image');
+      return (
+        <RNImage
+          source={imageSource}
+          style={styles.cardImage}
+          resizeMode="stretch"
+        />
+      );
+    }
+  };
+
   // Render card without border - just rounded corners
   return (
     <View 
@@ -75,16 +110,20 @@ function PlayingCardImpl({
         style
       ]}
     >
-      <Image
-        source={imageSource}
-        style={styles.cardImage}
-        resizeMode="stretch"
-      />
+      {renderCardImage()}
     </View>
   );
 }
 
-export const PlayingCard = memo(PlayingCardImpl);
+export const PlayingCard = memo(PlayingCardImpl, (prevProps, nextProps) => {
+  return (
+    prevProps.rank === nextProps.rank &&
+    prevProps.suit === nextProps.suit &&
+    prevProps.faceDown === nextProps.faceDown &&
+    prevProps.width === nextProps.width &&
+    prevProps.height === nextProps.height
+  );
+});
 
 export default PlayingCard;
 

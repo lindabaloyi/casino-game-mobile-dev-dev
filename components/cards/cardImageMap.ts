@@ -11,7 +11,8 @@
  * This map handles all the translations.
  */
 
-import { Image, ImageRequireSource } from 'react-native';
+import { Image, ImageRequireSource, Platform } from 'react-native';
+import FastImage from 'react-native-fast-image';
 
 // Unicode to ASCII suit mapping
 const SUIT_MAP: Record<string, string> = {
@@ -143,9 +144,17 @@ export function hasCardImage(rank: string, suit: string): boolean {
 
 /**
  * Preload all card images for smoother rendering
- * Call this when the app starts or game initializes
+ * Only works on native (mobile) - no-op on web
  */
 export function preloadCardImages(): void {
+  if (Platform.OS === 'web') return;
+  
+  try {
+    const sources = Object.values(cardImages) as any[];
+    FastImage.preload(sources);
+  } catch (error) {
+    console.warn('[cardImageMap] FastImage.preload failed:', error);
+  }
 }
 
 /**
