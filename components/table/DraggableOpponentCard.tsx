@@ -85,28 +85,12 @@ export function DraggableOpponentCard({
     }
   }, [card, onDragStart, onDragMove]);
 
-  const handleDragEndInternal = useCallback((card: Card, absX: number, absY: number) => {
-    console.log('[DraggableOpponentCard] handleDragEndInternal START:', {
-      card: `${card?.rank}${card?.suit}`,
-      absX,
-      absY,
-      opponentIndex,
-      playerNumber,
-      hasOnDragEnd: !!onDragEnd,
-      hasFindCardAtPoint: !!findCardAtPoint,
-      hasFindTempStackAtPoint: !!findTempStackAtPoint,
-      hasOnExtendBuild: !!onExtendBuild,
-      hasOnCaptureBuild: !!onCaptureBuild,
-      hasOnCardPlayed: !!onCardPlayed
-    });
-    
+const handleDragEndInternal = useCallback((card: Card, absX: number, absY: number) => {
     // If required callbacks are missing, reset locally but still try to signal parent
     if (!onDragEnd || !findCardAtPoint || !findTempStackAtPoint) {
-      // Still try to call onDragEnd to clean up ghost - pass undefined to indicate cancelled
       if (onDragEnd) {
         onDragEnd(card, undefined, undefined);
       }
-      // Always reset local drag state
       translateX.value = 0;
       translateY.value = 0;
       isDragging.value = false;
@@ -119,108 +103,53 @@ export function DraggableOpponentCard({
 
     // Check if dropped on a loose card
     const targetCardResult = findCardAtPoint(absX, absY);
-    console.log('[DraggableOpponentCard] findCardAtPoint result:', {
-      found: !!targetCardResult,
-      targetCard: targetCardResult ? { rank: targetCardResult.card?.rank, suit: targetCardResult.card?.suit } : null
-    });
     if (targetCardResult) {
-      
-      // Validate targetCard is a proper card object (has rank and suit)
       const targetCard = targetCardResult.card;
       if (targetCard && typeof targetCard === 'object' && 'rank' in targetCard && 'suit' in targetCard) {
-        // Pass source with opponent index
         const source = `captured_${opponentIndex}`;
         onDragEnd(card, targetCard, undefined, source);
         handled = true;
-        // Play sound on successful drop
         if (onCardPlayed) {
           onCardPlayed();
         }
       } else {
-        onDragEnd(card, undefined, undefined); // treat as miss
+        onDragEnd(card, undefined, undefined);
         handled = true;
       }
     } else {
-      // Check if dropped on a temp stack OR build stack - use BOTH functions
+      // Check if dropped on a stack
       const tempStack = findTempStackAtPoint ? findTempStackAtPoint(absX, absY) : null;
       const buildStack = findBuildStackAtPoint ? findBuildStackAtPoint(absX, absY) : null;
       
-      console.log('[DraggableOpponentCard] Stack lookup results:', {
-        tempStack: tempStack ? { stackId: tempStack.stackId, owner: tempStack.owner } : null,
-        buildStack: buildStack ? { stackId: buildStack.stackId, owner: buildStack.owner } : null
-      });
-      
-      // Priority: build stack first, then temp stack
       if (buildStack) {
         targetStack = { ...buildStack, stackType: 'build_stack' as const };
       } else if (tempStack) {
         targetStack = { ...tempStack, stackType: 'temp_stack' as const };
       }
-      
-      console.log('[DraggableOpponentCard] Final targetStack:', targetStack);
-      
-      if (targetStack) {
-        console.log('[DraggableOpponentCard] Drop check:', {
-          card: `${card.rank}${card.suit}`,
-          targetStackId: targetStack.stackId,
-          targetStackType: targetStack.stackType,
-          targetOwner: targetStack.owner,
-          opponentIndex,
-          playerNumber,
-          isFriendly: isFriendlyBuild(targetStack.owner),
-          cardSource: `captured_${opponentIndex}`
-        });
-        // Can extend own or teammate's build (in party mode)
-        if (targetStack.stackType === 'build_stack' && isFriendlyBuild(targetStack.owner)) {
-          if (onExtendBuild) {
-            console.log('[DraggableOpponentCard] Calling onExtendBuild:', {
-              card: `${card.rank}${card.suit}`,
-              stackId: targetStack.stackId,
-              cardSource: `captured_${opponentIndex}`
-            });
-            onExtendBuild(card, targetStack.stackId, `captured_${opponentIndex}`);
-            handled = true;
-            // Play sound on successful drop
-            if (onCardPlayed) {
-              onCardPlayed();
-            }
-          }
-        } else if (targetStack.owner === playerNumber) {
-          // Can only add to own temp stack
-          onDragEnd(card, undefined, targetStack.stackId, `captured_${opponentIndex}`);
+    }
+
+    if (targetStack) {
+      if (targetStack.stackType === 'build_stack' && isFriendlyBuild(targetStack.owner)) {
+        if (onExtendBuild) {
+          onExtendBuild(card, targetStack.stackId, `captured_${opponentIndex}`);
           handled = true;
-          // Play sound on successful drop
-          if (onCardPlayed) {
-            onCardPlayed();
-          }
-        } else if (targetStack.stackType === 'build_stack' && onCaptureBuild) {
-          // Opponent's build stack - capture it!
-          onCaptureBuild(card, targetStack.stackId, `captured_${opponentIndex}`);
-          handled = true;
-          // Play sound on successful drop
-          if (onCardPlayed) {
-            onCardPlayed();
-          }
+          if (onCardPlayed) onCardPlayed();
         }
+      } else if (targetStack.owner === playerNumber) {
+        onDragEnd(card, undefined, targetStack.stackId, `captured_${opponentIndex}`);
+        handled = true;
+        if (onCardPlayed) onCardPlayed();
+      } else if (targetStack.stackType === 'build_stack' && onCaptureBuild) {
+        onCaptureBuild(card, targetStack.stackId, `captured_${opponentIndex}`);
+        handled = true;
+        if (onCardPlayed) onCardPlayed();
       }
     }
 
-    // If no valid target was found, signal a cancelled drop to ensure ghost is cleaned up
     if (!handled) {
-      console.log('[DraggableOpponentCard] NO VALID TARGET - drop not handled:', {
-        card: `${card.rank}${card.suit}`,
-        absX,
-        absY,
-        findCardResult: !!targetCardResult,
-        findStackResult: !!targetStack,
-        reason: !targetCardResult && !targetStack ? 'no_target_found' : 
-                targetStack && targetStack.stackType !== 'build_stack' ? 'not_build_stack' :
-                targetStack && !isFriendlyBuild(targetStack.owner) && targetStack.owner !== playerNumber ? 'not_friendly' : 'unknown'
-      });
       onDragEnd(card, undefined, undefined);
     }
 
-    // Always reset local drag state
     translateX.value = 0;
     translateY.value = 0;
     isDragging.value = false;

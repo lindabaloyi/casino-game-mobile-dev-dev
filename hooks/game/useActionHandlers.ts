@@ -36,7 +36,6 @@ export function useActionHandlers(
 
   // Cleanup drag state before opening modal to prevent viewState conflicts
   const cleanupBeforeModal = useCallback(() => {
-    console.log('[Modal:cleanup] Cleaning up drag before modal open');
     if (onDragEndWrapper) {
       onDragEndWrapper();
     }
@@ -45,18 +44,18 @@ export function useActionHandlers(
   const handleAcceptClick = useCallback((stackId: string) => {
     const stack = table.find((tc: any) => tc.stackId === stackId) as TempStack | undefined;
     if (stack) {
-      // Cleanup drag before showing modal
-      cleanupBeforeModal();
-      // Always show modal - no auto-capture (user must choose build value)
       modals.openPlayModal(stack);
     }
-  }, [table, modals, cleanupBeforeModal]);
+  }, [table, modals]);
 
   const handleConfirmPlay = useCallback((buildValue: number, originalOwner?: number) => {
+    // Close modal FIRST to prevent re-render conflicts
+    modals.closePlayModal();
+    
+    // Then accept the temp (triggers state update after modal is closed)
     if (modals.selectedTempStack) {
       actions.acceptTemp(modals.selectedTempStack.stackId, buildValue, originalOwner);
     }
-    modals.closePlayModal();
   }, [modals, actions]);
 
   const handleConfirmSteal = useCallback((playerHand: Card[]) => {
@@ -81,7 +80,6 @@ export function useActionHandlers(
   }, [modals, actions]);
 
   const handleExtendBuild = useCallback((card: any, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}` = 'table') => {
-    console.log('[useActionHandlers] handleExtendBuild:', { card: `${card?.rank}${card?.suit}`, buildStackId, cardSource });
     actions.extendBuild(card, buildStackId, cardSource);
     // End the drag to clear ghost overlay
     onDragEndWrapper();
@@ -91,11 +89,9 @@ export function useActionHandlers(
   const handleExtendAcceptClick = useCallback((stackId: string) => {
     const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
     if (stack?.pendingExtension?.looseCard || stack?.pendingExtension?.cards) {
-      // Cleanup drag before showing modal
-      cleanupBeforeModal();
       modals.openExtendModal(stack);
     }
-  }, [table, modals, cleanupBeforeModal]);
+  }, [table, modals]);
 
   // Player confirms the extension in modal
   const handleConfirmExtendAccept = useCallback(() => {

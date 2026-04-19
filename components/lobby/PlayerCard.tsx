@@ -72,14 +72,6 @@ export function PlayerCard({
   isEmpty,
   slotNumber,
 }: PlayerCardProps) {
-  // Debug: log re-renders with player data
-  console.log('[Debug] PlayerCard rendered:', JSON.stringify({
-    playerId: player?.id,
-    playerUsername: player?.username,
-    slotIndex,
-    isOwn,
-  }));
-
   // Handle new object-based interface
   if (player) {
     const isPlayerReady = player.isReady ?? true;

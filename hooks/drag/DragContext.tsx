@@ -27,13 +27,8 @@ const DragContext = createContext<DragContextValue | null>(null);
 
 // Debug logging helper that can be called from UI thread
 function logDragContextUpdate(card: Card | null, source: DragSource, x: number, y: number) {
-  console.log('[DragContext:update]', {
-    card: card ? `${card.rank}${card.suit}` : null,
-    source,
-    x: Math.round(x),
-    y: Math.round(y)
-  });
-}
+    // Debug logging removed
+  }
 
 export const DragProvider = ({ children }: { children: React.ReactNode }) => {
   const dragX = useSharedValue(0);

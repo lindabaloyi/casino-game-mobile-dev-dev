@@ -308,7 +308,7 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
   useEffect(() => {
     if (!socket) return;
     const onAny = (event: string, ...args: any[]) => {
-      console.log(`[Client] 📡 Socket event received: ${event}`, args[0]?.gameId);
+      // Socket event received
     };
     socket.onAny(onAny);
     return () => {
@@ -325,7 +325,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     }
 
     const handleGameStart = (data: any) => {
-      console.log(`[Client] ✅ game-start RECEIVED on socket ${socket?.id}`, data?.gameId);
       if (!data.gameState) {
         return;
       }
@@ -356,7 +355,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
       }
     };
 
-    console.log(`[Client] 🎧 Attaching game-start listener on socket ${socket?.id} at ${Date.now()}`);
     socket.on('game-start', handleGameStart);
 
     return () => {
@@ -437,7 +435,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
         }
       }
       
-      console.log('[Client GameSync] pendingShiya received:', state.pendingShiya, 'playerNumber:', playerNumber);
       setGameState(state);
     };
 
@@ -585,7 +582,6 @@ export function useGameStateSync(socket: Socket | null): UseGameStateSyncResult 
     
     const timeout = setTimeout(() => {
       if (!gameState) {
-        console.log('[Client] ⏰ Fallback: no game-state received, emitting request-sync');
         socket.emit('request-sync');
       }
     }, 2000);

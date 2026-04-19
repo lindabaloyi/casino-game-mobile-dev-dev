@@ -28,26 +28,12 @@ export function useDragOverlay() {
   const overlayX = useSharedValue(0);
   const overlayY = useSharedValue(0);
 
-  // Log drag state changes for debugging
-  useEffect(() => {
-    console.log('[Drag:state]', { 
-      draggingCard: draggingCard ? `${draggingCard.rank}${draggingCard.suit}` : null,
-      dragSource 
-    });
-  }, [draggingCard, dragSource]);
-
   const startDrag = useCallback((
     card: Card,
     source: 'hand' | 'captured' | 'table',
     fingerX?: number,
     fingerY?: number
   ) => {
-    console.log('[Drag:start]', { 
-      card: `${card.rank}${card.suit}`, 
-      source,
-      fingerX,
-      fingerY
-    });
     setDraggingCard(card);
     setDragSource(source);
     if (fingerX !== undefined && fingerY !== undefined) {
@@ -67,24 +53,18 @@ export function useDragOverlay() {
   }, []);
 
   const endDrag = useCallback(() => {
-    console.log('[Drag:end]');
     setDraggingCard(null);
     setDragSource(null);
   }, []);
 
   // Mark a card as pending drop (optimistic UI - hide immediately after drop)
   const markPendingDrop = useCallback((card: Card, source: DragSource) => {
-    console.log('[Drag:markPendingDrop]', { 
-      card: `${card.rank}${card.suit}`,
-      source 
-    });
     setPendingDropCard(card);
     setPendingDropSource(source);
   }, []);
 
   // Clear pending drop (called when server confirms or action completes)
   const clearPendingDrop = useCallback(() => {
-    console.log('[Drag:clearPendingDrop]');
     setPendingDropCard(null);
     setPendingDropSource(null);
   }, []);

@@ -1,8 +1,6 @@
 /**
  * useModalManager
  * Hook for managing all modal state in GameBoard.
- * 
- * DEBUG: Added logging to track modal open/close and debug crashes
  */
 
 import { useState, useCallback } from 'react';
@@ -24,77 +22,13 @@ export function useModalManager() {
   const [stealTargetCard, setStealTargetCard] = useState<Card | null>(null);
   const [stealTargetStack, setStealTargetStack] = useState<BuildStack | null>(null);
 
-  // Play modal
-  const openPlayModal = useCallback((stack: TempStack) => {
-    console.log('[Modal:open] PlayModal', { 
-      stackId: stack?.stackId, 
-      cardCount: stack?.cards?.length 
-    });
-    setSelectedTempStack(stack);
-    setShowPlayModal(true);
-  }, []);
-
-  const closePlayModal = useCallback(() => {
-    console.log('[Modal:close] PlayModal');
-    setShowPlayModal(false);
-    setSelectedTempStack(null);
-  }, []);
-
-  // Steal modal
-  const openStealModal = useCallback((card: Card, stack: BuildStack) => {
-    console.log('[Modal:open] StealModal', { 
-      card: `${card?.rank}${card?.suit}`,
-      stackId: stack?.stackId,
-      buildValue: stack?.value,
-      owner: stack?.owner
-    });
-    setStealTargetCard(card);
-    setStealTargetStack(stack);
-    setShowStealModal(true);
-  }, []);
-
-  const closeStealModal = useCallback(() => {
-    console.log('[Modal:close] StealModal');
-    setShowStealModal(false);
-    setStealTargetCard(null);
-    setStealTargetStack(null);
-  }, []);
-
   // Extend build modal
   const [showExtendModal, setShowExtendModal] = useState(false);
   const [extendTargetBuild, setExtendTargetBuild] = useState<BuildStack | null>(null);
 
-  const openExtendModal = useCallback((stack: BuildStack) => {
-    console.log('[Modal:open] ExtendModal', { 
-      stackId: stack?.stackId,
-      buildValue: stack?.value,
-      owner: stack?.owner
-    });
-    setExtendTargetBuild(stack);
-    setShowExtendModal(true);
-  }, []);
-
-  const closeExtendModal = useCallback(() => {
-    console.log('[Modal:close] ExtendModal');
-    setShowExtendModal(false);
-    setExtendTargetBuild(null);
-  }, []);
-
   // Confirm Temp Build Value Modal (for double-click on temp stacks)
   const [showConfirmTempBuild, setShowConfirmTempBuild] = useState(false);
   const [confirmTempBuildStack, setConfirmTempBuildStack] = useState<TempStack | null>(null);
-
-  const openConfirmTempBuildModal = useCallback((stack: TempStack) => {
-    console.log('[Modal:open] ConfirmTempBuildModal', { stackId: stack?.stackId });
-    setConfirmTempBuildStack(stack);
-    setShowConfirmTempBuild(true);
-  }, []);
-
-  const closeConfirmTempBuildModal = useCallback(() => {
-    console.log('[Modal:close] ConfirmTempBuildModal');
-    setShowConfirmTempBuild(false);
-    setConfirmTempBuildStack(null);
-  }, []);
 
   // Capture Or Steal Modal (for small builds when player has choice)
   const [showCaptureOrStealModal, setShowCaptureOrStealModal] = useState(false);
@@ -109,23 +43,53 @@ export function useModalManager() {
   // Track when a steal happened - for showing end turn button
   const [showEndTurnButton, setShowEndTurnButton] = useState(false);
 
-  const onStealCompleted = useCallback(() => {
-    setShowEndTurnButton(true);
+  // Callbacks
+  const openPlayModal = useCallback((stack: TempStack) => {
+    console.log('[Debug] openPlayModal START, stack:', stack?.stackId);
+    setShowPlayModal(true);
+    setSelectedTempStack(stack);
+    console.log('[Debug] openPlayModal complete, showPlayModal:', true);
   }, []);
 
-  const hideEndTurnButton = useCallback(() => {
-    setShowEndTurnButton(false);
+  const closePlayModal = useCallback(() => {
+    console.log('[Debug] closePlayModal START');
+    setShowPlayModal(false);
+    setSelectedTempStack(null);
+    console.log('[Debug] closePlayModal complete, showPlayModal:', false);
   }, []);
 
-  // Clear pendingChoice manually - called when modal action is taken
-  // This prevents modal from reopening after server broadcasts state
-  const clearPendingChoice = useCallback(() => {
-    // We don't actually clear pendingChoice in state here
-    // We just use this as a flag to prevent the useEffect from re-opening the modal
-    setCaptureOrStealData(null);
+  const openStealModal = useCallback((card: Card, stack: BuildStack) => {
+    setShowStealModal(true);
+    setStealTargetCard(card);
+    setStealTargetStack(stack);
   }, []);
 
-  // Capture or steal modal
+  const closeStealModal = useCallback(() => {
+    setShowStealModal(false);
+    setStealTargetCard(null);
+    setStealTargetStack(null);
+  }, []);
+
+  const openExtendModal = useCallback((stack: BuildStack) => {
+    setShowExtendModal(true);
+    setExtendTargetBuild(stack);
+  }, []);
+
+  const closeExtendModal = useCallback(() => {
+    setShowExtendModal(false);
+    setExtendTargetBuild(null);
+  }, []);
+
+  const openConfirmTempBuildModal = useCallback((stack: TempStack) => {
+    setShowConfirmTempBuild(true);
+    setConfirmTempBuildStack(stack);
+  }, []);
+
+  const closeConfirmTempBuildModal = useCallback(() => {
+    setShowConfirmTempBuild(false);
+    setConfirmTempBuildStack(null);
+  }, []);
+
   const openCaptureOrStealModal = useCallback((data: {
     card: Card;
     buildValue: number;
@@ -134,22 +98,27 @@ export function useModalManager() {
     stackId: string;
     showStealOnly?: boolean;
   }) => {
-    console.log('[Modal:open] CaptureOrStealModal', {
-      card: `${data?.card?.rank}${data?.card?.suit}`,
-      buildValue: data?.buildValue,
-      stackId: data?.stackId
-    });
     setCaptureOrStealData(data);
     setShowCaptureOrStealModal(true);
   }, []);
 
   const closeCaptureOrStealModal = useCallback(() => {
-    console.log('[Modal:close] CaptureOrStealModal');
     setShowCaptureOrStealModal(false);
     setCaptureOrStealData(null);
   }, []);
 
-  // Auto-capture helper
+  const onStealCompleted = useCallback(() => {
+    setShowEndTurnButton(true);
+  }, []);
+
+  const hideEndTurnButton = useCallback(() => {
+    setShowEndTurnButton(false);
+  }, []);
+
+  const clearPendingChoice = useCallback(() => {
+    setCaptureOrStealData(null);
+  }, []);
+
   const setAutoCapture = useCallback((stackId: string, captureValue: number) => {
     setPendingAutoCapture({ stackId, captureValue });
   }, []);
@@ -159,37 +128,30 @@ export function useModalManager() {
   }, []);
   
   return {
-    // Play modal
     showPlayModal,
     selectedTempStack,
     openPlayModal,
     closePlayModal,
-    // Auto-capture
     pendingAutoCapture,
     setAutoCapture,
     clearAutoCapture,
-    // Steal modal
     showStealModal,
     stealTargetCard,
     stealTargetStack,
     openStealModal,
     closeStealModal,
-    // Extend build modal
     showExtendModal,
     extendTargetBuild,
     openExtendModal,
     closeExtendModal,
-    // Confirm temp build modal (double-click)
     showConfirmTempBuild,
     confirmTempBuildStack,
     openConfirmTempBuildModal,
     closeConfirmTempBuildModal,
-    // End turn button (shown after steal)
     showEndTurnButton,
     onStealCompleted,
     hideEndTurnButton,
     clearPendingChoice,
-    // Capture or steal modal
     showCaptureOrStealModal,
     captureOrStealData,
     openCaptureOrStealModal,

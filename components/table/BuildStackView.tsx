@@ -149,16 +149,6 @@ export function BuildStackView({
     ? captureDisplayValue 
     : extensionDisplayValue;
 
-  console.log('[BuildStackView] Display calc:', {
-    stackId: stack.stackId,
-    stackValue: stack.value,
-    isCapturing,
-    isExtending,
-    pendingCardsValues: pendingCards.map(c => c.value),
-    effectiveSum,
-    displayValue
-  });
-
   // Get team info and badge color
   const { badgeColor } = useBuildTeamInfo({
     owner: stack.owner,

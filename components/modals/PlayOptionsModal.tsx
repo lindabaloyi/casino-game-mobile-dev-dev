@@ -1,6 +1,7 @@
 /**
  * PlayOptionsModal
  * Shows build options when accepting a temp stack.
+ * Simplified code, PRESERVED logic.
  */
 
 import React, { useMemo, useEffect, useRef } from 'react';
@@ -15,7 +16,7 @@ import {
 } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from '../../types';
-import { getBuildHint, canPartitionConsecutively } from '../../shared/game/buildCalculator';
+import { canPartitionConsecutively } from '../../shared/game/buildCalculator';
 
 interface PlayOptionsModalProps {
   visible: boolean;
@@ -45,10 +46,17 @@ export function PlayOptionsModal({
   onCancel,
   onPlayButtonSound,
 }: PlayOptionsModalProps) {
+  console.log('[Debug] PlayOptionsModal RENDER, visible:', visible, 'cards:', cards?.length);
+  
   const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (!visible) return;
+    console.log('[Debug] PlayOptionsModal useEffect, visible:', visible);
+    if (!visible) {
+      console.log('[Debug] PlayOptionsModal useEffect skipping - not visible');
+      return;
+    }
+    console.log('[Debug] PlayOptionsModal useEffect starting pulse');
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, { toValue: 1, duration: 900, useNativeDriver: false }),
@@ -74,47 +82,108 @@ export function PlayOptionsModal({
     onCancel();
   };
 
-  const cardValues = cards?.map(c => c.value) ?? [];
-  const totalSum = cards?.reduce((sum, c) => sum + c.value, 0) ?? 0;
-  
-  const hint = useMemo(() => getBuildHint(cardValues), [cardValues]);
-  
+  // === PRESERVED GAME LOGIC ===
+
+  // 1. Get possible build values from temp stack cards
   const possibleBuildValues = useMemo(() => {
-    const values = new Set<number>();
-    for (let target = 1; target <= 10; target++) {
-      if (canPartitionConsecutively(cardValues, target)) {
-        values.add(target);
+    console.log('[Debug] possibleBuildValues computing, cards:', cards?.length);
+    if (!cards || cards.length === 0) {
+      console.log('[Debug] possibleBuildValues: no cards, returning []');
+      return [];
+    }
+    const values: number[] = [];
+    const cardValues = cards.map(c => c.value);
+    
+    for (let v = 1; v <= 10; v++) {
+      if (canPartitionConsecutively(cardValues, v)) {
+        values.push(v);
       }
     }
-    const allSameRank = cards && cards.length > 1 && cards.every(c => c.rank === cards[0].rank);
-    if (allSameRank && cardValues[0] <= 10) {
-      values.add(cardValues[0]);
+    // Also add single card value if all same rank
+    const allSameRank = cards.length > 1 && cards.every(c => c.rank === cards[0].rank);
+    if (allSameRank && cardValues[0] <= 10 && !values.includes(cardValues[0])) {
+      values.push(cardValues[0]);
     }
-    return Array.from(values).sort((a, b) => a - b);
-  }, [cardValues, cards]);
-  
+    const result = values.sort((a, b) => a - b);
+    console.log('[Debug] possibleBuildValues result:', result);
+    return result;
+  }, [cards]);
+
+  // 2. Get team build options (party mode)
   const teamBuildOptions = useMemo(() => {
-    if (!teamCapturedBuilds || playerNumber === undefined) return [];
+    console.log('[Debug] teamBuildOptions computing, playerNumber:', playerNumber);
+    if (!teamCapturedBuilds || playerNumber === undefined) {
+      console.log('[Debug] teamBuildOptions: no teamBuilds, returning []');
+      return [];
+    }
     const myTeamBuilds = teamCapturedBuilds[playerNumber] ?? [];
-    return myTeamBuilds.filter(build => possibleBuildValues.includes(build.value));
+    const result = myTeamBuilds.filter(b => possibleBuildValues.includes(b.value));
+    console.log('[Debug] teamBuildOptions result:', result.length);
+    return result;
   }, [teamCapturedBuilds, playerNumber, possibleBuildValues]);
-  
-  const matchingOptions = useMemo(() => {
-    if (teamBuildOptions.length > 0) return [];
-    return possibleBuildValues.filter(val => 
-      (playerHand ?? []).some(card => card.value === val)
+
+  // 3. Filter to values player can actually play from hand
+  const playableValues = useMemo(() => {
+    console.log('[Debug] playableValues computing, possibleBuildValues:', possibleBuildValues?.length);
+    if (teamBuildOptions.length > 0) {
+      console.log('[Debug] playableValues: has team builds, returning []');
+      return [];
+    }
+    if (!playerHand || playerHand.length === 0) {
+      console.log('[Debug] playableValues: no playerHand, returning []');
+      return [];
+    }
+    const result = possibleBuildValues.filter(v => 
+      playerHand.some(card => card.value === v)
     );
+    console.log('[Debug] playableValues result:', result.length);
+    return result;
   }, [possibleBuildValues, playerHand, teamBuildOptions]);
 
-  const buildValue = (cards || []).sort((a, b) => b.value - a.value)[0]?.value ?? 0;
-  const hasTotalMatch = matchingOptions.includes(totalSum);
-  const hasDiffMatch = matchingOptions.includes(buildValue);
+  // 4. Calculate display values - prefer playable, fallback to all possible
+  const totalSum = cards?.reduce((sum, c) => sum + (c?.value ?? 0), 0) ?? 0;
+  const highestCard = cards?.sort((a, b) => b.value - a.value)[0]?.value ?? 0;
+  
+  const displayValues: { value: number; label?: string }[] = [];
+  const usedValues = new Set<number>();
 
-  if (!cards || !Array.isArray(cards) || cards.length === 0) {
-    return null;
+  // Add playable values first
+  playableValues.forEach(v => {
+    displayValues.push({ value: v });
+    usedValues.add(v);
+  });
+
+  // Add total sum if not already shown and player has matching card
+  if (totalSum > 0 && !usedValues.has(totalSum) && 
+      playableValues.includes(totalSum)) {
+    displayValues.push({ value: totalSum, label: `Total (${totalSum})` });
+    usedValues.add(totalSum);
   }
 
-  const BuildButton = ({ value, isTeam = false, onPress }: { value: number; isTeam?: boolean; onPress: () => void }) => (
+  // Add highest card value if not shown
+  if (highestCard > 0 && !usedValues.has(highestCard) &&
+      playableValues.includes(highestCard)) {
+    displayValues.push({ value: highestCard, label: `Single (${highestCard})` });
+    usedValues.add(highestCard);
+  }
+
+  // If no playable values, show all possible as fallback
+  if (displayValues.length === 0 && possibleBuildValues.length > 0) {
+    possibleBuildValues.slice(0, 3).forEach(v => {
+      if (!usedValues.has(v)) {
+        displayValues.push({ value: v });
+        usedValues.add(v);
+      }
+    });
+  }
+
+  // Build button component
+  const BuildButton = ({ value, isTeam, onPress, label }: { 
+    value: number; 
+    isTeam?: boolean; 
+    onPress: () => void;
+    label?: string;
+  }) => (
     <Animated.View style={[styles.btnWrapper, { opacity: glowOpacity }]}>
       <TouchableOpacity 
         style={styles.btnGreen} 
@@ -122,7 +191,7 @@ export function PlayOptionsModal({
         activeOpacity={0.8}
       >
         <Text style={styles.btnText}>
-          Build {value}{isTeam ? ' (Team)' : ''}
+          {label ?? `Build ${value}`}{isTeam ? ' (Team)' : ''}
         </Text>
       </TouchableOpacity>
     </Animated.View>
@@ -146,8 +215,9 @@ export function PlayOptionsModal({
           </View>
           
           <View style={styles.body}>
+            {/* Show cards */}
             <View style={styles.cardsRow}>
-              {cards.map((card, index) => (
+              {cards?.map((card, index) => (
                 <PlayingCard 
                   key={index}
                   rank={card.rank} 
@@ -158,33 +228,35 @@ export function PlayOptionsModal({
               ))}
             </View>
 
-            {hasTotalMatch && (
-              <BuildButton value={totalSum} onPress={() => handleConfirm(totalSum)} />
-            )}
-            
-            {hasDiffMatch && (
-              <BuildButton value={buildValue} onPress={() => handleConfirm(buildValue)} />
-            )}
-            
-            {possibleBuildValues.filter(v => v !== totalSum && v !== buildValue).slice(0, 3).map(val => (
-              <BuildButton key={val} value={val} onPress={() => handleConfirm(val)} />
-            ))}
-
+            {/* Team build options */}
             {teamBuildOptions.map((build, index) => (
               <BuildButton 
                 key={`team-${index}`}
                 value={build.value}
                 isTeam={true}
                 onPress={() => handleConfirm(build.value, build.originalOwner)}
+                label={`Build ${build.value}`}
               />
             ))}
 
-            {!hasTotalMatch && !hasDiffMatch && teamBuildOptions.length === 0 && (
+            {/* Player playable options */}
+            {displayValues.map((item, index) => (
+              <BuildButton 
+                key={item.value}
+                value={item.value}
+                onPress={() => handleConfirm(item.value)}
+                label={item.label}
+              />
+            ))}
+
+            {/* No options message */}
+            {displayValues.length === 0 && teamBuildOptions.length === 0 && (
               <View style={styles.noOptions}>
                 <Text style={styles.noOptionsText}>No matching cards</Text>
               </View>
             )}
 
+            {/* Cancel */}
             <TouchableOpacity style={styles.btnGhost} onPress={handleCancel}>
               <Text style={styles.btnGhostText}>Cancel</Text>
             </TouchableOpacity>

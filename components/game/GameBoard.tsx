@@ -231,12 +231,9 @@ export function GameBoard({
   // Show Motor Achievement modal when player scores 11+ points
   const finalScore = gameOverData?.finalScores?.[playerNumber] ?? gameState.scores?.[playerNumber] ?? 0;
   const earnedMotorAchievement = shouldShowStandardGameOver && finalScore >= 11;
-  console.log('[MotorAchievement] shouldShowStandardGameOver:', shouldShowStandardGameOver, 'finalScore:', finalScore, 'earned:', earnedMotorAchievement);
 
   useEffect(() => {
-    console.log('[MotorAchievement] useEffect triggered, earnedMotorAchievement:', earnedMotorAchievement, 'score:', finalScore);
     if (earnedMotorAchievement) {
-      console.log('[MotorAchievement] Showing modal for score:', finalScore);
       const timer = setTimeout(() => {
         setShowMotorAchievement(true);
       }, 500);
@@ -504,14 +501,6 @@ export function GameBoard({
     stackId: string,
     cardSource: string | undefined
   ) => {
-    console.log('[GameBoard] handleCaptureBuild:', {
-      card: `${card?.rank}${card?.suit}`,
-      cardValue: card?.value,
-      stackId,
-      cardSource,
-      playerNumber
-    });
-
     // ACTION ONLY - cleanup handled centrally by useDragHandlers.handleDragEnd()
     const tableCards = gameState.tableCards ?? [];
     const buildStack = tableCards.find(
@@ -524,13 +513,6 @@ export function GameBoard({
     // Use specific action based on build ownership
     const isFriendly = stackOwner === playerNumber || 
       (isPartyGame(gameState) && areTeammates(playerNumber, stackOwner));
-    
-    console.log('[GameBoard] handleCaptureBuild decision:', {
-      stackOwner,
-      isFriendly,
-      action: isFriendly ? 'friendBuildDrop' : 'opponentBuildDrop',
-      source
-    });
     
     if (isFriendly) {
       actions.friendBuildDrop(card, stackId, source);
@@ -716,7 +698,6 @@ export function GameBoard({
         }}
         isGestureBlocked={isGestureBlocked}
       />
-      {console.log('[GameBoard] pendingShiya passed to PlayerHandArea:', gameState.pendingShiya, 'my playerNumber:', playerNumber)}
 
       <DragGhost 
         draggingCard={dragOverlay.draggingCard}
