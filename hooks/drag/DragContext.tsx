@@ -1,10 +1,12 @@
 /**
  * DragContext - UI-thread drag position for instant ghost movement
  * No React state, no JS callbacks - pure shared values on UI thread
+ * 
+ * DEBUG: Added logging to track UI-thread drag state
  */
 
 import { createContext, useContext } from 'react';
-import { useSharedValue, SharedValue } from 'react-native-reanimated';
+import { useSharedValue, SharedValue, runOnJS } from 'react-native-reanimated';
 
 interface Card {
   rank: string;
@@ -22,6 +24,16 @@ interface DragContextValue {
 }
 
 const DragContext = createContext<DragContextValue | null>(null);
+
+// Debug logging helper that can be called from UI thread
+function logDragContextUpdate(card: Card | null, source: DragSource, x: number, y: number) {
+  console.log('[DragContext:update]', {
+    card: card ? `${card.rank}${card.suit}` : null,
+    source,
+    x: Math.round(x),
+    y: Math.round(y)
+  });
+}
 
 export const DragProvider = ({ children }: { children: React.ReactNode }) => {
   const dragX = useSharedValue(0);

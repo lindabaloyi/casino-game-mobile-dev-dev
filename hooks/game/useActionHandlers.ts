@@ -34,13 +34,23 @@ export function useActionHandlers(
     [actions],
   );
 
+  // Cleanup drag state before opening modal to prevent viewState conflicts
+  const cleanupBeforeModal = useCallback(() => {
+    console.log('[Modal:cleanup] Cleaning up drag before modal open');
+    if (onDragEndWrapper) {
+      onDragEndWrapper();
+    }
+  }, [onDragEndWrapper]);
+
   const handleAcceptClick = useCallback((stackId: string) => {
     const stack = table.find((tc: any) => tc.stackId === stackId) as TempStack | undefined;
     if (stack) {
+      // Cleanup drag before showing modal
+      cleanupBeforeModal();
       // Always show modal - no auto-capture (user must choose build value)
       modals.openPlayModal(stack);
     }
-  }, [table, modals]);
+  }, [table, modals, cleanupBeforeModal]);
 
   const handleConfirmPlay = useCallback((buildValue: number, originalOwner?: number) => {
     if (modals.selectedTempStack) {
@@ -81,9 +91,11 @@ export function useActionHandlers(
   const handleExtendAcceptClick = useCallback((stackId: string) => {
     const stack = table.find((tc: any) => tc.stackId === stackId) as BuildStack | undefined;
     if (stack?.pendingExtension?.looseCard || stack?.pendingExtension?.cards) {
+      // Cleanup drag before showing modal
+      cleanupBeforeModal();
       modals.openExtendModal(stack);
     }
-  }, [table, modals]);
+  }, [table, modals, cleanupBeforeModal]);
 
   // Player confirms the extension in modal
   const handleConfirmExtendAccept = useCallback(() => {

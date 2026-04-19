@@ -12,7 +12,7 @@ import React, { createContext, useContext, useEffect, useRef, useState, useCallb
 import { Audio, AVPlaybackStatus } from 'expo-av';
 
 // Sound file path
-const BACKGROUND_MUSIC = require('../assets/sound effects/background sound official.m4a');
+const BACKGROUND_MUSIC = require('../assets/sound-effects/background-sound-official.m4a');
 
 // Volume configuration - easy to adjust
 const BASE_VOLUME = 0.3;  // Default background music volume

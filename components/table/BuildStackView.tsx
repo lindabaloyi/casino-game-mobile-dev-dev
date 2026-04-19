@@ -225,6 +225,8 @@ export function BuildStackView({
           translateY.value = event.translationY;
           dragX.value = event.absoluteX;
           dragY.value = event.absoluteY;
+          // Call onDragMove for multiplayer sync
+          onDragMove?.(event.absoluteX, event.absoluteY);
         }
       })
       .onEnd((event) => {

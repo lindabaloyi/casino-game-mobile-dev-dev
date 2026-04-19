@@ -257,6 +257,9 @@ export function GameBoard({
     },
   });
 
+  // Block gestures when any modal/overlay is visible
+  const isGestureBlocked = modals.showPlayModal || modals.showStealModal || modals.showExtendModal || modals.showConfirmTempBuild || modals.showCaptureOrStealModal;
+
   // Capture sound detection - plays sound when player captures cards
   useCaptureSound(gameState, playerNumber);
 
@@ -488,34 +491,13 @@ export function GameBoard({
     targetStackId: string | undefined,
     source: string | undefined
   ) => {
-    // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
-    dragOverlay.markPendingDrop(card, 'captured');
-    
-    // Emit drag-end to server so opponents can clean up ghost cards
-    if (emitDragEnd) {
-      const absX = dragOverlay.overlayX.value + 28;
-      const absY = dragOverlay.overlayY.value + 42;
-      const tableBounds = drag.dropBounds.current;
-      const normX = Math.max(0, Math.min(1, absX / (tableBounds.width || 400)));
-      const normY = Math.max(0, Math.min(1, absY / (tableBounds.height || 300)));
-      
-      if (targetCard) {
-        const cardId = `${targetCard.rank}${targetCard.suit}`;
-        emitDragEnd(card, { x: normX, y: normY }, 'success', 'card', cardId);
-      } else if (targetStackId) {
-        emitDragEnd(card, { x: normX, y: normY }, 'success', 'temp_stack', targetStackId);
-      } else {
-        emitDragEnd(card, { x: normX, y: normY }, 'miss');
-      }
-    }
-    
+    // ACTION ONLY - cleanup handled centrally by useDragHandlers.handleDragEnd()
     if (targetCard) {
       actions.createTemp(card, targetCard, source || 'captured');
     } else if (targetStackId) {
       actions.addToTemp(card, targetStackId, source || 'captured');
     }
-    dragOverlay.endDrag();
-  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions]);
+  }, [actions]);
 
   const handleCaptureBuild = useCallback((
     card: any,
@@ -530,20 +512,7 @@ export function GameBoard({
       playerNumber
     });
 
-    // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
-    dragOverlay.markPendingDrop(card, 'captured');
-    
-    // Emit drag-end to server so opponents can clean up ghost cards
-    if (emitDragEnd) {
-      const absX = dragOverlay.overlayX.value + 28;
-      const absY = dragOverlay.overlayY.value + 42;
-      const tableBounds = drag.dropBounds.current;
-      const normX = Math.max(0, Math.min(1, absX / (tableBounds.width || 400)));
-      const normY = Math.max(0, Math.min(1, absY / (tableBounds.height || 300)));
-      emitDragEnd(card, { x: normX, y: normY }, 'success', 'build_stack', stackId);
-    }
-    
-    // Use gameState.tableCards directly instead of computed.table for latest state
+    // ACTION ONLY - cleanup handled centrally by useDragHandlers.handleDragEnd()
     const tableCards = gameState.tableCards ?? [];
     const buildStack = tableCards.find(
       (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
@@ -568,8 +537,7 @@ export function GameBoard({
     } else {
       actions.opponentBuildDrop(card, stackId, source);
     }
-    dragOverlay.endDrag();
-  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions, gameState.tableCards, playerNumber, gameState.playerCount]);
+  }, [actions, gameState.tableCards, playerNumber, gameState.playerCount]);
 
   const handleDropBuildToCapture = useCallback((stack: any) => {
     actions.dropToCapture({ stackId: stack.stackId, stackType: 'build_stack' });
@@ -746,6 +714,7 @@ export function GameBoard({
           playShiya();  // Play sound immediately when Shiya button is pressed
           actions.recall(recallId);
         }}
+        isGestureBlocked={isGestureBlocked}
       />
       {console.log('[GameBoard] pendingShiya passed to PlayerHandArea:', gameState.pendingShiya, 'my playerNumber:', playerNumber)}
 

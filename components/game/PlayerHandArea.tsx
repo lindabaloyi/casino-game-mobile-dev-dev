@@ -112,6 +112,8 @@ interface Props {
   pendingShiya?: { playerIndex: number; recallId: string; expiresAt: number } | null;
   /** Callback when shiya button is pressed */
   onShiya?: (recallId: string) => void;
+  /** When true, gestures are disabled (modal or overlay is visible) */
+  isGestureBlocked?: boolean;
 }
 
 // Default card dimensions - matching capture pile (56x84)
@@ -200,6 +202,7 @@ function PlayerHandAreaImpl({
   onDoubleTapCard,
   pendingShiya,
   onShiya,
+  isGestureBlocked = false,
 }: Props) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   
@@ -358,6 +361,7 @@ return (
                 cardHeight={responsiveCardHeight}
                 onCardContact={onCardContact}
                 onDoubleTap={onDoubleTapCard}
+                isGestureBlocked={isGestureBlocked}
               />
             </View>
           );

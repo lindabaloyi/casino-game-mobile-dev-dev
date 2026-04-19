@@ -170,9 +170,11 @@ export function DraggableTableCard({
       onDragMove?.(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {
-      // Pure UI thread - no JS call!
+      // Update DragContext for local ghost (UI thread)
       dragX.value = e.absoluteX;
       dragY.value = e.absoluteY;
+      // Call onDragMove for multiplayer sync
+      onDragMove?.(e.absoluteX, e.absoluteY);
     })
     .onEnd(e => {
       dragX.value = 0;

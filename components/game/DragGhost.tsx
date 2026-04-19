@@ -10,20 +10,24 @@ interface DragGhostProps {
 }
 
 export const DragGhost = React.memo(function DragGhost({ draggingCard, ghostStyle }: DragGhostProps) {
-  // Read directly from DragContext for UI-thread positioning
-  const { dragX, dragY, draggingCard: contextDraggingCard } = useDragContext();
+  // Hook 1: ALWAYS call useDragContext first
+  const { dragX, dragY } = useDragContext();
   
-  // Use context card if available, otherwise fall back to prop
-  const displayCard = contextDraggingCard.value || draggingCard;
-  
-  if (!displayCard) return null;
-  
+  // Hook 2: ALWAYS call useAnimatedStyle - never conditionalize it
   const ghostStyleFromContext = useAnimatedStyle(() => ({
     position: 'absolute' as const,
     left: dragX.value - CARD_WIDTH / 2,
     top: dragY.value - CARD_HEIGHT / 2,
     zIndex: 1000,
   }));
+  
+  // JS variable - not a hook, can be conditional
+  const displayCard = draggingCard;
+  
+  // Now conditionally render content after hooks are called
+  if (!displayCard) {
+    return null;
+  }
   
   return (
     <Animated.View style={[ghostStyle, ghostStyleFromContext]} pointerEvents="none">

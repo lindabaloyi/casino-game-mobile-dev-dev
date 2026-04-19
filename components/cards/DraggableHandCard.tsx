@@ -85,6 +85,8 @@ interface Props {
   cardHeight?: number;
   /** Callback for card contact sound - called when card contacts something */
   onCardContact?: () => void;
+  /** When true, gestures are disabled (modal or overlay is visible) */
+  isGestureBlocked?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -111,6 +113,7 @@ function DraggableHandCardImpl({
   cardWidth = DEFAULT_CARD_WIDTH,
   cardHeight = DEFAULT_CARD_HEIGHT,
   onCardContact,
+  isGestureBlocked = false,
 }: Props) {
   const opacity = useSharedValue(1);
   
@@ -126,10 +129,15 @@ function DraggableHandCardImpl({
     if (onDragStart) {
       onDragStart(card, x, y);
     }
-    // Immediate first move for responsiveness
+    // Immediate first move for responsiveness and multiplayer sync
     if (onDragMove) {
       onDragMove(x, y);
     }
+  }
+
+  // Handle drag move for multiplayer sync
+  function handleDragMoveUI(x: number, y: number) {
+    onDragMove?.(x, y);
   }
 
   function handleSnapBack() {
@@ -168,8 +176,8 @@ function DraggableHandCardImpl({
     // 1. Check for build stack hit FIRST (priority)
     const buildStackHit = findBuildStackAtPoint(absX, absY);
     if (buildStackHit) {
-      opacity.value = withSpring(0);  // Hide card while action processes
-      if (onDragEnd) onDragEnd();
+      // Hide card with spring - cleanup handled centrally by handleDragEnd()
+      opacity.value = withSpring(0);
       // Play card contact sound when card hits a stack
       if (onCardContact) onCardContact();
       
@@ -177,14 +185,18 @@ function DraggableHandCardImpl({
       if (onDropOnBuildStack) {
         onDropOnBuildStack(card, buildStackHit.stackId, buildStackHit.owner, 'hand');
       }
+      // Trigger centralized cleanup - success
+      if (onDragEnd) {
+        onDragEnd();
+      }
       return;
     }
     
     // 2. Check for temp stack hit
     const tempStackHit = findTempStackAtPoint(absX, absY);
     if (tempStackHit) {
-      opacity.value = withSpring(0);  // Hide card while action processes
-      if (onDragEnd) onDragEnd();
+      // Hide card with spring - cleanup handled centrally by handleDragEnd()
+      opacity.value = withSpring(0);
       // Play card contact sound when card hits a stack
       if (onCardContact) onCardContact();
       
@@ -192,17 +204,25 @@ function DraggableHandCardImpl({
       if (onDropOnTempStack) {
         onDropOnTempStack(card, tempStackHit.stackId, 'hand');
       }
+      // Trigger centralized cleanup - success
+      if (onDragEnd) {
+        onDragEnd();
+      }
       return;
     }
     
     // 3. Check for specific table card hit
     const targetCardResult = findCardAtPoint(absX, absY);
     if (targetCardResult) {
+      // Hide card with spring - cleanup handled centrally by handleDragEnd()
       opacity.value = withSpring(0);
-      if (onDragEnd) onDragEnd();
       // Play card contact sound when card hits another card
       if (onCardContact) onCardContact();
       onDropOnLooseCard(card, targetCardResult.card);
+      // Trigger centralized cleanup - success
+      if (onDragEnd) {
+        onDragEnd();
+      }
       return;
     }
     
@@ -210,13 +230,17 @@ function DraggableHandCardImpl({
     const inZone = inTableZone(absX, absY, bounds);
 
     if (inZone) {
+      // Hide card with spring - cleanup handled centrally by handleDragEnd()
       opacity.value = withSpring(0);
-      if (onDragEnd) onDragEnd();
       // Play card contact sound when card hits the table
       if (onCardContact) onCardContact();
       
       // Table zone drop = trail action
       onDropOnTable(card);
+      // Trigger centralized cleanup - success
+      if (onDragEnd) {
+        onDragEnd();
+      }
     } else {
       handleSnapBack();
     }
@@ -227,7 +251,7 @@ function DraggableHandCardImpl({
   // Double-tap gesture for createSingleTemp action
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
-    .enabled(isMyTurn && !!onDoubleTap)
+    .enabled(isMyTurn && !isGestureBlocked && !!onDoubleTap)
     .onEnd(() => {
       runOnJS(handleDoubleTapCard)();
     });
@@ -235,9 +259,9 @@ function DraggableHandCardImpl({
   // Pan gesture for dragging cards - zero-JS path
   // Ghost moves via DragContext shared values (UI thread only)
   const panGesture = Gesture.Pan()
-    .enabled(isMyTurn)
+    .enabled(isMyTurn && !isGestureBlocked)
     .onStart(e => {
-      opacity.value = 0;
+      // Keep card visible while dragging - hide happens on drop
       // Write to context for DragGhost
       draggingCard.value = card;
       dragSource.value = 'hand';
@@ -246,9 +270,11 @@ function DraggableHandCardImpl({
       runOnJS(handleDragStart)(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {
-      // Pure UI thread - update context for DragGhost
+      // Pure UI thread - update context for local DragGhost
       dragX.value = e.absoluteX;
       dragY.value = e.absoluteY;
+      // Call onDragMove for multiplayer sync (throttled in handler)
+      runOnJS(handleDragMoveUI)(e.absoluteX, e.absoluteY);
     })
     .onEnd(e => {
       // Clear context

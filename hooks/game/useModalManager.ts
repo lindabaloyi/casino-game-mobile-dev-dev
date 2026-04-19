@@ -1,6 +1,8 @@
 /**
  * useModalManager
  * Hook for managing all modal state in GameBoard.
+ * 
+ * DEBUG: Added logging to track modal open/close and debug crashes
  */
 
 import { useState, useCallback } from 'react';
@@ -24,23 +26,35 @@ export function useModalManager() {
 
   // Play modal
   const openPlayModal = useCallback((stack: TempStack) => {
+    console.log('[Modal:open] PlayModal', { 
+      stackId: stack?.stackId, 
+      cardCount: stack?.cards?.length 
+    });
     setSelectedTempStack(stack);
     setShowPlayModal(true);
   }, []);
 
   const closePlayModal = useCallback(() => {
+    console.log('[Modal:close] PlayModal');
     setShowPlayModal(false);
     setSelectedTempStack(null);
   }, []);
 
   // Steal modal
   const openStealModal = useCallback((card: Card, stack: BuildStack) => {
+    console.log('[Modal:open] StealModal', { 
+      card: `${card?.rank}${card?.suit}`,
+      stackId: stack?.stackId,
+      buildValue: stack?.value,
+      owner: stack?.owner
+    });
     setStealTargetCard(card);
     setStealTargetStack(stack);
     setShowStealModal(true);
   }, []);
 
   const closeStealModal = useCallback(() => {
+    console.log('[Modal:close] StealModal');
     setShowStealModal(false);
     setStealTargetCard(null);
     setStealTargetStack(null);
@@ -51,11 +65,17 @@ export function useModalManager() {
   const [extendTargetBuild, setExtendTargetBuild] = useState<BuildStack | null>(null);
 
   const openExtendModal = useCallback((stack: BuildStack) => {
+    console.log('[Modal:open] ExtendModal', { 
+      stackId: stack?.stackId,
+      buildValue: stack?.value,
+      owner: stack?.owner
+    });
     setExtendTargetBuild(stack);
     setShowExtendModal(true);
   }, []);
 
   const closeExtendModal = useCallback(() => {
+    console.log('[Modal:close] ExtendModal');
     setShowExtendModal(false);
     setExtendTargetBuild(null);
   }, []);
@@ -65,11 +85,13 @@ export function useModalManager() {
   const [confirmTempBuildStack, setConfirmTempBuildStack] = useState<TempStack | null>(null);
 
   const openConfirmTempBuildModal = useCallback((stack: TempStack) => {
+    console.log('[Modal:open] ConfirmTempBuildModal', { stackId: stack?.stackId });
     setConfirmTempBuildStack(stack);
     setShowConfirmTempBuild(true);
   }, []);
 
   const closeConfirmTempBuildModal = useCallback(() => {
+    console.log('[Modal:close] ConfirmTempBuildModal');
     setShowConfirmTempBuild(false);
     setConfirmTempBuildStack(null);
   }, []);
@@ -112,11 +134,17 @@ export function useModalManager() {
     stackId: string;
     showStealOnly?: boolean;
   }) => {
+    console.log('[Modal:open] CaptureOrStealModal', {
+      card: `${data?.card?.rank}${data?.card?.suit}`,
+      buildValue: data?.buildValue,
+      stackId: data?.stackId
+    });
     setCaptureOrStealData(data);
     setShowCaptureOrStealModal(true);
   }, []);
 
   const closeCaptureOrStealModal = useCallback(() => {
+    console.log('[Modal:close] CaptureOrStealModal');
     setShowCaptureOrStealModal(false);
     setCaptureOrStealData(null);
   }, []);

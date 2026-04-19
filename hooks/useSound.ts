@@ -22,11 +22,11 @@ interface SoundObjects {
 }
 
 // Sound file paths
-const CARD_CONTACT_SOUND = require('../assets/sound effects/card contact sound effect.mp3');
-const CAPTURE_SOUND = require('../assets/sound effects/capture sound effect.mp3');
-const TRAIL_SOUND = require('../assets/sound effects/trailing sound effect.mp3');
-const BUTTON_SOUND = require('../assets/sound effects/buttons sound effect.mp3');
-const SHIYA_SOUND = require('../assets/sound effects/shiya.mp3');
+const CARD_CONTACT_SOUND = require('../assets/sound-effects/card-contact-sound-effect.mp3');
+const CAPTURE_SOUND = require('../assets/sound-effects/capture-sound-effect.mp3');
+const TRAIL_SOUND = require('../assets/sound-effects/trailing-sound-effect.mp3');
+const BUTTON_SOUND = require('../assets/sound-effects/buttons-sound-effect.mp3');
+const SHIYA_SOUND = require('../assets/sound-effects/shiya.mp3');
 
 export function useSound() {
   const soundsRef = useRef<SoundObjects>({
