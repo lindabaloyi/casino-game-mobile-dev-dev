@@ -1,20 +1,18 @@
 /**
  * SetTempBuildValueModal
  * Modal for setting the base value on a temp stack (dual build).
- * 
- * Style: Purple theme with pulsing confirm button.
- * Layout matches StealBuildModal exactly.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Pressable,
 } from 'react-native';
-import { ModalSurface } from './ModalSurface';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from '../../types';
 
@@ -27,16 +25,16 @@ interface SetTempBuildValueModalProps {
     owner: number;
   };
   playerNumber: number;
-  /** Total player count */
   playerCount?: number;
-  /** Whether party mode is enabled */
   isPartyMode?: boolean;
-  /** Available target values (typically 1-10) */
   availableValues?: number[];
   onConfirm: (value: number) => void;
   onCancel: () => void;
   onPlayButtonSound?: () => void;
 }
+
+const MODAL_BG = '#1a1a1a';
+const MODAL_BORDER = '#7c3aed';
 
 export function SetTempBuildValueModal({
   visible,
@@ -49,30 +47,16 @@ export function SetTempBuildValueModal({
   onCancel,
   onPlayButtonSound,
 }: SetTempBuildValueModalProps) {
-  // Pulsing glow animation on the confirm button
   const glowAnim = useRef(new Animated.Value(0)).current;
-  
-  // Track selected value
   const [selectedValue, setSelectedValue] = useState<number | null>(null);
 
   useEffect(() => {
     if (!visible) return;
-    
-    // Reset selected value when modal opens
     setSelectedValue(null);
-    
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: false,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0,
-          duration: 900,
-          useNativeDriver: false,
-        }),
+        Animated.timing(glowAnim, { toValue: 1, duration: 900, useNativeDriver: false }),
+        Animated.timing(glowAnim, { toValue: 0, duration: 900, useNativeDriver: false }),
       ])
     );
     pulse.start();
@@ -94,94 +78,141 @@ export function SetTempBuildValueModal({
     setSelectedValue(value);
   };
 
-  // Display the current temp stack cards
+  const handleCancel = () => {
+    onCancel();
+  };
+
   const stackCards = tempStack?.cards || [];
   const currentValue = tempStack?.value || 0;
 
   return (
-    <ModalSurface
+    <Modal
       visible={visible}
-      theme="purple"
-      title="Set Build Value"
-      onClose={onCancel}
-      maxWidth="md"
+      transparent
+      animationType="fade"
+      onRequestClose={handleCancel}
+      statusBarTranslucent
     >
-      {/* Card row - showing temp stack cards */}
-      <View style={styles.cardsRow}>
-        {stackCards.map((card, index) => (
-          <PlayingCard
-            key={`stack-${index}`}
-            rank={card.rank}
-            suit={card.suit}
-            width={36}
-            height={48}
-          />
-        ))}
-      </View>
+      <Pressable style={styles.overlay} onPress={handleCancel}>
+        <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Set Build Value</Text>
+            <TouchableOpacity onPress={handleCancel} style={styles.closeBtn}>
+              <Text style={styles.closeText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.body}>
+            <View style={styles.cardsRow}>
+              {stackCards.map((card, index) => (
+                <PlayingCard
+                  key={`stack-${index}`}
+                  rank={card.rank}
+                  suit={card.suit}
+                  width={36}
+                  height={48}
+                />
+              ))}
+            </View>
 
-      {/* Current value display */}
-      <Text style={styles.currentValueText}>
-        Current combined value: {currentValue}
-      </Text>
-
-      {/* Value selection buttons */}
-      <Text style={styles.selectPrompt}>Select target value:</Text>
-      
-      <View style={styles.valuesGrid}>
-        {availableValues.map((value) => (
-          <TouchableOpacity
-            key={value}
-            style={[
-              styles.valueButton,
-              selectedValue === value && styles.valueButtonSelected,
-            ]}
-            onPress={() => handleValuePress(value)}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.valueButtonText,
-                selectedValue === value && styles.valueButtonTextSelected,
-              ]}
-            >
-              {value}
+            <Text style={styles.currentValueText}>
+              Current combined value: {currentValue}
             </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
 
-      {/* Confirm — pulsing glow (only enabled when value selected) */}
-      {selectedValue !== null ? (
-        <Animated.View style={[styles.glowWrapper, { opacity: glowOpacity }]}>
-          <TouchableOpacity
-            style={[styles.btnDynamic, styles.btnDynamicPurple]}
-            onPress={handleConfirm}
-            activeOpacity={0.82}
-          >
-            <Text style={styles.btnText}>Set Value to {selectedValue}</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      ) : (
-        <View style={[styles.glowWrapper, { opacity: 0.4 }]}>
-          <TouchableOpacity
-            style={[styles.btnDynamic, styles.btnDynamicDisabled]}
-            activeOpacity={1}
-          >
-            <Text style={styles.btnTextDisabled}>Select a Value</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+            <Text style={styles.selectPrompt}>Select target value:</Text>
+            
+            <View style={styles.valuesGrid}>
+              {availableValues.map((value) => (
+                <TouchableOpacity
+                  key={value}
+                  style={[
+                    styles.valueButton,
+                    selectedValue === value && styles.valueButtonSelected,
+                  ]}
+                  onPress={() => handleValuePress(value)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.valueButtonText,
+                      selectedValue === value && styles.valueButtonTextSelected,
+                    ]}
+                  >
+                    {value}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-      {/* Cancel */}
-      <TouchableOpacity style={styles.btnGhost} onPress={onCancel}>
-        <Text style={styles.btnGhostText}>Cancel</Text>
-      </TouchableOpacity>
-    </ModalSurface>
+            {selectedValue !== null ? (
+              <Animated.View style={[styles.glowWrapper, { opacity: glowOpacity }]}>
+                <TouchableOpacity
+                  style={[styles.btnDynamic, styles.btnDynamicPurple]}
+                  onPress={handleConfirm}
+                  activeOpacity={0.82}
+                >
+                  <Text style={styles.btnText}>Set Value to {selectedValue}</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            ) : (
+              <View style={[styles.glowWrapper, { opacity: 0.4 }]}>
+                <TouchableOpacity
+                  style={[styles.btnDynamic, styles.btnDynamicDisabled]}
+                  activeOpacity={1}
+                >
+                  <Text style={styles.btnTextDisabled}>Select a Value</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.btnGhost} onPress={handleCancel}>
+              <Text style={styles.btnGhostText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  // Card row
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: 320,
+    backgroundColor: MODAL_BG,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: MODAL_BORDER,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fbbf24',
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  closeText: {
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  body: {
+    padding: 16,
+  },
   cardsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -189,17 +220,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 4,
   },
-
-  // Current value text
   currentValueText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#fbbf24',   // Gold matching modal theme
+    color: '#fbbf24',
     marginBottom: 12,
     textAlign: 'center',
   },
-  
-  // Select prompt
   selectPrompt: {
     fontSize: 14,
     fontWeight: '600',
@@ -207,8 +234,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: 'center',
   },
-
-  // Values grid
   valuesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -216,8 +241,6 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 16,
   },
-  
-  // Value selection button
   valueButton: {
     width: 40,
     height: 40,
@@ -240,22 +263,16 @@ const styles = StyleSheet.create({
   valueButtonTextSelected: {
     color: '#ffffff',
   },
-
-  // Pulsing glow wrapper
   glowWrapper: {
     width: '100%',
     marginBottom: 7,
-    // Shadow for the glow effect (iOS)
     shadowColor: '#a855f7',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 12,
-    // Android elevation keeps it subtle
     elevation: 8,
     borderRadius: 13,
   },
-
-  // Dynamic confirm button — purple theme
   btnDynamic: {
     width: '100%',
     paddingVertical: 13,
@@ -284,8 +301,6 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     letterSpacing: 0.4,
   },
-
-  // Cancel ghost button
   btnGhost: {
     width: '100%',
     paddingVertical: 11,
@@ -295,6 +310,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(167,139,250,0.15)',
     alignItems: 'center',
+    marginTop: 8,
   },
   btnGhostText: {
     fontSize: 13,

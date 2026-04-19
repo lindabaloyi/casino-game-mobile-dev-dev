@@ -1,20 +1,18 @@
 /**
  * PlayOptionsModal
  * Shows build options when accepting a temp stack.
- * 
- * Style: Green theme matching StealBuildModal styling
- * Card preview in single horizontal row, full-width buttons with pulse animation.
  */
 
 import React, { useMemo, useEffect, useRef } from 'react';
 import {
   Animated,
+  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Pressable,
 } from 'react-native';
-import { ModalSurface } from './ModalSurface';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from '../../types';
 import { getBuildHint, canPartitionConsecutively } from '../../shared/game/buildCalculator';
@@ -31,6 +29,11 @@ interface PlayOptionsModalProps {
   onPlayButtonSound?: () => void;
 }
 
+const MODAL_BG = '#1a1a1a';
+const MODAL_BORDER = '#28a745';
+const BTN_GREEN = '#1e7d3a';
+const BTN_GREEN_BORDER = '#28a745';
+
 export function PlayOptionsModal({
   visible,
   cards,
@@ -42,23 +45,14 @@ export function PlayOptionsModal({
   onCancel,
   onPlayButtonSound,
 }: PlayOptionsModalProps) {
-  // Pulsing glow animation on the build buttons
   const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!visible) return;
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: false,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0,
-          duration: 900,
-          useNativeDriver: false,
-        }),
+        Animated.timing(glowAnim, { toValue: 1, duration: 900, useNativeDriver: false }),
+        Animated.timing(glowAnim, { toValue: 0, duration: 900, useNativeDriver: false }),
       ])
     );
     pulse.start();
@@ -102,11 +96,7 @@ export function PlayOptionsModal({
   const teamBuildOptions = useMemo(() => {
     if (!teamCapturedBuilds || playerNumber === undefined) return [];
     const myTeamBuilds = teamCapturedBuilds[playerNumber] ?? [];
-    const matchingTeamBuilds = myTeamBuilds.filter(build => {
-      if (!possibleBuildValues.includes(build.value)) return false;
-      return true;
-    });
-    return matchingTeamBuilds;
+    return myTeamBuilds.filter(build => possibleBuildValues.includes(build.value));
   }, [teamCapturedBuilds, playerNumber, possibleBuildValues]);
   
   const matchingOptions = useMemo(() => {
@@ -124,13 +114,12 @@ export function PlayOptionsModal({
     return null;
   }
 
-  // Build button component with pulsing animation
   const BuildButton = ({ value, isTeam = false, onPress }: { value: number; isTeam?: boolean; onPress: () => void }) => (
-    <Animated.View style={[styles.glowWrapper, { opacity: glowOpacity }]}>
+    <Animated.View style={[styles.btnWrapper, { opacity: glowOpacity }]}>
       <TouchableOpacity 
         style={styles.btnGreen} 
         onPress={onPress}
-        activeOpacity={0.82}
+        activeOpacity={0.8}
       >
         <Text style={styles.btnText}>
           Build {value}{isTeam ? ' (Team)' : ''}
@@ -140,65 +129,110 @@ export function PlayOptionsModal({
   );
 
   return (
-    <ModalSurface
+    <Modal
       visible={visible}
-      theme="green"
-      title="Build Options"
-      onClose={handleCancel}
-      maxWidth="md"
+      transparent
+      animationType="fade"
+      onRequestClose={handleCancel}
+      statusBarTranslucent
     >
-      {/* Card row - single horizontal line like StealBuildModal */}
-      <View style={styles.cardsRow}>
-        {cards.map((card, index) => (
-          <PlayingCard 
-            key={index}
-            rank={card.rank} 
-            suit={card.suit}
-            width={36}
-            height={48}
-          />
-        ))}
-      </View>
+      <Pressable style={styles.overlay} onPress={handleCancel}>
+        <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Build Options</Text>
+            <TouchableOpacity onPress={handleCancel} style={styles.closeBtn}>
+              <Text style={styles.closeText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.body}>
+            <View style={styles.cardsRow}>
+              {cards.map((card, index) => (
+                <PlayingCard 
+                  key={index}
+                  rank={card.rank} 
+                  suit={card.suit}
+                  width={36}
+                  height={48}
+                />
+              ))}
+            </View>
 
-      {/* Build option buttons - stacked full-width with pulsing */}
-      {hasTotalMatch && (
-        <BuildButton value={totalSum} onPress={() => handleConfirm(totalSum)} />
-      )}
-      
-      {hasDiffMatch && (
-        <BuildButton value={buildValue} onPress={() => handleConfirm(buildValue)} />
-      )}
-      
-      {possibleBuildValues.filter(v => v !== totalSum && v !== buildValue).slice(0, 3).map(val => (
-        <BuildButton key={val} value={val} onPress={() => handleConfirm(val)} />
-      ))}
+            {hasTotalMatch && (
+              <BuildButton value={totalSum} onPress={() => handleConfirm(totalSum)} />
+            )}
+            
+            {hasDiffMatch && (
+              <BuildButton value={buildValue} onPress={() => handleConfirm(buildValue)} />
+            )}
+            
+            {possibleBuildValues.filter(v => v !== totalSum && v !== buildValue).slice(0, 3).map(val => (
+              <BuildButton key={val} value={val} onPress={() => handleConfirm(val)} />
+            ))}
 
-      {/* Team build options */}
-      {teamBuildOptions.map((build, index) => (
-        <BuildButton 
-          key={`team-${index}`}
-          value={build.value}
-          isTeam={true}
-          onPress={() => handleConfirm(build.value, build.originalOwner)}
-        />
-      ))}
+            {teamBuildOptions.map((build, index) => (
+              <BuildButton 
+                key={`team-${index}`}
+                value={build.value}
+                isTeam={true}
+                onPress={() => handleConfirm(build.value, build.originalOwner)}
+              />
+            ))}
 
-      {!hasTotalMatch && !hasDiffMatch && teamBuildOptions.length === 0 && (
-        <View style={styles.noOptions}>
-          <Text style={styles.noOptionsText}>No matching cards</Text>
-        </View>
-      )}
+            {!hasTotalMatch && !hasDiffMatch && teamBuildOptions.length === 0 && (
+              <View style={styles.noOptions}>
+                <Text style={styles.noOptionsText}>No matching cards</Text>
+              </View>
+            )}
 
-      {/* Cancel button - ghost style */}
-      <TouchableOpacity style={styles.btnGhost} onPress={handleCancel}>
-        <Text style={styles.btnGhostText}>Cancel</Text>
-      </TouchableOpacity>
-    </ModalSurface>
+            <TouchableOpacity style={styles.btnGhost} onPress={handleCancel}>
+              <Text style={styles.btnGhostText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  // Card row - single horizontal line
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: 320,
+    backgroundColor: MODAL_BG,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: MODAL_BORDER,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fbbf24',
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  closeText: {
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  body: {
+    padding: 16,
+  },
   cardsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -206,30 +240,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 4,
   },
-
-  // Pulsing glow wrapper
-  glowWrapper: {
+  btnWrapper: {
     width: '100%',
     marginBottom: 7,
-    // Shadow for the glow effect (iOS)
-    shadowColor: '#28a745',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 12,
-    // Android elevation keeps it subtle
-    elevation: 8,
     borderRadius: 13,
   },
-
-  // Primary button - green theme
   btnGreen: {
     width: '100%',
     paddingVertical: 13,
     paddingHorizontal: 16,
     borderRadius: 13,
-    backgroundColor: '#1e7d3a',
+    backgroundColor: BTN_GREEN,
     borderWidth: 1.5,
-    borderColor: '#28a745',
+    borderColor: BTN_GREEN_BORDER,
     alignItems: 'center',
   },
   btnText: {
@@ -238,8 +261,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.4,
   },
-
-  // Cancel ghost button - green themed
   btnGhost: {
     width: '100%',
     paddingVertical: 11,
@@ -247,17 +268,15 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     backgroundColor: 'rgba(255,255,255,0.07)',
     borderWidth: 1.5,
-    borderColor: 'rgba(40, 167, 69, 0.3)',   // Green-tinted border
+    borderColor: 'rgba(40, 167, 69, 0.3)',
     alignItems: 'center',
     marginTop: 8,
   },
   btnGhostText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#6b8a72',   // Muted green
+    color: '#6b8a72',
   },
-
-  // No options message
   noOptions: {
     paddingVertical: 8,
     alignItems: 'center',

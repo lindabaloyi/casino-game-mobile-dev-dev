@@ -1,15 +1,18 @@
 /**
  * DisqualifiedPlayerModal
  * Modal displayed when a player is eliminated from a tournament.
- * Shows the player's final tournament statistics and provides
- * a way to return to the lobby.
- * 
- * Visual Design: Red theme per casino-noir spec (elimination = warning)
  */
 
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, Animated, TouchableOpacity, ViewStyle, TextStyle } from 'react-native';
-import { ModalSurface } from './ModalSurface';
+import {
+  Animated,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  Pressable,
+} from 'react-native';
 
 interface PlayerBreakdown {
   totalCards: number;
@@ -39,6 +42,9 @@ interface DisqualifiedPlayerModalProps {
   onWatchTournament?: () => void;
 }
 
+const MODAL_BG = '#1a1a1a';
+const MODAL_BORDER = '#dc2626';
+
 export function DisqualifiedPlayerModal({
   visible,
   playerIndex,
@@ -65,7 +71,6 @@ export function DisqualifiedPlayerModal({
     }
   }, [visible, fadeAnim, scaleAnim]);
 
-  // Get rank suffix
   const getRankSuffix = (rank: number): string => {
     if (rank % 100 >= 11 && rank % 100 <= 13) return 'th';
     switch (rank % 10) {
@@ -76,7 +81,6 @@ export function DisqualifiedPlayerModal({
     }
   };
 
-  // Get performance color
   const getPerformanceColor = (): string => {
     if (finalRank === 1) return '#FFD700';
     if (finalRank === 2) return '#C0C0C0';
@@ -86,18 +90,15 @@ export function DisqualifiedPlayerModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="none">
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        <Animated.View style={[styles.modalWrapper, { transform: [{ scale: scaleAnim }] }]}>
-          <ModalSurface
-            visible={visible}
-            theme="red"
-            title="Eliminated"
-            subtitle="Tournament Ended"
-            onClose={() => {}}
-            maxWidth="sm"
-          >
-            {/* Player info row */}
+        <Animated.View style={[styles.modalContent, { transform: [{ scale: scaleAnim }] }]}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Eliminated</Text>
+            <Text style={styles.subtitle}>Tournament Ended</Text>
+          </View>
+          
+          <View style={styles.body}>
             <View style={styles.playerRow}>
               <Text style={styles.playerLabel}>Player {playerIndex + 1}</Text>
               <View style={[styles.rankBadge, { borderColor: getPerformanceColor() }]}>
@@ -107,16 +108,14 @@ export function DisqualifiedPlayerModal({
               </View>
             </View>
 
-            {/* Performance message */}
             <Text style={[styles.perfMessage, { color: getPerformanceColor() }]}>
-              {finalRank === 1 ? 'Champion! 🏆' :
-               finalRank === 2 ? 'Second Place! 🥈' :
-               finalRank === 3 ? 'Third Place! 🥉' :
+              {finalRank === 1 ? 'Champion!' :
+               finalRank === 2 ? 'Second Place!' :
+               finalRank === 3 ? 'Third Place!' :
                finalRank <= Math.ceil(totalPlayers / 2) ? 'Good Performance!' :
                'Better Luck Next Time!'}
             </Text>
 
-            {/* Info box */}
             <View style={styles.infoBox}>
               <View style={styles.statRow}>
                 <Text style={styles.statLabel}>Points</Text>
@@ -132,13 +131,11 @@ export function DisqualifiedPlayerModal({
               </View>
             </View>
 
-            {/* Elimination round */}
             <View style={styles.eliminationBox}>
               <Text style={styles.elimLabel}>Eliminated In:</Text>
               <Text style={styles.elimRound}>{eliminationRound}</Text>
             </View>
 
-            {/* Score breakdown */}
             {scoreBreakdown && (
               <View style={styles.breakdownBox}>
                 <Text style={styles.breakdownTitle}>Round Statistics</Text>
@@ -168,16 +165,9 @@ export function DisqualifiedPlayerModal({
                     <Text style={[styles.breakdownValue, styles.bonusValue]}>+{scoreBreakdown.acePoints}</Text>
                   </View>
                 )}
-                {scoreBreakdown.cardCountBonus > 0 && (
-                  <View style={styles.breakdownRow}>
-                    <Text style={styles.breakdownLabel}>Card Count Bonus</Text>
-                    <Text style={[styles.breakdownValue, styles.bonusValue]}>+{scoreBreakdown.cardCountBonus}</Text>
-                  </View>
-                )}
               </View>
             )}
 
-            {/* Buttons */}
             {onWatchTournament && (
               <TouchableOpacity style={styles.btnGhost} onPress={onWatchTournament}>
                 <Text style={styles.btnGhostText}>Watch Tournament</Text>
@@ -187,51 +177,47 @@ export function DisqualifiedPlayerModal({
             <TouchableOpacity style={styles.btnRed} onPress={onReturnToLobby}>
               <Text style={styles.btnText}>Return to Lobby</Text>
             </TouchableOpacity>
-          </ModalSurface>
+          </View>
         </Animated.View>
       </Animated.View>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create<{
-  overlay: ViewStyle;
-  modalWrapper: ViewStyle;
-  playerRow: ViewStyle;
-  playerLabel: TextStyle;
-  rankBadge: ViewStyle;
-  rankText: TextStyle;
-  perfMessage: TextStyle;
-  infoBox: ViewStyle;
-  statRow: ViewStyle;
-  statLabel: TextStyle;
-  statValue: TextStyle;
-  eliminationBox: ViewStyle;
-  elimLabel: TextStyle;
-  elimRound: TextStyle;
-  breakdownBox: ViewStyle;
-  breakdownTitle: TextStyle;
-  breakdownRow: ViewStyle;
-  breakdownLabel: TextStyle;
-  breakdownValue: TextStyle;
-  bonusValue: TextStyle;
-  btnGhost: ViewStyle;
-  btnGhostText: TextStyle;
-  btnRed: ViewStyle;
-  btnText: TextStyle;
-}>({
+const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalWrapper: {
-    width: '85%',
-    maxWidth: 340,
+  modalContent: {
+    width: 300,
+    backgroundColor: MODAL_BG,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: MODAL_BORDER,
+    overflow: 'hidden',
   },
-
-  // Player info
+  header: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fbbf24',
+  },
+  subtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 2,
+  },
+  body: {
+    padding: 16,
+  },
   playerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -255,16 +241,12 @@ const styles = StyleSheet.create<{
     fontSize: 18,
     fontWeight: 'bold',
   },
-
-  // Performance message
   perfMessage: {
     fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 16,
   },
-
-  // Info box
   infoBox: {
     backgroundColor: 'rgba(0,0,0,0.32)',
     borderRadius: 11,
@@ -287,8 +269,6 @@ const styles = StyleSheet.create<{
     fontWeight: '700',
     color: '#fff',
   },
-
-  // Elimination box
   eliminationBox: {
     alignItems: 'center',
     marginBottom: 16,
@@ -308,8 +288,6 @@ const styles = StyleSheet.create<{
     fontWeight: '600',
     color: '#dc3545',
   },
-
-  // Breakdown
   breakdownBox: {
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 11,
@@ -341,8 +319,6 @@ const styles = StyleSheet.create<{
   bonusValue: {
     color: '#4ade80',
   },
-
-  // Buttons
   btnGhost: {
     width: '100%',
     paddingVertical: 11,

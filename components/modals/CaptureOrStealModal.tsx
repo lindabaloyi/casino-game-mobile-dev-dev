@@ -1,21 +1,19 @@
 /**
  * CaptureOrStealModal
  * Shows choice when capturing small opponent build - capture or extend/steal.
- * 
- * Style: Red theme per casino-noir spec - refactored to match StealBuildModal
  */
 
 import React from 'react';
 import {
+  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Pressable,
 } from 'react-native';
-import { ModalSurface } from './ModalSurface';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from '../../types';
-import { getTeamButtonStyle } from './ModalDesignSystem';
 
 interface CaptureOrStealModalProps {
   visible: boolean;
@@ -29,6 +27,9 @@ interface CaptureOrStealModalProps {
   onCancel: () => void;
   onPlayButtonSound?: () => void;
 }
+
+const MODAL_BG = '#1a1a1a';
+const MODAL_BORDER = '#dc2626';
 
 export function CaptureOrStealModal({
   visible,
@@ -52,89 +53,139 @@ export function CaptureOrStealModal({
     onExtend();
   };
 
-  // Calculate new value after extending
+  const handleCancel = () => {
+    onPlayButtonSound?.();
+    onCancel();
+  };
+
   const newValue = buildValue + card.value;
 
   return (
-    <ModalSurface
+    <Modal
       visible={visible}
-      theme="red"
-      title={showStealOnly ? "Confirm Steal" : "Choose Action"}
-      onClose={onCancel}
-      maxWidth="md"
+      transparent
+      animationType="fade"
+      onRequestClose={handleCancel}
+      statusBarTranslucent
     >
-      {/* Card row - show build cards + hand card */}
-      <View style={styles.cardsRow}>
-        {buildCards.map((c, index) => (
-          <PlayingCard
-            key={`build-${index}`}
-            rank={c.rank}
-            suit={c.suit}
-            width={36}
-            height={48}
-          />
-        ))}
-
-        <Text style={styles.plusSign}>+</Text>
-
-        <PlayingCard
-          rank={card.rank}
-          suit={card.suit}
-          width={36}
-          height={48}
-        />
-      </View>
-
-      {/* New value display - only show for choice scenario */}
-      {!showStealOnly && (
-        <Text style={styles.newValueText}>
-          After extend: {newValue}
-        </Text>
-      )}
-
-      {/* Action buttons - conditional based on showStealOnly */}
-      {showStealOnly ? (
-        // Pure steal: show only confirm button
-        <TouchableOpacity 
-          style={styles.btnGreen} 
-          onPress={handleExtend}
-          activeOpacity={0.82}
-        >
-          <Text style={styles.btnText}>Confirm Steal</Text>
-        </TouchableOpacity>
-      ) : (
-        // Choice scenario: show both capture and steal options
-        <>
-          <TouchableOpacity 
-            style={styles.btnRed} 
-            onPress={handleCapture}
-            activeOpacity={0.82}
-          >
-            <Text style={styles.btnText}>Capture {buildValue}</Text>
-          </TouchableOpacity>
+      <Pressable style={styles.overlay} onPress={handleCancel}>
+        <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
+          <View style={styles.header}>
+            <Text style={styles.title}>
+              {showStealOnly ? "Confirm Steal" : "Choose Action"}
+            </Text>
+            <TouchableOpacity onPress={handleCancel} style={styles.closeBtn}>
+              <Text style={styles.closeText}>✕</Text>
+            </TouchableOpacity>
+          </View>
           
-          <TouchableOpacity 
-            style={styles.btnGreen} 
-            onPress={handleExtend}
-            activeOpacity={0.82}
-          >
-            <Text style={styles.btnText}>Steal Build</Text>
-          </TouchableOpacity>
-        </>
-      )}
-      
-      <TouchableOpacity 
-        style={styles.btnGhost} 
-        onPress={onCancel}
-      >
-        <Text style={styles.btnGhostText}>Cancel</Text>
-      </TouchableOpacity>
-    </ModalSurface>
+          <View style={styles.body}>
+            <View style={styles.cardsRow}>
+              {buildCards.map((c, index) => (
+                <PlayingCard
+                  key={`build-${index}`}
+                  rank={c.rank}
+                  suit={c.suit}
+                  width={36}
+                  height={48}
+                />
+              ))}
+
+              <Text style={styles.plusSign}>+</Text>
+
+              <PlayingCard
+                rank={card.rank}
+                suit={card.suit}
+                width={36}
+                height={48}
+              />
+            </View>
+
+            {!showStealOnly && (
+              <Text style={styles.newValueText}>
+                After extend: {newValue}
+              </Text>
+            )}
+
+            {showStealOnly ? (
+              <TouchableOpacity 
+                style={styles.btnGreen} 
+                onPress={handleExtend}
+                activeOpacity={0.82}
+              >
+                <Text style={styles.btnText}>Confirm Steal</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <TouchableOpacity 
+                  style={styles.btnRed} 
+                  onPress={handleCapture}
+                  activeOpacity={0.82}
+                >
+                  <Text style={styles.btnText}>Capture {buildValue}</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.btnGreen} 
+                  onPress={handleExtend}
+                  activeOpacity={0.82}
+                >
+                  <Text style={styles.btnText}>Steal Build</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            
+            <TouchableOpacity 
+              style={styles.btnGhost} 
+              onPress={handleCancel}
+            >
+              <Text style={styles.btnGhostText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  // Card row - matches StealBuildModal
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: 320,
+    backgroundColor: MODAL_BG,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: MODAL_BORDER,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fbbf24',
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  closeText: {
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  body: {
+    padding: 16,
+  },
   cardsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -148,17 +199,13 @@ const styles = StyleSheet.create({
     color: '#c0392b',
     marginHorizontal: 4,
   },
-
-  // New value text - clean single line
   newValueText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fbbf24',  // Gold matching modal theme
+    color: '#fbbf24',
     marginBottom: 16,
     textAlign: 'center',
   },
-   
-  // Buttons - matching StealBuildModal
   btnRed: {
     width: '100%',
     paddingVertical: 13,
@@ -167,7 +214,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#c0392b',
     alignItems: 'center',
     marginBottom: 7,
-    borderWidth: 0,
   },
   btnGreen: {
     width: '100%',
@@ -189,6 +235,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(255,100,100,0.15)',
     alignItems: 'center',
+    marginTop: 8,
   },
   btnText: {
     fontSize: 16,

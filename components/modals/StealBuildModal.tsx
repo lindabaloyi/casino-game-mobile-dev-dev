@@ -1,20 +1,18 @@
 /**
  * StealBuildModal
  * Confirmation dialog for stealing an opponent's build.
- * 
- * Style: Red theme with pulsing confirm button.
- * Buttons dynamically colored based on player's team.
  */
 
 import React, { useEffect, useRef } from 'react';
 import {
   Animated,
+  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Pressable,
 } from 'react-native';
-import { ModalSurface } from './ModalSurface';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from '../../types';
 import { getTeamButtonStyle } from './ModalDesignSystem';
@@ -26,14 +24,15 @@ interface StealBuildModalProps {
   buildValue: number;
   buildOwner: number;
   playerNumber: number;
-  /** Total player count */
   playerCount?: number;
-  /** Whether party mode is enabled */
   isPartyMode?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   onPlayButtonSound?: () => void;
 }
+
+const MODAL_BG = '#1a1a1a';
+const MODAL_BORDER = '#dc2626';
 
 export function StealBuildModal({
   visible,
@@ -48,23 +47,14 @@ export function StealBuildModal({
   onCancel,
   onPlayButtonSound,
 }: StealBuildModalProps) {
-  // Pulsing glow animation on the confirm button
   const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!visible) return;
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: false,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0,
-          duration: 900,
-          useNativeDriver: false,
-        }),
+        Animated.timing(glowAnim, { toValue: 1, duration: 900, useNativeDriver: false }),
+        Animated.timing(glowAnim, { toValue: 0, duration: 900, useNativeDriver: false }),
       ])
     );
     pulse.start();
@@ -81,65 +71,113 @@ export function StealBuildModal({
     onConfirm();
   };
 
-  const newValue = buildValue + handCard.value;
+  const handleCancel = () => {
+    onPlayButtonSound?.();
+    onCancel();
+  };
 
-  // Team-colored confirm button — same system, now layered over red theme
+  const newValue = buildValue + handCard.value;
   const confirmButtonStyle = getTeamButtonStyle(playerNumber, playerCount, isPartyMode);
 
   return (
-    <ModalSurface
+    <Modal
       visible={visible}
-      theme="red"
-      title="Steal Build"
-      onClose={onCancel}
-      maxWidth="md"
+      transparent
+      animationType="fade"
+      onRequestClose={handleCancel}
+      statusBarTranslucent
     >
-      {/* Card row */}
-      <View style={styles.cardsRow}>
-        {buildCards.map((card, index) => (
-          <PlayingCard
-            key={`build-${index}`}
-            rank={card.rank}
-            suit={card.suit}
-            width={36}
-            height={48}
-          />
-        ))}
+      <Pressable style={styles.overlay} onPress={handleCancel}>
+        <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Steal Build</Text>
+            <TouchableOpacity onPress={handleCancel} style={styles.closeBtn}>
+              <Text style={styles.closeText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.body}>
+            <View style={styles.cardsRow}>
+              {buildCards.map((card, index) => (
+                <PlayingCard
+                  key={`build-${index}`}
+                  rank={card.rank}
+                  suit={card.suit}
+                  width={36}
+                  height={48}
+                />
+              ))}
 
-        <Text style={styles.plusSign}>+</Text>
+              <Text style={styles.plusSign}>+</Text>
 
-        <PlayingCard
-          rank={handCard.rank}
-          suit={handCard.suit}
-          width={36}
-          height={48}
-        />
-      </View>
+              <PlayingCard
+                rank={handCard.rank}
+                suit={handCard.suit}
+                width={36}
+                height={48}
+              />
+            </View>
 
-      {/* New value display */}
-      <Text style={styles.newValueText}>New value: {newValue}</Text>
+            <Text style={styles.newValueText}>New value: {newValue}</Text>
 
-      {/* Confirm — pulsing glow */}
-      <Animated.View style={[styles.glowWrapper, { opacity: glowOpacity }]}>
-        <TouchableOpacity
-          style={[styles.btnDynamic, confirmButtonStyle, styles.btnDynamicRed]}
-          onPress={handleConfirm}
-          activeOpacity={0.82}
-        >
-          <Text style={styles.btnText}>Steal Build</Text>
-        </TouchableOpacity>
-      </Animated.View>
+            <Animated.View style={[styles.glowWrapper, { opacity: glowOpacity }]}>
+              <TouchableOpacity
+                style={[styles.btnDynamic, confirmButtonStyle, styles.btnDynamicRed]}
+                onPress={handleConfirm}
+                activeOpacity={0.82}
+              >
+                <Text style={styles.btnText}>Steal Build</Text>
+              </TouchableOpacity>
+            </Animated.View>
 
-      {/* Cancel */}
-      <TouchableOpacity style={styles.btnGhost} onPress={onCancel}>
-        <Text style={styles.btnGhostText}>Cancel</Text>
-      </TouchableOpacity>
-    </ModalSurface>
+            <TouchableOpacity style={styles.btnGhost} onPress={handleCancel}>
+              <Text style={styles.btnGhostText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  // Card row
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: 320,
+    backgroundColor: MODAL_BG,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: MODAL_BORDER,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fbbf24',
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  closeText: {
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  body: {
+    padding: 16,
+  },
   cardsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -153,31 +191,23 @@ const styles = StyleSheet.create({
     color: '#c0392b',
     marginHorizontal: 4,
   },
-
-  // New value text - single line
   newValueText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fbbf24',   // Gold matching modal theme
+    color: '#fbbf24',
     marginBottom: 16,
     textAlign: 'center',
   },
-
-  // Pulsing glow wrapper
   glowWrapper: {
     width: '100%',
     marginBottom: 7,
-    // Shadow for the glow effect (iOS)
     shadowColor: '#e74c3c',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 12,
-    // Android elevation keeps it subtle
     elevation: 8,
     borderRadius: 13,
   },
-
-  // Dynamic confirm button — red override on top of team style
   btnDynamic: {
     width: '100%',
     paddingVertical: 13,
@@ -196,8 +226,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.4,
   },
-
-  // Cancel ghost button
   btnGhost: {
     width: '100%',
     paddingVertical: 11,
@@ -207,6 +235,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(255,100,100,0.15)',
     alignItems: 'center',
+    marginTop: 8,
   },
   btnGhostText: {
     fontSize: 13,
