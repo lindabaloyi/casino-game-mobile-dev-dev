@@ -42,16 +42,24 @@ interface OpponentGhostCardProps {
 const SPRING_FINAL_CONFIG = { damping: 15, stiffness: 150 };
 const SPRING_DRAG_CONFIG = { damping: 20, stiffness: 200 };
 
-export const OpponentGhostCard = React.memo(function OpponentGhostCard({ 
-  card, 
-  position, 
-  tableBounds, 
-  targetType, 
+export const OpponentGhostCard = React.memo(function OpponentGhostCard({
+  card,
+  position,
+  tableBounds,
+  targetType,
   targetId,
   cardPositions,
   stackPositions,
   capturePositions,
 }: OpponentGhostCardProps) {
+  console.log('[OpponentGhostCard] RENDER:', {
+    card: `${card.rank}${card.suit}`,
+    positionX: position.x,
+    positionY: position.y,
+    targetType,
+    targetId,
+  });
+
   // Memoize initial bounds to avoid recalculation on every render
   const initialBounds = useMemo(() => ({
     width: tableBounds.width > 0 ? tableBounds.width : 400,
@@ -63,16 +71,22 @@ export const OpponentGhostCard = React.memo(function OpponentGhostCard({
     () => denormalizePosition(position.x, position.y, initialBounds),
     [position.x, position.y, initialBounds]
   );
-  
+
   // Use shared values for animation - initialize to current position to avoid flash at (0,0)
   const translateX = useSharedValue(initialAbsPos.x - CARD_WIDTH / 2);
   const translateY = useSharedValue(initialAbsPos.y - CARD_HEIGHT / 2);
   const opacity = useSharedValue(1); // No opacity - fully visible
-  
+
   // Track if this is the final position (for fade out)
   const isFinalPosition = useRef(false);
 
   useEffect(() => {
+    console.log('[OpponentGhostCard] useEffect - updating position:', {
+      positionX: position.x,
+      positionY: position.y,
+      targetType,
+      targetId,
+    });
     // Get actual bounds being used (handles fallback case)
     const bounds = {
       width: tableBounds.width > 0 ? tableBounds.width : 400,
@@ -124,18 +138,21 @@ export const OpponentGhostCard = React.memo(function OpponentGhostCard({
 
     // Animate to new position
     if (shouldFadeOut) {
+      console.log('[OpponentGhostCard] FADE OUT - animating to target:', { targetId, targetType });
       // Final position: snap smoothly then fade out using spring callback
       translateX.value = withSpring(
         absPos.x - CARD_WIDTH / 2,
         SPRING_FINAL_CONFIG,
         (finished) => {
           if (finished) {
+            console.log('[OpponentGhostCard] FADE OUT - finished, fading...');
             opacity.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
           }
         }
       );
       translateY.value = withSpring(absPos.y - CARD_HEIGHT / 2, SPRING_FINAL_CONFIG);
     } else {
+      console.log('[OpponentGhostCard] DRAGGING - smooth follow:', { x: absPos.x, y: absPos.y });
       // During drag: smooth follow with slight lag for natural feel
       translateX.value = withSpring(absPos.x - CARD_WIDTH / 2, SPRING_DRAG_CONFIG);
       translateY.value = withSpring(absPos.y - CARD_HEIGHT / 2, SPRING_DRAG_CONFIG);

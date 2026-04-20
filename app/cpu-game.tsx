@@ -13,6 +13,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
 import { GameBoard } from '../components/game/GameBoard';
+import { DragProvider } from '../hooks/drag/DragContext';
 import { useLocalGame, GameState } from '../hooks/game/useLocalGame';
 import { useCpuEngine } from '../hooks/game/useCpuEngine';
 import { useRouter } from 'expo-router';
@@ -66,22 +67,24 @@ export default function CpuGameScreen() {
         </View>
       )}
       
-      <GameBoard
-        gameState={gameState as any}
-        playerNumber={playerNumber}
-        sendAction={sendAction}
-        startNextRound={startNextRound}
-        onRestart={() => {
-          resetGame();
-        }}
-        onBackToMenu={() => {}}
-        serverError={null}
-        onServerErrorClose={() => {}}
-        opponentDrag={null}
-        emitDragStart={() => {}}
-        emitDragMove={() => {}}
-        emitDragEnd={() => {}}
-      />
+      <DragProvider>
+        <GameBoard
+          gameState={gameState as any}
+          playerNumber={playerNumber}
+          sendAction={sendAction}
+          startNextRound={startNextRound}
+          onRestart={() => {
+            resetGame();
+          }}
+          onBackToMenu={() => {}}
+          serverError={null}
+          onServerErrorClose={() => {}}
+          opponentDrag={null}
+          emitDragStart={() => {}}
+          emitDragMove={() => {}}
+          emitDragEnd={() => {}}
+        />
+      </DragProvider>
     </View>
   );
 }

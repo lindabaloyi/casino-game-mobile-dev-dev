@@ -21,6 +21,7 @@ import { useWindowDimensions } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
 import { Card } from './types';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
+import { useDragContext } from '../../hooks/drag/DragContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -69,16 +70,17 @@ export function DraggableTableCard({
   onDragEnd,
 }: Props) {
   const { width: screenWidth } = useWindowDimensions();
-  
+  const { dragX, dragY, draggingCard, dragSource, isDragging } = useDragContext();
+
   // Calculate responsive card dimensions - use shared constants for consistency
   const responsiveCardWidth = useMemo(() => {
     return Math.min(CARD_WIDTH, screenWidth / 5);
   }, [screenWidth]);
-  
+
   const responsiveCardHeight = useMemo(() => {
     return responsiveCardWidth * (CARD_HEIGHT / CARD_WIDTH); // Maintain aspect ratio
   }, [responsiveCardWidth]);
-  
+
   const opacity = useSharedValue(1);
   const cardId = `${card.rank}${card.suit}`;
 
@@ -165,13 +167,31 @@ export function DraggableTableCard({
     .enabled(isMyTurn)
     .onStart(e => {
       opacity.value = 0;
+      // Write to DragContext for ghost (UI thread - instant)
+      draggingCard.value = card;
+      dragSource.value = 'table';
+      dragX.value = e.absoluteX;
+      dragY.value = e.absoluteY;
+      isDragging.value = true;
+      // Call JS handlers for multiplayer sync
       runOnJS(_onDragStart)(e.absoluteX, e.absoluteY);
       runOnJS(_onDragMove)(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {
+      // Update UI-thread context for instant ghost movement
+      dragX.value = e.absoluteX;
+      dragY.value = e.absoluteY;
+      // Call JS handler for multiplayer sync
       runOnJS(_onDragMove)(e.absoluteX, e.absoluteY);
     })
     .onEnd(e => {
+      // Clear DragContext UI-thread state
+      draggingCard.value = null;
+      dragSource.value = null;
+      dragX.value = 0;
+      dragY.value = 0;
+      isDragging.value = false;
+      // Process the drop on JS thread
       runOnJS(handleDrop)(e.absoluteX, e.absoluteY);
     });
 

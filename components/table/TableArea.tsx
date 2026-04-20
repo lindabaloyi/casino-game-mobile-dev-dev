@@ -137,10 +137,6 @@ interface Props {
   onCardPlayed?: () => void;
   /** Callback for double-tapping a loose card to create single temp stack */
   onDoubleTapCard?: (card: Card) => void;
-  /** Pending drop card - for optimistic UI to hide card immediately after action */
-  pendingDropCard?: Card | null;
-  /** Pending drop source - 'hand' | 'captured' | 'table' | null */
-  pendingDropSource?: 'hand' | 'captured' | 'table' | null;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -202,8 +198,6 @@ export function TableArea({
   onPlayButtonSound,
   onCardPlayed,
   onDoubleTapCard,
-  pendingDropCard,
-  pendingDropSource,
 }: Props) {
   // Separate item types
   const tempStacks = tableCards.filter(isTempStack) as TempStack[];
@@ -269,8 +263,6 @@ export function TableArea({
         currentPlayerIndex={currentPlayerIndex}
         onBuildTap={onBuildTap}
         onDoubleTapCard={onDoubleTapCard}
-        pendingDropCard={pendingDropCard}
-        pendingDropSource={pendingDropSource}
       />
     );
   };

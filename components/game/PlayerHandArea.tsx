@@ -19,6 +19,7 @@ import { OpponentDragState } from '../../hooks/useGameState';
 import { StackActionStrip } from '../table/StackActionStrip';
 import { areTeammates } from '../../shared/game/team';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
+import { useDragContext } from '../../hooks/drag/DragContext';
 
 interface Card {
   rank: string;
@@ -96,10 +97,6 @@ interface Props {
   gameState?: GameState;
   /** Current player index */
   currentPlayer?: number;
-  /** Pending drop card - for optimistic UI to hide card immediately after drop */
-  pendingDropCard?: Card | null;
-  /** Pending drop source - 'hand' | 'captured' | 'table' | null */
-  pendingDropSource?: 'hand' | 'captured' | 'table' | null;
   /** Callback for card contact sound - passed from GameBoard to persist across drags */
   onCardContact?: () => void;
   /** Callback for trail sound - passed from GameBoard */
@@ -189,11 +186,8 @@ function PlayerHandAreaImpl({
   onAcceptStack,
   onCancelStack,
   showEndTurnButton,
-  onEndTurn,
   gameState,
   currentPlayer,
-  pendingDropCard,
-  pendingDropSource,
   onCardContact,
   onTrailSound,
   onPlayButtonSound,
@@ -202,6 +196,7 @@ function PlayerHandAreaImpl({
   onShiya,
 }: Props) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { pendingDropCard, pendingDropSource, isPendingDrop } = useDragContext();
   
   // Sort hand by card value (ascending - smallest on left, largest on right)
   const sortedHand = useMemo(() => {
@@ -310,11 +305,13 @@ return (
         data={sortedHand}
         renderItem={({ item: card, index }) => {
           const cardId = `${card.rank}${card.suit}`;
-          const isPendingDrop = pendingDropCard && 
-            pendingDropSource === 'hand' &&
-            pendingDropCard.rank === card.rank && 
-            pendingDropCard.suit === card.suit;
-          
+          const pCard = pendingDropCard.value;
+          const pSource = pendingDropSource.value;
+          const isPending = pCard &&
+            pSource === 'hand' &&
+            pCard.rank === card.rank &&
+            pCard.suit === card.suit;
+
           const isHidden = Boolean(
             (opponentDrag?.isDragging &&
               opponentDrag.source === 'hand' &&
@@ -322,7 +319,7 @@ return (
             (opponentDrag?.targetId &&
               opponentDrag.source === 'hand' &&
               opponentDrag.cardId === cardId) ||
-            isPendingDrop
+            isPending
           );
           
           return (

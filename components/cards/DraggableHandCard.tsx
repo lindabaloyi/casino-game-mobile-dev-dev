@@ -32,6 +32,7 @@ import { PlayingCard } from './PlayingCard';
 import { DropBounds } from '../../hooks/useDrag';
 import { TableItem } from '../table/types';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
+import { useDragContext } from '../../hooks/drag/DragContext';
 
 // Card dimensions - using shared constants for consistency
 const DEFAULT_CARD_WIDTH = CARD_WIDTH; // 56
@@ -112,23 +113,26 @@ function DraggableHandCardImpl({
   onCardContact,
 }: Props) {
   const opacity = useSharedValue(1);
+  const { dragX, dragY, draggingCard, dragSource, isDragging } = useDragContext();
 
   // ── JS-thread helpers ─────────────────────────────────────────────────────
+  // Note: DragContext updates happen in pan gesture worklet (UI thread)
+  // JS handlers are for multiplayer sync only
 
-  function handleDragStart(x: number, y: number) { 
-    // Pass the actual position to parent
+  function handleDragStart(x: number, y: number) {
+    // Multiplayer sync - tell server about drag start
     if (onDragStart) {
       onDragStart(card, x, y);
     }
-    
-    // Immediately send the first move event with the starting position
+    // Send first move event for sync
     if (onDragMove) {
       onDragMove(x, y);
     }
   }
-  
-  function handleDragMove(x: number, y: number) { 
-    if (onDragMove) onDragMove(x, y); 
+
+  function handleDragMove(x: number, y: number) {
+    // Multiplayer sync only - ghost already updated in UI worklet
+    if (onDragMove) onDragMove(x, y);
   }
 
   function handleSnapBack() {
@@ -236,13 +240,29 @@ function DraggableHandCardImpl({
     .enabled(isMyTurn)
     .onStart(e => {
       opacity.value = 0;
-      // Call handleDragStart which will store position AND send first move
+      // Update UI-thread context for instant ghost movement
+      draggingCard.value = card;
+      dragSource.value = 'hand';
+      dragX.value = e.absoluteX;
+      dragY.value = e.absoluteY;
+      isDragging.value = true;
+      // Call JS handler for multiplayer sync
       runOnJS(handleDragStart)(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {
+      // Pure UI thread update for instant ghost
+      dragX.value = e.absoluteX;
+      dragY.value = e.absoluteY;
+      // Call JS handler for multiplayer sync
       runOnJS(handleDragMove)(e.absoluteX, e.absoluteY);
     })
     .onEnd(e => {
+      // Clear UI-thread context
+      draggingCard.value = null;
+      dragSource.value = null;
+      dragX.value = 0;
+      dragY.value = 0;
+      isDragging.value = false;
       // Pass ONLY coordinates to JS thread
       runOnJS(handleDrop)(e.absoluteX, e.absoluteY);
     });

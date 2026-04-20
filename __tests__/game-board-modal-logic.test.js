@@ -11,8 +11,20 @@ jest.mock('../../hooks/useDrag', () => ({
   useDrag: () => ({})
 }));
 
-jest.mock('../../hooks/drag/useDragOverlay', () => ({
-  useDragOverlay: () => ({})
+jest.mock('../../hooks/drag/DragContext', () => ({
+  DragProvider: ({ children }) => children,
+  useDragContext: () => ({
+    dragX: { value: 0 },
+    dragY: { value: 0 },
+    draggingCard: { value: null },
+    dragSource: { value: null },
+    isDragging: { value: false },
+    pendingDropCard: { value: null },
+    pendingDropSource: { value: null },
+    markPendingDrop: jest.fn(),
+    clearPendingDrop: jest.fn(),
+    isPendingDrop: jest.fn(),
+  })
 }));
 
 jest.mock('../../hooks/game/useModalManager', () => ({

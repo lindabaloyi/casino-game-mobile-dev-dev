@@ -13,6 +13,7 @@ import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { GameBoard } from '../game/GameBoard';
+import { DragProvider } from '../../hooks/drag/DragContext';
 import { useTournamentStatus } from '../../hooks/useTournamentStatus';
 import { SpectatorView, QualificationReviewModal } from '../tournament';
 import type { GameState, GameOverData, OpponentDragState } from '../../hooks/useGameSession';
@@ -111,6 +112,31 @@ export const GameRoomContainer: React.FC<GameRoomContainerProps> = ({
             sendAction({ type: 'advanceFromQualificationReview', payload: {} });
           }}
         />
+        <DragProvider>
+          <GameBoard
+            gameState={gameState as any}
+            gameOverData={gameOverData}
+            playerNumber={playerNumber}
+            sendAction={sendAction}
+            startNextRound={startNextRound}
+            onRestart={onRestart}
+            onBackToMenu={onBackToMenu}
+            serverError={serverErrorObj}
+            onServerErrorClose={clearError}
+            opponentDrag={opponentDrag}
+            emitDragStart={emitDragStart}
+            emitDragMove={emitDragMove}
+            emitDragEnd={emitDragEnd}
+          />
+        </DragProvider>
+      </View>
+    );
+  }
+
+  // Normal game view
+  return (
+    <View style={styles.container}>
+      <DragProvider>
         <GameBoard
           gameState={gameState as any}
           gameOverData={gameOverData}
@@ -126,28 +152,7 @@ export const GameRoomContainer: React.FC<GameRoomContainerProps> = ({
           emitDragMove={emitDragMove}
           emitDragEnd={emitDragEnd}
         />
-      </View>
-    );
-  }
-
-  // Normal game view
-  return (
-    <View style={styles.container}>
-      <GameBoard
-        gameState={gameState as any}
-        gameOverData={gameOverData}
-        playerNumber={playerNumber}
-        sendAction={sendAction}
-        startNextRound={startNextRound}
-        onRestart={onRestart}
-        onBackToMenu={onBackToMenu}
-        serverError={serverErrorObj}
-        onServerErrorClose={clearError}
-        opponentDrag={opponentDrag}
-        emitDragStart={emitDragStart}
-        emitDragMove={emitDragMove}
-        emitDragEnd={emitDragEnd}
-      />
+      </DragProvider>
     </View>
   );
 };

@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as NavigationBar from 'expo-navigation-bar';
 import { GameState, OpponentDragState } from '../../hooks/useGameState';
 import { useDrag } from '../../hooks/useDrag';
-import { useDragOverlay } from '../../hooks/drag/useDragOverlay';
+import { useDragContext } from '../../hooks/drag/DragContext';
 import { useModalManager } from '../../hooks/game/useModalManager';
 import { useGameActions } from '../../hooks/game/useGameActions';
 import { useGameComputed } from '../../hooks/game/useGameComputed';
@@ -143,7 +143,7 @@ export function GameBoard({
 
   // Core hooks
   const drag = useDrag();
-  const dragOverlay = useDragOverlay();
+  const { pendingDropCard, pendingDropSource, clearPendingDrop, markPendingDrop } = useDragContext();
   const modals = useModalManager();
   const actions = useGameActions(sendAction);
   
@@ -266,33 +266,33 @@ export function GameBoard({
 
   // Clear pending drop when card is removed from its source (hand or table)
   // This ensures optimistic UI state is reset after server confirms the action
+  // Note: Now handled by individual components via useDragContext.isPendingDrop()
   useEffect(() => {
-    if (dragOverlay.pendingDropCard) {
-      if (dragOverlay.pendingDropSource === 'hand') {
-        // Check if the pending drop card is still in hand
+    const pCard = pendingDropCard.value;
+    const pSource = pendingDropSource.value;
+
+    if (pCard) {
+      if (pSource === 'hand') {
         const myHand = gameState.players?.[playerNumber]?.hand ?? [];
         const stillInHand = myHand.some(
-          (c: any) => c.rank === dragOverlay.pendingDropCard?.rank && c.suit === dragOverlay.pendingDropCard?.suit
+          (c: any) => c.rank === pCard?.rank && c.suit === pCard?.suit
         );
-        
+
         if (!stillInHand) {
-          // Card was removed from hand - clear pending drop
-          dragOverlay.clearPendingDrop();
+          clearPendingDrop();
         }
-      } else if (dragOverlay.pendingDropSource === 'table') {
-        // Check if the pending drop card is still on table (not in a stack)
+      } else if (pSource === 'table') {
         const tableCards = computed.table ?? [];
         const stillOnTable = tableCards.some(
-          (tc: any) => !tc.type && tc.rank === dragOverlay.pendingDropCard?.rank && tc.suit === dragOverlay.pendingDropCard?.suit
+          (tc: any) => !tc.type && tc.rank === pCard?.rank && tc.suit === pCard?.suit
         );
-        
+
         if (!stillOnTable) {
-          // Card was removed from table - clear pending drop
-          dragOverlay.clearPendingDrop();
+          clearPendingDrop();
         }
       }
     }
-  }, [gameState.players, computed.table, dragOverlay, playerNumber]);
+  }, [gameState.players, computed.table, pendingDropCard, pendingDropSource, clearPendingDrop, playerNumber]);
 
   // KISS Round Transition Logic
   // When round ends:
@@ -401,7 +401,6 @@ export function GameBoard({
   // IMPORTANT: Use gameState.tableCards directly instead of computed.table
   // to avoid stale closure issues with memoized selectors
   const dragHandlers = useDragHandlers({
-    dragOverlay,
     dropBounds: drag.dropBounds,
     emitDragStart,
     emitDragMove,
@@ -488,16 +487,14 @@ export function GameBoard({
     source: string | undefined
   ) => {
     // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
-    dragOverlay.markPendingDrop(card, 'captured');
-    
+    markPendingDrop(card, 'captured');
+
     // Emit drag-end to server so opponents can clean up ghost cards
     if (emitDragEnd) {
-      const absX = dragOverlay.overlayX.value + 28;
-      const absY = dragOverlay.overlayY.value + 42;
       const tableBounds = drag.dropBounds.current;
-      const normX = Math.max(0, Math.min(1, absX / (tableBounds.width || 400)));
-      const normY = Math.max(0, Math.min(1, absY / (tableBounds.height || 300)));
-      
+      const normX = 0.5;
+      const normY = 0.5;
+
       if (targetCard) {
         const cardId = `${targetCard.rank}${targetCard.suit}`;
         emitDragEnd(card, { x: normX, y: normY }, 'success', 'card', cardId);
@@ -507,14 +504,13 @@ export function GameBoard({
         emitDragEnd(card, { x: normX, y: normY }, 'miss');
       }
     }
-    
+
     if (targetCard) {
       actions.createTemp(card, targetCard, source || 'captured');
     } else if (targetStackId) {
       actions.addToTemp(card, targetStackId, source || 'captured');
     }
-    dragOverlay.endDrag();
-  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions]);
+  }, [emitDragEnd, actions, markPendingDrop]);
 
   const handleCaptureBuild = useCallback((
     card: any,
@@ -530,45 +526,39 @@ export function GameBoard({
     });
 
     // OPTIMISTIC UI: Mark card as pending drop to hide it immediately
-    dragOverlay.markPendingDrop(card, 'captured');
-    
+    markPendingDrop(card, 'captured');
+
     // Emit drag-end to server so opponents can clean up ghost cards
     if (emitDragEnd) {
-      const absX = dragOverlay.overlayX.value + 28;
-      const absY = dragOverlay.overlayY.value + 42;
-      const tableBounds = drag.dropBounds.current;
-      const normX = Math.max(0, Math.min(1, absX / (tableBounds.width || 400)));
-      const normY = Math.max(0, Math.min(1, absY / (tableBounds.height || 300)));
-      emitDragEnd(card, { x: normX, y: normY }, 'success', 'build_stack', stackId);
+      emitDragEnd(card, { x: 0.5, y: 0.5 }, 'success', 'build_stack', stackId);
     }
-    
+
     // Use gameState.tableCards directly instead of computed.table for latest state
     const tableCards = gameState.tableCards ?? [];
     const buildStack = tableCards.find(
       (tc: any) => tc.stackId === stackId && tc.type === 'build_stack'
     ) as any;
     const stackOwner = buildStack?.owner ?? 0;
-    
+
     const source = cardSource || 'captured';
-    
+
     // Use specific action based on build ownership
-    const isFriendly = stackOwner === playerNumber || 
+    const isFriendly = stackOwner === playerNumber ||
       (isPartyGame(gameState) && areTeammates(playerNumber, stackOwner));
-    
+
     console.log('[GameBoard] handleCaptureBuild decision:', {
       stackOwner,
       isFriendly,
       action: isFriendly ? 'friendBuildDrop' : 'opponentBuildDrop',
       source
     });
-    
+
     if (isFriendly) {
       actions.friendBuildDrop(card, stackId, source);
     } else {
       actions.opponentBuildDrop(card, stackId, source);
     }
-    dragOverlay.endDrag();
-  }, [dragOverlay, emitDragEnd, drag.dropBounds, actions, gameState.tableCards, playerNumber, gameState.playerCount]);
+  }, [emitDragEnd, actions, gameState.tableCards, playerNumber, gameState.playerCount, markPendingDrop]);
 
   const handleDropBuildToCapture = useCallback((stack: any) => {
     actions.dropToCapture({ stackId: stack.stackId, stackType: 'build_stack' });
@@ -683,7 +673,6 @@ export function GameBoard({
         registerCapturedCard={drag.registerCapturedCard}
         unregisterCapturedCard={drag.unregisterCapturedCard}
         onCapturedCardDragStart={dragHandlers.handleCapturedDragStart}
-        onCapturedCardDragMove={dragOverlay.moveDrag}
         onCapturedCardDragEnd={handleCapturedCardDragEnd}
         onCaptureBuild={handleCaptureBuild}
         findCapturePileAtPoint={drag.findCapturePileAtPoint}
@@ -703,9 +692,10 @@ export function GameBoard({
         onBuildTap={handleBuildTap}
         onPlayButtonSound={playButton}
         onCardPlayed={playCardContact}
-        pendingDropCard={dragOverlay.pendingDropCard}
-        pendingDropSource={dragOverlay.pendingDropSource}
       />
+
+      {/* DEBUG: Log turn state for PlayerHandArea */}
+      {console.log('[GameBoard] DEBUG - isMyTurn:', computed.isMyTurn, 'currentPlayer:', gameState.currentPlayer, 'playerNumber:', playerNumber)}
 
       <PlayerHandArea
         key={`playerHand-${errorVersion}-${dragVersion}`}
@@ -725,9 +715,6 @@ export function GameBoard({
         onDragMove={dragHandlers.handleDragMove}
         onDragEnd={dragHandlers.handleDragEnd}
         opponentDrag={opponentDrag}
-        // Optimistic UI: pass pending drop state to hide cards immediately after drop
-        pendingDropCard={dragOverlay.pendingDropCard}
-        pendingDropSource={dragOverlay.pendingDropSource}
         // Stack action props for action strip in hand area
         activeStackId={computed.overlayStackId || computed.extendingBuildId}
         activeStackType={computed.overlayStackId ? 'temp_stack' : (computed.extendingBuildId ? 'extend_build' : null)}
@@ -753,10 +740,7 @@ export function GameBoard({
       />
       {console.log('[GameBoard] pendingShiya passed to PlayerHandArea:', gameState.pendingShiya, 'my playerNumber:', playerNumber)}
 
-      <DragGhost 
-        draggingCard={dragOverlay.draggingCard}
-        ghostStyle={dragOverlay.ghostStyle}
-      />
+      <DragGhost />
 
       {opponentDrag?.isDragging && (
         <OpponentGhostCard

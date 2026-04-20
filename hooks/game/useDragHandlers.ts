@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useDragOverlay } from '../drag/useDragOverlay';
+import { useDragContext } from '../drag/DragContext';
 import { CARD_WIDTH, CARD_HEIGHT, DEFAULT_TABLE_WIDTH, DEFAULT_TABLE_HEIGHT } from '../../utils/constants';
 
 interface DropBounds {
@@ -8,7 +8,6 @@ interface DropBounds {
 }
 
 interface UseDragHandlersProps {
-  dragOverlay: ReturnType<typeof useDragOverlay>;
   dropBounds: React.MutableRefObject<DropBounds>;
   emitDragStart?: (card: any, source: string, position: { x: number; y: number }) => void;
   emitDragMove?: (card: any, position: { x: number; y: number }) => void;
@@ -28,7 +27,6 @@ interface UseDragHandlersProps {
 }
 
 export function useDragHandlers({
-  dragOverlay,
   dropBounds,
   emitDragStart,
   emitDragMove,
@@ -43,7 +41,8 @@ export function useDragHandlers({
   table,
   onTableCardDragDrop,
 }: UseDragHandlersProps) {
-  
+  const { markPendingDrop, clearPendingDrop, draggingCard, dragSource } = useDragContext();
+
   const getNormalizedPosition = useCallback((absX: number, absY: number) => {
     const tableWidth = dropBounds.current.width || DEFAULT_TABLE_WIDTH;
     const tableHeight = dropBounds.current.height || DEFAULT_TABLE_HEIGHT;
@@ -54,29 +53,31 @@ export function useDragHandlers({
   }, [dropBounds]);
 
   const handleHandDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
-    // Always start the drag overlay - don't return early!
-    dragOverlay.startDrag(card, 'hand', absoluteX, absoluteY);
-    
+    console.log('[useDragHandlers] handleHandDragStart (JS CALLBACK - multiplayer sync):', {
+      card: card ? `${card.rank}${card.suit}` : null,
+      absoluteX,
+      absoluteY,
+      hasEmitDragStart: !!emitDragStart,
+    });
     // Check bounds AFTER starting the drag
     // Note: Bounds may be 0 on first drag, but we still need to emit for ghost sync
     const boundsReady = dropBounds.current && dropBounds.current.width > 0 && dropBounds.current.height > 0;
-    
+
     if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
       // Only skip emission if bounds not ready, but still emit for ghost sync
       if (!boundsReady) {
         // Emit with default bounds if not ready - opponent needs to see the ghost
         const norm = { x: 0.5, y: 0.5 }; // Center of screen as fallback
+        console.log('[useDragHandlers] handleHandDragStart - bounds not ready, using default');
         emitDragStart(card, 'hand', norm);
         return;
       }
       const norm = getNormalizedPosition(absoluteX, absoluteY);
       emitDragStart(card, 'hand', norm);
     }
-  }, [dragOverlay, emitDragStart, getNormalizedPosition, dropBounds]);
+  }, [emitDragStart, getNormalizedPosition, dropBounds]);
 
   const handleTableDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
-    dragOverlay.startDrag(card, 'table', absoluteX, absoluteY);
-    
     if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
       if (!dropBounds.current || dropBounds.current.width === 0 || dropBounds.current.height === 0) {
         return;
@@ -84,50 +85,51 @@ export function useDragHandlers({
       const norm = getNormalizedPosition(absoluteX, absoluteY);
       emitDragStart(card, 'table', norm);
     }
-  }, [dragOverlay, emitDragStart, getNormalizedPosition, dropBounds]);
+  }, [emitDragStart, getNormalizedPosition, dropBounds]);
 
   const handleCapturedDragStart = useCallback((card: any, absoluteX?: number, absoluteY?: number) => {
-    dragOverlay.startDrag(card, 'captured', absoluteX, absoluteY);
-    
     if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
       const norm = getNormalizedPosition(absoluteX, absoluteY);
       emitDragStart(card, 'captured', norm);
     }
-  }, [dragOverlay, emitDragStart, getNormalizedPosition]);
+  }, [emitDragStart, getNormalizedPosition]);
 
   const handleDragMove = useCallback((absoluteX: number, absoluteY: number) => {
-    dragOverlay.moveDrag(absoluteX, absoluteY);
-
-    if (emitDragMove && dragOverlay.draggingCard) {
+    if (emitDragMove && draggingCard.value) {
       const norm = getNormalizedPosition(absoluteX, absoluteY);
-      emitDragMove(dragOverlay.draggingCard, norm);
+      emitDragMove(draggingCard.value, norm);
     }
-  }, [dragOverlay, emitDragMove, getNormalizedPosition]);
+  }, [emitDragMove, getNormalizedPosition, draggingCard]);
 
   const handleDragEnd = useCallback((targetType?: string, outcome: 'success' | 'miss' | 'cancelled' = 'cancelled', targetId?: string) => {
-    const absX = dragOverlay.overlayX.value + CARD_WIDTH / 2;
-    const absY = dragOverlay.overlayY.value + CARD_HEIGHT / 2;
-    
-    const card = dragOverlay.draggingCard;
-    const source = dragOverlay.dragSource;
-    
+    const card = draggingCard.value;
+    const source = dragSource.value;
+
     // OPTIMISTIC UI: Mark card as pending drop BEFORE sending to server
     // This hides the card immediately without waiting for server response
     if (card && source && outcome === 'success') {
-      dragOverlay.markPendingDrop(card, source);
+      markPendingDrop(card, source);
     }
-    
+
+    // Use last known position or default to center
+    const absX = card ? CARD_WIDTH / 2 : CARD_WIDTH / 2;
+    const absY = card ? CARD_HEIGHT / 2 : CARD_HEIGHT / 2;
+
     if (emitDragEnd && card) {
       const norm = getNormalizedPosition(absX, absY);
       emitDragEnd(card, norm, outcome, targetType, targetId);
     }
-    dragOverlay.endDrag();
+    clearPendingDrop();
     onDragEndWrapper(targetType, outcome, targetId);
-  }, [dragOverlay, emitDragEnd, getNormalizedPosition, onDragEndWrapper]);
+  }, [emitDragEnd, getNormalizedPosition, onDragEndWrapper, draggingCard, dragSource, markPendingDrop, clearPendingDrop]);
 
   const handleTableDragEnd = useCallback(() => {
-    const absX = dragOverlay.overlayX.value + CARD_WIDTH / 2;
-    const absY = dragOverlay.overlayY.value + CARD_HEIGHT / 2;
+    const card = draggingCard.value;
+    const source = dragSource.value;
+
+    // Default position to center of table
+    const absX = CARD_WIDTH / 2;
+    const absY = CARD_HEIGHT / 2;
 
     // Check capture pile
     if (findCapturePileAtPoint) {
@@ -145,31 +147,31 @@ export function useDragHandlers({
 
     // Check loose cards
     const targetCardResult = findCardAtPoint?.(absX, absY);
-    if (targetCardResult && dragOverlay.draggingCard) {
-      const isSameCard = targetCardResult.card.rank === dragOverlay.draggingCard.rank &&
-                         targetCardResult.card.suit === dragOverlay.draggingCard.suit;
-      const isFromTable = dragOverlay.dragSource === 'table';
-      
+    if (targetCardResult && card) {
+      const isSameCard = targetCardResult.card.rank === card.rank &&
+                         targetCardResult.card.suit === card.suit;
+      const isFromTable = source === 'table';
+
       // Don't allow temp creation from table cards or onto same card - treat as miss
       if (isSameCard || isFromTable) {
         handleDragEnd(undefined, 'miss');
         return;
       }
-      
+
       // Valid - proceed with createTemp
       if (onTableCardDragDrop) {
         onTableCardDragDrop();
       }
-      actions.createTemp(dragOverlay.draggingCard, targetCardResult.card, dragOverlay.dragSource || 'hand');
+      actions.createTemp(card, targetCardResult.card, source || 'hand');
       handleDragEnd('card', 'success', targetCardResult.id);
       return;
     }
 
     // Check temp stacks
     const targetStack = findTempStackAtPoint?.(absX, absY);
-    if (targetStack && targetStack.stackType === 'temp_stack' && dragOverlay.draggingCard) {
+    if (targetStack && targetStack.stackType === 'temp_stack' && card) {
       if (targetStack.owner === playerNumber) {
-        actions.addToTemp(dragOverlay.draggingCard, targetStack.stackId, dragOverlay.dragSource || 'hand');
+        actions.addToTemp(card, targetStack.stackId, source || 'hand');
       }
       // Play sound on successful drop
       if (onTableCardDragDrop) {
@@ -180,10 +182,10 @@ export function useDragHandlers({
     }
 
     // Check build stacks
-    if (targetStack && targetStack.stackType === 'build_stack' && dragOverlay.draggingCard) {
+    if (targetStack && targetStack.stackType === 'build_stack' && card) {
       // Find full build stack from table
       const fullStack = table?.find((tc: any) => tc.stackId === targetStack.stackId);
-      
+
       // Delegated to unified handler in GameBoard - just pass through to stackDrop
       // The hasBase validation is now handled centrally in GameBoard.handleDropOnStack
       if (targetStack.owner !== playerNumber) {
@@ -205,7 +207,7 @@ export function useDragHandlers({
 
     // Missed - no sound
     handleDragEnd(undefined, 'miss');
-  }, [dragOverlay, findCapturePileAtPoint, findCardAtPoint, findTempStackAtPoint, playerNumber, actions, handleDragEnd, onTableCardDragDrop]);
+  }, [findCapturePileAtPoint, findCardAtPoint, findTempStackAtPoint, playerNumber, actions, handleDragEnd, onTableCardDragDrop, draggingCard, dragSource]);
 
   return {
     handleHandDragStart,

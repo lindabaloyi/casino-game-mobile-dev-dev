@@ -13,6 +13,7 @@ import { Card } from './types';
 import { OpponentDragState } from '../../hooks/useGameState';
 import { areTeammates } from '../../shared/game/team';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
+import { useDragContext } from '../../hooks/drag/DragContext';
 
 export interface DraggableOpponentCardProps {
   card: Card;
@@ -71,21 +72,10 @@ export function DraggableOpponentCard({
   const isDragging = useSharedValue(false);
   const draggedCard = useSharedValue<Card | null>(null);
 
+  // Use DragContext for ghost sync
+  const { dragX, dragY, draggingCard: ghostCard, dragSource, isDragging: isGhostDragging } = useDragContext();
+
   const handleDragEndInternal = useCallback((card: Card, absX: number, absY: number) => {
-    console.log('[DraggableOpponentCard] handleDragEndInternal START:', {
-      card: `${card?.rank}${card?.suit}`,
-      absX,
-      absY,
-      opponentIndex,
-      playerNumber,
-      hasOnDragEnd: !!onDragEnd,
-      hasFindCardAtPoint: !!findCardAtPoint,
-      hasFindTempStackAtPoint: !!findTempStackAtPoint,
-      hasOnExtendBuild: !!onExtendBuild,
-      hasOnCaptureBuild: !!onCaptureBuild,
-      hasOnCardPlayed: !!onCardPlayed
-    });
-    
     // If required callbacks are missing, reset locally but still try to signal parent
     if (!onDragEnd || !findCardAtPoint || !findTempStackAtPoint) {
       // Still try to call onDragEnd to clean up ghost - pass undefined to indicate cancelled
@@ -105,10 +95,6 @@ export function DraggableOpponentCard({
 
     // Check if dropped on a loose card
     const targetCardResult = findCardAtPoint(absX, absY);
-    console.log('[DraggableOpponentCard] findCardAtPoint result:', {
-      found: !!targetCardResult,
-      targetCard: targetCardResult ? { rank: targetCardResult.card?.rank, suit: targetCardResult.card?.suit } : null
-    });
     if (targetCardResult) {
       
       // Validate targetCard is a proper card object (has rank and suit)
@@ -131,11 +117,6 @@ export function DraggableOpponentCard({
       const tempStack = findTempStackAtPoint ? findTempStackAtPoint(absX, absY) : null;
       const buildStack = findBuildStackAtPoint ? findBuildStackAtPoint(absX, absY) : null;
       
-      console.log('[DraggableOpponentCard] Stack lookup results:', {
-        tempStack: tempStack ? { stackId: tempStack.stackId, owner: tempStack.owner } : null,
-        buildStack: buildStack ? { stackId: buildStack.stackId, owner: buildStack.owner } : null
-      });
-      
       // Priority: build stack first, then temp stack
       if (buildStack) {
         targetStack = { ...buildStack, stackType: 'build_stack' as const };
@@ -143,27 +124,10 @@ export function DraggableOpponentCard({
         targetStack = { ...tempStack, stackType: 'temp_stack' as const };
       }
       
-      console.log('[DraggableOpponentCard] Final targetStack:', targetStack);
-      
       if (targetStack) {
-        console.log('[DraggableOpponentCard] Drop check:', {
-          card: `${card.rank}${card.suit}`,
-          targetStackId: targetStack.stackId,
-          targetStackType: targetStack.stackType,
-          targetOwner: targetStack.owner,
-          opponentIndex,
-          playerNumber,
-          isFriendly: isFriendlyBuild(targetStack.owner),
-          cardSource: `captured_${opponentIndex}`
-        });
         // Can extend own or teammate's build (in party mode)
         if (targetStack.stackType === 'build_stack' && isFriendlyBuild(targetStack.owner)) {
           if (onExtendBuild) {
-            console.log('[DraggableOpponentCard] Calling onExtendBuild:', {
-              card: `${card.rank}${card.suit}`,
-              stackId: targetStack.stackId,
-              cardSource: `captured_${opponentIndex}`
-            });
             onExtendBuild(card, targetStack.stackId, `captured_${opponentIndex}`);
             handled = true;
             // Play sound on successful drop
@@ -193,16 +157,6 @@ export function DraggableOpponentCard({
 
     // If no valid target was found, signal a cancelled drop to ensure ghost is cleaned up
     if (!handled) {
-      console.log('[DraggableOpponentCard] NO VALID TARGET - drop not handled:', {
-        card: `${card.rank}${card.suit}`,
-        absX,
-        absY,
-        findCardResult: !!targetCardResult,
-        findStackResult: !!targetStack,
-        reason: !targetCardResult && !targetStack ? 'no_target_found' : 
-                targetStack && targetStack.stackType !== 'build_stack' ? 'not_build_stack' :
-                targetStack && !isFriendlyBuild(targetStack.owner) && targetStack.owner !== playerNumber ? 'not_friendly' : 'unknown'
-      });
       onDragEnd(card, undefined, undefined);
     }
 
@@ -216,22 +170,25 @@ export function DraggableOpponentCard({
   const panGesture = Gesture.Pan()
     .enabled(isMyTurn)
     .onStart((event) => {
-      console.log('[DraggableOpponentCard] DRAG START:', {
-        card: `${card.rank}${card.suit}`,
-        opponentIndex,
-        playerNumber,
-        isMyTurn,
-        absX: event.absoluteX,
-        absY: event.absoluteY
-      });
       isDragging.value = true;
       draggedCard.value = card;
+      // Write to DragContext for ghost (UI thread - instant)
+      ghostCard.value = card;
+      dragSource.value = 'captured';
+      dragX.value = event.absoluteX;
+      dragY.value = event.absoluteY;
+      isGhostDragging.value = true;
+      // Multiplayer sync
       if (onDragStart) onDragStart(card, event.absoluteX, event.absoluteY);
     })
     .onUpdate((event) => {
       if (isDragging.value) {
         translateX.value = event.translationX;
         translateY.value = event.translationY;
+        // Update UI-thread context for instant ghost
+        dragX.value = event.absoluteX;
+        dragY.value = event.absoluteY;
+        // Multiplayer sync
         if (onDragMove) onDragMove(event.absoluteX, event.absoluteY);
       }
     })
@@ -239,8 +196,13 @@ export function DraggableOpponentCard({
       if (isDragging.value && draggedCard.value) {
         handleDragEndInternal(draggedCard.value, event.absoluteX, event.absoluteY);
       }
-      // Note: Position reset is now handled in handleDragEndInternal
-      // Only reset dragging state here in case handleDragEndInternal wasn't called
+      // Clear DragContext
+      ghostCard.value = null;
+      dragSource.value = null;
+      dragX.value = 0;
+      dragY.value = 0;
+      isGhostDragging.value = false;
+      // Reset local state
       isDragging.value = false;
       draggedCard.value = null;
     });

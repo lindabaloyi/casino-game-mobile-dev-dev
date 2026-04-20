@@ -43,27 +43,21 @@ interface TableItemRendererProps {
   onBuildTap?: (stack: BuildStack | TempStack) => void;
   /** Callback for double-tapping a loose card to create single temp stack */
   onDoubleTapCard?: (card: Card) => void;
-  /** Pending drop card - for optimistic UI to hide card immediately after action */
-  pendingDropCard?: Card | null;
-  /** Pending drop source - 'hand' | 'captured' | 'table' | null */
-  pendingDropSource?: 'hand' | 'captured' | 'table' | null;
 }
 
 export function TableItemRenderer(props: TableItemRendererProps) {
-  const { 
-    item, 
-    isHidden, 
-    tableVersion, 
-    isPartyMode, 
+  const {
+    item,
+    isHidden,
+    tableVersion,
+    isPartyMode,
     currentPlayerIndex,
     playerCount,
     onDropBuildToCapture,
     onDropToCapture,
     onBuildTap,
     onDoubleTapCard,
-    pendingDropCard,
-    pendingDropSource,
-    ...rest 
+    ...rest
   } = props;
   
   // For build stacks, use onDropBuildToCapture if provided
@@ -83,11 +77,9 @@ export function TableItemRenderer(props: TableItemRendererProps) {
     return <LooseCardItem 
       card={item} 
       isHidden={isHidden} 
-      tableVersion={tableVersion} 
+      tableVersion={tableVersion}
       onDoubleTapCard={onDoubleTapCard}
-      pendingDropCard={pendingDropCard}
-      pendingDropSource={pendingDropSource}
-      {...rest} 
+      {...rest}
     />;
   }
   

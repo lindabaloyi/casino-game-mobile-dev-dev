@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, isLooseCard } from '../types';
 import { DraggableLooseCard } from '../DraggableLooseCard';
 import { CardBounds } from '../../../hooks/useDrag';
+import { useDragContext } from '../../../hooks/drag/DragContext';
 
 interface LooseCardItemProps {
   card: Card;
@@ -22,10 +23,6 @@ interface LooseCardItemProps {
   isHidden?: boolean;
   /** Callback for double-tap to create single temp stack */
   onDoubleTapCard?: (card: Card) => void;
-  /** Pending drop card - for optimistic UI to hide card immediately after action */
-  pendingDropCard?: Card | null;
-  /** Pending drop source - 'hand' | 'captured' | 'table' | null */
-  pendingDropSource?: 'hand' | 'captured' | 'table' | null;
 }
 
 export function LooseCardItem({
@@ -46,19 +43,21 @@ export function LooseCardItem({
   onTableDragEnd,
   isHidden,
   onDoubleTapCard,
-  pendingDropCard,
-  pendingDropSource,
 }: LooseCardItemProps) {
+  const { pendingDropCard, pendingDropSource } = useDragContext();
+
   // Generate a unique key using rank, suit to handle potential duplicates
   // In practice, duplicate cards shouldn't exist in a standard deck
   const cardKey = `${card.rank}${card.suit}`;
-  
+
   // Check if this card is pending drop (optimistic UI - hide immediately after action)
-  const isPendingDrop = pendingDropCard && 
-    pendingDropSource === 'table' &&
-    pendingDropCard.rank === card.rank &&
-    pendingDropCard.suit === card.suit;
-  
+  const pCard = pendingDropCard.value;
+  const pSource = pendingDropSource.value;
+  const isPendingDrop = pCard &&
+    pSource === 'table' &&
+    pCard.rank === card.rank &&
+    pCard.suit === card.suit;
+
   // Combine with isHidden prop
   const shouldHide = Boolean(isHidden || isPendingDrop);
   
