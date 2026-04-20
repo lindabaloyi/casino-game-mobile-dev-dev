@@ -15,7 +15,8 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  SharedValue,
+  withTiming,
 } from 'react-native-reanimated';
 import { useWindowDimensions } from 'react-native';
 import { PlayingCard } from '../cards/PlayingCard';
@@ -49,6 +50,10 @@ interface Props {
   onDragStart?: (card: Card, absoluteX: number, absoluteY: number) => void;
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: () => void;
+  // ── Shared values for UI-thread ghost updates (OPTIMIZATION) ────────────────
+  ghostX?: SharedValue<number>;
+  ghostY?: SharedValue<number>;
+  isGhostDragging?: SharedValue<boolean>;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -67,6 +72,9 @@ export function DraggableTableCard({
   onDragStart,
   onDragMove,
   onDragEnd,
+  ghostX,
+  ghostY,
+  isGhostDragging,
 }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   
@@ -93,7 +101,7 @@ export function DraggableTableCard({
   }
 
   function handleSnapBack() {
-    opacity.value = withSpring(1);
+    opacity.value = withTiming(1, { duration: 0 });
     if (onDragEnd) onDragEnd();
   }
 
@@ -114,7 +122,7 @@ export function DraggableTableCard({
     // 1. Check if dropped on a build stack
     const buildStackHit = findBuildStackAtPoint(absX, absY);
     if (buildStackHit) {
-      opacity.value = withSpring(0);
+      opacity.value = withTiming(0, { duration: 0 });
       if (onDragEnd) onDragEnd();
       
       // Call build stack handler
@@ -127,7 +135,7 @@ export function DraggableTableCard({
     // 2. Check if dropped on a temp stack
     const tempStackHit = findTempStackAtPoint(absX, absY);
     if (tempStackHit) {
-      opacity.value = withSpring(0);
+      opacity.value = withTiming(0, { duration: 0 });
       if (onDragEnd) onDragEnd();
       
       // Call temp stack handler
@@ -140,7 +148,7 @@ export function DraggableTableCard({
     // 3. Check if dropped on another loose table card (exclude self)
     const cardHit = findCardAtPoint(absX, absY, cardId);
     if (cardHit) {
-      opacity.value = withSpring(0);
+      opacity.value = withTiming(0, { duration: 0 });
       if (onDragEnd) onDragEnd();
       onDropOnCard(card, cardHit.card);
       return;
@@ -160,18 +168,35 @@ export function DraggableTableCard({
       runOnJS(handleDoubleTapCard)();
     });
 
-  // Pan gesture for dragging cards
+  // OPTIMIZED: Pan gesture - minDistance(0) for instant response, direct shared value updates
+  // Note: Using CARD constants for worklet - responsive values can't be accessed in worklet
   const panGesture = Gesture.Pan()
+    .minDistance(0)  // Start dragging immediately
     .enabled(isMyTurn)
     .onStart(e => {
+      'worklet';
+      // Immediate hide - no animation delay
       opacity.value = 0;
+      // Update ghost position directly on UI thread (zero latency)
+      if (ghostX) ghostX.value = e.absoluteX - CARD_WIDTH / 2;
+      if (ghostY) ghostY.value = e.absoluteY - CARD_HEIGHT / 2;
+      if (isGhostDragging) isGhostDragging.value = true;
+      
+      // JS callback for game logic
       runOnJS(_onDragStart)(e.absoluteX, e.absoluteY);
-      runOnJS(_onDragMove)(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {
+      'worklet';
+      // Worklet update (fast path)
+      if (ghostX) ghostX.value = e.absoluteX - CARD_WIDTH / 2;
+      if (ghostY) ghostY.value = e.absoluteY - CARD_HEIGHT / 2;
+      // JS bridge update (guaranteed to work)
       runOnJS(_onDragMove)(e.absoluteX, e.absoluteY);
     })
     .onEnd(e => {
+      'worklet';
+      if (isGhostDragging) isGhostDragging.value = false;
+      
       runOnJS(handleDrop)(e.absoluteX, e.absoluteY);
     });
 

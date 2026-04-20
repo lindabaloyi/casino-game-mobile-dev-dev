@@ -26,7 +26,8 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  SharedValue,
+  withTiming,
 } from 'react-native-reanimated';
 import { PlayingCard } from './PlayingCard';
 import { DropBounds } from '../../hooks/useDrag';
@@ -84,6 +85,13 @@ interface Props {
   cardHeight?: number;
   /** Callback for card contact sound - called when card contacts something */
   onCardContact?: () => void;
+  // ── Shared values for UI-thread ghost updates (OPTIMIZATION) ────────────────
+  /** Ghost X position - updated directly in worklet for zero latency */
+  ghostX?: SharedValue<number>;
+  /** Ghost Y position - updated directly in worklet for zero latency */
+  ghostY?: SharedValue<number>;
+  /** Ghost visibility - toggled directly in worklet */
+  isGhostDragging?: SharedValue<boolean>;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -110,6 +118,9 @@ function DraggableHandCardImpl({
   cardWidth = DEFAULT_CARD_WIDTH,
   cardHeight = DEFAULT_CARD_HEIGHT,
   onCardContact,
+  ghostX,
+  ghostY,
+  isGhostDragging,
 }: Props) {
   const opacity = useSharedValue(1);
 
@@ -132,7 +143,7 @@ function DraggableHandCardImpl({
   }
 
   function handleSnapBack() {
-    opacity.value = withSpring(1);
+    opacity.value = withTiming(1, { duration: 0 });
     if (onDragEnd) onDragEnd();
   }
 
@@ -167,7 +178,7 @@ function DraggableHandCardImpl({
     // 1. Check for build stack hit FIRST (priority)
     const buildStackHit = findBuildStackAtPoint(absX, absY);
     if (buildStackHit) {
-      opacity.value = withSpring(0);  // Hide card while action processes
+      opacity.value = withTiming(0, { duration: 0 });  // Immediate hide
       if (onDragEnd) onDragEnd();
       // Play card contact sound when card hits a stack
       if (onCardContact) onCardContact();
@@ -182,7 +193,7 @@ function DraggableHandCardImpl({
     // 2. Check for temp stack hit
     const tempStackHit = findTempStackAtPoint(absX, absY);
     if (tempStackHit) {
-      opacity.value = withSpring(0);  // Hide card while action processes
+      opacity.value = withTiming(0, { duration: 0 });  // Immediate hide
       if (onDragEnd) onDragEnd();
       // Play card contact sound when card hits a stack
       if (onCardContact) onCardContact();
@@ -197,7 +208,7 @@ function DraggableHandCardImpl({
     // 3. Check for specific table card hit
     const targetCardResult = findCardAtPoint(absX, absY);
     if (targetCardResult) {
-      opacity.value = withSpring(0);
+      opacity.value = withTiming(0, { duration: 0 });
       if (onDragEnd) onDragEnd();
       // Play card contact sound when card hits another card
       if (onCardContact) onCardContact();
@@ -209,7 +220,7 @@ function DraggableHandCardImpl({
     const inZone = inTableZone(absX, absY, bounds);
 
     if (inZone) {
-      opacity.value = withSpring(0);
+      opacity.value = withTiming(0, { duration: 0 });
       if (onDragEnd) onDragEnd();
       // Play card contact sound when card hits the table
       if (onCardContact) onCardContact();
@@ -231,19 +242,35 @@ function DraggableHandCardImpl({
       runOnJS(handleDoubleTapCard)();
     });
 
-  // Pan gesture for dragging cards
+  // OPTIMIZED: Pan gesture - minDistance(0) for instant response, direct shared value updates
   const panGesture = Gesture.Pan()
+    .minDistance(0)  // Start dragging immediately without min movement
     .enabled(isMyTurn)
     .onStart(e => {
+      'worklet';
+      // Immediate hide - no animation delay
       opacity.value = 0;
-      // Call handleDragStart which will store position AND send first move
+      // Update ghost position directly on UI thread (zero latency)
+      if (ghostX) ghostX.value = e.absoluteX - DEFAULT_CARD_WIDTH / 2;
+      if (ghostY) ghostY.value = e.absoluteY - DEFAULT_CARD_HEIGHT / 2;
+      if (isGhostDragging) isGhostDragging.value = true;
+      
+      // JS callback for game logic (only on drag start, not every frame)
       runOnJS(handleDragStart)(e.absoluteX, e.absoluteY);
     })
     .onUpdate(e => {
+      'worklet';
+      // Worklet update (fast path)
+      if (ghostX) ghostX.value = e.absoluteX - DEFAULT_CARD_WIDTH / 2;
+      if (ghostY) ghostY.value = e.absoluteY - DEFAULT_CARD_HEIGHT / 2;
+      // JS bridge update (guaranteed to work)
       runOnJS(handleDragMove)(e.absoluteX, e.absoluteY);
     })
     .onEnd(e => {
-      // Pass ONLY coordinates to JS thread
+      'worklet';
+      if (isGhostDragging) isGhostDragging.value = false;
+      
+      // Pass to JS for drop detection
       runOnJS(handleDrop)(e.absoluteX, e.absoluteY);
     });
 

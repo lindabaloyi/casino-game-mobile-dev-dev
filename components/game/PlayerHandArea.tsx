@@ -12,6 +12,7 @@
 
 import React, { useMemo, useRef, useCallback, useState, useEffect, memo } from 'react';
 import { FlatList, ScrollView, StyleSheet, View, useWindowDimensions, TouchableOpacity, Text } from 'react-native';
+import { SharedValue } from 'react-native-reanimated';
 import { DraggableHandCard } from '../cards/DraggableHandCard';
 import { DropBounds } from '../../hooks/useDrag';
 import { TableItem } from '../table/types';
@@ -112,6 +113,13 @@ interface Props {
   pendingShiya?: { playerIndex: number; recallId: string; expiresAt: number } | null;
   /** Callback when shiya button is pressed */
   onShiya?: (recallId: string) => void;
+  // ── Shared values for UI-thread ghost updates (OPTIMIZATION) ────────────────
+  /** Ghost X position - updated directly in worklet for zero latency */
+  ghostX?: SharedValue<number>;
+  /** Ghost Y position - updated directly in worklet for zero latency */
+  ghostY?: SharedValue<number>;
+  /** Ghost visibility - toggled directly in worklet */
+  isGhostDragging?: SharedValue<boolean>;
 }
 
 // Default card dimensions - matching capture pile (56x84)
@@ -200,6 +208,10 @@ function PlayerHandAreaImpl({
   onDoubleTapCard,
   pendingShiya,
   onShiya,
+  // Shared values for UI-thread ghost updates (OPTIMIZATION)
+  ghostX,
+  ghostY,
+  isGhostDragging,
 }: Props) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   
@@ -358,6 +370,10 @@ return (
                 cardHeight={responsiveCardHeight}
                 onCardContact={onCardContact}
                 onDoubleTap={onDoubleTapCard}
+                // Shared values for UI-thread ghost updates (OPTIMIZATION)
+                ghostX={ghostX}
+                ghostY={ghostY}
+                isGhostDragging={isGhostDragging}
               />
             </View>
           );

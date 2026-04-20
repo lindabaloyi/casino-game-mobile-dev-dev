@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useDragOverlay } from '../drag/useDragOverlay';
 import { CARD_WIDTH, CARD_HEIGHT, DEFAULT_TABLE_WIDTH, DEFAULT_TABLE_HEIGHT } from '../../utils/constants';
 
@@ -91,11 +91,21 @@ export function useDragHandlers({
     }
   }, [startDrag, emitDragStart, getNormalizedPosition]);
 
+  const frameSkipCount = useRef(0);
+  const THROTTLE_FRAMES = 2; // Update every 2nd frame for JS game logic
+
   const handleDragMove = useCallback((absoluteX: number, absoluteY: number) => {
+    // Always update ghost position (shared value) - runs on UI thread in moveDrag
     moveDrag(absoluteX, absoluteY);
-    if (emitDragMove && draggingCard) {
-      const norm = getNormalizedPosition(absoluteX, absoluteY);
-      emitDragMove(draggingCard, norm);
+    
+    // Throttle JS thread calls for game logic - only emit every N frames
+    frameSkipCount.current++;
+    if (frameSkipCount.current >= THROTTLE_FRAMES) {
+      frameSkipCount.current = 0;
+      if (emitDragMove && draggingCard) {
+        const norm = getNormalizedPosition(absoluteX, absoluteY);
+        emitDragMove(draggingCard, norm);
+      }
     }
   }, [moveDrag, emitDragMove, getNormalizedPosition, draggingCard]);
 

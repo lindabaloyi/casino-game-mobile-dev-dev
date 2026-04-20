@@ -144,7 +144,17 @@ export function GameBoard({
   // Core hooks
   const drag = useDrag();
   const dragOverlay = useDragOverlay();
-  const { pendingDropCard, pendingDropSource, clearPendingDrop, isPendingDrop, markPendingDrop } = dragOverlay;
+  const { 
+    pendingDropCard, 
+    pendingDropSource, 
+    clearPendingDrop, 
+    isPendingDrop, 
+    markPendingDrop,
+    overlayX,
+    overlayY,
+    isDragging,
+    draggingCard,
+  } = dragOverlay;
   const modals = useModalManager();
   const actions = useGameActions(sendAction);
   
@@ -231,7 +241,6 @@ export function GameBoard({
   // Show Motor Achievement modal when player scores 11+ points
   const finalScore = gameOverData?.finalScores?.[playerNumber] ?? gameState.scores?.[playerNumber] ?? 0;
   const earnedMotorAchievement = shouldShowStandardGameOver && finalScore >= 11;
-  console.log('[MotorAchievement] shouldShowStandardGameOver:', shouldShowStandardGameOver, 'finalScore:', finalScore, 'earned:', earnedMotorAchievement);
 
   useEffect(() => {
     console.log('[MotorAchievement] useEffect triggered, earnedMotorAchievement:', earnedMotorAchievement, 'score:', finalScore);
@@ -716,6 +725,10 @@ export function GameBoard({
         onDragMove={dragHandlers.handleDragMove}
         onDragEnd={dragHandlers.handleDragEnd}
         opponentDrag={opponentDrag}
+        // Shared values for UI-thread ghost updates (OPTIMIZATION)
+        ghostX={overlayX}
+        ghostY={overlayY}
+        isGhostDragging={isDragging}
         // Stack action props for action strip in hand area
         activeStackId={computed.overlayStackId || computed.extendingBuildId}
         activeStackType={computed.overlayStackId ? 'temp_stack' : (computed.extendingBuildId ? 'extend_build' : null)}
@@ -742,8 +755,10 @@ export function GameBoard({
       {console.log('[GameBoard] pendingShiya passed to PlayerHandArea:', gameState.pendingShiya, 'my playerNumber:', playerNumber)}
 
       <DragGhost 
-        draggingCard={dragOverlay.draggingCard}
-        ghostStyle={dragOverlay.ghostStyle}
+        draggingCard={draggingCard}
+        overlayX={overlayX}
+        overlayY={overlayY}
+        isDragging={isDragging}
       />
 
       {opponentDrag?.isDragging && (
