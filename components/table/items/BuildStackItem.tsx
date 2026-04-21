@@ -23,6 +23,8 @@ interface BuildStackItemProps {
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: (stack: BuildStack) => void;
   onDropToCapture?: (stack: BuildStack) => void;
+  /** Stack ID of opponent's currently dragging stack - hides original when opponent drags */
+  opponentDraggingStackId?: string;
 }
 
 export function BuildStackItem({
@@ -41,7 +43,17 @@ export function BuildStackItem({
   onDragMove,
   onDragEnd,
   onDropToCapture,
+  opponentDraggingStackId,
 }: BuildStackItemProps) {
+  console.log('[BuildStackItem] Received props for stack:', stack.stackId, {
+    hasOnDragStart: !!onDragStart,
+    hasOnDragMove: !!onDragMove,
+    hasOnDragEnd: !!onDragEnd,
+    isMyTurn,
+    playerNumber,
+    stackOwner: stack.owner,
+    opponentDraggingStackId
+  });
   return (
     <BuildStackView
       key={stack.stackId}
@@ -60,6 +72,7 @@ export function BuildStackItem({
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
       onDropToCapture={onDropToCapture}
+      opponentDraggingStackId={opponentDraggingStackId}
     />
   );
 }

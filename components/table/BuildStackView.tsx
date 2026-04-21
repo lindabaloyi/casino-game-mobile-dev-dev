@@ -63,14 +63,16 @@ interface Props {
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: (stack: BuildStack) => void;
   onDropToCapture?: (stack: BuildStack) => void;
+  /** Stack ID of opponent's currently dragging stack - hides original when opponent drags */
+  opponentDraggingStackId?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function BuildStackView({ 
-  stack, 
-  layoutVersion, 
-  registerBuildStack, 
+export function BuildStackView({
+  stack,
+  layoutVersion,
+  registerBuildStack,
   unregisterBuildStack,
   currentPlayerIndex,
   isPartyMode = false,
@@ -83,7 +85,13 @@ export function BuildStackView({
   onDragMove,
   onDragEnd,
   onDropToCapture,
+  opponentDraggingStackId,
 }: Props) {
+  if (opponentDraggingStackId === stack.stackId) {
+    console.log('[BuildStackView] Hiding original - opponent is dragging:', stack.stackId);
+    return null;
+  }
+
   const viewRef = useRef<View>(null);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -121,11 +129,19 @@ export function BuildStackView({
   // Build is draggable when:
   // - It's the player's turn
   // - They own the build
-  // - There's a pending extension on the build
-  const canDrag = isMyTurn && 
-    playerNumber !== undefined && 
-    stack.owner === playerNumber && 
-    isExtending;
+  const canDrag = isMyTurn &&
+    playerNumber !== undefined &&
+    stack.owner === playerNumber;
+
+  console.log('[BuildStackView] Drag eligibility:', {
+    stackId: stack.stackId,
+    canDrag,
+    isMyTurn,
+    playerNumber,
+    stackOwner: stack.owner,
+    isExtending,
+    hasDragHandlers: !!(onDragStart && onDragMove && onDragEnd)
+  });
 
   // ── Use extracted hooks ───────────────────────────────────────────────────
 
@@ -167,8 +183,12 @@ export function BuildStackView({
 
   // ── Drag handlers ────────────────────────────────────────────────────────
   const handleDragStartInternal = useCallback(() => {
+    console.log('[BuildStackView] handleDragStartInternal called for stack:', stack.stackId);
     if (onDragStart) {
+      console.log('[BuildStackView] Calling onDragStart for stack:', stack.stackId);
       onDragStart(stack);
+    } else {
+      console.log('[BuildStackView] No onDragStart handler provided');
     }
   }, [onDragStart, stack]);
 

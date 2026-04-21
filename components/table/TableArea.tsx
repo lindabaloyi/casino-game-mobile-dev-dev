@@ -105,6 +105,11 @@ interface Props {
   onTempStackDragMove?: (absoluteX: number, absoluteY: number) => void;
   onTempStackDragEnd?: (stack: TempStack) => void;
 
+  // Build stack drag handlers
+  onBuildStackDragStart?: (stack: BuildStack) => void;
+  onBuildStackDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onBuildStackDragEnd?: (stack: BuildStack) => void;
+
   // Build extension handlers
   extendingBuildId?: string | null;
   onExtendBuild?: (card: Card, buildStackId: string, cardSource: 'table' | 'hand' | 'captured' | `captured_${number}`) => void;
@@ -188,6 +193,9 @@ export function TableArea({
   onTempStackDragStart,
   onTempStackDragMove,
   onTempStackDragEnd,
+  onBuildStackDragStart,
+  onBuildStackDragMove,
+  onBuildStackDragEnd,
   extendingBuildId,
   onExtendBuild,
   onCaptureBuild,
@@ -262,6 +270,9 @@ export function TableArea({
         onTempStackDragStart={onTempStackDragStart}
         onTempStackDragMove={onTempStackDragMove}
         onTempStackDragEnd={onTempStackDragEnd}
+        onBuildStackDragStart={onBuildStackDragStart}
+        onBuildStackDragMove={onBuildStackDragMove}
+        onBuildStackDragEnd={onBuildStackDragEnd}
         onDropToCapture={onDropToCapture}
         onDropBuildToCapture={onDropBuildToCapture}
         isHidden={hidden}

@@ -30,6 +30,9 @@ interface TableItemRendererProps {
   onTempStackDragStart?: (stack: TempStack) => void;
   onTempStackDragMove?: (absoluteX: number, absoluteY: number) => void;
   onTempStackDragEnd?: (stack: TempStack) => void;
+  onBuildStackDragStart?: (stack: BuildStack) => void;
+  onBuildStackDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onBuildStackDragEnd?: (stack: BuildStack) => void;
   onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
   /** Callback for dropping a build stack (with pending extension) onto capture pile */
   onDropBuildToCapture?: (stack: BuildStack) => void;
@@ -52,11 +55,11 @@ interface TableItemRendererProps {
 }
 
 export function TableItemRenderer(props: TableItemRendererProps) {
-  const { 
-    item, 
-    isHidden, 
-    tableVersion, 
-    isPartyMode, 
+  const {
+    item,
+    isHidden,
+    tableVersion,
+    isPartyMode,
     currentPlayerIndex,
     playerCount,
     onDropBuildToCapture,
@@ -65,7 +68,10 @@ export function TableItemRenderer(props: TableItemRendererProps) {
     onDoubleTapCard,
     pendingDropCard,
     pendingDropSource,
-    ...rest 
+    onBuildStackDragStart,
+    onBuildStackDragMove,
+    onBuildStackDragEnd,
+    ...rest
   } = props;
   
   // For build stacks, use onDropBuildToCapture if provided
@@ -99,13 +105,24 @@ export function TableItemRenderer(props: TableItemRendererProps) {
   }
   
   if (isBuildStack(item)) {
-    return <BuildStackItem 
-      stack={item} 
-      tableVersion={tableVersion} 
-      isPartyMode={isPartyMode} 
+    console.log('[TableItemRenderer] Rendering BuildStackItem:', {
+      stackId: item.stackId,
+      hasDragStart: !!onBuildStackDragStart,
+      hasDragMove: !!onBuildStackDragMove,
+      hasDragEnd: !!onBuildStackDragEnd,
+      opponentDragStackId: props.opponentDrag?.stackId
+    });
+    return <BuildStackItem
+      stack={item}
+      tableVersion={tableVersion}
+      isPartyMode={isPartyMode}
       currentPlayerIndex={currentPlayerIndex}
       playerCount={playerCount}
       {...buildStackAllProps}
+      onDragStart={onBuildStackDragStart}
+      onDragMove={onBuildStackDragMove}
+      onDragEnd={onBuildStackDragEnd}
+      opponentDraggingStackId={props.opponentDrag?.stackId}
       {...rest}
     />;
   }

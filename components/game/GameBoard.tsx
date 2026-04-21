@@ -33,7 +33,7 @@ import { useTournamentStatus } from '../../hooks/useTournamentStatus';
 
 import { TableArea } from '../table/TableArea';
 import { PlayerHandArea } from './PlayerHandArea';
-import { Card as TableCard, TempStack } from '../table/types';
+import { Card as TableCard, TempStack, BuildStack } from '../table/types';
 import { GameModals } from './GameModals';
 import { DragGhost } from './DragGhost';
 import { OpponentGhostCard } from './OpponentGhostCard';
@@ -439,6 +439,9 @@ export function GameBoard({
   // Temp stack drag handlers - emit events to server for opponent ghost rendering
   const currentDraggingStack = useRef<TempStack | null>(null);
 
+  // Build stack drag handlers - emit events to server for opponent ghost rendering
+  const currentDraggingBuildStack = useRef<BuildStack | null>(null);
+
   const handleTempStackDragStart = useCallback((stack: TempStack) => {
     console.log('[GameBoard] handleTempStackDragStart:', stack.stackId, stack.cards?.length);
     currentDraggingStack.current = stack;
@@ -468,6 +471,48 @@ export function GameBoard({
   const handleTempStackDragEnd = useCallback((stack: TempStack) => {
     console.log('[GameBoard] handleTempStackDragEnd:', stack.stackId);
     currentDraggingStack.current = null;
+    if (emitDragStackEnd && stack.cards) {
+      emitDragStackEnd(stack.cards, stack.stackId, 'miss');
+    }
+  }, [emitDragStackEnd]);
+
+  const handleBuildStackDragStart = useCallback((stack: BuildStack) => {
+    console.log('[GameBoard] handleBuildStackDragStart called:', {
+      stackId: stack.stackId,
+      cardsCount: stack.cards?.length,
+      hasEmitFunction: !!emitDragStackStart,
+      hasCards: !!stack.cards
+    });
+    currentDraggingBuildStack.current = stack;
+    if (emitDragStackStart && stack.cards) {
+      const normX = 0.5;
+      const normY = 0.5;
+      console.log('[GameBoard] emitDragStackStart - build stack cards order:', stack.cards?.map(c => c.rank + c.suit));
+      emitDragStackStart([...stack.cards], stack.stackId, 'build_stack', { x: normX, y: normY });
+      console.log('[GameBoard] Successfully emitted drag start for build stack:', stack.stackId);
+    } else {
+      console.log('[GameBoard] Cannot emit drag start - missing emitDragStackStart or cards');
+    }
+  }, [emitDragStackStart]);
+
+  const handleBuildStackDragMove = useCallback((absoluteX: number, absoluteY: number) => {
+    console.log('[GameBoard] handleBuildStackDragMove:', currentDraggingBuildStack.current?.stackId, 'pos=(' + absoluteX + ',' + absoluteY + ')');
+    if (emitDragStackMove && currentDraggingBuildStack.current) {
+      const tableWidth = drag.dropBounds.current.width || 400;
+      const tableHeight = drag.dropBounds.current.height || 300;
+      const normX = Math.max(0, Math.min(1, absoluteX / tableWidth));
+      const normY = Math.max(0, Math.min(1, absoluteY / tableHeight));
+      emitDragStackMove(
+        currentDraggingBuildStack.current.cards || [],
+        currentDraggingBuildStack.current.stackId,
+        { x: normX, y: normY }
+      );
+    }
+  }, [emitDragStackMove, drag.dropBounds]);
+
+  const handleBuildStackDragEnd = useCallback((stack: BuildStack) => {
+    console.log('[GameBoard] handleBuildStackDragEnd:', stack.stackId);
+    currentDraggingBuildStack.current = null;
     if (emitDragStackEnd && stack.cards) {
       emitDragStackEnd(stack.cards, stack.stackId, 'miss');
     }
@@ -735,6 +780,9 @@ export function GameBoard({
         onTempStackDragStart={handleTempStackDragStart}
         onTempStackDragMove={handleTempStackDragMove}
         onTempStackDragEnd={handleTempStackDragEnd}
+        onBuildStackDragStart={handleBuildStackDragStart}
+        onBuildStackDragMove={handleBuildStackDragMove}
+        onBuildStackDragEnd={handleBuildStackDragEnd}
         findCapturePileAtPoint={drag.findCapturePileAtPoint}
         registerCapturePile={drag.registerCapturePile}
         unregisterCapturePile={drag.unregisterCapturePile}
