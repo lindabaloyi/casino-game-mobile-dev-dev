@@ -445,7 +445,8 @@ export function GameBoard({
     if (emitDragStackStart && stack.cards) {
       const normX = 0.5;
       const normY = 0.5;
-      emitDragStackStart(stack.cards, stack.stackId, 'temp_stack', { x: normX, y: normY });
+      console.log('[GameBoard] emitDragStackStart - cards order:', stack.cards?.map(c => c.rank + c.suit));
+      emitDragStackStart([...stack.cards], stack.stackId, 'temp_stack', { x: normX, y: normY });
     }
   }, [emitDragStackStart]);
 
@@ -817,6 +818,8 @@ export function GameBoard({
             tableBounds={getTableBounds()}
             targetType={opponentDrag.targetType}
             targetId={opponentDrag.targetId}
+            stackId={opponentDrag.stackId}
+            stackType={opponentDrag.source as 'temp_stack' | 'build_stack'}
             stackPositions={drag.tempStackPositions.current}
             buildStackPositions={drag.buildStackPositions.current}
             capturePositions={drag.capturePilePositions.current}

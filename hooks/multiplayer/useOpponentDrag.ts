@@ -145,10 +145,11 @@ export function useOpponentDrag(socket: Socket | null): UseOpponentDragResult {
       position: { x: number; y: number };
     }) => {
       console.log('[useOpponentDrag] handleDragStackStart:', data.stackId, 'cards=' + data.cards?.length);
+      console.log('[useOpponentDrag] handleDragStackStart - cards:', data.cards?.map(c => c.rank + c.suit));
       setOpponentDrag({
         playerIndex: data.playerIndex,
         stackId: data.stackId,
-        cards: data.cards,
+        cards: data.cards.slice(),
         source: data.source,
         position: data.position,
         isDragging: true,

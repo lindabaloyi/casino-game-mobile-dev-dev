@@ -12,7 +12,7 @@
  */
 
 import React, { useEffect, useRef, useMemo } from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue,
@@ -32,6 +32,8 @@ interface OpponentGhostStackProps {
   tableBounds: TableBounds;
   targetType?: 'card' | 'stack' | 'temp_stack' | 'build_stack' | 'capture' | 'table';
   targetId?: string;
+  stackId?: string;
+  stackType?: 'temp_stack' | 'build_stack';
   stackPositions?: Map<string, { x: number; y: number; width: number; height: number }>;
   buildStackPositions?: Map<string, { x: number; y: number; width: number; height: number }>;
   capturePositions?: Map<number, { x: number; y: number; width: number; height: number }>;
@@ -46,12 +48,14 @@ export const OpponentGhostStack = React.memo(function OpponentGhostStack({
   tableBounds, 
   targetType, 
   targetId,
+  stackId,
+  stackType = 'temp_stack',
   stackPositions,
   buildStackPositions,
   capturePositions,
 }: OpponentGhostStackProps) {
   const topCard = cards[cards.length - 1];
-  const stackCount = cards.length;
+  console.log('[OpponentGhostStack] card:', topCard?.rank + topCard?.suit);
 
   const initialBounds = useMemo(() => ({
     width: tableBounds.width > 0 ? tableBounds.width : 400,
@@ -150,14 +154,8 @@ export const OpponentGhostStack = React.memo(function OpponentGhostStack({
       ]}
       pointerEvents="none"
     >
-      <View style={styles.cardWrapper}>
-        <PlayingCard rank={topCard.rank} suit={topCard.suit} />
-        {stackCount > 1 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{stackCount}</Text>
-          </View>
-        )}
-      </View>
+      {/* Only show top card - single card display */}
+      {topCard && <PlayingCard rank={topCard.rank} suit={topCard.suit} />}
     </Animated.View>
   );
 });
@@ -170,33 +168,6 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-  },
-  cardWrapper: {
-    opacity: 1,
-    transform: [{ scale: 1.05 }],
-  },
-  badge: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: '#e74c3c',
-    borderRadius: 14,
-    width: 28,
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
 });
 
