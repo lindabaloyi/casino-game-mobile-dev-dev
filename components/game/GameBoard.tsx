@@ -33,11 +33,12 @@ import { useTournamentStatus } from '../../hooks/useTournamentStatus';
 
 import { TableArea } from '../table/TableArea';
 import { PlayerHandArea } from './PlayerHandArea';
+import { Card as TableCard, TempStack } from '../table/types';
 import { GameModals } from './GameModals';
 import { DragGhost } from './DragGhost';
 import { OpponentGhostCard } from './OpponentGhostCard';
+import { OpponentGhostStack } from './OpponentGhostStack';
 import { ErrorBanner } from '../shared/ErrorBanner';
-import { Card as TableCard } from '../../types';
 import { GameOverModal } from '../modals/GameOverModal';
 import { TournamentWinnerModal } from '../game-over/TournamentWinnerModal';
 import { MotorAchievementModal } from '../game-over/MotorAchievementModal';
@@ -88,6 +89,12 @@ interface GameBoardProps {
   emitDragMove?: (card: any, position: { x: number; y: number }) => void;
   /** Emit drag end event to server */
   emitDragEnd?: (card: any, position: { x: number; y: number }, outcome: any, targetType?: any, targetId?: any) => void;
+  /** Emit stack drag start event to server for broadcasting */
+  emitDragStackStart?: (cards: any[], stackId: string, source: string, position: { x: number; y: number }) => void;
+  /** Emit stack drag move event to server (throttled) */
+  emitDragStackMove?: (cards: any[], stackId: string, position: { x: number; y: number }) => void;
+  /** Emit stack drag end event to server */
+  emitDragStackEnd?: (cards: any[], stackId: string, outcome: any, targetType?: string, targetId?: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -106,6 +113,9 @@ export function GameBoard({
   emitDragStart,
   emitDragMove,
   emitDragEnd,
+  emitDragStackStart,
+  emitDragStackMove,
+  emitDragStackEnd,
 }: GameBoardProps) {
   // Local state
   const [errorVersion, setErrorVersion] = useState(0);
@@ -426,6 +436,42 @@ export function GameBoard({
     onTableCardDragDrop: playTableCardDrag,
   });
 
+  // Temp stack drag handlers - emit events to server for opponent ghost rendering
+  const currentDraggingStack = useRef<TempStack | null>(null);
+
+  const handleTempStackDragStart = useCallback((stack: TempStack) => {
+    console.log('[GameBoard] handleTempStackDragStart:', stack.stackId, stack.cards?.length);
+    currentDraggingStack.current = stack;
+    if (emitDragStackStart && stack.cards) {
+      const normX = 0.5;
+      const normY = 0.5;
+      emitDragStackStart(stack.cards, stack.stackId, 'temp_stack', { x: normX, y: normY });
+    }
+  }, [emitDragStackStart]);
+
+  const handleTempStackDragMove = useCallback((absoluteX: number, absoluteY: number) => {
+    console.log('[GameBoard] handleTempStackDragMove:', currentDraggingStack.current?.stackId, 'pos=(' + absoluteX + ',' + absoluteY + ')');
+    if (emitDragStackMove && currentDraggingStack.current) {
+      const tableWidth = drag.dropBounds.current.width || 400;
+      const tableHeight = drag.dropBounds.current.height || 300;
+      const normX = Math.max(0, Math.min(1, absoluteX / tableWidth));
+      const normY = Math.max(0, Math.min(1, absoluteY / tableHeight));
+      emitDragStackMove(
+        currentDraggingStack.current.cards || [],
+        currentDraggingStack.current.stackId,
+        { x: normX, y: normY }
+      );
+    }
+  }, [emitDragStackMove, drag.dropBounds]);
+
+  const handleTempStackDragEnd = useCallback((stack: TempStack) => {
+    console.log('[GameBoard] handleTempStackDragEnd:', stack.stackId);
+    currentDraggingStack.current = null;
+    if (emitDragStackEnd && stack.cards) {
+      emitDragStackEnd(stack.cards, stack.stackId, 'miss');
+    }
+  }, [emitDragStackEnd]);
+
   // Action handlers
   // IMPORTANT: Use gameState.tableCards directly instead of computed.table
   // to avoid stale closure issues with memoized selectors
@@ -685,6 +731,9 @@ export function GameBoard({
         onCapturedCardDragStart={dragHandlers.handleCapturedDragStart}
         onCapturedCardDragEnd={handleCapturedCardDragEnd}
         onCaptureBuild={handleCaptureBuild}
+        onTempStackDragStart={handleTempStackDragStart}
+        onTempStackDragMove={handleTempStackDragMove}
+        onTempStackDragEnd={handleTempStackDragEnd}
         findCapturePileAtPoint={drag.findCapturePileAtPoint}
         registerCapturePile={drag.registerCapturePile}
         unregisterCapturePile={drag.unregisterCapturePile}
@@ -704,8 +753,7 @@ export function GameBoard({
         onCardPlayed={playCardContact}
       />
 
-      {/* DEBUG: Log turn state for PlayerHandArea */}
-      {console.log('[GameBoard] DEBUG - isMyTurn:', computed.isMyTurn, 'currentPlayer:', gameState.currentPlayer, 'playerNumber:', playerNumber)}
+
 
       <PlayerHandArea
         key={`playerHand-${errorVersion}-${dragVersion}`}
@@ -752,7 +800,7 @@ export function GameBoard({
           actions.recall(recallId);
         }}
       />
-      {console.log('[GameBoard] pendingShiya passed to PlayerHandArea:', gameState.pendingShiya, 'my playerNumber:', playerNumber)}
+
 
       <DragGhost 
         draggingCard={draggingCard}
@@ -762,16 +810,29 @@ export function GameBoard({
       />
 
       {opponentDrag?.isDragging && (
-        <OpponentGhostCard
-          card={opponentDrag.card}
-          position={opponentDrag.position}
-          tableBounds={getTableBounds()}
-          targetType={opponentDrag.targetType}
-          targetId={opponentDrag.targetId}
-          cardPositions={drag.cardPositions.current}
-          stackPositions={drag.tempStackPositions.current}
-          capturePositions={drag.capturePilePositions.current}
-        />
+        opponentDrag.cards && opponentDrag.cards.length > 0 ? (
+          <OpponentGhostStack
+            cards={opponentDrag.cards}
+            position={opponentDrag.position}
+            tableBounds={getTableBounds()}
+            targetType={opponentDrag.targetType}
+            targetId={opponentDrag.targetId}
+            stackPositions={drag.tempStackPositions.current}
+            buildStackPositions={drag.buildStackPositions.current}
+            capturePositions={drag.capturePilePositions.current}
+          />
+        ) : opponentDrag.card ? (
+          <OpponentGhostCard
+            card={opponentDrag.card}
+            position={opponentDrag.position}
+            tableBounds={getTableBounds()}
+            targetType={opponentDrag.targetType}
+            targetId={opponentDrag.targetId}
+            cardPositions={drag.cardPositions.current}
+            stackPositions={drag.tempStackPositions.current}
+            capturePositions={drag.capturePilePositions.current}
+          />
+        ) : null
       )}
 
       <GameModals

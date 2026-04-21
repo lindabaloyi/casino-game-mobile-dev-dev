@@ -90,6 +90,7 @@ export function TempStackView({
 
   // Only temp_stack can be dragged, and only by the owner on their turn
   const canDrag = isMyTurn && playerNumber !== undefined && stack.owner === playerNumber;
+  console.log('[TempStackView] canDrag check:', { isMyTurn, playerNumber, stackOwner: stack.owner, canDrag, stackId: stack.stackId });
 
   // ── 1. Registration hook ───────────────────────────────────────────────────
   const viewRef = useStackRegistration({
@@ -113,6 +114,8 @@ export function TempStackView({
 
   // ── 5. Drag handlers ─────────────────────────────────────────────────────
   const handleDragStartInternal = useCallback(() => {
+    console.log('[TempStackView] handleDragStartInternal:', stack.stackId);
+    console.log('[TempStackView] onDragStart defined:', !!onDragStart);
     if (onDragStart) {
       onDragStart(stack);
     }
@@ -149,6 +152,7 @@ export function TempStackView({
   const panGesture = Gesture.Pan()
     .enabled(!!canDrag)
     .onStart(() => {
+      console.log('[TempStackView] Pan gesture started:', stack.stackId);
       isDragging.value = true;
       runOnJS(handleDragStartInternal)();
     })

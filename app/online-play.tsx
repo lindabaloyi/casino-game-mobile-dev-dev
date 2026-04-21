@@ -153,6 +153,9 @@ export default function OnlinePlayScreen() {
       emitDragStart={opponentDrag?.emitDragStart}
       emitDragMove={opponentDrag?.emitDragMove}
       emitDragEnd={opponentDrag?.emitDragEnd}
+      emitDragStackStart={opponentDrag?.emitDragStackStart}
+      emitDragStackMove={opponentDrag?.emitDragStackMove}
+      emitDragStackEnd={opponentDrag?.emitDragStackEnd}
     />
   );
 }

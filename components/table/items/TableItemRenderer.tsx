@@ -92,7 +92,7 @@ export function TableItemRenderer(props: TableItemRendererProps) {
   }
   
   if (isTempStack(item)) {
-    return <TempStackItem stack={item} tableVersion={tableVersion} playerCount={playerCount} isPartyMode={isPartyMode} {...tempStackProps} onBuildTap={onBuildTap} {...rest} />;
+    return <TempStackItem stack={item} tableVersion={tableVersion} playerCount={playerCount} isPartyMode={isPartyMode} {...tempStackProps} onBuildTap={onBuildTap} onDragStart={props.onTempStackDragStart} onDragMove={props.onTempStackDragMove} onDragEnd={props.onTempStackDragEnd} {...rest} />;
   }
   
   if (isBuildStack(item)) {

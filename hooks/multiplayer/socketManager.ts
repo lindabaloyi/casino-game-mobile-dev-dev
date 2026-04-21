@@ -25,7 +25,6 @@ function startHeartbeat(socket: Socket) {
   heartbeatInterval = setInterval(() => {
     if (socket.connected) {
       socket.emit('heartbeat');
-      console.log('[SocketManager] Heartbeat sent');
     }
   }, HEARTBEAT_INTERVAL_MS);
 }

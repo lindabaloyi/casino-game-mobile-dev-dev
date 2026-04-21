@@ -230,6 +230,71 @@ class GameCoordinatorService {
     }, this.unifiedMatchmaking);
   }
 
+  // ── Stack Drag handlers ─────────────────────────────────────────────────────────
+
+  handleDragStackStart(socket, data) {
+    const ctx = this._resolvePlayer(socket);
+    if (!ctx) {
+      console.log('[Coordinator] handleDragStackStart: No player context found');
+      return;
+    }
+    const { gameId, playerIndex } = ctx;
+    
+    console.log(`[Coordinator] handleDragStackStart: playerIndex=${playerIndex}, stackId=${data.stackId}, cards=${data.cards?.length}, source=${data.source}`);
+    
+    this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-stack-start', {
+      playerIndex,
+      stackId: data.stackId,
+      cards: data.cards,
+      source: data.source,
+      position: data.position,
+      timestamp: Date.now(),
+    }, this.unifiedMatchmaking);
+    
+    console.log(`[Coordinator] handleDragStackStart: Broadcasted opponent-drag-stack-start to others in game ${gameId}`);
+  }
+
+  handleDragStackMove(socket, data) {
+    const ctx = this._resolvePlayer(socket);
+    if (!ctx) {
+      console.log('[Coordinator] handleDragStackMove: No player context found');
+      return;
+    }
+    const { gameId, playerIndex } = ctx;
+    
+    console.log(`[Coordinator] handleDragStackMove: stackId=${data.stackId}, pos=(${data.position?.x},${data.position?.y})`);
+    this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-stack-move', {
+      playerIndex,
+      stackId: data.stackId,
+      cards: data.cards,
+      position: data.position,
+      timestamp: Date.now(),
+    }, this.unifiedMatchmaking);
+  }
+
+  handleDragStackEnd(socket, data) {
+    const ctx = this._resolvePlayer(socket);
+    if (!ctx) {
+      console.log('[Coordinator] handleDragStackEnd: No player context found');
+      return;
+    }
+    const { gameId, playerIndex } = ctx;
+    
+    console.log(`[Coordinator] handleDragStackEnd: playerIndex=${playerIndex}, stackId=${data.stackId}, outcome=${data.outcome}, targetType=${data.targetType}, targetId=${data.targetId}`);
+    
+    this.broadcaster.broadcastToOthers(gameId, socket.id, 'opponent-drag-stack-end', {
+      playerIndex,
+      stackId: data.stackId,
+      cards: data.cards,
+      outcome: data.outcome || 'miss',
+      targetType: data.targetType,
+      targetId: data.targetId,
+      timestamp: Date.now(),
+    }, this.unifiedMatchmaking);
+    
+    console.log(`[Coordinator] handleDragStackEnd: Broadcasted opponent-drag-stack-end to others in game ${gameId}`);
+  }
+
   // ── Round and Stats ─────────────────────────────────────────────────────────────
 
   handleStartNextRound(socket) {

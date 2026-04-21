@@ -330,6 +330,9 @@ function attachSocketHandlers(socket, services) {
   socket.on('drag-start', (data) => coordinator.handleDragStart(socket, data));
   socket.on('drag-move', (data) => coordinator.handleDragMove(socket, data));
   socket.on('drag-end', (data) => coordinator.handleDragEnd(socket, data));
+  socket.on('drag-stack-start', (data) => coordinator.handleDragStackStart(socket, data));
+  socket.on('drag-stack-move', (data) => coordinator.handleDragStackMove(socket, data));
+  socket.on('drag-stack-end', (data) => coordinator.handleDragStackEnd(socket, data));
   socket.on('get-player-stats', (data) => coordinator.handleGetPlayerStats(socket, data));
 
   // ── Client Ready Handler ──────────────────────────────────────────────

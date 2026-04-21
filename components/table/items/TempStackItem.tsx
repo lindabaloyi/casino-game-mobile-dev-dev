@@ -39,6 +39,7 @@ export function TempStackItem({
   onDropToCapture,
   onBuildTap,
 }: TempStackItemProps) {
+  console.log('[TempStackItem] Props check:', { hasOnDragStart: !!onDragStart, stackId: stack.stackId });
   return (
     <TempStackView
       key={stack.stackId}

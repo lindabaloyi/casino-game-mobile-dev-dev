@@ -31,6 +31,9 @@ export interface GameRoomContainerProps {
   emitDragStart: (card: any, source: any, position: { x: number; y: number }) => void;
   emitDragMove: (card: any, position: { x: number; y: number }) => void;
   emitDragEnd: (card: any, position: { x: number; y: number }, outcome: any, targetType?: string, targetId?: string) => void;
+  emitDragStackStart?: (cards: any[], stackId: string, source: string, position: { x: number; y: number }) => void;
+  emitDragStackMove?: (cards: any[], stackId: string, position: { x: number; y: number }) => void;
+  emitDragStackEnd?: (cards: any[], stackId: string, outcome: any, targetType?: string, targetId?: string) => void;
   /** Number of players in the game (for spectator view) */
   playerCount?: number;
 }
@@ -49,6 +52,9 @@ export const GameRoomContainer: React.FC<GameRoomContainerProps> = ({
   emitDragStart,
   emitDragMove,
   emitDragEnd,
+  emitDragStackStart,
+  emitDragStackMove,
+  emitDragStackEnd,
   playerCount = 4,
 }) => {
   const router = useRouter();
@@ -125,6 +131,9 @@ export const GameRoomContainer: React.FC<GameRoomContainerProps> = ({
           emitDragStart={emitDragStart}
           emitDragMove={emitDragMove}
           emitDragEnd={emitDragEnd}
+          emitDragStackStart={emitDragStackStart}
+          emitDragStackMove={emitDragStackMove}
+          emitDragStackEnd={emitDragStackEnd}
         />
       </View>
     );
@@ -147,6 +156,9 @@ export const GameRoomContainer: React.FC<GameRoomContainerProps> = ({
         emitDragStart={emitDragStart}
         emitDragMove={emitDragMove}
         emitDragEnd={emitDragEnd}
+        emitDragStackStart={emitDragStackStart}
+        emitDragStackMove={emitDragStackMove}
+        emitDragStackEnd={emitDragStackEnd}
       />
     </View>
   );
