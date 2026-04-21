@@ -47,6 +47,8 @@ interface TableItemRendererProps {
   pendingDropCard?: Card | null;
   /** Pending drop source - 'hand' | 'captured' | 'table' | null */
   pendingDropSource?: 'hand' | 'captured' | 'table' | null;
+  /** Opponent's drag state - for hiding cards/stacks during opponent's drag */
+  opponentDrag?: { stackId?: string; isDragging?: boolean } | null;
 }
 
 export function TableItemRenderer(props: TableItemRendererProps) {
@@ -92,7 +94,8 @@ export function TableItemRenderer(props: TableItemRendererProps) {
   }
   
   if (isTempStack(item)) {
-    return <TempStackItem stack={item} tableVersion={tableVersion} playerCount={playerCount} isPartyMode={isPartyMode} {...tempStackProps} onBuildTap={onBuildTap} onDragStart={props.onTempStackDragStart} onDragMove={props.onTempStackDragMove} onDragEnd={props.onTempStackDragEnd} {...rest} />;
+    console.log('[TableItemRenderer] TempStackItem props:', { hasOpponentDrag: !!props.opponentDrag, stackId: props.opponentDrag?.stackId });
+    return <TempStackItem stack={item} tableVersion={tableVersion} playerCount={playerCount} isPartyMode={isPartyMode} {...tempStackProps} onBuildTap={onBuildTap} onDragStart={props.onTempStackDragStart} onDragMove={props.onTempStackDragMove} onDragEnd={props.onTempStackDragEnd} opponentDraggingStackId={props.opponentDrag?.stackId} {...rest} />;
   }
   
   if (isBuildStack(item)) {

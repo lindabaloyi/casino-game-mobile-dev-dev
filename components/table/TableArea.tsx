@@ -271,6 +271,7 @@ export function TableArea({
         onDoubleTapCard={onDoubleTapCard}
         pendingDropCard={pendingDropCard}
         pendingDropSource={pendingDropSource}
+        opponentDrag={opponentDrag}
       />
     );
   };

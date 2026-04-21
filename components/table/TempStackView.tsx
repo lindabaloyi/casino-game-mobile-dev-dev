@@ -61,6 +61,8 @@ interface Props {
   onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
   /** Called when the stack is tapped (to set build value for dual builds) */
   onBuildTap?: (stack: TempStack) => void;
+  /** Stack ID of opponent's currently dragging stack - hides original when opponent drags */
+  opponentDraggingStackId?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -80,7 +82,13 @@ export function TempStackView({
   onDragEnd,
   onDropToCapture,
   onBuildTap,
+  opponentDraggingStackId,
 }: Props) {
+  if (opponentDraggingStackId === stack.stackId) {
+    console.log('[TempStackView] Hiding original - opponent is dragging:', stack.stackId);
+    return null;
+  }
+
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const isDragging = useSharedValue(false);
