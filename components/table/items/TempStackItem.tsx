@@ -21,6 +21,8 @@ interface TempStackItemProps {
   onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
   /** Called when stack is tapped (for dual builds) */
   onBuildTap?: (stack: TempStack) => void;
+  /** Opponent's drag state - for hiding stack when opponent drags it */
+  opponentDrag?: any;
 }
 
 export function TempStackItem({
@@ -38,6 +40,7 @@ export function TempStackItem({
   onDragEnd,
   onDropToCapture,
   onBuildTap,
+  opponentDrag,
 }: TempStackItemProps) {
   console.log('[TempStackItem] Props check:', { hasOnDragStart: !!onDragStart, stackId: stack.stackId });
   return (
@@ -57,6 +60,7 @@ export function TempStackItem({
       onDragEnd={onDragEnd}
       onDropToCapture={onDropToCapture}
       onBuildTap={onBuildTap}
+      opponentDrag={opponentDrag}
     />
   );
 }

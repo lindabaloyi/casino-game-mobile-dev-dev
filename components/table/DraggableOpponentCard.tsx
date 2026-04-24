@@ -13,6 +13,7 @@ import { Card } from './types';
 import { OpponentDragState } from '../../hooks/useGameState';
 import { areTeammates } from '../../shared/game/team';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
+import { useGhostVisibility } from '../../hooks/game/useGhostVisibility';
 
 export interface DraggableOpponentCardProps {
   card: Card;
@@ -258,15 +259,9 @@ export function DraggableOpponentCard({
   // Hide card if:
   // 1. Opponent is actively dragging this card, OR
   // 2. Card has been dropped (has targetId) - optimistic UI to prevent duplicate display
+  const { isCapturedCardHidden } = useGhostVisibility(opponentDrag);
   const cardId = `${card.rank}${card.suit}`;
-  const isHidden = Boolean(
-    (opponentDrag?.isDragging &&
-      opponentDrag.source === 'captured' &&
-      opponentDrag.cardId === cardId) ||
-    (opponentDrag?.targetId &&
-      opponentDrag.source === 'captured' &&
-      opponentDrag.cardId === cardId)
-  );
+  const isHidden = isCapturedCardHidden(cardId);
 
   if (isHidden) {
     return (

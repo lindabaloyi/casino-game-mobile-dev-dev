@@ -30,6 +30,9 @@ interface TableItemRendererProps {
   onTempStackDragStart?: (stack: TempStack) => void;
   onTempStackDragMove?: (absoluteX: number, absoluteY: number) => void;
   onTempStackDragEnd?: (stack: TempStack) => void;
+  onBuildStackDragStart?: (stack: BuildStack) => void;
+  onBuildStackDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onBuildStackDragEnd?: (stack: BuildStack) => void;
   onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
   /** Callback for dropping a build stack (with pending extension) onto capture pile */
   onDropBuildToCapture?: (stack: BuildStack) => void;
@@ -96,12 +99,15 @@ export function TableItemRenderer(props: TableItemRendererProps) {
   }
   
   if (isBuildStack(item)) {
-    return <BuildStackItem 
-      stack={item} 
-      tableVersion={tableVersion} 
-      isPartyMode={isPartyMode} 
+    return <BuildStackItem
+      stack={item}
+      tableVersion={tableVersion}
+      isPartyMode={isPartyMode}
       currentPlayerIndex={currentPlayerIndex}
       playerCount={playerCount}
+      onDragStart={props.onBuildStackDragStart}
+      onDragMove={props.onBuildStackDragMove}
+      onDragEnd={props.onBuildStackDragEnd}
       {...buildStackAllProps}
       {...rest}
     />;

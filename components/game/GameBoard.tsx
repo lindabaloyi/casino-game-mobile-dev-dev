@@ -36,8 +36,7 @@ import { PlayerHandArea } from './PlayerHandArea';
 import { Card as TableCard, TempStack } from '../table/types';
 import { GameModals } from './GameModals';
 import { DragGhost } from './DragGhost';
-import { OpponentGhostCard } from './OpponentGhostCard';
-import { OpponentGhostStack } from './OpponentGhostStack';
+import { OpponentGhostOverlay } from './OpponentGhostOverlay';
 import { ErrorBanner } from '../shared/ErrorBanner';
 import { GameOverModal } from '../modals/GameOverModal';
 import { TournamentWinnerModal } from '../game-over/TournamentWinnerModal';
@@ -445,7 +444,7 @@ export function GameBoard({
     if (emitDragStackStart && stack.cards) {
       const normX = 0.5;
       const normY = 0.5;
-      emitDragStackStart(stack.cards, stack.stackId, 'temp_stack', { x: normX, y: normY });
+      emitDragStackStart([...stack.cards], stack.stackId, 'temp_stack', { x: normX, y: normY });
     }
   }, [emitDragStackStart]);
 
@@ -457,7 +456,7 @@ export function GameBoard({
       const normX = Math.max(0, Math.min(1, absoluteX / tableWidth));
       const normY = Math.max(0, Math.min(1, absoluteY / tableHeight));
       emitDragStackMove(
-        currentDraggingStack.current.cards || [],
+        [...(currentDraggingStack.current.cards || [])],
         currentDraggingStack.current.stackId,
         { x: normX, y: normY }
       );
@@ -468,7 +467,42 @@ export function GameBoard({
     console.log('[GameBoard] handleTempStackDragEnd:', stack.stackId);
     currentDraggingStack.current = null;
     if (emitDragStackEnd && stack.cards) {
-      emitDragStackEnd(stack.cards, stack.stackId, 'miss');
+      emitDragStackEnd([...stack.cards], stack.stackId, 'miss');
+    }
+  }, [emitDragStackEnd]);
+
+  const currentDraggingBuild = useRef<any>(null);
+
+  const handleBuildStackDragStart = useCallback((stack: any) => {
+    console.log('[GameBoard] handleBuildStackDragStart:', stack.stackId, stack.cards?.length);
+    currentDraggingBuild.current = stack;
+    if (emitDragStackStart && stack.cards) {
+      const normX = 0.5;
+      const normY = 0.5;
+      emitDragStackStart([...stack.cards], stack.stackId, 'build_stack', { x: normX, y: normY });
+    }
+  }, [emitDragStackStart]);
+
+  const handleBuildStackDragMove = useCallback((absoluteX: number, absoluteY: number) => {
+    console.log('[GameBoard] handleBuildStackDragMove:', currentDraggingBuild.current?.stackId, 'pos=(' + absoluteX + ',' + absoluteY + ')');
+    if (emitDragStackMove && currentDraggingBuild.current) {
+      const tableWidth = drag.dropBounds.current.width || 400;
+      const tableHeight = drag.dropBounds.current.height || 300;
+      const normX = Math.max(0, Math.min(1, absoluteX / tableWidth));
+      const normY = Math.max(0, Math.min(1, absoluteY / tableHeight));
+      emitDragStackMove(
+        [...(currentDraggingBuild.current.cards || [])],
+        currentDraggingBuild.current.stackId,
+        { x: normX, y: normY }
+      );
+    }
+  }, [emitDragStackMove, drag.dropBounds]);
+
+  const handleBuildStackDragEnd = useCallback((stack: any) => {
+    console.log('[GameBoard] handleBuildStackDragEnd:', stack.stackId);
+    currentDraggingBuild.current = null;
+    if (emitDragStackEnd && stack.cards) {
+      emitDragStackEnd([...stack.cards], stack.stackId, 'miss');
     }
   }, [emitDragStackEnd]);
 
@@ -734,6 +768,9 @@ export function GameBoard({
         onTempStackDragStart={handleTempStackDragStart}
         onTempStackDragMove={handleTempStackDragMove}
         onTempStackDragEnd={handleTempStackDragEnd}
+        onBuildStackDragStart={handleBuildStackDragStart}
+        onBuildStackDragMove={handleBuildStackDragMove}
+        onBuildStackDragEnd={handleBuildStackDragEnd}
         findCapturePileAtPoint={drag.findCapturePileAtPoint}
         registerCapturePile={drag.registerCapturePile}
         unregisterCapturePile={drag.unregisterCapturePile}
@@ -810,29 +847,16 @@ export function GameBoard({
       />
 
       {opponentDrag?.isDragging && (
-        opponentDrag.cards && opponentDrag.cards.length > 0 ? (
-          <OpponentGhostStack
-            cards={opponentDrag.cards}
-            position={opponentDrag.position}
-            tableBounds={getTableBounds()}
-            targetType={opponentDrag.targetType}
-            targetId={opponentDrag.targetId}
-            stackPositions={drag.tempStackPositions.current}
-            buildStackPositions={drag.buildStackPositions.current}
-            capturePositions={drag.capturePilePositions.current}
-          />
-        ) : opponentDrag.card ? (
-          <OpponentGhostCard
-            card={opponentDrag.card}
-            position={opponentDrag.position}
-            tableBounds={getTableBounds()}
-            targetType={opponentDrag.targetType}
-            targetId={opponentDrag.targetId}
-            cardPositions={drag.cardPositions.current}
-            stackPositions={drag.tempStackPositions.current}
-            capturePositions={drag.capturePilePositions.current}
-          />
-        ) : null
+        <OpponentGhostOverlay
+          opponentDrag={opponentDrag}
+          tableBounds={getTableBounds()}
+          positionRegistry={{
+            cards: drag.cardPositions.current,
+            tempStacks: drag.tempStackPositions.current,
+            buildStacks: drag.buildStackPositions.current,
+            capturePiles: drag.capturePilePositions.current,
+          }}
+        />
       )}
 
       <GameModals

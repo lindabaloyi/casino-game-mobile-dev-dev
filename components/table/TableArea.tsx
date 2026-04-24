@@ -25,7 +25,7 @@ import { StackOverlay } from './overlays/StackOverlay';
 import { ExtensionOverlay } from './overlays/ExtensionOverlay';
 
 // Visibility utility
-import { useCardVisibility } from './utils/cardVisibility';
+import { useGhostVisibility } from '../../hooks/game/useGhostVisibility';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -104,6 +104,11 @@ interface Props {
   onTempStackDragStart?: (stack: TempStack) => void;
   onTempStackDragMove?: (absoluteX: number, absoluteY: number) => void;
   onTempStackDragEnd?: (stack: TempStack) => void;
+
+  // Build stack drag handlers
+  onBuildStackDragStart?: (stack: BuildStack) => void;
+  onBuildStackDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onBuildStackDragEnd?: (stack: BuildStack) => void;
 
   // Build extension handlers
   extendingBuildId?: string | null;
@@ -188,6 +193,9 @@ export function TableArea({
   onTempStackDragStart,
   onTempStackDragMove,
   onTempStackDragEnd,
+  onBuildStackDragStart,
+  onBuildStackDragMove,
+  onBuildStackDragEnd,
   extendingBuildId,
   onExtendBuild,
   onCaptureBuild,
@@ -213,7 +221,7 @@ export function TableArea({
   const looseCards = tableCards.filter(isLooseCard) as Card[];
 
   // Visibility logic
-  const { isCardHidden } = useCardVisibility(opponentDrag);
+  const { isTableCardHidden } = useGhostVisibility(opponentDrag);
 
   // Helper to get a unique key for an item
   const getItemKey = (item: TableItem, index: number): string => {
@@ -232,7 +240,9 @@ export function TableArea({
   // Render item function for grid
   const renderItem = (item: TableItem, index: number) => {
     // Determine if hidden for loose cards
-    const hidden = isLooseCard(item) ? isCardHidden(item as Card) : false;
+    const card = item as Card;
+    const cardId = `${card.rank}${card.suit}`;
+    const hidden = isLooseCard(item) ? isTableCardHidden(cardId) : false;
     
     return (
       <TableItemRenderer
@@ -262,6 +272,9 @@ export function TableArea({
         onTempStackDragStart={onTempStackDragStart}
         onTempStackDragMove={onTempStackDragMove}
         onTempStackDragEnd={onTempStackDragEnd}
+        onBuildStackDragStart={onBuildStackDragStart}
+        onBuildStackDragMove={onBuildStackDragMove}
+        onBuildStackDragEnd={onBuildStackDragEnd}
         onDropToCapture={onDropToCapture}
         onDropBuildToCapture={onDropBuildToCapture}
         isHidden={hidden}
@@ -271,6 +284,7 @@ export function TableArea({
         onDoubleTapCard={onDoubleTapCard}
         pendingDropCard={pendingDropCard}
         pendingDropSource={pendingDropSource}
+        opponentDrag={opponentDrag}
       />
     );
   };

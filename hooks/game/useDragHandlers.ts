@@ -64,11 +64,11 @@ export function useDragHandlers({
     if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
       if (!boundsReady) {
         const norm = { x: 0.5, y: 0.5 };
-        emitDragStart(card, 'hand', norm);
+        emitDragStart({ ...card }, 'hand', norm);
         return;
       }
       const norm = getNormalizedPosition(absoluteX, absoluteY);
-      emitDragStart(card, 'hand', norm);
+      emitDragStart({ ...card }, 'hand', norm);
     }
   }, [startDrag, emitDragStart, getNormalizedPosition, dropBounds]);
 
@@ -79,7 +79,7 @@ export function useDragHandlers({
         return;
       }
       const norm = getNormalizedPosition(absoluteX, absoluteY);
-      emitDragStart(card, 'table', norm);
+      emitDragStart({ ...card }, 'table', norm);
     }
   }, [startDrag, emitDragStart, getNormalizedPosition, dropBounds]);
 
@@ -87,7 +87,7 @@ export function useDragHandlers({
     startDrag(card, 'captured', absoluteX, absoluteY);
     if (emitDragStart && absoluteX !== undefined && absoluteY !== undefined) {
       const norm = getNormalizedPosition(absoluteX, absoluteY);
-      emitDragStart(card, 'captured', norm);
+      emitDragStart({ ...card }, 'captured', norm);
     }
   }, [startDrag, emitDragStart, getNormalizedPosition]);
 

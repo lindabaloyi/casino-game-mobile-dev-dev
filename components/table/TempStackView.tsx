@@ -24,6 +24,7 @@ import { useTempStackCards } from '../../hooks/table/useTempStackCards';
 import { useTempStackDisplay } from '../../hooks/table/useTempStackDisplay';
 import { BuildValueBadge } from './components/BuildValueBadge';
 import { TypeBadge } from './components/TypeBadge';
+import { OpponentDragState } from '../../hooks/multiplayer/useOpponentDrag';
 
 // Double-click threshold in milliseconds
 const DOUBLE_CLICK_THRESHOLD = 300;
@@ -61,6 +62,8 @@ interface Props {
   onDropToCapture?: (stack: TempStack, source: 'hand' | 'captured') => void;
   /** Called when the stack is tapped (to set build value for dual builds) */
   onBuildTap?: (stack: TempStack) => void;
+  /** Opponent's drag state - for hiding stack when opponent drags it */
+  opponentDrag?: OpponentDragState | null;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -80,6 +83,7 @@ export function TempStackView({
   onDragEnd,
   onDropToCapture,
   onBuildTap,
+  opponentDrag,
 }: Props) {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -90,7 +94,6 @@ export function TempStackView({
 
   // Only temp_stack can be dragged, and only by the owner on their turn
   const canDrag = isMyTurn && playerNumber !== undefined && stack.owner === playerNumber;
-  console.log('[TempStackView] canDrag check:', { isMyTurn, playerNumber, stackOwner: stack.owner, canDrag, stackId: stack.stackId });
 
   // ── 1. Registration hook ───────────────────────────────────────────────────
   const viewRef = useStackRegistration({

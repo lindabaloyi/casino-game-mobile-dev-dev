@@ -23,6 +23,8 @@ interface BuildStackItemProps {
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: (stack: BuildStack) => void;
   onDropToCapture?: (stack: BuildStack) => void;
+  /** Opponent's drag state - for hiding stack when opponent drags it */
+  opponentDrag?: any;
 }
 
 export function BuildStackItem({
@@ -41,6 +43,7 @@ export function BuildStackItem({
   onDragMove,
   onDragEnd,
   onDropToCapture,
+  opponentDrag,
 }: BuildStackItemProps) {
   return (
     <BuildStackView
@@ -60,6 +63,7 @@ export function BuildStackItem({
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
       onDropToCapture={onDropToCapture}
+      opponentDrag={opponentDrag}
     />
   );
 }

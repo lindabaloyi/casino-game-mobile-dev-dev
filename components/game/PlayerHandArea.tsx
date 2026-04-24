@@ -19,6 +19,7 @@ import { TableItem } from '../table/types';
 import { OpponentDragState } from '../../hooks/useGameState';
 import { StackActionStrip } from '../table/StackActionStrip';
 import { areTeammates } from '../../shared/game/team';
+import { useGhostVisibility } from '../../hooks/game/useGhostVisibility';
 import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 
 interface Card {
@@ -219,6 +220,9 @@ function PlayerHandAreaImpl({
   const sortedHand = useMemo(() => {
     return [...hand].sort((a, b) => a.value - b.value);
   }, [hand]);
+
+  // Visibility hook for opponent drag
+  const { isHandCardHidden } = useGhostVisibility(opponentDrag);
   
   // Note: Card contact sound is now passed via onCardContact prop from GameBoard
   // This ensures sounds persist across drags (PlayerHandArea remounts on drag)
@@ -322,20 +326,12 @@ return (
         data={sortedHand}
         renderItem={({ item: card, index }) => {
           const cardId = `${card.rank}${card.suit}`;
-          const isPendingDrop = pendingDropCard && 
+          const isPendingDrop = pendingDropCard &&
             pendingDropSource === 'hand' &&
-            pendingDropCard.rank === card.rank && 
+            pendingDropCard.rank === card.rank &&
             pendingDropCard.suit === card.suit;
-          
-          const isHidden = Boolean(
-            (opponentDrag?.isDragging &&
-              opponentDrag.source === 'hand' &&
-              opponentDrag.cardId === cardId) ||
-            (opponentDrag?.targetId &&
-              opponentDrag.source === 'hand' &&
-              opponentDrag.cardId === cardId) ||
-            isPendingDrop
-          );
+
+          const isHidden = isHandCardHidden(cardId) || isPendingDrop;
           
           return (
             <View

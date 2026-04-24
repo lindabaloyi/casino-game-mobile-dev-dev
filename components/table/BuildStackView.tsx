@@ -28,6 +28,7 @@ import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/cardDimensions';
 import { useBuildDisplayValue } from '../../hooks/table/useBuildDisplayValue';
 import { useBuildTeamInfo } from '../../hooks/table/useBuildTeamInfo';
 import { BuildValueBadge, OwnerIndicator, BuildCards } from './components';
+import { OpponentDragState } from '../../hooks/multiplayer/useOpponentDrag';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -63,6 +64,8 @@ interface Props {
   onDragMove?: (absoluteX: number, absoluteY: number) => void;
   onDragEnd?: (stack: BuildStack) => void;
   onDropToCapture?: (stack: BuildStack) => void;
+  /** Opponent's drag state - for hiding stack when opponent drags it */
+  opponentDrag?: OpponentDragState | null;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -83,6 +86,7 @@ export function BuildStackView({
   onDragMove,
   onDragEnd,
   onDropToCapture,
+  opponentDrag,
 }: Props) {
   const viewRef = useRef<View>(null);
   const translateX = useSharedValue(0);
@@ -122,9 +126,9 @@ export function BuildStackView({
   // - It's the player's turn
   // - They own the build
   // - There's a pending extension on the build
-  const canDrag = isMyTurn && 
-    playerNumber !== undefined && 
-    stack.owner === playerNumber && 
+  const canDrag = isMyTurn &&
+    playerNumber !== undefined &&
+    stack.owner === playerNumber &&
     isExtending;
 
   // ── Use extracted hooks ───────────────────────────────────────────────────

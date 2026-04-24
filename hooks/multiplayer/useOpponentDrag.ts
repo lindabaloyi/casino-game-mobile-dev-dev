@@ -148,7 +148,7 @@ export function useOpponentDrag(socket: Socket | null): UseOpponentDragResult {
       setOpponentDrag({
         playerIndex: data.playerIndex,
         stackId: data.stackId,
-        cards: data.cards,
+        cards: data.cards?.slice() ?? null,
         source: data.source,
         position: data.position,
         isDragging: true,
@@ -198,7 +198,7 @@ export function useOpponentDrag(socket: Socket | null): UseOpponentDragResult {
       targetType?: string;
       targetId?: string;
     }) => {
-      console.log('[useOpponentDrag] handleDragStackEnd:', data);
+      // Immediately clear state - ghost disappears instantly on drag end
       setOpponentDrag(null);
     };
 
